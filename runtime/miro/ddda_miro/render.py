@@ -49,13 +49,13 @@ def render_board(config: ProjectConfig, client: MiroClient | None, *, create_boa
         text_id = f"{frame_id}:instructions"
         text_entry = mapping["items"].get(text_id) or {}
         checklist = "<p><strong>Cíl a pracovní oblasti</strong></p>" + "".join(f"<p>• {str(section).replace('_', ' ')}</p>" for section in sections)
-        checklist += f"<p><small>DDDA:{config.project_id}:{text_id}</small></p>"
+        checklist += f"<p><small>DDDA-SCAFFOLD:{config.project_id}:{text_id}</small></p>"
         text_payload = {
             "data": {"content": checklist}, "position": {"x": 0, "y": 0, "origin": "center"},
             "geometry": {"width": max(800, float(frame.get("width", 3000)) - 300)}, "parent": {"id": remote_id},
         }
         text_remote = client.update_item(board_id, "text", str(text_entry["miro_item_id"]), text_payload) if text_entry.get("miro_item_id") else client.create_item(board_id, "text", text_payload)
-        mapping["items"][text_id] = {"miro_item_id": str(text_remote["id"]), "item_type": "text", "frame_id": frame_id, "managed": True, "updated_at": utc_now()}
+        mapping["items"][text_id] = {"miro_item_id": str(text_remote["id"]), "item_type": "text", "frame_id": frame_id, "managed": True, "system_item": True, "updated_at": utc_now()}
     if not dry_run:
         mapping["board_id"] = board_id
         mapping["scaffold_id"] = scaffold.get("id")
