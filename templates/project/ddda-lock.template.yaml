@@ -1,0 +1,6 @@
+ddda:
+  repository: romanhlavac/ddd-accelerator
+  ref: __PLATFORM_REF__
+  commit: __PLATFORM_COMMIT__
+  schema_version: 1
+  locked_at: __LOCKED_AT__
