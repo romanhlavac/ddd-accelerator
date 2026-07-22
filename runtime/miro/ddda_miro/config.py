@@ -38,6 +38,10 @@ class ProjectConfig:
             raise ValueError("project.yaml: project.id is required")
         board_id_env = miro.get("board_id_env")
         board_id = miro.get("board_id") or (os.environ.get(str(board_id_env)) if board_id_env else None)
+        if not board_id:
+            local_map = load_yaml(root / "miro" / "miro-map.yaml") or {}
+            if isinstance(local_map, dict):
+                board_id = local_map.get("board_id")
         token_env = str(miro.get("access_token_env") or "MIRO_ACCESS_TOKEN")
         team_id = miro.get("team_id") or (os.environ.get(str(miro.get("team_id_env"))) if miro.get("team_id_env") else None)
         miro_project_id = miro.get("project_id") or (os.environ.get(str(miro.get("project_id_env"))) if miro.get("project_id_env") else None)
