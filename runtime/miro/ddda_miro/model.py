@@ -19,13 +19,57 @@ DEFAULT_ITEM_TYPES = {
     "bounded_context": "shape", "subdomain": "shape", "team": "shape",
     "decision": "shape", "note": "text", "text": "text",
 }
-PALETTE = {
+
+SHAPE_PALETTE = {
     "domain_event": "#F6A04D", "command": "#86C5E8", "policy": "#C49ACD",
     "procedure": "#C49ACD", "read_model": "#C8E986", "external_system": "#F3B4C4",
     "actor": "#F4DC67", "hotspot": "#E84C3D", "bounded_context": "#DDEFA9",
     "subdomain": "#DDEFA9", "team": "#B7D7F0", "decision": "#F8E58C",
     "note": "#FFFFFF", "text": "#FFFFFF",
 }
+
+STICKY_PALETTE = {
+    "domain_event": "orange", "command": "light_blue", "policy": "violet",
+    "procedure": "violet", "read_model": "light_green", "external_system": "light_pink",
+    "actor": "yellow", "hotspot": "red", "bounded_context": "light_green",
+    "subdomain": "light_green", "team": "light_blue", "decision": "light_yellow",
+    "note": "light_yellow", "text": "light_yellow",
+}
+
+STICKY_COLORS = {
+    "gray", "light_yellow", "yellow", "orange", "light_green", "green", "dark_green",
+    "cyan", "light_pink", "pink", "violet", "red", "light_blue", "blue", "dark_blue", "black",
+}
+
+HEX_TO_STICKY = {
+    "#F6A04D": "orange", "#86C5E8": "light_blue", "#C49ACD": "violet",
+    "#C8E986": "light_green", "#F3B4C4": "light_pink", "#F4DC67": "yellow",
+    "#E84C3D": "red", "#DDEFA9": "light_green", "#B7D7F0": "light_blue",
+    "#F8E58C": "light_yellow", "#FFFFFF": "light_yellow",
+}
+
+
+def _sticky_color(value: Any, artifact_type: str) -> str:
+    if value is None:
+        return STICKY_PALETTE.get(artifact_type, "light_yellow")
+    normalized = str(value).strip()
+    if normalized in STICKY_COLORS:
+        return normalized
+    mapped = HEX_TO_STICKY.get(normalized.upper())
+    if mapped:
+        return mapped
+    raise ValueError(
+        f"Unsupported Miro sticky-note fillColor {value!r}; use one of: {', '.join(sorted(STICKY_COLORS))}"
+    )
+
+
+def _geometry_for_item(item_type: str, geometry: dict[str, Any]) -> dict[str, Any]:
+    normalized = dict(geometry)
+    if item_type == "sticky_note" and "width" in normalized and "height" in normalized:
+        normalized.pop("height")
+    if item_type == "text":
+        normalized = {"width": normalized["width"]} if "width" in normalized else {}
+    return normalized
 
 
 @dataclass(slots=True)
@@ -74,7 +118,13 @@ class ManagedArtifact:
         ])
         return "".join(parts)
 
-    def to_miro_payload(self, project_id: str, *, parent_item_id: str | None = None, include_layout: bool = False) -> dict[str, Any]:
+    def to_miro_payload(
+        self,
+        project_id: str,
+        *,
+        parent_item_id: str | None = None,
+        include_layout: bool = False,
+    ) -> dict[str, Any]:
         if self.item_type == "frame":
             payload: dict[str, Any] = {"data": {"title": f"{self.name} [{self.marker(project_id)}]"}}
         else:
@@ -83,18 +133,23 @@ class ManagedArtifact:
                 payload["data"]["shape"] = "rectangle"
             if self.item_type == "shape":
                 payload["data"]["shape"] = "round_rectangle"
+
         style = dict(self.style)
-        if self.item_type in {"sticky_note", "shape", "frame"}:
-            style.setdefault("fillColor", PALETTE.get(self.artifact_type, "#FFFFFF"))
+        if self.item_type == "sticky_note":
+            style["fillColor"] = _sticky_color(style.get("fillColor"), self.artifact_type)
+        elif self.item_type in {"shape", "frame"}:
+            style.setdefault("fillColor", SHAPE_PALETTE.get(self.artifact_type, "#FFFFFF"))
         if style:
             payload["style"] = style
+
         if parent_item_id:
             payload["parent"] = {"id": parent_item_id}
         if include_layout:
             if self.position:
                 payload["position"] = self.position
-            if self.geometry:
-                payload["geometry"] = self.geometry
+            geometry = _geometry_for_item(self.item_type, self.geometry)
+            if geometry:
+                payload["geometry"] = geometry
         return payload
 
 
@@ -126,14 +181,19 @@ def load_artifacts(project_root: Path, artifact_root: str) -> list[ManagedArtifa
         miro = payload.get("miro") or document.get("miro") or {}
         item_type = miro.get("item_type") or DEFAULT_ITEM_TYPES.get(str(artifact_type), "sticky_note")
         artifacts.append(ManagedArtifact(
-            artifact_id=str(artifact_id), artifact_type=str(artifact_type),
+            artifact_id=str(artifact_id),
+            artifact_type=str(artifact_type),
             name=str(_first(payload, "name", "title", "label", default=artifact_id)),
             description=str(_first(payload, "description", "content", "text", default="")),
             status=str(_first(payload, "status", default="candidate")),
             stage=str(_first(payload, "stage", default="discover")),
-            source_path=path, document=document, item_type=str(item_type),
-            frame_id=miro.get("frame_id"), position=dict(miro.get("position") or {}),
-            geometry=dict(miro.get("geometry") or {}), style=dict(miro.get("style") or {}),
+            source_path=path,
+            document=document,
+            item_type=str(item_type),
+            frame_id=miro.get("frame_id"),
+            position=dict(miro.get("position") or {}),
+            geometry=dict(miro.get("geometry") or {}),
+            style=dict(miro.get("style") or {}),
         ))
     return artifacts
 
@@ -146,8 +206,13 @@ def update_artifact_from_remote(artifact: ManagedArtifact, remote: dict[str, str
     save_yaml(artifact.source_path, artifact.document)
 
 
-def create_artifact_from_remote(project_root: Path, artifact_root: str, remote: dict[str, str],
-                                remote_item: dict[str, Any], frame_id: str | None) -> Path:
+def create_artifact_from_remote(
+    project_root: Path,
+    artifact_root: str,
+    remote: dict[str, str],
+    remote_item: dict[str, Any],
+    frame_id: str | None,
+) -> Path:
     artifact_id = str(remote.get("artifact_id") or "")
     artifact_type = str(remote.get("artifact_type") or "")
     stage = str(remote.get("stage") or "discover")
@@ -179,7 +244,10 @@ def create_artifact_from_remote(project_root: Path, artifact_root: str, remote: 
 
 
 def semantic_hash(data: dict[str, Any]) -> str:
-    selected = {key: str(data.get(key, "")) for key in ("artifact_id", "artifact_type", "name", "description", "status", "stage")}
+    selected = {
+        key: str(data.get(key, ""))
+        for key in ("artifact_id", "artifact_type", "name", "description", "status", "stage")
+    }
     raw = json.dumps(selected, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
@@ -195,8 +263,14 @@ def remote_semantic(item: dict[str, Any], project_id: str) -> dict[str, str] | N
     text = re.sub(r"</p>", "\n", text, flags=re.IGNORECASE)
     text = html.unescape(re.sub(r"<[^>]+>", "", text))
     lines = [line.strip() for line in text.splitlines() if line.strip()]
-    result = {"artifact_id": artifact_id, "artifact_type": "", "name": lines[0] if lines else artifact_id,
-              "description": "", "status": "candidate", "stage": "discover"}
+    result = {
+        "artifact_id": artifact_id,
+        "artifact_type": "",
+        "name": lines[0] if lines else artifact_id,
+        "description": "",
+        "status": "candidate",
+        "stage": "discover",
+    }
     description_lines: list[str] = []
     for line in lines[1:]:
         if line.startswith("Typ:"):
