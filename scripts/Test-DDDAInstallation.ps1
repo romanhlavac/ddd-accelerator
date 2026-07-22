@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [string]$PlatformPath = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path,
     [string]$WorkspaceRoot,
@@ -75,6 +75,14 @@ Get-ChildItem -Path (Join-Path $platformFull "schemas") -Filter "*.json" -File -
 }
 
 Get-ChildItem -Path (Join-Path $platformFull "scripts") -Filter "*.ps1" -File -ErrorAction SilentlyContinue | ForEach-Object {
+    $bytes = [System.IO.File]::ReadAllBytes($_.FullName)
+    $hasUtf8Bom = $bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF
+    if ($hasUtf8Bom) {
+        Add-Success "UTF-8 BOM: $($_.Name)"
+    } else {
+        Add-Failure "PowerShell skript nemá UTF-8 BOM: $($_.Name)"
+    }
+
     $tokens = $null
     $parseErrors = $null
     [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$parseErrors) | Out-Null
