@@ -29,6 +29,7 @@ def _parser() -> argparse.ArgumentParser:
     sync.add_argument("--include-layout", action="store_true")
     sync.add_argument("--confirm-delete", action="store_true")
     sync.add_argument("--recreate-missing", action="store_true")
+    sync.add_argument("--promote-new", action="store_true", help="Create YAML for new marked Miro items")
     watch = sub.add_parser("watch", help="Poll Miro and run controlled bidirectional sync")
     watch.add_argument("--interval-seconds", type=int, default=60)
     watch.add_argument("--include-layout", action="store_true")
@@ -60,6 +61,7 @@ def main(argv: list[str] | None = None) -> int:
                 config, MiroClient(config.access_token()), direction=args.direction,
                 dry_run=args.dry_run, include_layout=args.include_layout,
                 confirm_delete=args.confirm_delete, recreate_missing=args.recreate_missing,
+                promote_new=args.promote_new,
             )
         else:
             if args.interval_seconds < 30:
@@ -68,8 +70,11 @@ def main(argv: list[str] | None = None) -> int:
             cycle = 0
             while True:
                 cycle += 1
-                result = sync_project(config, client, direction="both", dry_run=False,
-                                      include_layout=args.include_layout, confirm_delete=False)
+                result = sync_project(
+                    config, client, direction="both", dry_run=False,
+                    include_layout=args.include_layout, confirm_delete=False,
+                    promote_new=False,
+                )
                 print(json.dumps({"cycle": cycle, **result}, ensure_ascii=False, indent=2, default=str), flush=True)
                 if result.get("conflict_count", 0):
                     return 2
