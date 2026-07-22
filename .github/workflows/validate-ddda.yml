@@ -65,7 +65,7 @@ jobs:
           print("Schema OK: scaffolds/miro/strategic-ddd-method-board.yaml")
           PY
 
-  powershell-smoke:
+  powershell7-smoke:
     runs-on: windows-latest
     steps:
       - name: Checkout
@@ -78,17 +78,17 @@ jobs:
       - name: Bootstrap workspace and project
         shell: pwsh
         run: |
-          $workspace = Join-Path $env:RUNNER_TEMP "ddda-smoke"
+          $workspace = Join-Path $env:RUNNER_TEMP "ddda-smoke-pwsh"
 
           ./scripts/Initialize-DDDAWorkspace.ps1 `
             -WorkspaceRoot $workspace `
-            -WorkspaceId "ci-smoke" `
+            -WorkspaceId "ci-smoke-pwsh" `
             -WorkspaceName "CI smoke workspace"
 
           ./scripts/New-DDDAProject.ps1 `
             -WorkspaceRoot $workspace `
-            -ProjectId "life-insurance-smoke" `
-            -Name "Life Insurance Smoke" `
+            -ProjectId "life-insurance-smoke-pwsh" `
+            -Name "Životní pojištění – test" `
             -Type "portfolio-program" `
             -TypeAlias "greenfield-portfolio" `
             -NoInitialCommit
@@ -96,4 +96,42 @@ jobs:
           ./scripts/Test-DDDAInstallation.ps1 `
             -PlatformPath $PWD `
             -WorkspaceRoot $workspace `
-            -ProjectPath (Join-Path $workspace "projects/life-insurance-smoke")
+            -ProjectPath (Join-Path $workspace "projects/life-insurance-smoke-pwsh")
+
+  windows-powershell-51-smoke:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate UTF-8 BOM and Czech output in Windows PowerShell 5.1
+        shell: powershell
+        run: |
+          if ($PSVersionTable.PSVersion.Major -ne 5) {
+            throw "Očekáván Windows PowerShell 5.1, nalezena verze $($PSVersionTable.PSVersion)."
+          }
+
+          ./scripts/Test-DDDAInstallation.ps1 -PlatformPath $PWD
+
+          $workspace = Join-Path $env:RUNNER_TEMP "ddda-smoke-ps51"
+          $output = ./scripts/Initialize-DDDAWorkspace.ps1 `
+            -WorkspaceRoot $workspace `
+            -WorkspaceId "ci-smoke-ps51" `
+            -WorkspaceName "Český testovací workspace" 6>&1 | Out-String
+
+          if ($output -notmatch "DDDA workspace je připraven") {
+            throw "Český výstup nebyl ve Windows PowerShellu 5.1 korektně načten:`n$output"
+          }
+
+          ./scripts/New-DDDAProject.ps1 `
+            -WorkspaceRoot $workspace `
+            -ProjectId "life-insurance-smoke-ps51" `
+            -Name "Životní pojištění – test" `
+            -Type "portfolio-program" `
+            -TypeAlias "greenfield-portfolio" `
+            -NoInitialCommit
+
+          ./scripts/Test-DDDAInstallation.ps1 `
+            -PlatformPath $PWD `
+            -WorkspaceRoot $workspace `
+            -ProjectPath (Join-Path $workspace "projects/life-insurance-smoke-ps51")
