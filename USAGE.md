@@ -19,10 +19,27 @@ $PSVersionTable.PSVersion
 cursor --version
 ```
 
-## 2. Doporučená lokální struktura
+## 2. Pravidlo pro relativní cesty
+
+Všechny příklady používají relativní cesty začínající `.`. **Před spuštěním instalačních a bootstrap příkazů se přepni do parent adresáře, ve kterém má vzniknout adresář `DDDA-Workspace`.**
+
+Například:
+
+```powershell
+# Přepni se do svého zvoleného parent adresáře.
+Set-Location '<parent-adresar>'
+
+$ParentRoot = (Get-Location).Path
+$WorkspaceRoot = Join-Path $ParentRoot 'DDDA-Workspace'
+$PlatformRoot = Join-Path $WorkspaceRoot 'platform\ddd-accelerator'
+```
+
+Dokumentace nepředepisuje konkrétní disk ani absolutní adresář. Aktuální `.` je vždy uživatelem zvolený parent adresář.
+
+Doporučená výsledná struktura:
 
 ```text
-C:\Work\DDDA-Workspace\
+.\DDDA-Workspace\
 ├── platform\
 │   └── ddd-accelerator\
 ├── projects\
@@ -36,15 +53,21 @@ Adresář `platform\ddd-accelerator` je Git repozitář produktu DDDA. Každý a
 
 ### 3.1 Doporučená varianta — Git clone
 
+Následující blok spusť z parent adresáře budoucího workspace:
+
 ```powershell
-New-Item -ItemType Directory -Force C:\Work\DDDA-Workspace\platform | Out-Null
-Set-Location C:\Work\DDDA-Workspace\platform
+New-Item -ItemType Directory -Force .\DDDA-Workspace\platform | Out-Null
 
-git clone https://github.com/romanhlavac/ddd-accelerator.git
-Set-Location .\ddd-accelerator
+git clone `
+  https://github.com/romanhlavac/ddd-accelerator.git `
+  .\DDDA-Workspace\platform\ddd-accelerator
 
-git status
-git remote -v
+$ParentRoot = (Get-Location).Path
+$WorkspaceRoot = (Resolve-Path .\DDDA-Workspace).Path
+$PlatformRoot = (Resolve-Path .\DDDA-Workspace\platform\ddd-accelerator).Path
+
+git -C $PlatformRoot status
+git -C $PlatformRoot remote -v
 ```
 
 `git clone` zachová historii, větve a vazbu na GitHub. Varianta **Download ZIP** je vhodná jen pro prohlížení; neobsahuje `.git` a není vhodná pro PR workflow.
@@ -52,8 +75,8 @@ git remote -v
 ### 3.2 Inicializace workspace
 
 ```powershell
-.\scripts\Initialize-DDDAWorkspace.ps1 `
-  -WorkspaceRoot C:\Work\DDDA-Workspace
+& (Join-Path $PlatformRoot 'scripts\Initialize-DDDAWorkspace.ps1') `
+  -WorkspaceRoot $WorkspaceRoot
 ```
 
 Skript:
@@ -67,8 +90,8 @@ Skript:
 ## 4. Vytvoření nového projektu
 
 ```powershell
-.\scripts\New-DDDAProject.ps1 `
-  -WorkspaceRoot C:\Work\DDDA-Workspace `
+& (Join-Path $PlatformRoot 'scripts\New-DDDAProject.ps1') `
+  -WorkspaceRoot $WorkspaceRoot `
   -ProjectId life-insurance-greenfield `
   -Name "Nová životní pojišťovna" `
   -Type portfolio-program
@@ -77,8 +100,8 @@ Skript:
 Volitelně lze připojit vzdálený repozitář:
 
 ```powershell
-.\scripts\New-DDDAProject.ps1 `
-  -WorkspaceRoot C:\Work\DDDA-Workspace `
+& (Join-Path $PlatformRoot 'scripts\New-DDDAProject.ps1') `
+  -WorkspaceRoot $WorkspaceRoot `
   -ProjectId life-insurance-greenfield `
   -Name "Nová životní pojišťovna" `
   -Type portfolio-program `
@@ -88,7 +111,7 @@ Volitelně lze připojit vzdálený repozitář:
 Skript vytvoří:
 
 ```text
-projects\life-insurance-greenfield\
+.\DDDA-Workspace\projects\life-insurance-greenfield\
 ├── .git\
 ├── project.yaml
 ├── ddda.lock.yaml
@@ -119,7 +142,7 @@ Projekt může uvést `type_alias`, ale automatizace používá kanonický `type
 ## 6. Otevření v Cursoru
 
 ```powershell
-cursor C:\Work\DDDA-Workspace\DDDA.code-workspace
+cursor (Join-Path $WorkspaceRoot 'DDDA.code-workspace')
 ```
 
 Multi-root workspace zobrazuje minimálně:
@@ -131,6 +154,12 @@ V Source Control se zobrazí více Git repozitářů. Před commitem vždy ově�
 
 ## 7. Bezpečný pracovní režim
 
+Pro následující příklady nastav aktivní projekt:
+
+```powershell
+$ProjectRoot = Join-Path $WorkspaceRoot 'projects\life-insurance-greenfield'
+```
+
 ### 7.1 Projektová změna
 
 Příklad požadavku pro chat/agenta:
@@ -140,16 +169,16 @@ Příklad požadavku pro chat/agenta:
 Před commitem:
 
 ```powershell
-.\platform\ddd-accelerator\scripts\Test-DDDARepositoryScope.ps1 `
-  -PlatformPath C:\Work\DDDA-Workspace\platform\ddd-accelerator `
-  -ProjectPath C:\Work\DDDA-Workspace\projects\life-insurance-greenfield `
+& (Join-Path $PlatformRoot 'scripts\Test-DDDARepositoryScope.ps1') `
+  -PlatformPath $PlatformRoot `
+  -ProjectPath $ProjectRoot `
   -Scope project
 ```
 
 Potom v projektu:
 
 ```powershell
-Set-Location C:\Work\DDDA-Workspace\projects\life-insurance-greenfield
+Set-Location $ProjectRoot
 
 git switch main
 git pull --ff-only
@@ -171,7 +200,7 @@ Příklad požadavku:
 > Toto je obecné rozšíření DDDA. Měň pouze platformní repozitář. Projektové repozitáře nesmí být součástí změny.
 
 ```powershell
-Set-Location C:\Work\DDDA-Workspace\platform\ddd-accelerator
+Set-Location $PlatformRoot
 
 git switch main
 git pull --ff-only
@@ -182,8 +211,8 @@ git status
 git diff
 
 .\scripts\Test-DDDARepositoryScope.ps1 `
-  -PlatformPath $PWD `
-  -ProjectPath C:\Work\DDDA-Workspace\projects\life-insurance-greenfield `
+  -PlatformPath $PlatformRoot `
+  -ProjectPath $ProjectRoot `
   -Scope platform
 
 git add schemas templates docs scripts
@@ -230,10 +259,10 @@ git fetch --prune
 ## 9. Práce s existujícím PR před merge
 
 ```powershell
-Set-Location C:\Work\DDDA-Workspace\platform\ddd-accelerator
+Set-Location $PlatformRoot
 
 git fetch origin
-git switch --track origin/agent/miro-method-flow-scaffolds
+git switch --track origin/<pracovni-vetev>
 ```
 
 Návrat:
@@ -247,7 +276,7 @@ git switch main
 Projekt se neupgraduje implicitně. Nejprve vytvoř projektovou větev:
 
 ```powershell
-Set-Location C:\Work\DDDA-Workspace\projects\life-insurance-greenfield
+Set-Location $ProjectRoot
 git switch main
 git pull --ff-only
 git switch -c chore/upgrade-ddda
@@ -256,9 +285,9 @@ git switch -c chore/upgrade-ddda
 Potom:
 
 ```powershell
-C:\Work\DDDA-Workspace\platform\ddd-accelerator\scripts\Update-DDDAProject.ps1 `
-  -PlatformPath C:\Work\DDDA-Workspace\platform\ddd-accelerator `
-  -ProjectPath $PWD `
+& (Join-Path $PlatformRoot 'scripts\Update-DDDAProject.ps1') `
+  -PlatformPath $PlatformRoot `
+  -ProjectPath $ProjectRoot `
   -TargetRef main
 ```
 
@@ -301,25 +330,26 @@ chore(ddda): upgrade accelerator lock
 - Nemergovat draft PR bez kontroly `Files changed`.
 - Neupgradovat projekty hromadným přepisem bez projektových PR.
 - Nevydávat Miro nebo Mermaid projekci za kanonický model, pokud `project.yaml` určuje YAML jako source of truth.
+- Nekopírovat do dokumentace lokální absolutní cesty; příklady musí vycházet z `.` nebo z proměnných odvozených z parent adresáře.
 
 ## 13. Diagnostika
 
 Přehled stavů:
 
 ```powershell
-git -C C:\Work\DDDA-Workspace\platform\ddd-accelerator status
-git -C C:\Work\DDDA-Workspace\projects\life-insurance-greenfield status
+git -C $PlatformRoot status
+git -C $ProjectRoot status
 ```
 
 Ověření remotes:
 
 ```powershell
-git -C C:\Work\DDDA-Workspace\platform\ddd-accelerator remote -v
-git -C C:\Work\DDDA-Workspace\projects\life-insurance-greenfield remote -v
+git -C $PlatformRoot remote -v
+git -C $ProjectRoot remote -v
 ```
 
 Ověření locku projektu:
 
 ```powershell
-Get-Content C:\Work\DDDA-Workspace\projects\life-insurance-greenfield\ddda.lock.yaml
+Get-Content (Join-Path $ProjectRoot 'ddda.lock.yaml')
 ```
