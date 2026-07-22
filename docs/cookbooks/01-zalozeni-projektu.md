@@ -12,13 +12,21 @@ Vznikne izolovaný DDDA projekt s vlastním Git repozitářem, manifestem `proje
 - je znám stabilní `project_id`, pracovní název a dominantní typ projektu,
 - žádný Miro token nebude uložen do Gitu.
 
+## Pravidlo pro cesty
+
+Následující příklady spusť z **parent adresáře**, ve kterém existuje nebo má vzniknout `DDDA-Workspace`. Relativní cesta `.` označuje tento aktuální parent adresář.
+
+```powershell
+$ParentRoot = (Get-Location).Path
+$WorkspaceRoot = Join-Path $ParentRoot 'DDDA-Workspace'
+$PlatformRoot = Join-Path $WorkspaceRoot 'platform\ddd-accelerator'
+```
+
 ## Doporučený postup
 
 ```powershell
-Set-Location C:\Work\DDDA-Workspace\platform\ddd-accelerator
-
-.\scripts\New-DDDAProject.ps1 `
-  -WorkspaceRoot C:\Work\DDDA-Workspace `
+& (Join-Path $PlatformRoot 'scripts\New-DDDAProject.ps1') `
+  -WorkspaceRoot $WorkspaceRoot `
   -ProjectId life-insurance-greenfield `
   -Name "Nová životní pojišťovna" `
   -Type portfolio-program `
@@ -40,14 +48,15 @@ Skript:
 Existující prázdný GitHub repozitář lze připojit při bootstrapu:
 
 ```powershell
-.\scripts\New-DDDAProject.ps1 `
-  -WorkspaceRoot C:\Work\DDDA-Workspace `
+& (Join-Path $PlatformRoot 'scripts\New-DDDAProject.ps1') `
+  -WorkspaceRoot $WorkspaceRoot `
   -ProjectId claims-modernization `
   -Name "Modernizace likvidace pojistných událostí" `
   -Type legacy-modernization `
   -RemoteUrl https://github.com/example/claims-modernization.git
 
-git -C C:\Work\DDDA-Workspace\projects\claims-modernization push -u origin main
+$ProjectRoot = Join-Path $WorkspaceRoot 'projects\claims-modernization'
+git -C $ProjectRoot push -u origin main
 ```
 
 ## Kanonický manifest
@@ -80,20 +89,21 @@ artifacts:
 ## Kontroly
 
 ```powershell
-$project = "C:\Work\DDDA-Workspace\projects\claims-modernization"
+$ProjectRoot = Join-Path $WorkspaceRoot 'projects\claims-modernization'
 
-git -C $project status
-Get-Content "$project\project.yaml"
-Get-Content "$project\ddda.lock.yaml"
+git -C $ProjectRoot status
+Get-Content (Join-Path $ProjectRoot 'project.yaml')
+Get-Content (Join-Path $ProjectRoot 'ddda.lock.yaml')
 
-.\scripts\Test-DDDAInstallation.ps1 `
-  -PlatformPath $PWD `
-  -WorkspaceRoot C:\Work\DDDA-Workspace `
-  -ProjectPath $project
+& (Join-Path $PlatformRoot 'scripts\Test-DDDAInstallation.ps1') `
+  -PlatformPath $PlatformRoot `
+  -WorkspaceRoot $WorkspaceRoot `
+  -ProjectPath $ProjectRoot
 ```
 
 ## Typické chyby
 
+- příkazy jsou spuštěny z jiného adresáře než z parent adresáře deklarovaného v postupu,
 - projekt je založen uvnitř platformního Git repozitáře,
 - projekt je pojmenován podle technického řešení místo business scope,
 - platformní a projektové změny jsou připraveny v jednom commitu,
