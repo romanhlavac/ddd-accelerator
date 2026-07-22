@@ -17,7 +17,7 @@ if (-not (Test-Path $pythonExe)) {
     & $PythonCommand -m venv $venvRoot
     if ($LASTEXITCODE -ne 0) { throw "Vytvoření Python virtual environment selhalo." }
 }
-& $pythonExe -m pip install --disable-pip-version-check --no-build-isolation -e $runtimeRoot
+& $pythonExe -m pip install --disable-pip-version-check -e $runtimeRoot
 if ($LASTEXITCODE -ne 0) { throw "Instalace DDDA Miro runtime selhala." }
 Write-Host "DDDA Miro runtime je připraven."
 Write-Host "Python: $pythonExe"
