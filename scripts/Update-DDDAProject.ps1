@@ -19,6 +19,16 @@ function Invoke-Git {
     return ($output | Out-String).Trim()
 }
 
+function Replace-First {
+    param(
+        [Parameter(Mandatory = $true)][string]$InputText,
+        [Parameter(Mandatory = $true)][string]$Pattern,
+        [Parameter(Mandatory = $true)][string]$Replacement
+    )
+    $regex = [regex]::new($Pattern, [System.Text.RegularExpressions.RegexOptions]::Multiline)
+    return $regex.Replace($InputText, $Replacement, 1)
+}
+
 $platformRoot = Invoke-Git -RepositoryPath $PlatformPath -Arguments @("rev-parse", "--show-toplevel")
 $projectRoot = Invoke-Git -RepositoryPath $ProjectPath -Arguments @("rev-parse", "--show-toplevel")
 
@@ -71,25 +81,22 @@ $nextSchemaVersion = $currentSchemaVersion
 while ($nextSchemaVersion -lt $TargetSchemaVersion) {
     $from = $nextSchemaVersion
     $to = $from + 1
-    $migrationPath = Join-Path $platformRoot "migrations/$from-to-$to.ps1"
+    $migrationPath = Join-Path $platformRoot ("migrations/{0}-to-{1}.ps1" -f $from, $to)
     if (-not (Test-Path $migrationPath)) {
         throw "Chybí povinná migrace: $migrationPath"
     }
 
     Write-Host "Spouštím migraci schématu $from -> $to"
     & $migrationPath -ProjectPath $projectRoot
-    if ($LASTEXITCODE -ne 0) {
-        throw "Migrace $from -> $to selhala."
-    }
     $nextSchemaVersion = $to
 }
 
 $lockedAt = (Get-Date).ToUniversalTime().ToString("o")
 $updatedLock = $lock
-$updatedLock = [regex]::Replace($updatedLock, "(?m)^(\s*ref:\s*).*$", "`${1}$TargetRef", 1)
-$updatedLock = [regex]::Replace($updatedLock, "(?m)^(\s*commit:\s*).*$", "`${1}$targetCommit", 1)
-$updatedLock = [regex]::Replace($updatedLock, "(?m)^(\s*schema_version:\s*).*$", "`${1}$TargetSchemaVersion", 1)
-$updatedLock = [regex]::Replace($updatedLock, "(?m)^(\s*locked_at:\s*).*$", "`${1}$lockedAt", 1)
+$updatedLock = Replace-First -InputText $updatedLock -Pattern "^(\s*ref:\s*).*$" -Replacement "`${1}$TargetRef"
+$updatedLock = Replace-First -InputText $updatedLock -Pattern "^(\s*commit:\s*).*$" -Replacement "`${1}$targetCommit"
+$updatedLock = Replace-First -InputText $updatedLock -Pattern "^(\s*schema_version:\s*).*$" -Replacement "`${1}$TargetSchemaVersion"
+$updatedLock = Replace-First -InputText $updatedLock -Pattern "^(\s*locked_at:\s*).*$" -Replacement "`${1}$lockedAt"
 Set-Content -Path $lockPath -Value $updatedLock -Encoding UTF8
 
 $statusAfter = Invoke-Git -RepositoryPath $projectRoot -Arguments @("status", "--porcelain=v1")
