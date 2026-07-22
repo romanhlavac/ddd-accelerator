@@ -1,15 +1,13 @@
 # Typy projektů, aliasy, toky a gaty
 
-DDDA používá kanonické typy projektů. Staré nebo týmové názvy se zachovávají v `type_alias`, ale automatizace a schémata pracují s kanonickým `project.type`.
+DDDA používá kanonické typy projektů. Staré nebo týmové názvy se zachovávají v `project.type_alias`, ale automatizace a schémata pracují s kanonickým `project.type`.
 
 ## 1. Portfolio program
 
 **Kanonický typ:** `portfolio-program`  
-**Aliasy:** `enterprise-transformation`, `transformation-program`
+**Aliasy:** `enterprise-transformation`, `transformation-program`, `greenfield-portfolio`, `new-enterprise`, `program-greenfield`
 
-Použij pro transformaci, která zahrnuje více produktů, domén, systémů nebo týmů a vyžaduje společnou strategii, capability mapu a řízení závislostí.
-
-Typický tok:
+Použijte pro transformaci, která zahrnuje více produktů, domén, systémů nebo týmů a vyžaduje společnou strategii, capability mapu a řízení závislostí.
 
 ```text
 Strategický záměr
@@ -31,14 +29,10 @@ Gaty:
 - P4: přiřazené týmy a rozhodovací pravomoci,
 - P5: prioritizované inkrementy a decommission cíle.
 
-## 2. Greenfield produkt
+## 2. Greenfield product
 
 **Kanonický typ:** `greenfield-product`  
 **Aliasy:** `greenfield`, `new-product`
-
-Použij pro nový produkt nebo službu bez dominantního legacy omezení. Greenfield neznamená bez constraints; stále existují enterprise platformy, regulace, provozní schopnosti a build/buy rozhodnutí.
-
-Tok:
 
 ```text
 Product vision
@@ -62,14 +56,10 @@ Gaty:
 - G5: schválený první slice bez předčasné distribuované komplexity,
 - G6: implementační návrh chrání invarianty a provozní cíle.
 
-## 3. Legacy modernizace
+## 3. Legacy modernization
 
 **Kanonický typ:** `legacy-modernization`  
-**Aliasy:** `modernization`, `legacy-transformation`, `brownfield`
-
-Použij pro inkrementální změnu existujícího systému, rozdělení monolitu, náhradu COTS nebo odstranění vendor lock-in.
-
-Tok:
+**Aliasy:** `modernization`, `brownfield`
 
 ```text
 Business pain a změnové cíle
@@ -92,14 +82,86 @@ Gaty:
 - M5: reconciliation a provozní observabilita,
 - M6: splněná decommission kritéria.
 
-## 4. Domain discovery
+## 4. Legacy transformation
+
+**Kanonický typ:** `legacy-transformation`  
+**Aliasy:** `core-replacement`, `business-transformation`
+
+Použijte, pokud se zároveň mění business model, produkty, procesy, organizace a core IT.
+
+```text
+Transformation outcomes
+→ as-is business a technology evidence
+→ target capabilities a policies
+→ target bounded contexts a ownership
+→ transition contexts a ACL
+→ sourcing a vendor strategy
+→ program increments a parallel run
+→ operating-model transition
+→ decommission a knowledge retention
+```
+
+Gaty:
+
+- T1: business a IT outcomes jsou společně měřitelné,
+- T2: kritická pravidla a znalostní rizika mají vlastníky,
+- T3: target i transition architecture mají explicitní data ownership,
+- T4: sourcing neobnovuje vendor lock-in,
+- T5: první inkrement má rollback, reconciliation a provozní model,
+- T6: decommission a převzetí know-how mají akceptační kritéria.
+
+## 5. Integration landscape
+
+**Kanonický typ:** `integration-landscape`  
+**Aliasy:** `integration-review`, `api-program`
+
+```text
+Integrační problém a business dopad
+→ systémy, aktéři a system-of-record
+→ kritické end-to-end scénáře
+→ context map a upstream/downstream
+→ data ownership
+→ kontrakty, SLA a konzistence
+→ ACL a migrační plán
+→ observabilita a governance
+```
+
+Gaty:
+
+- I1: kritické business scénáře a data jsou známé,
+- I2: každý klíčový datový objekt má vlastníka a system-of-record,
+- I3: kontrakty mají verzi, kompatibilitu a provozní cíle,
+- I4: coupling a failure modes jsou přijatelné,
+- I5: migrace má koexistenci a decommission plán.
+
+## 6. Purchased product adoption
+
+**Kanonický typ:** `purchased-product-adoption`  
+**Aliasy:** `cots`, `saas-adoption`, `package-implementation`
+
+```text
+Capability a sourcing cíl
+→ business model a vendor model
+→ fit-gap pravidel a lifecycle
+→ data ownership a exportabilita
+→ konfigurační a integrační hranice
+→ ACL / extension strategy
+→ provozní a exit scénáře
+→ přijetí nebo odmítnutí produktu
+```
+
+Gaty:
+
+- C1: capability a diferenciace ospravedlňují build/buy rozhodnutí,
+- C2: fit-gap odděluje konfiguraci, rozšíření a nepřijatelnou mezeru,
+- C3: data ownership, export a exit jsou smluvně i technicky možné,
+- C4: vendor model nekolonizuje vlastní core domain,
+- C5: provoz, bezpečnost, SLA a kontinuita jsou přijatelné.
+
+## 7. Domain discovery
 
 **Kanonický typ:** `domain-discovery`  
 **Aliasy:** `discovery`, `strategic-ddd`
-
-Použij pro časově omezené poznání domény, přípravu workshopu, vytěžení jazyka, procesů, pravidel a kandidátních hranic.
-
-Tok:
 
 ```text
 Intake
@@ -118,16 +180,12 @@ Gaty:
 - D1: zdroje a scope jsou dohledatelné,
 - D2: fakta jsou oddělena od hypotéz,
 - D3: klíčové hotspoty mají vlastníky otázek,
-- D4: BC návrhy jsou validovány nebo explicitně označeny jako kandidátní.
+- D4: BC návrhy jsou validovány nebo označeny jako kandidátní.
 
-## 5. Architecture review
+## 8. Architecture review
 
 **Kanonický typ:** `architecture-review`  
 **Aliasy:** `review`, `architecture-assessment`
-
-Použij pro nezávislé nebo interní posouzení existující architektury.
-
-Tok:
 
 ```text
 Review scope
@@ -148,14 +206,33 @@ Gaty:
 - R3: findings oddělují symptom, root cause a dopad,
 - R4: doporučení mají prioritu, vlastníka a validační krok.
 
-## 6. Bounded context design
+## 9. Operating model and teams
+
+**Kanonický typ:** `operating-model-and-teams`  
+**Aliasy:** `team-topologies`, `org-design`
+
+```text
+Business flow a současné fronty
+→ doménové hranice a změnové tempo
+→ současný ownership a cognitive load
+→ stream-aligned ownership
+→ platform/enabling/complicated-subsystem potřeby
+→ interaction modes
+→ governance a evoluční změna týmů
+```
+
+Gaty:
+
+- O1: problémy týmového toku jsou podložené evidence,
+- O2: navržené týmy mají udržitelný scope a kognitivní zátěž,
+- O3: platformní a enabling role mají explicitní zákazníky a outcomes,
+- O4: interaction modes jsou časově omezené a měřitelné,
+- O5: organizační změna respektuje doménové a datové vlastnictví.
+
+## 10. Bounded context design
 
 **Kanonický typ:** `bounded-context-design`  
 **Aliasy:** `tactical-ddd`, `bc-design`
-
-Použij pro detailní návrh jednoho bounded contextu, nikoli pro hledání enterprise hranic od nuly.
-
-Tok:
 
 ```text
 BC purpose a published contracts
@@ -179,7 +256,7 @@ Gaty:
 
 ## Volba typu
 
-Zvol nejmenší typ, který pokryje rozhodovací problém. Portfolio program není automaticky vhodný jen proto, že je projekt velký. `bounded-context-design` nepoužívej, pokud ještě není jasné, kde BC začíná a končí. `domain-discovery` nemusí končit implementační architekturou; jeho výsledkem může být validační backlog.
+Zvolte nejmenší typ, který pokryje rozhodovací problém. `portfolio-program` není automaticky vhodný jen proto, že je iniciativa velká. `bounded-context-design` nepoužívejte, pokud ještě není jasné, kde BC začíná a končí. `domain-discovery` nemusí končit implementační architekturou.
 
 ## Doplňkové toky
 
@@ -194,4 +271,4 @@ Projekt může aktivovat doplňkové toky nezávisle na typu:
 - migration planning,
 - architecture decision records.
 
-Doplňkový tok nemění kanonický typ projektu. Rozšiřuje jeho konkrétní workflow a gaty.
+Doplňkový tok se ukládá do `workflow.extensions` a nemění kanonický typ projektu.
