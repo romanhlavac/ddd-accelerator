@@ -1,32 +1,37 @@
 # Kuchařka 04 — Process Modeling
 
-## Výsledek
+## Cíl
 
-Prioritní scénář je rozpracován do aktérů, akcí/commandů, rozhodovacích policies, externích systémů, událostí, read modelů, hodnoty a výjimek.
+Rozpracovat hodnotný, rizikový nebo sporný segment Big Picture timeline a odhalit rozhodovací pravidla, exceptions a kandidátní boundary seams.
 
-## Postup
+## Vstup
 
-1. Vyberte scénář podle business hodnoty, nejistoty nebo rizika.
-2. Definujte spouštěč, očekávaný výsledek a hranici scénáře.
-3. Vyznačte aktéra a jeho záměr.
-4. Přidejte command/action; používejte business jazyk.
-5. Doplňte UI pouze jako interakční bod, nikoli návrh obrazovky.
-6. U rozhodovacích míst popište policy/procedure a požadovaná fakta.
-7. Vyznačte externí systém pouze tam, kde má vlastní odpovědnost nebo kontrakt.
-8. Po každé významné změně zapište doménovou událost.
-9. Doplňte read model nebo informaci, kterou aktér potřebuje k rozhodnutí.
-10. Označte vytvořenou business hodnotu a náklady zpoždění/chyby.
-11. Projděte alternativy, timeouty, ruční zásahy a zamítnutí.
-12. Zapište signály pro kandidátní hranice: změna jazyka, pravidel, vlastníka, lifecycle nebo tempa změn.
+- vybraný segment,
+- aktéři,
+- hlavní události,
+- hotspot owner,
+- známé externí systémy.
 
-## Kontroly
+## Sekvence
 
-- model lze přečíst jako příčinný příběh,
-- policy není zaměněna za technický workflow engine,
-- read model neimplikuje databázovou tabulku,
-- technický endpoint není command bez business záměru,
-- hodnotu lze spojit s business cílem z Align.
+```text
+Actor → Command/Action → Policy/Procedure → External System → Event → Read Model
+```
 
-## Navazující krok
+## Facilitační otázky
 
-Výsledky použijte v Decompose pro formulaci subdomén a boundary hypotheses.
+- kdo může vydat command,
+- jaké informace potřebuje,
+- které pravidlo rozhoduje,
+- co se stane při zamítnutí nebo timeoutu,
+- který event je business fact,
+- co musí uživatel vidět před dalším krokem,
+- kde se mění jazyk nebo owner.
+
+## Chat prompt
+
+> Zpracuj process slice bez návrhu mikroservis. U každého commandu uveď actor, preconditions, policy, resulting event, read model a exceptions. Navrhni boundary hypotheses a důvody, ne definitivní BC.
+
+## Výstup
+
+Process-slice YAML, rule clusters, exceptions, read-model needs a vstup pro G3.

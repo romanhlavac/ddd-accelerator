@@ -1,28 +1,19 @@
 # Kuchařka 09 — Přidání typu projektu
 
-## Výsledek
+## Kritérium
 
-Vznikne nový konzistentní workflow profil, který nemění stávající projekty a má dokumentaci, scaffoldové odchylky, gate pravidla a referenční použití.
+Nový typ je oprávněný pouze tehdy, když má odlišný rozhodovací problém, povinnou evidence, workflow nebo gate. Odvětvový název sám nestačí.
 
-## Postup
+## Platformní změny
 
-1. Popište problém, který stávající typy nepokrývají.
-2. Ověřte, zda nestačí `workflow.extensions`.
-3. Zvolte kanonický název a legacy aliases.
-4. Definujte kdy typ použít a kdy jej nepoužít.
-5. Určete povinné, volitelné a vynechané fáze; každé vynechání zdůvodněte.
-6. Doplňte specifické vstupy, rizika, artefakty a gates.
-7. Určete změny Miro scaffoldů bez duplikace celého boardu.
-8. Aktualizujte katalog typů, schema enum/profil a bootstrap validaci.
-9. Přidejte varianty do dotčených kuchařek.
-10. Přidejte minimální referenční projekt nebo fixture.
-11. Ověřte zpětnou kompatibilitu existujících manifestů.
+- enum v project schema a skriptu,
+- aliases,
+- metodický tok a use cases,
+- Miro optional/mandatory frames,
+- example projekt,
+- chat prompts,
+- CI test.
 
-## Kontroly
+## Prompt
 
-- typ není pojmenován podle technologie,
-- profil řeší odlišný rozhodovací problém, ne pouze jiné názvosloví,
-- aliases jsou mapovány na jeden kanonický typ,
-- gate kritéria jsou rozhodnutelná,
-- nový typ má alespoň jeden příklad a negativní příklad,
-- dokumentace, schema a kuchařky jsou změněny v jednom pull requestu.
+> Posuď, zda požadavek vyžaduje nový kanonický typ, nebo pouze workflow extension. Porovnej decision problem, mandatory evidence, gates a outputs se stávajícími profily.

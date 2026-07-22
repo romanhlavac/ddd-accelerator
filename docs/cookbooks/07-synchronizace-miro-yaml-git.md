@@ -1,69 +1,74 @@
-# Kuchařka 07 — Synchronizace Miro, YAML a Git
+# Kuchařka 07 — Synchronizace Miro ↔ YAML ↔ Git
 
-## Výsledek
-
-Změny jsou bezpečně přeneseny mezi Mirem a YAML, konflikty jsou explicitní a Git obsahuje auditovatelný commit.
-
-## Předpoklady
-
-- projekt má validní manifest,
-- board mapping patří správnému projektu,
-- Miro token je v prostředí,
-- pracovní větev je čistá,
-- před write operací byl proveden pull nebo kontrola board revision.
-
-## Doporučený rytmus
-
-### Před workshopem
-
-1. Pull z Gitu.
-2. Validace YAML.
-3. Dry-run push do Mira.
-4. Push scaffoldů a posledních schválených artefaktů.
-5. Kontrola board revision a mapování.
-
-### Po workshopu
-
-1. Uzavřete aktivní editaci boardu.
-2. Proveďte dry-run pull.
-3. Zkontrolujte nové, změněné, smazané a nespravované objekty.
-4. Vyřešte strukturální chyby a konflikty.
-5. Povýšte relevantní workshopové poznámky na artefakty.
-6. Vygenerujte Mermaid výstupy.
-7. Zkontrolujte diff.
-8. Commitněte se zdrojem workshopu a board revision.
-9. Otevřete pull request pro významné sémantické změny.
-
-## Řešení konfliktu
-
-1. Neprovádějte další push.
-2. Otevřete conflict record.
-3. Porovnejte base, YAML a Miro hodnotu.
-4. Určete sémantického ownera pole.
-5. Zvolte accept YAML, accept Miro nebo manual merge.
-6. Zapište důvod a řešitele.
-7. Validujte a proveďte nový dry-run.
-8. Conflict record ponechte jako auditní stopu.
-
-## Mazání
-
-Nepoužívejte okamžité hard delete. Nejprve nastavte tombstone, ověřte odkazy a ownership, teprve poté potvrďte odstranění.
-
-## Kontroly
-
-- nulový diff při opakovaném běhu,
-- žádná změna `artifact_id`,
-- nespravované Miro objekty zůstaly zachovány,
-- Mermaid odpovídá YAML,
-- token ani citlivý obsah není v logu,
-- commit zpráva uvádí projekt a zdroj změny.
-
-## Příklad commit message
+## Bezpečný cyklus
 
 ```text
-sync(life-insurance): import Big Picture ES workshop 2026-07-22
-
-Board revision: 18731
-Validated by: Product Director, Head of Underwriting
-Conflicts resolved: 2
+doctor → pull dry-run → conflict review → pull → YAML review
+→ push dry-run → push → scope guard → commit → PR
 ```
+
+## Pull dry-run
+
+```powershell
+& (Join-Path $PlatformRoot 'scripts\Invoke-DDDAMiroSync.ps1') `
+  -ProjectPath $ProjectRoot -Direction Pull -DryRun
+```
+
+## Both
+
+```powershell
+& (Join-Path $PlatformRoot 'scripts\Invoke-DDDAMiroSync.ps1') `
+  -ProjectPath $ProjectRoot -Direction Both
+```
+
+## Chat prompt
+
+> Proveď sync dry-run. Rozděl operace na create, update, delete_pending, unmanaged a conflict. U každé ukaž artifact ID, YAML path a Miro item ID. Bez potvrzení nic nezapisuj.
+
+## Konflikty
+
+Conflict record se řeší business rozhodnutím. Po ručním merge uprav YAML, nastav resolution, proveď push dry-run a teprve potom commit.
+
+## Idempotence
+
+Druhý sync bez změn musí vrátit nulový sémantický diff. Pokud vytváří nové itemy, mapping je poškozen nebo marker chybí.
+
+## Průběžný worker
+
+Použij jen tehdy, když je projektová větev čistá nebo je tým srozuměn s tím, že worker může měnit YAML a sync metadata.
+
+```powershell
+& (Join-Path $PlatformRoot 'scripts\Start-DDDAMiroSyncWorker.ps1') `
+  -ProjectPath $ProjectRoot `
+  -IntervalSeconds 60
+```
+
+Doporučený chat prompt před startem:
+
+> Ověř Miro konfiguraci, čistotu projektového repozitáře, pending konflikty a poslední sync report. Navrhni, zda je bezpečné spustit worker. Worker nesmí provádět commit ani automaticky řešit konflikty.
+
+Worker zastaví první sémantický konflikt. Neřeš to jeho opakovaným restartem; nejdřív vyřeš conflict record.
+
+## Ručně odstraněný Miro item
+
+Mapped item, který v Miru chybí, je bezpečnostní konflikt. Po potvrzení obnovy:
+
+```powershell
+& (Join-Path $PlatformRoot 'scripts\Invoke-DDDAMiroSync.ps1') `
+  -ProjectPath $ProjectRoot `
+  -Direction Push `
+  -RecreateMissing `
+  -DryRun
+```
+
+Teprve po review proveď skutečný push.
+
+## Acceptance checklist
+
+- doctor online prošel,
+- board ID a token pocházejí z environment variables,
+- pull dry-run nehlásí nevysvětlené změny,
+- pending konflikty mají vlastníka,
+- druhý sync bez změn má nulový sémantický diff,
+- `reports/miro-sync/` obsahuje auditní záznam,
+- projektový Git diff neobsahuje platformní soubory.
