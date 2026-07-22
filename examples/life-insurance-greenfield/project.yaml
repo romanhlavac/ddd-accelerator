@@ -1,0 +1,69 @@
+project:
+  id: life-insurance-greenfield
+  name: "Greenfield životní pojišťovna"
+  type: portfolio-program
+  type_alias: greenfield-portfolio
+  schema_version: 1
+  language: cs
+  status: active
+
+ddda:
+  repository: romanhlavac/ddd-accelerator
+  required_ref: main
+  lock_file: ddda.lock.yaml
+
+miro:
+  board_id: null
+  board_id_env: DDDA_LIFE_MIRO_BOARD_ID
+  workspace_area: life-insurance-greenfield
+  synchronization: disabled
+
+artifacts:
+  canonical_source: yaml
+  root: artifacts
+  mermaid_projection: true
+  conflict_policy: manual-review
+
+workflow:
+  profile: portfolio-program
+  current_stage: define
+  completed_gates:
+    - G1
+    - G2
+    - G3
+    - G4
+    - G5
+    - G6
+  extensions:
+    - purchased-product-adoption
+
+classification:
+  data_sensitivity: confidential
+  contains_health_data: true
+
+owners:
+  business_sponsor: CEO
+  architecture_owner: Chief Architect
+  product_owner: Chief Product Officer
+
+scope:
+  in:
+    - product design
+    - distribution journey
+    - underwriting
+    - policy administration
+    - billing and collections
+    - claims
+    - customer and consent
+    - finance integration
+    - regulatory reporting
+  out:
+    - group life insurance in first increment
+    - investment-linked products in first increment
+
+quality_attributes:
+  - auditability
+  - privacy
+  - modifiability
+  - availability
+  - recoverability

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ddda.local/schemas/ddda-lock.schema.json",
+  "title": "DDDA Project Lock",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["ddda"],
+  "properties": {
+    "ddda": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "ref", "commit", "schema_version", "locked_at"],
+      "properties": {
+        "repository": {"type": "string", "pattern": "^[^/]+/[^/]+$"},
+        "ref": {"type": "string", "minLength": 1},
+        "commit": {"type": "string", "pattern": "^[0-9a-f]{7,40}$"},
+        "schema_version": {"type": "integer", "minimum": 1},
+        "locked_at": {"type": "string", "format": "date-time"}
+      }
+    }
+  }
+}

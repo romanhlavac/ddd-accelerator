@@ -1,0 +1,23 @@
+# Lokální DDDA runtime a tajemství
+.ddda/cache/
+.ddda/tmp/
+.env
+.env.*
+!.env.example
+
+# Miro lokální stav a tokeny
+miro/.credentials/
+miro/.sync-state.local.yaml
+
+# Generované dočasné soubory
+*.tmp
+*.bak
+~$*
+
+# IDE
+.vscode/settings.local.json
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

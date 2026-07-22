@@ -1,0 +1,56 @@
+---
+description: Oddělení platformních a projektových změn v DDDA
+alwaysApply: true
+---
+
+# DDDA Repository Scope Guard
+
+Před jakýmkoli zápisem, commitem nebo návrhem PR explicitně určuj:
+
+- `scope: platform`, nebo
+- `scope: project`,
+- aktivní Git root,
+- aktivní projekt, pokud je scope `project`.
+
+## Platform scope
+
+Povoleno měnit obecné části DDDA, například:
+
+- `.cursor/`,
+- `.github/`,
+- `docs/`,
+- `schemas/`,
+- `scripts/`,
+- `templates/`,
+- `migrations/`,
+- obecné scaffoldy a synchronizační runtime.
+
+Zakázáno zahrnout ingestion, artefakty, ADR nebo klientská data konkrétního projektu.
+
+## Project scope
+
+Povoleno měnit pouze aktivní projektový repozitář, zejména:
+
+- `project.yaml`,
+- `ddda.lock.yaml`,
+- `ingestion/`,
+- `artifacts/`,
+- `decisions/`,
+- `workshops/`,
+- `miro/`,
+- `reports/`,
+- `exports/`.
+
+Zakázáno měnit platformní repozitář DDDA.
+
+## Povinné kontroly
+
+Před commitem:
+
+1. ověř `git rev-parse --show-toplevel`,
+2. ověř `git status --short` v platformě i aktivním projektu,
+3. odmítni cross-repository commit,
+4. odděl obecné zlepšení DDDA od jeho použití v projektu do dvou PR,
+5. nepushuj ani nemerguj bez explicitního pokynu uživatele.
+
+Když scope není z požadavku jednoznačný, navrhni scope a vyžádej potvrzení před zápisem. Při read-only analýze potvrzení nepotřebuješ.

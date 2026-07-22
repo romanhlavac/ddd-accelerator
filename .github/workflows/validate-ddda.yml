@@ -1,0 +1,138 @@
+name: Validate DDDA
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - "agent/**"
+
+permissions:
+  contents: read
+
+jobs:
+  schemas-and-yaml:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install validators
+        run: python -m pip install --disable-pip-version-check pyyaml jsonschema
+
+      - name: Validate schemas, YAML syntax and examples
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          import jsonschema
+          import yaml
+
+          schemas = {}
+          for path in sorted(Path("schemas").glob("*.json")):
+              with path.open("r", encoding="utf-8") as handle:
+                  schemas[path.name] = json.load(handle)
+              print(f"JSON OK: {path}")
+
+          yaml_paths = []
+          for root in ("templates", "scaffolds", "examples"):
+              yaml_paths.extend(Path(root).rglob("*.yaml"))
+              yaml_paths.extend(Path(root).rglob("*.yml"))
+
+          parsed = {}
+          for path in sorted(set(yaml_paths)):
+              with path.open("r", encoding="utf-8") as handle:
+                  parsed[path.as_posix()] = yaml.safe_load(handle)
+              print(f"YAML OK: {path}")
+
+          jsonschema.validate(
+              parsed["examples/life-insurance-greenfield/project.yaml"],
+              schemas["project.schema.json"],
+          )
+          print("Schema OK: examples/life-insurance-greenfield/project.yaml")
+
+          jsonschema.validate(
+              parsed["scaffolds/miro/strategic-ddd-method-board.yaml"],
+              schemas["miro-scaffold.schema.json"],
+          )
+          print("Schema OK: scaffolds/miro/strategic-ddd-method-board.yaml")
+          PY
+
+  powershell7-smoke:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Parse scripts and validate installation
+        shell: pwsh
+        run: ./scripts/Test-DDDAInstallation.ps1 -PlatformPath $PWD
+
+      - name: Bootstrap workspace and project
+        shell: pwsh
+        run: |
+          $workspace = Join-Path $env:RUNNER_TEMP "ddda-smoke-pwsh"
+
+          ./scripts/Initialize-DDDAWorkspace.ps1 `
+            -WorkspaceRoot $workspace `
+            -WorkspaceId "ci-smoke-pwsh" `
+            -WorkspaceName "CI smoke workspace"
+
+          ./scripts/New-DDDAProject.ps1 `
+            -WorkspaceRoot $workspace `
+            -ProjectId "life-insurance-smoke-pwsh" `
+            -Name "Life Insurance Smoke" `
+            -Type "portfolio-program" `
+            -TypeAlias "greenfield-portfolio" `
+            -NoInitialCommit
+
+          ./scripts/Test-DDDAInstallation.ps1 `
+            -PlatformPath $PWD `
+            -WorkspaceRoot $workspace `
+            -ProjectPath (Join-Path $workspace "projects/life-insurance-smoke-pwsh")
+
+  windows-powershell-51-smoke:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate UTF-8 BOM and Czech output in Windows PowerShell 5.1
+        shell: powershell
+        run: |
+          if ($PSVersionTable.PSVersion.Major -ne 5) {
+            throw "Expected Windows PowerShell 5.1, found $($PSVersionTable.PSVersion)."
+          }
+
+          ./scripts/Test-DDDAInstallation.ps1 -PlatformPath $PWD
+
+          $workspace = Join-Path $env:RUNNER_TEMP "ddda-smoke-ps51"
+          $output = ./scripts/Initialize-DDDAWorkspace.ps1 `
+            -WorkspaceRoot $workspace `
+            -WorkspaceId "ci-smoke-ps51" `
+            -WorkspaceName "CI smoke workspace" 6>&1 | Out-String
+
+          $expected = "p$([char]0x0159)ipraven"
+          if ($output -notmatch [regex]::Escape($expected)) {
+            throw "Czech output was not decoded correctly in Windows PowerShell 5.1:`n$output"
+          }
+
+          ./scripts/New-DDDAProject.ps1 `
+            -WorkspaceRoot $workspace `
+            -ProjectId "life-insurance-smoke-ps51" `
+            -Name "Life Insurance Smoke" `
+            -Type "portfolio-program" `
+            -TypeAlias "greenfield-portfolio" `
+            -NoInitialCommit
+
+          ./scripts/Test-DDDAInstallation.ps1 `
+            -PlatformPath $PWD `
+            -WorkspaceRoot $workspace `
+            -ProjectPath (Join-Path $workspace "projects/life-insurance-smoke-ps51")
