@@ -2,7 +2,7 @@ from pathlib import Path
 
 from ddda_miro.config import ProjectConfig
 from ddda_miro.sync import sync_project
-from ddda_miro.yamlio import save_yaml
+from ddda_miro.yamlio import load_yaml, save_yaml
 
 
 class FakeClient:
@@ -61,3 +61,38 @@ def test_dry_run_does_not_write(tmp_path):
     result = sync_project(config, client, direction="push", dry_run=True, include_layout=False, confirm_delete=False)
     assert result["operation_count"] == 1
     assert not (tmp_path / "miro" / "miro-map.yaml").exists()
+
+
+def test_pull_does_not_mark_unpushed_local_change_as_synced(tmp_path):
+    config = build_project(tmp_path)
+    client = FakeClient()
+    sync_project(config, client, direction="push", dry_run=False, include_layout=False, confirm_delete=False)
+    state_before = load_yaml(tmp_path / "miro" / "sync-state.yaml")
+    event_path = tmp_path / "artifacts" / "discover" / "event.yaml"
+    changed = load_yaml(event_path)
+    changed["artifact"]["name"] = "Locally changed policy event"
+    save_yaml(event_path, changed)
+    sync_project(config, client, direction="pull", dry_run=False, include_layout=False, confirm_delete=False)
+    state_after = load_yaml(tmp_path / "miro" / "sync-state.yaml")
+    assert state_after["items"]["evt-policy-issued"]["local_hash"] == state_before["items"]["evt-policy-issued"]["local_hash"]
+
+
+def test_missing_mapped_local_artifact_requires_explicit_resolution(tmp_path):
+    config = build_project(tmp_path)
+    client = FakeClient()
+    sync_project(config, client, direction="push", dry_run=False, include_layout=False, confirm_delete=False)
+    (tmp_path / "artifacts" / "discover" / "event.yaml").unlink()
+    result = sync_project(config, client, direction="both", dry_run=True, include_layout=False, confirm_delete=False)
+    assert result["conflict_count"] == 1
+    assert result["operations"][0]["reason"] == "mapped_local_artifact_missing"
+
+
+def test_project_config_reuses_board_id_from_mapping(tmp_path):
+    save_yaml(tmp_path / "project.yaml", {
+        "project": {"id": "life-insurance", "name": "Life", "type": "portfolio-program", "schema_version": 1},
+        "ddda": {"repository": "romanhlavac/ddd-accelerator", "required_ref": "main", "lock_file": "ddda.lock.yaml"},
+        "miro": {"board_id": None, "synchronization": "bidirectional"},
+        "artifacts": {"canonical_source": "yaml", "root": "artifacts"},
+    })
+    save_yaml(tmp_path / "miro" / "miro-map.yaml", {"board_id": "board-from-map"})
+    assert ProjectConfig.load(tmp_path).board_id == "board-from-map"
