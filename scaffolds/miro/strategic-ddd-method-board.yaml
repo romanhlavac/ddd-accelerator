@@ -1,0 +1,541 @@
+schema_version: "1.0"
+id: strategic-ddd-method-board
+name_cs: "Strategic DDD – metodický board"
+description_cs: >
+  Výchozí Miro scaffold DDDA inspirovaný referenčním boardem Strategic DDD 2023-10.
+  Board vede zleva doprava metodickým tokem Align → Discover → Decompose →
+  Strategize → Connect → Organize → Define → Code. EventStorming a modely
+  životního cyklu jsou umístěny tam, kde vznikají a kde se validují, nikoli pouze
+  do jedné obecné modelovací zóny.
+
+coordinate_system:
+  origin: board_center
+  unit: miro_canvas_unit
+  stage_card:
+    width: 3000
+    height: 1300
+  work_frame:
+    width: 3400
+    height: 2200
+  horizontal_gap: 500
+  vertical_gap: 500
+
+localization:
+  default_language: cs
+  conversation_language: cs
+  preserve_domain_terms:
+    - EventStorming
+    - Big Picture
+    - Process Modeling
+    - Design Level
+    - Bounded Context
+    - Context Map
+    - Ubiquitous Language
+    - Core Domain
+    - Supporting Subdomain
+    - Generic Subdomain
+
+palette:
+  method_primary: "#2F7E95"
+  method_secondary: "#365A8C"
+  frame_background: "#F8FAFC"
+  frame_border: "#64748B"
+  event: "#F6A04D"
+  temporal_event: "#F6A04D"
+  pivot_event_marker: "#F9E27D"
+  command_action: "#86C5E8"
+  policy_procedure: "#C49ACD"
+  read_model: "#C8E986"
+  external_system: "#F3B4C4"
+  actor: "#F4DC67"
+  hotspot: "#E84C3D"
+  invariant: "#F8E58C"
+  context_boundary: "#DDEFA9"
+  team: "#B7D7F0"
+  accepted: "#88C999"
+  superseded: "#B8BEC7"
+
+artifact_statuses:
+  - id: empty
+    label_cs: "Připravený scaffold"
+    border_style: dashed
+  - id: generated
+    label_cs: "Vygenerováno z YAML"
+    border_style: solid
+  - id: workshop
+    label_cs: "Rozpracováno ve workshopu"
+    border_style: solid
+  - id: validated
+    label_cs: "Validováno doménovými experty"
+    border_style: double
+  - id: accepted
+    label_cs: "Přijato"
+    border_style: double
+  - id: superseded
+    label_cs: "Nahrazeno"
+    border_style: dotted
+
+metadata_contract:
+  widget_metadata:
+    dd_d_a_id: "stabilní UUID artefaktu nebo prvku"
+    dd_d_a_artifact_type: "typ YAML artefaktu"
+    dd_d_a_source_path: "relativní cesta YAML souboru"
+    dd_d_a_revision: "Git commit nebo lokální revize"
+    dd_d_a_stage: "metodická fáze"
+    dd_d_a_status: "stav artefaktu"
+    dd_d_a_managed: "true | false"
+  merge_ownership:
+    semantic_content: yaml
+    visual_position_and_size: miro
+    workshop_notes_and_hotspots: miro
+    identifiers_and_traceability: yaml
+    conflict_policy: explicit-review
+
+method_flow:
+  direction: left_to_right
+  overview_y: -3000
+  stages:
+    - id: align
+      order: 10
+      title_cs: "Align"
+      subtitle_cs: "Business model, cíle a potřeby uživatelů"
+      x: -15750
+      gate_after: G1
+    - id: discover
+      order: 20
+      title_cs: "Discover"
+      subtitle_cs: "Vizuální a kolaborativní porozumění doméně"
+      x: -12250
+      gate_after: G2
+    - id: decompose
+      order: 30
+      title_cs: "Decompose"
+      subtitle_cs: "Rozklad domény, procesů a životních cyklů"
+      x: -8750
+      gate_after: G3
+    - id: strategize
+      order: 40
+      title_cs: "Strategize"
+      subtitle_cs: "Core/supporting/generic a investiční fokus"
+      x: -5250
+      gate_after: G4
+    - id: connect
+      order: 50
+      title_cs: "Connect"
+      subtitle_cs: "Context Map, data ownership a kontrakty"
+      x: -1750
+      gate_after: G5
+    - id: organize
+      order: 60
+      title_cs: "Organize"
+      subtitle_cs: "Týmy, ownership a interakční režimy"
+      x: 1750
+      gate_after: G6
+    - id: define
+      order: 70
+      title_cs: "Define"
+      subtitle_cs: "Role a odpovědnosti bounded contexts"
+      x: 5250
+      gate_after: G7
+    - id: code
+      order: 80
+      title_cs: "Code"
+      subtitle_cs: "Taktický model a implementační architektura"
+      x: 8750
+      gate_after: G8
+
+gates:
+  - id: G1
+    label_cs: "Cíl a scope jsou připraveny"
+    required_evidence:
+      - business_goals
+      - stakeholders
+      - scope
+      - assumptions
+  - id: G2
+    label_cs: "Doménový tok je dostatečně objeven"
+    required_evidence:
+      - event_storming_big_picture
+      - glossary
+      - hotspots
+      - lifecycle_observations
+  - id: G3
+    label_cs: "Existují validovatelné hypotézy rozkladu"
+    required_evidence:
+      - process_slices
+      - candidate_subdomains
+      - candidate_lifecycles
+  - id: G4
+    label_cs: "Strategický fokus je přijat"
+    required_evidence:
+      - subdomain_classification
+      - investment_rationale
+  - id: G5
+    label_cs: "Vztahy a vlastnictví jsou explicitní"
+    required_evidence:
+      - context_map
+      - data_ownership
+      - integration_contract_hypotheses
+  - id: G6
+    label_cs: "Týmové ownership je proveditelné"
+    required_evidence:
+      - team_topology
+      - interaction_modes
+      - cognitive_load_risks
+  - id: G7
+    label_cs: "Bounded contexts jsou připraveny pro detailní návrh"
+    required_evidence:
+      - bounded_context_canvases
+      - design_level_event_storming
+      - validated_lifecycle_models
+      - quality_attribute_scenarios
+  - id: G8
+    label_cs: "Taktický návrh je implementovatelný"
+    required_evidence:
+      - aggregates_and_invariants
+      - domain_events
+      - architecture_decisions
+      - implementation_views
+
+frames:
+  - id: control-center
+    stage: control
+    title_cs: "00 – Navigace, legenda a stav artefaktů"
+    x: -17500
+    y: -800
+    width: 3000
+    height: 2300
+    scaffold:
+      - board_index
+      - method_flow_legend
+      - artifact_status_legend
+      - event_storming_legend
+      - open_questions
+      - sync_status
+
+  - id: align-intake
+    stage: align
+    title_cs: "10 – Align / Intake"
+    x: -15750
+    y: 0
+    width: 3000
+    height: 2600
+    scaffold:
+      - project_charter
+      - business_goals
+      - user_needs
+      - stakeholders
+      - scope_and_out_of_scope
+      - assumptions_and_constraints
+      - success_metrics
+
+  - id: discover-big-picture-es
+    stage: discover
+    title_cs: "20 – EventStorming: Big Picture"
+    x: -11500
+    y: 0
+    width: 7000
+    height: 3000
+    mandatory: true
+    visual_rules:
+      timeline: horizontal
+      legend_position: left
+      hotspot_lane: top
+      temporal_and_pivot_markers: true
+      free_exploration_area: true
+    scaffold:
+      - event_timeline
+      - temporal_events
+      - pivot_events
+      - actors_and_systems
+      - hotspots
+      - questions
+      - value_up_down_markers
+
+  - id: discover-evidence
+    stage: discover
+    title_cs: "21 – Zdroje, slovník a pozorované stavy"
+    x: -11500
+    y: 3350
+    width: 3400
+    height: 2400
+    scaffold:
+      - source_inventory
+      - domain_glossary
+      - actors_and_systems
+      - observed_lifecycle_snapshots
+      - contradictions
+      - unanswered_questions
+
+  - id: discover-process-modeling
+    stage: discover
+    title_cs: "22 – EventStorming: Process Modeling"
+    x: -7600
+    y: 3350
+    width: 3400
+    height: 2400
+    mandatory: false
+    entry_criteria:
+      - selected_business_flow
+      - big_picture_segment
+    visual_rules:
+      sequence: "actor → command/action → policy/procedure → system → event → read model"
+      legend_position: left
+      process_rows: true
+    scaffold:
+      - selected_process_slices
+      - commands_actions
+      - policies_procedures
+      - read_models
+      - external_systems
+      - events
+      - hotspots
+
+  - id: decompose-domain
+    stage: decompose
+    title_cs: "30 – Rozklad domény"
+    x: -3700
+    y: 0
+    width: 3400
+    height: 2800
+    scaffold:
+      - business_capability_candidates
+      - candidate_subdomains
+      - language_and_rule_clusters
+      - change_coupling_clusters
+      - candidate_bounded_contexts
+      - decomposition_rationale
+
+  - id: decompose-lifecycles
+    stage: decompose
+    title_cs: "31 – Kandidátní životní cykly a stavové modely"
+    x: -3700
+    y: 3150
+    width: 3400
+    height: 2600
+    mandatory: true
+    visual_rules:
+      one_model_per_key_domain_object: true
+      distinguish_fact_from_hypothesis: true
+      show_forbidden_transitions: true
+      show_command_and_resulting_event: true
+      show_invariant_on_transition: true
+    scaffold:
+      - state_inventory
+      - candidate_state_transition_diagrams
+      - forbidden_transitions
+      - lifecycle_owners
+      - lifecycle_questions
+
+  - id: strategize-classification
+    stage: strategize
+    title_cs: "40 – Strategická klasifikace"
+    x: 200
+    y: 0
+    width: 3400
+    height: 2800
+    scaffold:
+      - core_supporting_generic_matrix
+      - differentiation_vs_complexity
+      - build_buy_partner_retire
+      - investment_rationale
+      - optional_wardley_map
+
+  - id: connect-context-map
+    stage: connect
+    title_cs: "50 – Context Map a data ownership"
+    x: 4100
+    y: 0
+    width: 3400
+    height: 3000
+    scaffold:
+      - bounded_context_map
+      - upstream_downstream
+      - context_mapping_patterns
+      - source_of_truth
+      - integration_contracts
+      - acl_and_translation
+      - integration_risks
+
+  - id: organize-teams
+    stage: organize
+    title_cs: "60 – Team Topologies"
+    x: 8000
+    y: 0
+    width: 3400
+    height: 3000
+    scaffold:
+      - stream_aligned_ownership
+      - platform_and_enabling_support
+      - complicated_subsystem_candidates
+      - interaction_modes
+      - cognitive_load
+      - governance_guardrails
+
+  - id: define-bounded-context
+    stage: define
+    title_cs: "70 – Bounded Context Canvases"
+    x: 11900
+    y: 0
+    width: 3400
+    height: 3000
+    repeat_for: bounded_context
+    scaffold:
+      - purpose
+      - strategic_classification
+      - domain_roles
+      - ubiquitous_language
+      - business_decisions
+      - inbound_communication
+      - outbound_communication
+      - assumptions
+      - verification_metrics
+      - open_questions
+
+  - id: define-design-level-es
+    stage: define
+    title_cs: "71 – EventStorming: Design Level"
+    x: 15800
+    y: 0
+    width: 3400
+    height: 3000
+    repeat_for: selected_bounded_context
+    mandatory_for:
+      - core
+      - complex_supporting
+    visual_rules:
+      sequence: "actor → command/action → policy/procedure → aggregate/system → event → projection"
+      invariants_visible: true
+      aggregate_candidates_visible: true
+      no_cross_context_transaction: true
+    scaffold:
+      - commands
+      - policies
+      - aggregate_candidates
+      - invariants
+      - domain_events
+      - read_models
+      - external_dependencies
+      - hotspots
+
+  - id: define-lifecycle
+    stage: define
+    title_cs: "72 – Validovaný stavový model"
+    x: 11900
+    y: 3350
+    width: 3400
+    height: 2600
+    repeat_for: key_domain_object
+    mandatory_when:
+      - object_has_non_trivial_lifecycle
+      - status_controls_business_behavior
+      - forbidden_transitions_exist
+    scaffold:
+      - state_transition_diagram
+      - transition_table
+      - command_event_mapping
+      - invariants_and_authorization
+      - timeout_and_compensation
+      - lifecycle_acceptance_tests
+
+  - id: define-quality
+    stage: define
+    title_cs: "73 – Quality attributes a integrační scénáře"
+    x: 15800
+    y: 3350
+    width: 3400
+    height: 2600
+    scaffold:
+      - quality_attribute_scenarios
+      - failure_modes
+      - consistency_decisions
+      - security_and_audit
+      - observability_signals
+
+  - id: code-tactical-model
+    stage: code
+    title_cs: "80 – Taktický DDD a architektura"
+    x: 19700
+    y: 0
+    width: 3400
+    height: 3000
+    repeat_for: implementation_scope
+    scaffold:
+      - aggregates
+      - aggregate_roots
+      - entities_and_value_objects
+      - invariants
+      - domain_services
+      - application_services
+      - repositories
+      - domain_events
+      - cqrs_or_event_sourcing_justification
+
+  - id: code-state-machine
+    stage: code
+    title_cs: "81 – Implementační state machine (volitelné)"
+    x: 19700
+    y: 3350
+    width: 3400
+    height: 2600
+    mandatory: false
+    entry_criteria:
+      - validated_lifecycle_exists
+      - explicit_state_machine_adds_value
+    scaffold:
+      - implementation_state_chart
+      - transition_guards
+      - persistence_mapping
+      - concurrency_and_idempotency
+      - test_cases
+
+  - id: code-views-and-decisions
+    stage: code
+    title_cs: "82 – C4, kontrakty a ADR"
+    x: 23600
+    y: 0
+    width: 3400
+    height: 3000
+    scaffold:
+      - c4_context
+      - c4_containers
+      - c4_components
+      - api_and_event_contracts
+      - architecture_decisions
+      - rollout_and_migration
+
+cross_frame_links:
+  - from: discover-big-picture-es
+    to: discover-process-modeling
+    label_cs: "Vybraný problematický nebo hodnotný úsek"
+  - from: discover-process-modeling
+    to: decompose-domain
+    label_cs: "Procesní a jazykové clustery"
+  - from: discover-evidence
+    to: decompose-lifecycles
+    label_cs: "Pozorované stavy a přechody"
+  - from: decompose-lifecycles
+    to: define-lifecycle
+    label_cs: "Hypotéza → validovaný lifecycle"
+  - from: decompose-domain
+    to: define-bounded-context
+    label_cs: "Kandidát → vymezený bounded context"
+  - from: define-bounded-context
+    to: define-design-level-es
+    label_cs: "Vybraný core nebo komplexní supporting context"
+  - from: define-design-level-es
+    to: code-tactical-model
+    label_cs: "Agregáty, invarianty a doménové události"
+  - from: define-lifecycle
+    to: code-state-machine
+    label_cs: "Pouze když explicitní state machine přináší hodnotu"
+
+rendering:
+  include_method_spine: true
+  include_gate_markers: true
+  include_frame_numbers: true
+  include_status_badges: true
+  include_yaml_path_footer: true
+  include_git_revision_footer: true
+  create_mermaid_analogues: true
+  mermaid_output_directory: artifacts/diagrams

@@ -1,0 +1,50 @@
+schema_version: 1.0.0
+project_id: life-insurance-greenfield
+name: Greenfield životní pojišťovna
+project_type: greenfield-portfolio
+language: cs
+status: active
+workflow:
+  profile: greenfield-portfolio
+  current_stage: define
+  completed_gates:
+    - G1
+    - G2
+    - G3
+    - G4
+    - G5
+    - G6
+  extensions:
+    - purchased-product-adoption
+miro:
+  board_id_env: DDDA_LIFE_MIRO_BOARD_ID
+  board_url: null
+repositories:
+  primary: .
+classification:
+  data_sensitivity: confidential
+  contains_health_data: true
+owners:
+  business_sponsor: CEO
+  architecture_owner: Chief Architect
+  product_owner: Chief Product Officer
+scope:
+  in:
+    - product design
+    - distribution journey
+    - underwriting
+    - policy administration
+    - billing and collections
+    - claims
+    - customer and consent
+    - finance integration
+    - regulatory reporting
+  out:
+    - group life insurance in first increment
+    - investment-linked products in first increment
+quality_attributes:
+  - auditability
+  - privacy
+  - modifiability
+  - availability
+  - recoverability
