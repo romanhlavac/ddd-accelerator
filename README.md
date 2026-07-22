@@ -1,68 +1,72 @@
 # DDDA — Domain-Driven Design Accelerator
 
-DDDA je verzovatelný pracovní rámec pro doménovou analýzu, strategic a tactical DDD, socio-technický návrh, architektonická rozhodnutí a inkrementální modernizaci systémů.
-
-DDDA odděluje dva životní cykly:
-
-1. **platforma DDDA** — obecné skills, scaffoldy, schémata, automatizace a metodika,
-2. **projektové repozitáře** — zadání, ingestion, doménové artefakty, ADR, workshopy, Miro vazby a výsledná architektura konkrétní iniciativy.
-
-Jedna lokální instalace proto není jeden společný Git repozitář. Doporučený model je:
-
-```text
-DDDA-Workspace/
-├── platform/
-│   └── ddd-accelerator/        # Git repozitář produktu DDDA
-├── projects/
-│   ├── project-a/              # samostatný projektový Git repozitář
-│   └── project-b/              # samostatný projektový Git repozitář
-├── workspace.yaml              # lokální registr projektů
-└── DDDA.code-workspace         # Cursor / VS Code multi-root workspace
-```
+DDDA je Miro-first, multi-project pracovní prostředí pro řízenou doménovou analýzu, socio-technickou architekturu a inkrementální modernizaci systémů. Jedna instalace DDDA obsluhuje více oddělených projektů. Každý projekt má vlastní Git repozitář a vlastní historii, zatímco samotná platforma DDDA je verzována samostatně.
 
 ## Základní principy
 
-- Platformní změny a projektové změny se necommitují společně.
-- Každý projekt má vlastní historii, přístupová práva a release/milestone lifecycle.
-- Projekt eviduje přesný DDDA commit v `ddda.lock.yaml`.
-- Upgrade DDDA vytváří kontrolovatelnou změnu v projektu; nepřepisuje projekty automaticky.
-- YAML artefakty jsou verzovatelný kanonický model. Miro a Mermaid jsou projekce nad těmito artefakty, pokud projekt neurčí jinak.
-- Agent před zápisem určí aktivní repozitář a scope změny.
+- business problém a doména před technologií,
+- Miro jako primární workshopová a modelovací plocha,
+- YAML jako kanonický sémantický model,
+- Git jako audit, historie a review mechanismus,
+- Mermaid jako textový a verzovatelný odvozený pohled,
+- explicitní hranice, ownership dat, integrační kontrakty a quality attributes,
+- žádné automatické last-write-wins pro sémantické konflikty.
 
-## Obsah této distribuce
+## Co je v tomto repozitáři
 
 ```text
-.cursor/                 pravidla a skills pro agenty
-.github/                 PR governance
-schemas/                 JSON Schema kontrakty
-scripts/                 bootstrap, validace scope a upgrade
-migrations/              migrační mechanismus mezi verzemi DDDA
-templates/               workspace a projektové scaffoldy
-docs/                    produktová a metodická dokumentace
-USAGE.md                  praktická kuchařka
+.
+├── .cursor/                    # pravidla pro práci agentů a scope guard
+├── .github/                    # PR template a validační workflow
+├── docs/
+│   ├── cookbooks/              # praktické návody krok za krokem
+│   ├── methodology/            # metodický tok a gates
+│   └── product/                # produktová architektura a integrace
+├── examples/                   # referenční projekty
+├── migrations/                 # migrace projektových schémat
+├── scaffolds/                  # Miro a další deklarativní scaffoldy
+├── schemas/                    # JSON Schema kontrakty
+├── scripts/                    # bootstrap, validace, scope guard a upgrade
+├── templates/                  # šablony workspace a projektu
+├── USAGE.md                    # hlavní provozní návod
+└── README.md
 ```
 
 ## Rychlý start na Windows
 
 ```powershell
-New-Item -ItemType Directory -Force C:\Work\DDDA-Workspace\platform | Out-Null
-Set-Location C:\Work\DDDA-Workspace\platform
-
 git clone https://github.com/romanhlavac/ddd-accelerator.git
 Set-Location .\ddd-accelerator
 
-.\scripts\Initialize-DDDAWorkspace.ps1 -WorkspaceRoot C:\Work\DDDA-Workspace
+.\scripts\Test-DDDAInstallation.ps1 -PlatformPath $PWD
+
+.\scripts\Initialize-DDDAWorkspace.ps1 `
+  -WorkspaceRoot C:\Work\DDDA-Workspace
+
 .\scripts\New-DDDAProject.ps1 `
   -WorkspaceRoot C:\Work\DDDA-Workspace `
   -ProjectId life-insurance-greenfield `
   -Name "Nová životní pojišťovna" `
   -Type portfolio-program
-
-cursor C:\Work\DDDA-Workspace\DDDA.code-workspace
 ```
 
-Podrobný postup je v [USAGE.md](USAGE.md). Git model a rozhodovací pravidla jsou v [docs/git-and-project-model.md](docs/git-and-project-model.md).
+## Dokumentace
 
-## Stav produktu
+- [Použití DDDA](USAGE.md)
+- [Git a projektový model](docs/git-and-project-model.md)
+- [Typy projektů a pracovní toky](docs/project-types-and-flows.md)
+- [Architektura produktu](docs/product/01-architektura-ddda.md)
+- [Workspace a více projektů](docs/product/02-workspace-a-projekty.md)
+- [Miro scaffolding](docs/product/03-miro-scaffolding.md)
+- [Synchronizace Miro ↔ YAML ↔ Git](docs/product/04-synchronizace.md)
+- [Typy projektů](docs/product/05-typy-projektu.md)
+- [Metodický tok a gates](docs/methodology/01-metodicky-tok-a-gates.md)
+- [Miro scaffold podle referenčního boardu](docs/miro-scaffolds.md)
+- [Kuchařky](docs/cookbooks/README.md)
+- [Referenční projekt životní pojišťovny](examples/life-insurance-greenfield/README.md)
 
-DDDA je zatím evoluční základ. Schémata a skripty definují bezpečný multi-project operating model. Plná obousměrná synchronizace Miro ↔ YAML ↔ Git vyžaduje samostatný synchronizační runtime a není tímto základem automaticky zajištěna.
+## Aktuální stav
+
+Tato verze obsahuje použitelný multi-project bootstrap, samostatné projektové Git repozitáře, lockování verze DDDA, scope guard, upgrade mechanismus, dokumentaci, kuchařky, referenční příklad a deklarativní Miro scaffold.
+
+Živý Miro API renderer a obousměrný synchronizační worker zatím nejsou implementovány. Současná dokumentace a metadata kontrakt připravují jejich bezpečnou následnou implementaci.
