@@ -1,0 +1,12 @@
+workspace:
+  id: ddda-workspace
+  name: DDDA Workspace
+  schema_version: 1
+
+platform:
+  path: platform/ddd-accelerator
+  repository: romanhlavac/ddd-accelerator
+  ref: main
+  commit: __PLATFORM_COMMIT__
+
+projects: []
