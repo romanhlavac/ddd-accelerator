@@ -6,7 +6,13 @@ from typing import Any
 
 from .client import MiroClient
 from .config import ProjectConfig
-from .model import load_artifacts, remote_semantic, semantic_hash, update_artifact_from_remote
+from .model import (
+    create_artifact_from_remote,
+    load_artifacts,
+    remote_semantic,
+    semantic_hash,
+    update_artifact_from_remote,
+)
 from .state import load_map, load_state, save_map, save_state, utc_now
 from .yamlio import save_yaml
 
@@ -52,8 +58,18 @@ def _record_conflict(config: ProjectConfig, conflicts: list[str], *, artifact_id
     conflicts.append(str(path.relative_to(config.root)))
 
 
+def _frame_id_for_remote(mapping: dict[str, Any], remote_item: dict[str, Any]) -> str | None:
+    parent_id = str((remote_item.get("parent") or {}).get("id") or "")
+    if not parent_id:
+        return None
+    for frame_id, frame in mapping.get("frames", {}).items():
+        if str((frame or {}).get("miro_item_id") or "") == parent_id:
+            return str(frame_id)
+    return None
+
+
 def sync_project(config: ProjectConfig, client: MiroClient, *, direction: str, dry_run: bool, include_layout: bool,
-                 confirm_delete: bool, recreate_missing: bool = False) -> dict[str, Any]:
+                 confirm_delete: bool, recreate_missing: bool = False, promote_new: bool = False) -> dict[str, Any]:
     if not config.board_id:
         raise ValueError("Miro board ID is required for synchronization")
     if config.synchronization == "disabled":
@@ -135,6 +151,36 @@ def sync_project(config: ProjectConfig, client: MiroClient, *, direction: str, d
                     local_by_id[artifact_id] = artifact
                     local_hash = artifact.semantic_hash()
                     local_changed = False
+            elif promote_new:
+                if not remote_data.get("artifact_type"):
+                    operations.append({"action": "conflict", "artifact_id": artifact_id, "reason": "promotion_missing_type"})
+                    _record_conflict(
+                        config, conflicts, artifact_id=artifact_id, local=None, remote=remote_data,
+                        base_local_hash=base_local_hash, base_remote_hash=base_remote_hash,
+                        reason="new Miro item has a DDDA marker but no Typ line",
+                        dry_run=dry_run,
+                    )
+                    continue
+                frame_id = _frame_id_for_remote(mapping, remote_item or {})
+                operations.append({"action": "pull_promote_yaml", "artifact_id": artifact_id, "frame_id": frame_id})
+                if dry_run:
+                    continue
+                assert remote_item is not None
+                created_path = create_artifact_from_remote(
+                    config.root, config.artifact_root, remote_data, remote_item, frame_id,
+                )
+                artifact = next(item for item in load_artifacts(config.root, config.artifact_root) if item.artifact_id == artifact_id)
+                local_by_id[artifact_id] = artifact
+                local_hash = artifact.semantic_hash()
+                local_changed = False
+                mapping["items"][artifact_id] = {
+                    "miro_item_id": str(remote_item["id"]),
+                    "item_type": str(remote_item.get("type") or artifact.item_type),
+                    "yaml_path": str(created_path.relative_to(config.root)).replace("\\", "/"),
+                    "frame_id": frame_id,
+                    "managed": True,
+                    "updated_at": utc_now(),
+                }
             else:
                 operations.append({"action": "pull_unmapped_requires_promotion", "artifact_id": artifact_id})
                 continue
