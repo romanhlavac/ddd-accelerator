@@ -1,0 +1,179 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ddda.local/schemas/miro-scaffold.schema.json",
+  "title": "DDDA Miro scaffold",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "id",
+    "name_cs",
+    "method_flow",
+    "frames"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$"
+    },
+    "name_cs": {
+      "type": "string",
+      "minLength": 1
+    },
+    "description_cs": {
+      "type": "string"
+    },
+    "coordinate_system": {
+      "type": "object"
+    },
+    "localization": {
+      "type": "object"
+    },
+    "palette": {
+      "type": "object"
+    },
+    "artifact_statuses": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "label_cs"
+        ]
+      }
+    },
+    "metadata_contract": {
+      "type": "object"
+    },
+    "method_flow": {
+      "type": "object",
+      "required": [
+        "direction",
+        "stages"
+      ],
+      "properties": {
+        "direction": {
+          "enum": [
+            "left_to_right",
+            "top_to_bottom"
+          ]
+        },
+        "stages": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "order",
+              "title_cs",
+              "x"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "order": {
+                "type": "integer"
+              },
+              "title_cs": {
+                "type": "string"
+              },
+              "subtitle_cs": {
+                "type": "string"
+              },
+              "x": {
+                "type": "number"
+              },
+              "gate_after": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "gates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "label_cs",
+          "required_evidence"
+        ]
+      }
+    },
+    "frames": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "stage",
+          "title_cs",
+          "x",
+          "y",
+          "width",
+          "height",
+          "scaffold"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "stage": {
+            "type": "string"
+          },
+          "title_cs": {
+            "type": "string"
+          },
+          "x": {
+            "type": "number"
+          },
+          "y": {
+            "type": "number"
+          },
+          "width": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "height": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "mandatory": {
+            "type": "boolean"
+          },
+          "repeat_for": {
+            "type": "string"
+          },
+          "scaffold": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "cross_frame_links": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "from",
+          "to",
+          "label_cs"
+        ]
+      }
+    },
+    "rendering": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": true
+}
