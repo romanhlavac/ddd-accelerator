@@ -1,43 +1,35 @@
 # DDDA — Domain-Driven Design Accelerator
 
-DDDA je Miro-first, multi-project pracovní prostředí pro řízenou doménovou analýzu, socio-technickou architekturu a inkrementální modernizaci systémů. Jedna instalace DDDA obsluhuje více oddělených projektů. Každý projekt má vlastní Git repozitář a vlastní historii, zatímco samotná platforma DDDA je verzována samostatně.
+DDDA je chat-first, Miro-first a Git-verzované pracovní prostředí pro doménovou analýzu, socio-technickou architekturu, modernizaci a návrh bounded contexts. Jedna platformní instalace obsluhuje více nezávislých projektových repozitářů.
 
-## Základní principy
+## Co je implementováno
 
-- business problém a doména před technologií,
-- Miro jako primární workshopová a modelovací plocha,
-- YAML jako kanonický sémantický model,
-- Git jako audit, historie a review mechanismus,
-- Mermaid jako textový a verzovatelný odvozený pohled,
-- explicitní hranice, ownership dat, integrační kontrakty a quality attributes,
-- žádné automatické last-write-wins pro sémantické konflikty.
+- multi-project workspace a samostatný Git repozitář pro každý projekt,
+- chatové pracovní postupy a projektové prompty,
+- deklarativní Miro scaffold pro tok Align → Discover → Decompose → Strategize → Connect → Organize → Define → Code,
+- živý renderer Miro boardu přes REST API v2,
+- obousměrná synchronizace spravovaných artefaktů YAML ↔ Miro,
+- dry-run, explicitní konflikty, tombstone delete, auditní sync reporty a idempotentní mapping,
+- řízený polling worker pro průběžnou synchronizaci,
+- Mermaid jako odvozená textová projekce,
+- česká metodika, kuchařky, typové workflow a referenční projekt životní pojišťovny.
 
-## Co je v tomto repozitáři
+## Základní ownership
 
-```text
-.
-├── .cursor/                    # pravidla pro práci agentů a scope guard
-├── .github/                    # PR template a validační workflow
-├── docs/
-│   ├── cookbooks/              # praktické návody krok za krokem
-│   ├── methodology/            # metodický tok a gates
-│   └── product/                # produktová architektura a integrace
-├── examples/                   # referenční projekty
-├── migrations/                 # migrace projektových schémat
-├── scaffolds/                  # Miro a další deklarativní scaffoldy
-├── schemas/                    # JSON Schema kontrakty
-├── scripts/                    # bootstrap, validace, scope guard a upgrade
-├── templates/                  # šablony workspace a projektu
-├── USAGE.md                    # hlavní provozní návod
-└── README.md
-```
+| Reprezentace | Vlastní |
+|---|---|
+| YAML | identitu, význam, status, stage, vztahy a data ownership |
+| Miro | workshopovou interakci, polohu, velikost a vizuální seskupení |
+| Git | historii, review a schválení změn |
+| Mermaid | generované pohledy pro chat a dokumentaci |
 
-## Rychlý start na Windows
+Sémantický konflikt se nikdy neřeší implicitním last-write-wins. Runtime vytvoří conflict record a vyžádá rozhodnutí.
 
-Následující příkazy spusť z **parent adresáře**, ve kterém má vzniknout adresář `DDDA-Workspace`. Relativní cesta `.` vždy označuje tento aktuální parent adresář.
+## Rychlý start
+
+Před spuštěním se přesuň do **parent adresáře**, ve kterém má vzniknout `DDDA-Workspace`.
 
 ```powershell
-# Musíš být v parent adresáři budoucího workspace.
 New-Item -ItemType Directory -Force .\DDDA-Workspace\platform | Out-Null
 
 git clone `
@@ -56,27 +48,53 @@ $PlatformRoot = (Resolve-Path .\DDDA-Workspace\platform\ddd-accelerator).Path
 & (Join-Path $PlatformRoot 'scripts\New-DDDAProject.ps1') `
   -WorkspaceRoot $WorkspaceRoot `
   -ProjectId life-insurance-greenfield `
-  -Name "Nová životní pojišťovna" `
-  -Type portfolio-program
+  -Name 'Nová životní pojišťovna' `
+  -Type portfolio-program `
+  -TypeAlias greenfield-portfolio
 ```
+
+## Zapojení Miro
+
+Miro app musí mít scope `boards:read` a `boards:write`. Token se neukládá do Gitu.
+
+```powershell
+$env:MIRO_ACCESS_TOKEN = '<token>'
+$env:LIFE_INSURANCE_GREENFIELD_MIRO_BOARD_ID = '<board-id>'
+
+& (Join-Path $PlatformRoot 'scripts\Install-DDDAMiroRuntime.ps1')
+
+$ProjectRoot = Join-Path $WorkspaceRoot 'projects\life-insurance-greenfield'
+
+& (Join-Path $PlatformRoot 'scripts\Test-DDDAMiroConfiguration.ps1') `
+  -ProjectPath $ProjectRoot `
+  -Online
+
+& (Join-Path $PlatformRoot 'scripts\Initialize-DDDAMiroBoard.ps1') `
+  -ProjectPath $ProjectRoot `
+  -DryRun
+
+& (Join-Path $PlatformRoot 'scripts\Initialize-DDDAMiroBoard.ps1') `
+  -ProjectPath $ProjectRoot
+```
+
+## Řízený synchronizační worker
+
+Pro průběžnou spolupráci lze spustit polling worker. Worker nejméně jednou za 30 sekund provede kontrolovaný režim `Both`, zapisuje auditní report a při prvním konfliktu se ukončí s exit code `2`, aby se konflikt nešířil dál.
+
+```powershell
+& (Join-Path $PlatformRoot 'scripts\Start-DDDAMiroSyncWorker.ps1') `
+  -ProjectPath $ProjectRoot `
+  -IntervalSeconds 60
+```
+
+Worker neprovádí Git commit, push ani merge a neobnovuje OAuth token. Rotaci nebo refresh tokenu musí zajistit provozní prostředí; pro lokální práci lze token před spuštěním znovu nastavit v environment variable.
+
+## Ovládání přes chat
+
+Typický prompt:
+
+> Scope: project. Aktivní projekt: `life-insurance-greenfield`. Nejprve načti `project.yaml`, `ddda.lock.yaml`, `docs/README.md` a relevantní cookbook. Proveď dry-run Miro synchronizace. Vypiš plánované create/update/delete operace, konflikty a dotčené YAML soubory. Nic nezapisuj, dokud plán nepotvrdím.
 
 ## Dokumentace
 
-- [Použití DDDA](USAGE.md)
-- [Git a projektový model](docs/git-and-project-model.md)
-- [Typy projektů a pracovní toky](docs/project-types-and-flows.md)
-- [Architektura produktu](docs/product/01-architektura-ddda.md)
-- [Workspace a více projektů](docs/product/02-workspace-a-projekty.md)
-- [Miro scaffolding](docs/product/03-miro-scaffolding.md)
-- [Synchronizace Miro ↔ YAML ↔ Git](docs/product/04-synchronizace.md)
-- [Typy projektů](docs/product/05-typy-projektu.md)
-- [Metodický tok a gates](docs/methodology/01-metodicky-tok-a-gates.md)
-- [Miro scaffold podle referenčního boardu](docs/miro-scaffolds.md)
-- [Kuchařky](docs/cookbooks/README.md)
-- [Referenční projekt životní pojišťovny](examples/life-insurance-greenfield/README.md)
-
-## Aktuální stav
-
-Tato verze obsahuje použitelný multi-project bootstrap, samostatné projektové Git repozitáře, lockování verze DDDA, scope guard, upgrade mechanismus, dokumentaci, kuchařky, referenční příklad a deklarativní Miro scaffold.
-
-Živý Miro API renderer a obousměrný synchronizační worker zatím nejsou implementovány. Současná dokumentace a metadata kontrakt připravují jejich bezpečnou následnou implementaci.
+Začni v [indexu dokumentace](docs/README.md), pokračuj [hlavním návodem](USAGE.md) a referenčním [greenfield příkladem životní pojišťovny](examples/life-insurance-greenfield/README.md).
