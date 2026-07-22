@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ddda.local/schemas/project.schema.json",
+  "title": "DDDA Project Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["project", "ddda", "artifacts"],
+  "properties": {
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "type", "schema_version"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,62}$"},
+        "name": {"type": "string", "minLength": 1},
+        "type": {
+          "enum": [
+            "portfolio-program",
+            "greenfield-product",
+            "legacy-modernization",
+            "domain-discovery",
+            "architecture-review",
+            "bounded-context-design"
+          ]
+        },
+        "type_alias": {
+          "type": ["string", "null"],
+          "enum": [
+            null,
+            "enterprise-transformation",
+            "transformation-program",
+            "greenfield",
+            "new-product",
+            "modernization",
+            "legacy-transformation",
+            "brownfield",
+            "discovery",
+            "strategic-ddd",
+            "review",
+            "architecture-assessment",
+            "tactical-ddd",
+            "bc-design"
+          ]
+        },
+        "schema_version": {"type": "integer", "minimum": 1},
+        "language": {"enum": ["cs", "en"], "default": "cs"},
+        "status": {"enum": ["active", "paused", "archived"], "default": "active"}
+      }
+    },
+    "ddda": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "required_ref", "lock_file"],
+      "properties": {
+        "repository": {"type": "string", "pattern": "^[^/]+/[^/]+$"},
+        "required_ref": {"type": "string", "minLength": 1},
+        "lock_file": {"const": "ddda.lock.yaml"}
+      }
+    },
+    "miro": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "board_id": {"type": ["string", "null"]},
+        "workspace_area": {"type": ["string", "null"]},
+        "synchronization": {"enum": ["disabled", "yaml-to-miro", "miro-to-yaml", "bidirectional"]}
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["canonical_source", "root"],
+      "properties": {
+        "canonical_source": {"enum": ["yaml", "miro"]},
+        "root": {"type": "string", "minLength": 1},
+        "mermaid_projection": {"type": "boolean", "default": true},
+        "conflict_policy": {"enum": ["manual-review", "yaml-wins", "miro-wins"], "default": "manual-review"}
+      }
+    }
+  }
+}
