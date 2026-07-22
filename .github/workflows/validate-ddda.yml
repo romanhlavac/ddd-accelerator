@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - "agent/**"
+      - "docs/**"
 
 permissions:
   contents: read
@@ -24,6 +25,30 @@ jobs:
 
       - name: Install validators
         run: python -m pip install --disable-pip-version-check pyyaml jsonschema
+
+      - name: Reject hardcoded local workspace paths
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          paths = [Path("README.md"), Path("USAGE.md")]
+          paths.extend(Path("docs").rglob("*.md"))
+          paths.extend(Path("scripts").rglob("*.ps1"))
+
+          forbidden = (r"C:\Work", "C:/Work")
+          failures = []
+          for path in sorted(set(paths)):
+              text = path.read_text(encoding="utf-8-sig")
+              for value in forbidden:
+                  if value in text:
+                      failures.append(f"{path}: contains forbidden absolute path {value!r}")
+
+          if failures:
+              raise SystemExit("\n".join(failures))
+
+          print("Path examples OK: documentation and scripts use relative or derived paths")
+          PY
 
       - name: Validate schemas, YAML syntax and examples
         shell: bash
