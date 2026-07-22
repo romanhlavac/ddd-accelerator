@@ -34,9 +34,19 @@ try {
 $requiredFiles = @(
     "README.md",
     "USAGE.md",
+    "docs/git-and-project-model.md",
+    "docs/project-types-and-flows.md",
+    "docs/miro-scaffolds.md",
+    "docs/cookbooks/README.md",
+    "docs/methodology/01-metodicky-tok-a-gates.md",
+    "docs/product/01-architektura-ddda.md",
+    "examples/life-insurance-greenfield/README.md",
+    "examples/life-insurance-greenfield/project.yaml",
     "schemas/workspace.schema.json",
     "schemas/project.schema.json",
     "schemas/ddda-lock.schema.json",
+    "schemas/miro-scaffold.schema.json",
+    "scaffolds/miro/strategic-ddd-method-board.yaml",
     "templates/workspace/workspace.yaml",
     "templates/project/project.yaml",
     "templates/project/ddda-lock.template.yaml",
@@ -91,7 +101,7 @@ if (-not [string]::IsNullOrWhiteSpace($WorkspaceRoot)) {
 
 if (-not [string]::IsNullOrWhiteSpace($ProjectPath)) {
     $projectFull = [System.IO.Path]::GetFullPath($ProjectPath)
-    foreach ($name in @(".git", "project.yaml", "ddda.lock.yaml", "artifacts", "ingestion", "decisions")) {
+    foreach ($name in @(".git", "project.yaml", "ddda.lock.yaml", "artifacts", "ingestion", "decisions", "workshops", "miro", "reports", "exports")) {
         $path = Join-Path $projectFull $name
         if (Test-Path $path) {
             Add-Success "Projektová položka existuje: $path"
