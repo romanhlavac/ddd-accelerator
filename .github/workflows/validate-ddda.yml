@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 jobs:
-  schemas-and-templates:
+  schemas-and-yaml:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -25,31 +25,47 @@ jobs:
       - name: Install validators
         run: python -m pip install --disable-pip-version-check pyyaml jsonschema
 
-      - name: Validate JSON and YAML syntax
+      - name: Validate schemas, YAML syntax and examples
         shell: bash
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
+
+          import jsonschema
           import yaml
 
-          for path in Path("schemas").glob("*.json"):
+          schemas = {}
+          for path in sorted(Path("schemas").glob("*.json")):
               with path.open("r", encoding="utf-8") as handle:
-                  json.load(handle)
+                  schemas[path.name] = json.load(handle)
               print(f"JSON OK: {path}")
 
-          yaml_paths = [
-              Path("templates/workspace/workspace.yaml"),
-              Path("templates/project/project.yaml"),
-              Path("templates/project/ddda-lock.template.yaml"),
-          ]
-          for path in yaml_paths:
+          yaml_paths = []
+          for root in ("templates", "scaffolds", "examples"):
+              yaml_paths.extend(Path(root).rglob("*.yaml"))
+              yaml_paths.extend(Path(root).rglob("*.yml"))
+
+          parsed = {}
+          for path in sorted(set(yaml_paths)):
               with path.open("r", encoding="utf-8") as handle:
-                  yaml.safe_load(handle)
+                  parsed[path.as_posix()] = yaml.safe_load(handle)
               print(f"YAML OK: {path}")
+
+          jsonschema.validate(
+              parsed["examples/life-insurance-greenfield/project.yaml"],
+              schemas["project.schema.json"],
+          )
+          print("Schema OK: examples/life-insurance-greenfield/project.yaml")
+
+          jsonschema.validate(
+              parsed["scaffolds/miro/strategic-ddd-method-board.yaml"],
+              schemas["miro-scaffold.schema.json"],
+          )
+          print("Schema OK: scaffolds/miro/strategic-ddd-method-board.yaml")
           PY
 
-  powershell:
+  powershell-smoke:
     runs-on: windows-latest
     steps:
       - name: Checkout
@@ -58,3 +74,26 @@ jobs:
       - name: Parse scripts and validate installation
         shell: pwsh
         run: ./scripts/Test-DDDAInstallation.ps1 -PlatformPath $PWD
+
+      - name: Bootstrap workspace and project
+        shell: pwsh
+        run: |
+          $workspace = Join-Path $env:RUNNER_TEMP "ddda-smoke"
+
+          ./scripts/Initialize-DDDAWorkspace.ps1 `
+            -WorkspaceRoot $workspace `
+            -WorkspaceId "ci-smoke" `
+            -WorkspaceName "CI smoke workspace"
+
+          ./scripts/New-DDDAProject.ps1 `
+            -WorkspaceRoot $workspace `
+            -ProjectId "life-insurance-smoke" `
+            -Name "Life Insurance Smoke" `
+            -Type "portfolio-program" `
+            -TypeAlias "greenfield-portfolio" `
+            -NoInitialCommit
+
+          ./scripts/Test-DDDAInstallation.ps1 `
+            -PlatformPath $PWD `
+            -WorkspaceRoot $workspace `
+            -ProjectPath (Join-Path $workspace "projects/life-insurance-smoke")
