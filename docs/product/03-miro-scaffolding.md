@@ -83,7 +83,7 @@ Každý spravovaný frame má:
 
 ## Spravované a nespravované objekty
 
-**Spravovaný objekt** má `artifact_id` a mapuje se do YAML. Synchronizace smí měnit jeho sémantický obsah podle pravidel.
+**Spravovaný objekt** má stabilní `dd_d_a_id` a mapuje se do YAML. Synchronizace smí měnit jeho sémantický obsah pouze podle definovaných pravidel.
 
 **Nespravovaný objekt** je dočasná workshopová poznámka, obrázek, hlasování nebo komentář. Synchronizace jej zachová, dokud jej člověk nepovýší na artefakt nebo neodstraní.
 
@@ -91,14 +91,16 @@ Každý spravovaný frame má:
 
 1. Facilitátor označí poznámku jako kandidátní artefakt.
 2. Doplní typ, název, zdroj a status.
-3. Sync vytvoří YAML se stabilním `artifact_id`.
+3. Synchronizační proces vytvoří YAML se stabilním ID.
 4. Git review potvrdí nebo upraví sémantiku.
-5. Objekt v Miru obdrží `yaml_path` a `git_revision`.
+5. Objekt v Miru obdrží zdrojovou YAML cestu a Git revizi.
 
 ## Vizuální konvence
 
-Barvy jsou definovány v `ddda/scaffolds/strategic-ddd-method-board.yaml`. Barva pomáhá orientaci, ale není jediným nositelem významu. Typ artefaktu musí být vždy uložen i v metadatech a textovém označení.
+Barvy jsou definovány v `scaffolds/miro/strategic-ddd-method-board.yaml`. Barva pomáhá orientaci, ale není jediným nositelem významu. Typ artefaktu musí být vždy uložen i v metadatech a textovém označení.
 
 ## Praktické omezení
 
 Miro je vhodné pro facilitaci a prostorové vztahy, nikoli jako jediný auditovatelný repozitář sémantiky. Proto se business význam, ownership, status a vztahy ukládají do YAML a verzují v Gitu.
+
+Deklarativní scaffold je implementován. Živý Miro API renderer a obousměrný synchronizační worker jsou navazující produktová schopnost, nikoliv součást této alpha verze.
