@@ -2,7 +2,7 @@ project:
   id: __PROJECT_ID__
   name: "__PROJECT_NAME__"
   type: __PROJECT_TYPE__
-  type_alias: null
+  type_alias: __PROJECT_TYPE_ALIAS__
   schema_version: 1
   language: cs
   status: active
