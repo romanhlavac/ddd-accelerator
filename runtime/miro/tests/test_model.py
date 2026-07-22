@@ -20,3 +20,8 @@ def test_load_artifact_and_marker_roundtrip(tmp_path: Path):
 
 def test_unmanaged_item_is_ignored():
     assert remote_semantic({"data": {"content": "Workshop note"}}, "life-insurance") is None
+
+
+def test_scaffold_instruction_marker_is_not_a_domain_artifact():
+    content = "<p>Instructions</p><p><small>DDDA-SCAFFOLD:life-insurance:align-intake:instructions</small></p>"
+    assert remote_semantic({"data": {"content": content}}, "life-insurance") is None
