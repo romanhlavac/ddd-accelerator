@@ -1,159 +1,80 @@
-# Synchronizace Miro ↔ YAML ↔ Git
+# Miro REST runtime a obousměrná synchronizace
 
-## 1. Cíl
+## Autentizace
 
-Synchronizace udržuje jednu doménovou informaci ve dvou pracovních reprezentacích:
+Runtime čte bearer token z environment variable, výchozí `MIRO_ACCESS_TOKEN`. Projekt může board, team a Miro project/space ID načítat z manifestu nebo environment variables.
 
-- Miro pro lidskou spolupráci, prostorové uspořádání a facilitaci,
-- YAML pro sémantiku, automatizaci, validaci a verzování.
+Požadované scopes:
 
-Git není třetí editovatelná reprezentace; je transportem, historií a review mechanismem YAML souborů.
+- `boards:read` pro doctor a pull,
+- `boards:write` pro create/update/delete a render.
 
-## 2. Rozdělení ownershipu
+## Podporované item typy
 
-| Pole | Owner |
-|---|---|
-| `name`, `description`, `status`, vztahy, ownership, evidence | YAML |
-| souřadnice, rozměry, z-index, vizuální seskupení | Miro |
-| barva | odvozená z typu; lokální override jen pokud je povolen |
-| komentáře a hlasování | Miro |
-| historie změn | Git |
-| Mermaid | generovaný výstup |
+- frame,
+- sticky note,
+- shape,
+- text.
 
-Změna sémantiky v Miru je povolena, ale po importu se stává návrhem změny YAML a musí projít validací a případně review.
+Doménové typy se mapují na item typy. Například domain event → sticky note, bounded context → shape, explanatory note → text.
 
-## 3. Identita objektu
+## Identita
 
-Každý spravovaný Miro objekt nese minimálně:
+Primární vazba je v `miro/miro-map.yaml`. Každá spravovaná položka navíc obsahuje marker:
 
-```yaml
-artifact_id: evt-policy-issued
-artifact_type: domain_event
-project_id: life-insurance-greenfield
-schema_version: 1.0.0
-stage: discover
-status: observed
-yaml_path: artifacts/discover/events/evt-policy-issued.yaml
-git_revision: 3f83a1d
+```text
+DDDA:<project-id>:<artifact-id>
 ```
 
-Miro item ID není doménová identita. Při smazání a znovuvytvoření objektu se může změnit, zatímco `artifact_id` zůstává stabilní.
+Marker umožní obnovit identitu, pokud je mapping poškozen nebo item přesunut.
 
-## 4. Synchronizační cyklus
+## Společná base
 
-### Pull z Mira
+`miro/sync-state.yaml` ukládá hash lokální a vzdálené sémantiky z posledního úspěšného syncu. Konflikt vznikne, pokud se obě strany změnily a nejsou shodné.
 
-1. Načti board revision a spravované objekty.
-2. Porovnej je s `miro-map.yaml` a posledním sync stavem.
-3. Rozděl změny na vizuální, sémantické, nové a smazané.
-4. Pro sémantické změny vytvoř nebo uprav YAML návrh.
-5. Validuj schéma a metodická pravidla.
-6. Ulož conflict records, pokud obě strany změnily stejné pole.
-7. Vygeneruj Mermaid a sync report.
-8. Commit provede člověk nebo schválená automatizace.
+## Pull
 
-### Push do Mira
+Pull načte všechny board items, vybere pouze položky se správným project markerem, porovná hash a aktualizuje YAML. Unmapped managed item vyžaduje explicitní promotion; unmanaged item se ignoruje.
 
-1. Validuj projekt a YAML.
-2. Načti aktuální board revision.
-3. Ověř, že od posledního pullu nevznikla neočekávaná změna.
-4. Vytvoř nebo aktualizuj spravované objekty.
-5. Zachovej vizuální vlastnosti vlastněné Mirem.
-6. Aktualizuj metadata a `miro-map.yaml`.
-7. Zapiš sync report.
+## Push
 
-## 5. Detekce konfliktu
+Push vytvoří nebo aktualizuje Miro item. Standardně mění pouze sémantický obsah a styl odvozený z typu. Layout zůstává vlastnictvím Mira. `-IncludeLayout` se používá při prvním vytvoření nebo explicitním resetu.
 
-Konflikt nastane, pokud se od společné base revision změnilo stejné sémantické pole na obou stranách.
+## Both
 
-Příklad:
+Režim Both provede kontrolovaný pull a push nad jednou společnou base. Konflikt blokuje automatické sjednocení.
 
-```yaml
-conflict_id: conflict-2026-07-22-001
-artifact_id: bc-policy-administration
-field: description
-base: Spravuje životní cyklus pojistné smlouvy.
-yaml_value: Spravuje nabídku, vznik a změny smlouvy.
-miro_value: Spravuje aktivní pojistné smlouvy.
-resolution: pending
-owner: architecture-owner
-```
+## Mazání
 
-Povolená řešení:
+`deleted_pending` je tombstone. Fyzické DELETE vyžaduje `-ConfirmDelete`. Mapping a sync state se aktualizují až po úspěšné API operaci.
 
-- `accept_yaml`,
-- `accept_miro`,
-- `merge_manual`,
-- `supersede_artifact`.
+## Audit
 
-Last-write-wins je zakázán pro sémantická pole.
+Každý skutečný sync zapisuje report do `reports/miro-sync/`. Report obsahuje direction, operace, konflikty, board ID a čas.
 
-## 6. Mazání
+## Rate limit a retry
 
-Používá se tombstone-first:
+Client respektuje HTTP 429, `Retry-After` a používá omezený exponenciální backoff. Hromadné write operace se proto mají plánovat a kontrolovat dry-runem.
 
-1. objekt dostane `status: deprecated` nebo `deleted_pending`,
-2. synchronizace upozorní na příchozí a odchozí odkazy,
-3. člověk potvrdí odstranění,
-4. YAML zůstane v Git historii,
-5. Miro objekt se odstraní nebo přesune do archivu.
+## Polling worker
 
-## 7. Idempotence
+`Start-DDDAMiroSyncWorker.ps1` spouští kontrolovaný polling nad režimem `Both`. Minimální interval je 30 sekund. Worker používá stejný common-base a conflict model jako jednorázový sync; nevytváří zvláštní paralelní stav.
 
-Opakovaný pull nebo push bez mezilehlé změny nesmí vytvářet nové artefakty, měnit identifikátory ani posouvat prvky. Sync report musí uvádět nulový diff.
+Provozní vlastnosti:
 
-## 8. Dry-run
+- po každém cyklu vzniká auditní report,
+- při konfliktu proces končí s exit code `2`,
+- API nebo konfigurační chyba končí exit code `1`,
+- normální ukončení přes `-MaxCycles` vrací `0`,
+- worker necommitne a nepushne změny,
+- OAuth token se nerefreshuje uvnitř runtime.
 
-Každá write operace musí podporovat `--dry-run`. Výstup obsahuje:
+Lokální worker je určen pro facilitované nebo vývojové použití. Pro trvalý provoz jej hostuj v řízené službě se secret store, restart policy, log shippingem a externím token refresh mechanismem.
 
-- počet nových, změněných a odstraněných objektů,
-- seznam dotčených YAML souborů,
-- konflikty,
-- validační chyby,
-- předpokládané Miro API operace.
+## Chybějící mapped item
 
-## 9. Miro mapping
+Pokud `miro-map.yaml` obsahuje item ID, ale API položku nevrátí, runtime nepředpokládá, zda šlo o záměrné smazání, změnu oprávnění nebo přesun. Vytvoří konflikt `mapped_remote_item_missing`. Znovuvytvoření je povoleno pouze explicitně přes `-RecreateMissing`, ideálně nejprve v dry-run režimu.
 
-`sync/miro-map.yaml` mapuje identitu a vizuální stav:
+## Omezení první produkční verze
 
-```yaml
-board_id: ${DDDA_LIFE_MIRO_BOARD_ID}
-board_revision: '18731'
-items:
-  evt-policy-issued:
-    miro_item_id: '3458764512345'
-    frame_id: big-picture-es
-    x: 1220
-    y: 840
-    width: 220
-    height: 140
-```
-
-## 10. Webhook versus polling
-
-- Webhook je vhodný pro rychlou detekci změn, ale událost nemusí obsahovat celý stav.
-- Polling je jednodušší pro lokální provoz a obnovu po výpadku.
-- Doporučený návrh: webhook označí projekt jako dirty; worker následně provede idempotentní pull.
-
-První implementace může používat pouze řízený pull/push z CLI. To omezuje provozní složitost a umožňuje ověřit model konfliktů před automatizací.
-
-## 11. Bezpečnost
-
-- Tokeny nikdy neukládat do YAML ani Gitu.
-- Board ID lze skrýt přes environment variable, pokud je citlivé.
-- Logovat pouze identifikátory a zkrácené diffy.
-- Před exportem citlivých workshopových dat ověřit klasifikaci projektu.
-
-## 12. Definition of Done konektoru
-
-Živý konektor je považován za dokončený, pokud prokazatelně zvládá:
-
-- create/update/read managed item,
-- zachování unmanaged item,
-- idempotentní opakování,
-- konflikt na stejném poli,
-- tombstone delete,
-- recovery po částečném selhání,
-- dry-run,
-- auditní sync report,
-- práci se dvěma projekty bez záměny boardů nebo namespace.
+Runtime synchronizuje spravované frame, sticky note, shape a text položky. Nespravuje komentáře, hlasování, obrázky, konektory ani tagy. Tyto objekty zůstávají workshopovým obsahem vlastněným Mirem. Worker používá polling; webhook může později sloužit jako trigger, ale nesmí obcházet stejný idempotentní pull/sync algoritmus.
