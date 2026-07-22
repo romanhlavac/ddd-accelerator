@@ -1,0 +1,60 @@
+name: Validate DDDA
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - "agent/**"
+
+permissions:
+  contents: read
+
+jobs:
+  schemas-and-templates:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install validators
+        run: python -m pip install --disable-pip-version-check pyyaml jsonschema
+
+      - name: Validate JSON and YAML syntax
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import yaml
+
+          for path in Path("schemas").glob("*.json"):
+              with path.open("r", encoding="utf-8") as handle:
+                  json.load(handle)
+              print(f"JSON OK: {path}")
+
+          yaml_paths = [
+              Path("templates/workspace/workspace.yaml"),
+              Path("templates/project/project.yaml"),
+              Path("templates/project/ddda-lock.template.yaml"),
+          ]
+          for path in yaml_paths:
+              with path.open("r", encoding="utf-8") as handle:
+                  yaml.safe_load(handle)
+              print(f"YAML OK: {path}")
+          PY
+
+  powershell:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Parse scripts and validate installation
+        shell: pwsh
+        run: ./scripts/Test-DDDAInstallation.ps1 -PlatformPath $PWD
