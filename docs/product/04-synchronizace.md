@@ -2,7 +2,7 @@
 
 ## Autentizace
 
-Runtime čte bearer token z environment variable, výchozí `MIRO_ACCESS_TOKEN`. Projekt může board, team a Miro project/space ID načítat z manifestu nebo environment variables.
+Runtime čte bearer token z environment variable, výchozí `MIRO_ACCESS_TOKEN`. Projekt může board, team a Miro project/space ID načítat z manifestu nebo environment variables. Board vytvořený rendererem se zároveň uloží do `miro-map.yaml`, takže jej další příkazy mohou znovu použít bez úpravy manifestu.
 
 Požadované scopes:
 
@@ -20,21 +20,25 @@ Doménové typy se mapují na item typy. Například domain event → sticky not
 
 ## Identita
 
-Primární vazba je v `miro/miro-map.yaml`. Každá spravovaná položka navíc obsahuje marker:
+Primární vazba je v `miro/miro-map.yaml`. Každá spravovaná doménová položka navíc obsahuje marker:
 
 ```text
 DDDA:<project-id>:<artifact-id>
 ```
 
-Marker umožní obnovit identitu, pokud je mapping poškozen nebo item přesunut.
+Systémové instrukce scaffoldu používají odlišný marker `DDDA-SCAFFOLD:` a do doménové synchronizace nevstupují. Marker umožní obnovit identitu, pokud je mapping poškozen nebo item přesunut.
 
 ## Společná base
 
-`miro/sync-state.yaml` ukládá hash lokální a vzdálené sémantiky z posledního úspěšného syncu. Konflikt vznikne, pokud se obě strany změnily a nejsou shodné.
+`miro/sync-state.yaml` ukládá hash lokální a vzdálené sémantiky z posledního skutečně konvergovaného syncu. Jednosměrný pull nesmí označit nepushnutou lokální změnu za synchronizovanou a jednosměrný push nesmí zakrýt nevyzvednutou vzdálenou změnu. Konflikt vznikne, pokud se obě strany změnily a nejsou shodné.
 
 ## Pull
 
-Pull načte všechny board items, vybere pouze položky se správným project markerem, porovná hash a aktualizuje YAML. Unmapped managed item vyžaduje explicitní promotion; unmanaged item se ignoruje.
+Pull načte všechny board items, vybere pouze položky se správným project markerem, porovná hash a aktualizuje existující YAML.
+
+Nový marked item vytvořený přímo v Miru je zpočátku pouze kandidát. Bez explicitního přepínače runtime vrátí `pull_unmapped_requires_promotion`. Přepínač `-PromoteNew` po dry-run review vytvoří YAML v `artifacts/<stage>/<type>/<artifact-id>.yaml`, zapíše mapping a společnou base. Item bez řádku `Typ:` se nepromuje a vytvoří konflikt.
+
+Unmanaged workshop item bez markeru se ignoruje a zachová.
 
 ## Push
 
@@ -42,11 +46,13 @@ Push vytvoří nebo aktualizuje Miro item. Standardně mění pouze sémantický
 
 ## Both
 
-Režim Both provede kontrolovaný pull a push nad jednou společnou base. Konflikt blokuje automatické sjednocení.
+Režim Both provede kontrolovaný pull a push nad jednou společnou base. Konflikt blokuje automatické sjednocení. Worker z bezpečnostních důvodů nové board items automaticky nepromuje.
 
 ## Mazání
 
 `deleted_pending` je tombstone. Fyzické DELETE vyžaduje `-ConfirmDelete`. Mapping a sync state se aktualizují až po úspěšné API operaci.
+
+Pokud zmizí lokální YAML, ale mapping jej stále eviduje, runtime vytvoří `mapped_local_artifact_missing`; nesmí předpokládat, že smazání souboru znamená požadavek odstranit položku v Miru.
 
 ## Audit
 
@@ -66,6 +72,7 @@ Provozní vlastnosti:
 - při konfliktu proces končí s exit code `2`,
 - API nebo konfigurační chyba končí exit code `1`,
 - normální ukončení přes `-MaxCycles` vrací `0`,
+- worker nepromuje nové Miro items,
 - worker necommitne a nepushne změny,
 - OAuth token se nerefreshuje uvnitř runtime.
 
