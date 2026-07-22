@@ -2,62 +2,103 @@
 
 ## Výsledek
 
-Vznikne izolovaný projekt s manifestem, adresářovou strukturou, workflow profilem, prázdným Miro mappingem a počátečním backlogem otázek.
+Vznikne izolovaný DDDA projekt s vlastním Git repozitářem, manifestem `project.yaml`, lock souborem `ddda.lock.yaml`, standardní adresářovou strukturou a registrací v lokálním `workspace.yaml`.
 
 ## Předpoklady
 
-- existuje klon repozitáře,
-- je znám pracovní název, sponsor a dominantní typ projektu,
-- `project_id` ještě není použit,
-- žádný Miro token se nebude ukládat do Gitu.
+- platforma DDDA je naklonována a prošla `Test-DDDAInstallation.ps1`,
+- workspace byl vytvořen pomocí `Initialize-DDDAWorkspace.ps1`,
+- příkaz `git` je dostupný v PowerShellu,
+- je znám stabilní `project_id`, pracovní název a dominantní typ projektu,
+- žádný Miro token nebude uložen do Gitu.
 
-## Postup
+## Doporučený postup
 
-1. Zvolte stabilní `project_id`, například `life-insurance-greenfield`.
-2. Vyberte typ podle `docs/product/05-typy-projektu.md`.
-3. Vytvořte adresář `projects/<project_id>/` a podadresáře dle produktové dokumentace.
-4. Vytvořte `project.yaml`.
-5. Do `README.md` zapište business problém, očekávané rozhodnutí, scope, out-of-scope, role a známá omezení.
-6. Do `inputs/catalog.yaml` zapište dostupné vstupy a jejich důvěryhodnost.
-7. Do `artifacts/align/hotspots.yaml` zapište počáteční nejistoty.
-8. V `sync/miro-map.yaml` ponechte board ID jako odkaz na environment variable.
-9. Proveďte schema validaci.
-10. Založte feature branch a commitněte bootstrap odděleně od doménových závěrů.
+```powershell
+Set-Location C:\Work\DDDA-Workspace\platform\ddd-accelerator
 
-## Minimální manifest
+.\scripts\New-DDDAProject.ps1 `
+  -WorkspaceRoot C:\Work\DDDA-Workspace `
+  -ProjectId life-insurance-greenfield `
+  -Name "Nová životní pojišťovna" `
+  -Type portfolio-program `
+  -TypeAlias greenfield-portfolio
+```
+
+Skript:
+
+1. ověří, že `project_id` ještě není registrován,
+2. vytvoří `projects/<project_id>/`,
+3. vygeneruje `project.yaml` a `ddda.lock.yaml`,
+4. vytvoří adresáře `ingestion`, `artifacts`, `decisions`, `workshops`, `miro`, `reports` a `exports`,
+5. inicializuje samostatný Git repozitář projektu,
+6. vytvoří počáteční commit,
+7. přidá projekt do `workspace.yaml` a `DDDA.code-workspace`.
+
+## Volitelný vzdálený repozitář
+
+Existující prázdný GitHub repozitář lze připojit při bootstrapu:
+
+```powershell
+.\scripts\New-DDDAProject.ps1 `
+  -WorkspaceRoot C:\Work\DDDA-Workspace `
+  -ProjectId claims-modernization `
+  -Name "Modernizace likvidace pojistných událostí" `
+  -Type legacy-modernization `
+  -RemoteUrl https://github.com/example/claims-modernization.git
+
+git -C C:\Work\DDDA-Workspace\projects\claims-modernization push -u origin main
+```
+
+## Kanonický manifest
 
 ```yaml
-schema_version: 1.0.0
-project_id: claims-modernization
-name: Modernizace likvidace pojistných událostí
-project_type: legacy-modernization
-language: cs
-status: proposed
-workflow:
-  profile: legacy-modernization
-  current_stage: align
-  completed_gates: []
+project:
+  id: claims-modernization
+  name: "Modernizace likvidace pojistných událostí"
+  type: legacy-modernization
+  type_alias: null
+  schema_version: 1
+  language: cs
+  status: active
+
+ddda:
+  repository: romanhlavac/ddd-accelerator
+  required_ref: main
+  lock_file: ddda.lock.yaml
 miro:
-  board_id_env: DDDA_CLAIMS_MIRO_BOARD_ID
-owners:
-  business_sponsor: null
-  architecture_owner: null
+  board_id: null
+  workspace_area: claims-modernization
+  synchronization: disabled
+artifacts:
+  canonical_source: yaml
+  root: artifacts
+  mermaid_projection: true
+  conflict_policy: manual-review
 ```
 
 ## Kontroly
 
-- `project_id` je unikátní a nemění se s názvem.
-- Typ projektu odpovídá hlavnímu problému, ne preferované technologii.
-- Citlivost vstupů je explicitní.
-- Board nebo board area není sdílena s jiným projektem bez explicitní izolace.
-- V manifestu není token.
+```powershell
+$project = "C:\Work\DDDA-Workspace\projects\claims-modernization"
+
+git -C $project status
+Get-Content "$project\project.yaml"
+Get-Content "$project\ddda.lock.yaml"
+
+.\scripts\Test-DDDAInstallation.ps1 `
+  -PlatformPath $PWD `
+  -WorkspaceRoot C:\Work\DDDA-Workspace `
+  -ProjectPath $project
+```
 
 ## Typické chyby
 
-- projekt je pojmenován podle řešení, například `microservices-migration`, místo business scope,
-- scope je celý podnik bez rozhodnutí, které má discovery umožnit,
-- copied project obsahuje staré `artifact_id` a Miro mapping,
-- tým začne vytvářet bounded contexts před G2.
+- projekt je založen uvnitř platformního Git repozitáře,
+- projekt je pojmenován podle technického řešení místo business scope,
+- platformní a projektové změny jsou připraveny v jednom commitu,
+- kopie jiného projektu obsahuje staré `artifact_id` nebo Miro mapping,
+- `ddda.lock.yaml` je ručně přepsán bez řízeného upgradu.
 
 ## Navazující krok
 
