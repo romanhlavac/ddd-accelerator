@@ -1,283 +1,330 @@
-# Referenční projekt — Greenfield životní pojišťovna
+# Referenční projekt — greenfield životní pojišťovna
 
-## 1. Scénář
+Tento example ukazuje typický `portfolio-program` s aliasem `greenfield-portfolio`. Cílem není dodat jediný „správný“ model pojišťovny, ale předvést opakovatelný způsob práce: ingestion → chatové zpracování → Miro workshop → spravované YAML → gate review → context map → týmový ownership → detail prvního bounded contextu → architektura.
 
-Skupina zakládá digitální životní pojišťovnu pro český a slovenský trh. Cílem není pouze nový policy administration system, ale provozní model celé pojišťovny: distribuce, underwriting, správa smluv, inkaso, pojistné události, zákaznická obsluha, finance, compliance a reporting.
+## 0. Výchozí business situace
 
-Projekt demonstruje profil `greenfield-portfolio` a průchod od Align po implementační hand-off.
+Nová životní pojišťovna má uvést první individuální rizikový produkt. První inkrement zahrnuje digitální distribuci, underwriting, vznik smlouvy, inkaso, základní servicing, claim intake a regulatorní/finanční integrace. Group life a investiční produkty jsou mimo první inkrement.
 
-## 2. Business cíle
+Prioritní quality attributes:
 
-- uvést první rizikové životní pojištění do 12 měsíců,
-- umožnit produktovým týmům měnit underwriting pravidla bez plošného release core systému,
-- zajistit auditovatelnost rozhodnutí a regulatorní reporting,
-- podporovat přímý i zprostředkovatelský distribuční kanál,
-- oddělit diferenciující schopnosti od generic SaaS/COTS capability.
+- auditability a explainability underwriting rozhodnutí,
+- ochrana osobních a zdravotních dat,
+- modifiability produktových pravidel,
+- dostupnost digitálního prodeje,
+- recoverability platebních a issuance procesů.
 
-## 3. Předpoklady
+## 1. Vytvoření projektu
 
-- zdravotní data mají vysokou citlivost,
-- platby, účetnictví, identita a e-signature mohou být koupené capability,
-- underwriting a návrh produktu jsou kandidáti Core Domain,
-- cílový systém musí podporovat postupné přidávání produktů,
-- konkrétní technologie nejsou v discovery předurčeny.
+Z parent adresáře workspace:
 
-## 4. Vstupy
+```powershell
+$WorkspaceRoot = (Resolve-Path .\DDDA-Workspace).Path
+$PlatformRoot = (Resolve-Path .\DDDA-Workspace\platform\ddd-accelerator).Path
 
-```text
-inputs/
-├── business-plan.md
-├── target-operating-model.md
-├── regulatory-requirements.md
-├── product-concept-term-life.md
-├── distribution-journeys.md
-├── underwriting-guidelines.md
-└── vendor-capability-catalog.md
+& (Join-Path $PlatformRoot 'scripts\New-DDDAProject.ps1') `
+  -WorkspaceRoot $WorkspaceRoot `
+  -ProjectId life-insurance-greenfield `
+  -Name 'Nová životní pojišťovna' `
+  -Type portfolio-program `
+  -TypeAlias greenfield-portfolio
+
+$ProjectRoot = Join-Path $WorkspaceRoot 'projects\life-insurance-greenfield'
 ```
 
-Každý vstup má v katalogu ownera, datum, citlivost, důvěryhodnost a části relevantní pro projekt.
+## 2. První chat — potvrzení scope
 
-## 5. Krok za krokem
+Prompt:
 
-### Krok 1 — Align
-
-Prompt pro agenta:
-
-> Analyzuj vstupy projektu životní pojišťovny. Odděl fakta, předpoklady a otevřené otázky. Navrhni business problém, cíle, scope/out-of-scope, stakeholder mapu a prioritní quality attribute scénáře. Nenavrhuj technologie ani bounded contexts.
+> Scope: project. Aktivní projekt: `life-insurance-greenfield`. Načti `project.yaml` a metodiku pro `portfolio-program`. Shrň business problém, předpoklady, in/out scope, aktéry, regulatorní omezení, quality attributes a rozhodnutí, která musí program učinit. Nevytvářej bounded contexts ani technologie. Navrhni seznam chybějících vstupů a interview plán.
 
 Očekávaný výstup:
 
-- scope: od návrhu produktu a nabídky po vznik, servis a ukončení smlouvy a likvidaci plnění,
-- out-of-scope první inkrement: skupinové životní pojištění a investiční složka,
-- quality attributes: auditovatelnost, privacy, modifikovatelnost pravidel, dostupnost distribučního journey, recoverability plateb.
+- seznam stakeholderů: sponsor, product, underwriting, claims, operations, finance, compliance, data protection, distribution, architecture,
+- seznam rozhodnutí: product scope, underwriting authority, policy lifecycle, payment ownership, party identity ownership, claims boundary, build/buy,
+- ingestion backlog.
 
-Gate G1 schvaluje sponsor, Chief Product Officer a Chief Architect.
+## 3. Ingestion
 
-### Krok 2 — Big Picture EventStorming
+Do `ingestion/` vlož:
 
-Workshop začíná událostmi například:
+- product vision a business case,
+- regulatorní a privacy požadavky,
+- draft produktu a pojistných podmínek,
+- underwriting guidelines,
+- target journeys,
+- finance/accounting constraints,
+- enterprise platform constraints,
+- interview notes.
 
-- ProduktNavržen,
-- ProduktSchválen,
-- ZájemceIdentifikován,
-- PotřebyZákazníkaZjištěny,
-- NabídkaVytvořena,
-- ZdravotníDotazníkVyplněn,
-- RizikoVyhodnoceno,
-- NabídkaPřijata,
-- SmlouvaUzavřena,
-- PrvníPojistnéPřijato,
-- PojistnáOchranaAktivována,
-- ZměnaSmlouvyProvedena,
-- PojistnáUdálostNahlášena,
-- NárokPosouzen,
-- PlněníVyplaceno,
-- SmlouvaUkončena.
+Aktualizuj `ingestion/catalog.yaml`:
 
-Hotspoty:
+```yaml
+sources:
+  - id: product-vision-v1
+    path: ingestion/product-vision.md
+    type: business_vision
+    owner: chief-product-officer
+    observed_at: 2026-07-22
+    trust: authoritative
+    sensitivity: internal
+  - id: underwriting-interview-01
+    path: ingestion/interviews/underwriting-01.md
+    type: interview
+    owner: chief-underwriter
+    observed_at: 2026-07-24
+    trust: elicited
+    sensitivity: confidential
+```
 
-- Kdy přesně vzniká pojistná ochrana?
-- Kdo vlastní klientská kontaktní data?
-- Je zdravotní posouzení součást nabídky, nebo samostatný model?
-- Jak se rozlišuje návrh produktu od jeho prodejní varianty?
-- Co je autoritativní stav platby při výpadku poskytovatele?
+Prompt:
 
-Observed lifecycles:
+> Analyzuj pouze ingestion katalog a dostupné soubory. U každého tvrzení uveď source ID. Rozděl fakta, policy statements, hypotézy, rozpory a otázky. Vytvoř glossary seed a interview gaps. Neopravuj terminologii obecným pojišťovacím know-how bez označení inference.
 
-- nabídka,
+## 4. Align frame v Miru
+
+Miro změny:
+
+- `10 – Align / Intake`: project charter, business outcomes, stakeholders, scope, assumptions, success metrics,
+- control center: status projektu, upcoming workshops, open decisions,
+- G1 checklist.
+
+Prompt:
+
+> Připrav candidate YAML pro project charter a assumptions. Proveď push dry-run do frame `align-intake`. Ukaž, které sticky notes budou vytvořeny a které položky zůstanou unmanaged workshop notes.
+
+G1 projde, když sponsor a architecture owner potvrdí scope, rozhodnutí a měřitelné outcomes.
+
+## 5. Instalace a render Miro boardu
+
+```powershell
+$env:MIRO_ACCESS_TOKEN = '<token>'
+$env:LIFE_INSURANCE_GREENFIELD_MIRO_BOARD_ID = '<board-id>'
+
+& (Join-Path $PlatformRoot 'scripts\Install-DDDAMiroRuntime.ps1')
+& (Join-Path $PlatformRoot 'scripts\Test-DDDAMiroConfiguration.ps1') `
+  -ProjectPath $ProjectRoot -Online
+& (Join-Path $PlatformRoot 'scripts\Initialize-DDDAMiroBoard.ps1') `
+  -ProjectPath $ProjectRoot -DryRun
+& (Join-Path $PlatformRoot 'scripts\Initialize-DDDAMiroBoard.ps1') `
+  -ProjectPath $ProjectRoot
+```
+
+Miro nyní obsahuje kompletní metodický spine a pracovní frames.
+
+## 6. Big Picture EventStorming
+
+Workshop scope: od prvního kontaktu klienta po active policy, první servicing a claim notification.
+
+Seed otázky:
+
+- Co se musí stát před vytvořením application?
+- Kdy vzniká underwriting case?
+- Co znamená „offer prepared“, „accepted“, „policy issued“ a „in force“?
+- Kdy je nutná první platba?
+- Kdy lze policy zrušit, změnit nebo obnovit?
+- Co se děje při claim notification?
+
+Facilitační tok:
+
+1. účastníci zapisují business events,
+2. události se seřadí v čase,
+3. doplní se temporal events a pivoty,
+4. označí se actors a external systems,
+5. hotspoty: medical evidence, sanctions, payment failure, backdating, cancellation, claim fraud,
+6. vyberou se slices pro detail.
+
+Po workshopu:
+
+> Proveď pull dry-run. Importuj pouze položky s DDDA markerem nebo explicitně schválené k promotion. Vytvoř domain-event YAML s source workshop ID. Hotspoty ponech jako candidate s ownerem otázky. Připrav Git diff, necommituj.
+
+Příklad spravovaného eventu je v `artifacts/discover/events/policy-issued.yaml`.
+
+## 7. Glossary a observed lifecycle
+
+V `discover-evidence` frame tým sjednocuje rozdíl mezi:
+
+- application,
+- proposal/offer,
+- policy,
+- coverage,
 - underwriting case,
-- pojistná smlouva,
-- premium receivable,
+- premium obligation,
 - claim.
 
-### Krok 3 — Process Modeling
+Prompt:
 
-Prioritní scénář: sjednání rizikového životního pojištění.
+> Z validovaných events odvoď observed lifecycle pro Application, Underwriting Case, Offer, Policy a Claim. Nezaměň milestone za state. U každého stavu uveď vstupní event, opuštění stavu a source.
 
-```text
-Zájemce
-→ Požádat o nabídku
-→ Zachytit potřeby a souhlasy
-→ Vyhodnotit distribuční vhodnost
-→ Vytvořit nabídku
-→ Vyžádat zdravotní informace
-→ Vyhodnotit riziko
-→ Upravit nebo potvrdit podmínky
-→ Přijmout nabídku
-→ Podepsat smlouvu
-→ Přijmout první pojistné
-→ Aktivovat pojistnou ochranu
-```
+## 8. Process Modeling vybraných slices
 
-Process Modeling odhalí, že distributor, underwriting a policy administration používají pojem „nabídka“ odlišně.
+Vyber minimálně:
 
-### Krok 4 — Decompose
+1. application → underwriting decision,
+2. accepted offer → policy issuance,
+3. premium due → payment allocation,
+4. claim notification → claim registration.
 
-Kandidátní subdomény:
+Prompt:
 
-| Subdoména | Pracovní typ | Důvod |
-|---|---|---|
-| Product Design | Core | rychlost a kvalita produktových změn |
-| Underwriting | Core | diferenciující risk selection a pravidla |
-| Distribution Journey | Core/Supporting | diferenciace digitální distribuce; závisí na strategii |
-| Policy Administration | Supporting | kritická, ale převážně standardní capability |
-| Claims | Supporting/Core candidate | potenciální diferenciace v customer experience a automatizaci |
-| Billing and Collections | Generic/Supporting | možnost platformy nebo produktu |
-| Customer Identity and Consent | Generic with strict constraints | regulace, citlivost a enterprise reuse |
-| Finance and General Ledger | Generic | typicky koupená capability |
-| Regulatory Reporting | Supporting | lokální regulatorní znalost |
+> Pro slice `accepted offer → policy issuance` vytvoř Actor → Command → Policy → Event → Read Model model. Zahrň rejected/timeout branches, authority, idempotency a externí dependencies. Neurčuj zatím agregáty.
 
-Candidate lifecycle underwriting case je oddělen od lifecycle nabídky, protože má jiné rozhodování, citlivá data a ownership.
+Miro změny: procesní rows, commands, policies, read models, exceptions a hotspoty ve frame `discover-process-modeling`.
 
-### Krok 5 — Strategize
+## 9. Decomposition
 
-Portfolio rozhodnutí:
+Chat analyzuje clustery jazyka, lifecycle, pravidel, change cadence a ownershipu.
 
-- build: Product Design a Underwriting Decisioning,
-- build/partner: Distribution Journey,
-- buy/configure: General Ledger, e-signature, payments,
-- evaluate COTS: Policy Administration,
-- vlastní ACL a canonical contracts kolem vendor produktů.
+Prompt:
 
-### Krok 6 — Connect
+> Navrhni candidate subdomains a bounded contexts. Pro každý uveď purpose, language, key decisions, lifecycle, data owned, inbound/outbound dependencies a rationale. Rozliš business capability, subdomain, BC, system a team. Nevytvářej 1:1 mapping BC = microservice.
 
-Kandidátní bounded contexts:
+Typické candidate oblasti:
 
 - Product Definition,
-- Sales Proposition,
+- Distribution Journey,
+- Application Intake,
 - Underwriting,
 - Policy Administration,
-- Billing and Collections,
-- Claims Management,
-- Customer and Consent,
-- Distribution Partner Management,
+- Billing & Collections,
+- Claims,
+- Party & Consent,
+- Document/Communication,
 - Finance Integration,
-- Regulatory Reporting.
+- Regulatory Reporting,
+- Fraud/Risk Analytics.
 
-Příklad vztahů:
+G3 projde, když jsou hypotézy validovatelné a hotspoty mají owners.
 
-```mermaid
-flowchart LR
-    PD[Product Definition] -->|Published product version| SP[Sales Proposition]
-    SP -->|Underwriting request| UW[Underwriting]
-    UW -->|Risk decision| SP
-    SP -->|Accepted proposition| PA[Policy Administration]
-    PA -->|Premium schedule| BC[Billing and Collections]
-    PA -->|Coverage snapshot| CM[Claims Management]
-    BC -->|Payment status| PA
-    PA -->|Accounting events| FI[Finance Integration]
-    PA -->|Regulatory facts| RR[Regulatory Reporting]
+## 10. Strategická klasifikace
+
+Prompt:
+
+> Klasifikuj subdomény core/supporting/generic podle diferenciace a business komplexity. U každé navrhni build/buy/partner/retire a zdůvodni, co musí pojišťovna vlastnit jako knowledge. Nezaměň core s kritičností.
+
+Miro změny: matrix core/supporting/generic, differentiation vs complexity a sourcing decisions.
+
+Příklad očekávaného výsledku:
+
+- Underwriting/Product capabilities jako core nebo differentiating,
+- document generation a notifications často generic/supporting,
+- finance ledger integration supporting s vysokou compliance kritičností.
+
+## 11. Context Map a data ownership
+
+Prompt:
+
+> Vytvoř programovou context map. Pro každý relationship uveď upstream/downstream, pattern, owned data, contract, latency, consistency a failure mode. Zvlášť řeš Party identity, Policy, Payment a Claim identifiers.
+
+Miro změny:
+
+- bounded context map,
+- source-of-truth overlay,
+- upstream/downstream arrows,
+- ACL u vendor/external systems,
+- integrační hotspoty.
+
+Příklad `artifacts/connect/context-map.yaml` ukazuje minimální vztahy.
+
+## 12. Team Topologies
+
+Prompt:
+
+> Navrhni stream-aligned ownership podle toku hodnoty a cognitive load. Platform team použij pouze pro interní platform product. Enabling team použij časově omezeně pro capability uplift. U COTS/SaaS urč owning stream-aligned team nebo service ownera a vendor management responsibility.
+
+Výstup:
+
+- stream-aligned týmy pro acquisition/underwriting, policy servicing, billing, claims,
+- platform capabilities pro identity, delivery platform, observability nebo data platform jen s jasným product modelem,
+- enabling support pro DDD, security nebo test automation.
+
+## 13. Bounded Context Canvas
+
+Vyber první detailní BC, například `Policy Administration`.
+
+Prompt:
+
+> Připrav Bounded Context Canvas pro Policy Administration. Uveď purpose, strategic role, ubiquitous language, business decisions, lifecycle, inbound/outbound contracts, assumptions, metrics a open questions. Všechny vazby musí odkazovat na context map.
+
+## 14. Design-Level EventStorming
+
+Scope: accepted offer → policy issuance → activation → cancellation/change.
+
+Prompt:
+
+> Pro Policy Administration vytvoř Design-Level ES. Navrhni commands, aggregate candidates, invariants, domain events, policies a projections. Vyznač cross-context dependencies a zakaž synchronní transakci přes BC. Každý invariant odkaž na business rule source.
+
+## 15. Validovaný lifecycle
+
+Prompt:
+
+> Vytvoř validovaný Policy lifecycle a transition table. Zahrň Draft, PendingIssue, Issued, InForce, Suspended, Lapsed, Cancelled, Terminated pouze tam, kde je doložen význam. U přechodů uveď authorization, guards, event, timeout a compensation.
+
+Miro změny: frame `define-lifecycle`, forbidden transitions a acceptance tests.
+
+## 16. Quality Attribute Workshop
+
+Scénáře:
+
+- audit underwriting decision po 10 letech,
+- obnova po dvojím payment callbacku,
+- dostupnost quote/application journey,
+- ochrana medical evidence,
+- změna product rule bez plošného regresního rizika.
+
+Prompt:
+
+> Přepiš quality attributes do měřitelných scénářů stimulus → environment → artifact → response → measure. Ukaž architektonické trade-offy a potřebná ADR.
+
+## 17. Tactical design a architektura
+
+Prompt:
+
+> Navrhni nejjednodušší implementační styl pro první slice. Začni modulárním monolitem nebo explicitně zdůvodni distribuci. Agregáty navrhni pouze pro skutečné invarianty. CQRS/Event Sourcing nepoužívej bez auditního, temporal nebo scale důvodu.
+
+Výstup:
+
+- aggregates a value objects,
+- application ports,
+- domain/integration events,
+- persistence decisions,
+- C4 context/container/component,
+- ADR backlog,
+- observability a rollout.
+
+## 18. Synchronizace po každém workshopu
+
+```powershell
+& (Join-Path $PlatformRoot 'scripts\Invoke-DDDAMiroSync.ps1') `
+  -ProjectPath $ProjectRoot -Direction Pull -DryRun
+
+& (Join-Path $PlatformRoot 'scripts\Invoke-DDDAMiroSync.ps1') `
+  -ProjectPath $ProjectRoot -Direction Both
 ```
 
-Data ownership:
+Prompt:
 
-- Product Definition vlastní verzovaný produktový model.
-- Underwriting vlastní underwriting case a risk decision.
-- Policy Administration vlastní pojistnou smlouvu a business stav ochrany.
-- Billing vlastní pohledávku, inkaso a reconcile s payment providerem.
-- Customer and Consent vlastní identitu, kontaktní preference a souhlasy; ostatní kontexty používají účelové snapshoty.
+> Po syncu rozděl změny na evidence, candidate model, accepted decision, layout-only a conflict. Připrav projektový PR se souhrnem business dopadu. Nezahrnuj tokeny ani platformní změny.
 
-### Krok 7 — Organize
+## 19. Gate a program roadmap
 
-První cílové týmy:
+Po G5/G6 vytvoř portfolio slices:
 
-- Product and Underwriting stream-aligned team,
-- Sales Journey stream-aligned team,
-- Policy Lifecycle stream-aligned team,
-- Claims stream-aligned team,
-- Insurance Platform team pro společné technické capability a paved road,
-- dočasný enabling team pro DDD, security/privacy a event/API contract design.
+1. quote/application skeleton,
+2. underwriting happy path,
+3. issuance + first premium,
+4. policy servicing,
+5. claim intake,
+6. reconciliation, audit a regulatory readiness.
 
-Platform team nevlastní business bounded contexts ostatních týmů. Enabling team nevytváří permanentní delivery závislost.
+Každý slice má business outcome, owned data, integration contracts, quality scenarios, rollback a decommission/transition dopad.
 
-### Krok 8 — Define
+## 20. Co tento example záměrně neurčuje
 
-Prioritní bounded context: Underwriting.
+- konkrétní cloud, vendor nebo policy administration package,
+- počet mikroservis,
+- definitivní regulatorní interpretaci,
+- detail zdravotního underwriting modelu,
+- účetní chart of accounts.
 
-Design-Level ES:
-
-```text
-Underwriter / automatická policy
-→ Vyhodnotit riziko
-→ UnderwritingCase
-→ musí existovat platná produktová verze, souhlasy a dostatečné evidence
-→ RizikoVyhodnoceno
-→ policy: pokud je potřeba doplnění
-→ VyžádatDoplňujícíInformace
-→ DoplňujícíInformaceVyžádány
-→ po doplnění znovu VyhodnotitRiziko
-→ RiskDecision projection pro Sales Proposition
-```
-
-Candidate agregáty/consistency boundaries:
-
-- `UnderwritingCase` chrání stav posouzení a vazbu na immutable evidence references,
-- produktový model se nekopíruje jako mutable objekt; používá se konkrétní published version,
-- zdravotní dokumenty mohou být vlastněny separátní secure evidence capability a v Underwritingu jsou pouze reference a odvozená fakta.
-
-Validovaný lifecycle:
-
-```text
-Opened → EvidencePending → ReadyForAssessment → Assessed
-       → Referred → Assessed
-       → Declined | OfferedWithTerms | AcceptedStandard
-```
-
-### Krok 9 — Code hand-off
-
-První vertical slice:
-
-- digitální žádost,
-- jednoduchý rules-based underwriting pro produkt s limitem,
-- accepted standard decision,
-- předání přijaté nabídky do Policy Administration,
-- audit trail a základní observabilita.
-
-Nevstupuje do prvního slice:
-
-- komplexní manual underwriting workbench,
-- claims,
-- skupinové produkty,
-- univerzální enterprise event bus.
-
-## 6. Výsledná adresářová mapa
-
-```text
-artifacts/
-├── align/
-│   ├── discovery-brief.yaml
-│   └── quality-attributes.yaml
-├── discover/
-│   ├── events.yaml
-│   ├── glossary.yaml
-│   ├── hotspots.yaml
-│   └── lifecycles-observed.yaml
-├── decompose/
-│   ├── candidate-subdomains.yaml
-│   └── candidate-lifecycles.yaml
-├── strategize/
-│   └── subdomain-strategy.yaml
-├── connect/
-│   ├── bounded-contexts.yaml
-│   ├── context-map.yaml
-│   └── data-ownership.yaml
-├── organize/
-│   └── team-topology.yaml
-├── define/
-│   ├── underwriting-context-canvas.yaml
-│   ├── underwriting-design-level-es.yaml
-│   ├── underwriting-lifecycle.yaml
-│   └── underwriting-invariants.yaml
-└── code/
-    └── slice-01-standard-underwriting.yaml
-```
-
-## 7. Co příklad záměrně netvrdí
-
-- že každý bounded context musí být samostatná mikroservisa,
-- že doménové události znamenají Event Sourcing,
-- že všechny uvedené hranice jsou univerzální pro každou pojišťovnu,
-- že koupený policy administration produkt nepotřebuje doménový model na straně pojišťovny,
-- že team topology je konečná organizační struktura.
-
-Příklad je metodický referenční model a musí být přizpůsoben konkrétní strategii, regulaci, distribučnímu modelu a sourcingu.
+Tyto body vyžadují projektovou evidence a explicitní rozhodnutí.
