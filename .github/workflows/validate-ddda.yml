@@ -7,35 +7,32 @@ on:
       - main
       - "agent/**"
       - "docs/**"
+      - "feat/**"
+      - "fix/**"
 
 permissions:
   contents: read
 
 jobs:
-  schemas-and-yaml:
+  schemas-docs-and-yaml:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-
       - name: Install validators
         run: python -m pip install --disable-pip-version-check pyyaml jsonschema
-
-      - name: Reject hardcoded local workspace paths
+      - name: Validate documentation structure and paths
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
-
           paths = [Path("README.md"), Path("USAGE.md")]
           paths.extend(Path("docs").rglob("*.md"))
           paths.extend(Path("scripts").rglob("*.ps1"))
-
           forbidden = (r"C:\Work", "C:/Work")
           failures = []
           for path in sorted(set(paths)):
@@ -43,121 +40,87 @@ jobs:
               for value in forbidden:
                   if value in text:
                       failures.append(f"{path}: contains forbidden absolute path {value!r}")
-
+          root_docs = [path.name for path in Path("docs").glob("*.md")]
+          if root_docs != ["README.md"]:
+              failures.append(f"docs root must contain only README.md, found: {root_docs}")
           if failures:
               raise SystemExit("\n".join(failures))
-
-          print("Path examples OK: documentation and scripts use relative or derived paths")
+          print("Documentation structure and path examples OK")
           PY
-
       - name: Validate schemas, YAML syntax and examples
         shell: bash
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
-
           import jsonschema
           import yaml
-
           schemas = {}
           for path in sorted(Path("schemas").glob("*.json")):
               with path.open("r", encoding="utf-8") as handle:
                   schemas[path.name] = json.load(handle)
               print(f"JSON OK: {path}")
-
           yaml_paths = []
           for root in ("templates", "scaffolds", "examples"):
               yaml_paths.extend(Path(root).rglob("*.yaml"))
               yaml_paths.extend(Path(root).rglob("*.yml"))
-
           parsed = {}
           for path in sorted(set(yaml_paths)):
-              with path.open("r", encoding="utf-8") as handle:
+              with path.open("r", encoding="utf-8-sig") as handle:
                   parsed[path.as_posix()] = yaml.safe_load(handle)
               print(f"YAML OK: {path}")
-
-          jsonschema.validate(
-              parsed["examples/life-insurance-greenfield/project.yaml"],
-              schemas["project.schema.json"],
-          )
-          print("Schema OK: examples/life-insurance-greenfield/project.yaml")
-
-          jsonschema.validate(
-              parsed["scaffolds/miro/strategic-ddd-method-board.yaml"],
-              schemas["miro-scaffold.schema.json"],
-          )
-          print("Schema OK: scaffolds/miro/strategic-ddd-method-board.yaml")
+          jsonschema.validate(parsed["examples/life-insurance-greenfield/project.yaml"], schemas["project.schema.json"])
+          jsonschema.validate(parsed["scaffolds/miro/strategic-ddd-method-board.yaml"], schemas["miro-scaffold.schema.json"])
+          for path, document in parsed.items():
+              if path.startswith("examples/life-insurance-greenfield/artifacts/") and isinstance(document, dict) and "artifact" in document:
+                  jsonschema.validate(document, schemas["managed-artifact.schema.json"])
+                  print(f"Artifact schema OK: {path}")
           PY
+
+  miro-runtime-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install test dependencies
+        run: python -m pip install --disable-pip-version-check "ruamel.yaml>=0.18,<0.19" "pytest>=8,<9"
+      - name: Run Miro runtime tests
+        env:
+          PYTHONPATH: runtime/miro
+        run: python -m pytest -q runtime/miro/tests
 
   powershell7-smoke:
     runs-on: windows-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Parse scripts and validate installation
         shell: pwsh
         run: ./scripts/Test-DDDAInstallation.ps1 -PlatformPath $PWD
-
       - name: Bootstrap workspace and project
         shell: pwsh
         run: |
           $workspace = Join-Path $env:RUNNER_TEMP "ddda-smoke-pwsh"
-
-          ./scripts/Initialize-DDDAWorkspace.ps1 `
-            -WorkspaceRoot $workspace `
-            -WorkspaceId "ci-smoke-pwsh" `
-            -WorkspaceName "CI smoke workspace"
-
-          ./scripts/New-DDDAProject.ps1 `
-            -WorkspaceRoot $workspace `
-            -ProjectId "life-insurance-smoke-pwsh" `
-            -Name "Life Insurance Smoke" `
-            -Type "portfolio-program" `
-            -TypeAlias "greenfield-portfolio" `
-            -NoInitialCommit
-
-          ./scripts/Test-DDDAInstallation.ps1 `
-            -PlatformPath $PWD `
-            -WorkspaceRoot $workspace `
-            -ProjectPath (Join-Path $workspace "projects/life-insurance-smoke-pwsh")
+          ./scripts/Initialize-DDDAWorkspace.ps1 -WorkspaceRoot $workspace -WorkspaceId "ci-smoke-pwsh" -WorkspaceName "CI smoke workspace"
+          ./scripts/New-DDDAProject.ps1 -WorkspaceRoot $workspace -ProjectId "life-insurance-smoke-pwsh" -Name "Life Insurance Smoke" -Type "portfolio-program" -TypeAlias "greenfield-portfolio" -NoInitialCommit
+          ./scripts/Test-DDDAInstallation.ps1 -PlatformPath $PWD -WorkspaceRoot $workspace -ProjectPath (Join-Path $workspace "projects/life-insurance-smoke-pwsh")
+          if (-not (Test-Path (Join-Path $workspace "projects/life-insurance-smoke-pwsh/miro/miro-map.yaml"))) { throw "Missing miro-map.yaml" }
 
   windows-powershell-51-smoke:
     runs-on: windows-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Validate UTF-8 BOM and Czech output in Windows PowerShell 5.1
         shell: powershell
         run: |
-          if ($PSVersionTable.PSVersion.Major -ne 5) {
-            throw "Expected Windows PowerShell 5.1, found $($PSVersionTable.PSVersion)."
-          }
-
+          if ($PSVersionTable.PSVersion.Major -ne 5) { throw "Expected Windows PowerShell 5.1" }
           ./scripts/Test-DDDAInstallation.ps1 -PlatformPath $PWD
-
           $workspace = Join-Path $env:RUNNER_TEMP "ddda-smoke-ps51"
-          $output = ./scripts/Initialize-DDDAWorkspace.ps1 `
-            -WorkspaceRoot $workspace `
-            -WorkspaceId "ci-smoke-ps51" `
-            -WorkspaceName "CI smoke workspace" 6>&1 | Out-String
-
+          $output = ./scripts/Initialize-DDDAWorkspace.ps1 -WorkspaceRoot $workspace -WorkspaceId "ci-smoke-ps51" -WorkspaceName "CI smoke workspace" 6>&1 | Out-String
           $expected = "p$([char]0x0159)ipraven"
-          if ($output -notmatch [regex]::Escape($expected)) {
-            throw "Czech output was not decoded correctly in Windows PowerShell 5.1:`n$output"
-          }
-
-          ./scripts/New-DDDAProject.ps1 `
-            -WorkspaceRoot $workspace `
-            -ProjectId "life-insurance-smoke-ps51" `
-            -Name "Life Insurance Smoke" `
-            -Type "portfolio-program" `
-            -TypeAlias "greenfield-portfolio" `
-            -NoInitialCommit
-
-          ./scripts/Test-DDDAInstallation.ps1 `
-            -PlatformPath $PWD `
-            -WorkspaceRoot $workspace `
-            -ProjectPath (Join-Path $workspace "projects/life-insurance-smoke-ps51")
+          if ($output -notmatch [regex]::Escape($expected)) { throw "Czech output was not decoded correctly:`n$output" }
