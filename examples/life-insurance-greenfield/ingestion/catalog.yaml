@@ -1,0 +1,16 @@
+schema_version: 1
+sources:
+  - id: product-vision-v1
+    path: ingestion/product-vision.md
+    type: business_vision
+    owner: chief-product-officer
+    observed_at: 2026-07-22
+    trust: authoritative
+    sensitivity: internal
+  - id: underwriting-interview-01
+    path: ingestion/interviews/underwriting-01.md
+    type: interview
+    owner: chief-underwriter
+    observed_at: 2026-07-24
+    trust: elicited
+    sensitivity: confidential

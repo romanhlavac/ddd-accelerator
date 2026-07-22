@@ -1,0 +1,19 @@
+artifact:
+  id: map-life-insurance-core
+  type: decision
+  name: Candidate life-insurance context map
+  description: Underwriting publishes an accepted decision to Policy Administration; Billing owns premium receivables and payment allocation.
+  status: candidate
+  stage: connect
+  miro:
+    item_type: shape
+    frame_id: connect-context-map
+relationships:
+  - upstream: underwriting
+    downstream: policy-administration
+    pattern: customer-supplier
+    contract: accepted-underwriting-decision
+  - upstream: policy-administration
+    downstream: billing-and-collections
+    pattern: customer-supplier
+    contract: premium-schedule
