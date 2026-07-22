@@ -105,10 +105,18 @@ jobs:
         shell: pwsh
         run: |
           $workspace = Join-Path $env:RUNNER_TEMP "ddda-smoke-pwsh"
+          $project = Join-Path $workspace "projects/life-insurance-smoke-pwsh"
           ./scripts/Initialize-DDDAWorkspace.ps1 -WorkspaceRoot $workspace -WorkspaceId "ci-smoke-pwsh" -WorkspaceName "CI smoke workspace"
           ./scripts/New-DDDAProject.ps1 -WorkspaceRoot $workspace -ProjectId "life-insurance-smoke-pwsh" -Name "Life Insurance Smoke" -Type "portfolio-program" -TypeAlias "greenfield-portfolio" -NoInitialCommit
-          ./scripts/Test-DDDAInstallation.ps1 -PlatformPath $PWD -WorkspaceRoot $workspace -ProjectPath (Join-Path $workspace "projects/life-insurance-smoke-pwsh")
-          if (-not (Test-Path (Join-Path $workspace "projects/life-insurance-smoke-pwsh/miro/miro-map.yaml"))) { throw "Missing miro-map.yaml" }
+          ./scripts/Test-DDDAInstallation.ps1 -PlatformPath $PWD -WorkspaceRoot $workspace -ProjectPath $project
+          if (-not (Test-Path (Join-Path $project "miro/miro-map.yaml"))) { throw "Missing miro-map.yaml" }
+      - name: Install packaged runtime and run offline doctor
+        shell: pwsh
+        run: |
+          $workspace = Join-Path $env:RUNNER_TEMP "ddda-smoke-pwsh"
+          $project = Join-Path $workspace "projects/life-insurance-smoke-pwsh"
+          ./scripts/Install-DDDAMiroRuntime.ps1 -PlatformPath $PWD
+          ./scripts/Test-DDDAMiroConfiguration.ps1 -PlatformPath $PWD -ProjectPath $project
 
   windows-powershell-51-smoke:
     runs-on: windows-latest
