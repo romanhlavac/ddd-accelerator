@@ -49,7 +49,7 @@ def render_board(config: ProjectConfig, client: MiroClient | None, *, create_boa
         text_id = f"{frame_id}:instructions"
         text_entry = mapping["items"].get(text_id) or {}
         checklist = "<p><strong>Cíl a pracovní oblasti</strong></p>" + "".join(f"<p>• {str(section).replace('_', ' ')}</p>" for section in sections)
-        checklist += f"<p><small>DDDA-SCAFFOLD:{config.project_id}:{text_id}</small></p>"
+        checklist += f"<p>DDDA-SCAFFOLD:{config.project_id}:{text_id}</p>"
         text_payload = {
             "data": {"content": checklist}, "position": {"x": 0, "y": 0, "origin": "center"},
             "geometry": {"width": max(800, float(frame.get("width", 3000)) - 300)}, "parent": {"id": remote_id},
