@@ -1,0 +1,326 @@
+schema_version: 1.0.0
+scaffold_id: strategic-ddd-method-board
+name: Strategický DDD metodický board
+language: cs
+purpose: >-
+  Miro scaffold pro řízený průchod od business cíle přes discovery,
+  dekompozici a strategický návrh až k design-level modelu a implementačnímu hand-offu.
+layout:
+  direction: left-to-right
+  stage_width: 4200
+  stage_height: 2600
+  stage_gap: 350
+  navigation_height: 240
+  origin:
+    x: 0
+    y: 0
+visual_language:
+  colors:
+    business_goal: '#F5D547'
+    domain_event: '#F28C28'
+    temporal_event: '#F7B267'
+    pivot_event: '#E4572E'
+    command: '#4A90E2'
+    actor: '#F4F4F4'
+    policy: '#B084CC'
+    read_model: '#7BDFF2'
+    external_system: '#F2F2F2'
+    hotspot: '#E94F64'
+    value: '#A8D08D'
+    bounded_context: '#D6E4FF'
+    lifecycle: '#CDECCF'
+    gate: '#242424'
+  conventions:
+    - Doménové události jsou pojmenovány v minulém čase.
+    - Hypotézy jsou označeny statusem candidate nebo observed.
+    - Validované závěry mají ownera a datum validace.
+    - Červená barva znamená hotspot, riziko nebo nezodpovězenou otázku.
+managed_metadata:
+  required:
+    - artifact_id
+    - artifact_type
+    - project_id
+    - schema_version
+    - stage
+    - status
+  optional:
+    - yaml_path
+    - git_revision
+    - miro_item_id
+    - source_reference
+    - owner
+    - validation_date
+stages:
+  - id: align
+    order: 10
+    title: Align
+    objective: Sjednotit business problém, cíl, scope, aktéry, omezení a očekávané rozhodnutí.
+    x: 0
+    y: 400
+    required_frames:
+      - id: align-brief
+        title: Business a discovery brief
+        purpose: Zachytit problém, cíle, scope, aktéry, constraints a assumptions.
+        templates:
+          - business-goals
+          - stakeholders
+          - scope-in-out
+          - assumptions
+          - quality-attribute-scenarios
+      - id: align-inputs
+        title: Vstupy a zdroje
+        purpose: Evidovat dokumenty, systémy, experty a důvěryhodnost podkladů.
+    gate: G1
+  - id: discover
+    order: 20
+    title: Discover
+    objective: Vytvořit společné porozumění doméně, významným událostem, jazykům, hotspotům a životním cyklům.
+    x: 4550
+    y: 400
+    required_frames:
+      - id: big-picture-es
+        title: Big Picture EventStorming
+        purpose: Zachytit business fakta v čase napříč celým scopem.
+        lanes:
+          - legend
+          - timeline
+          - domain-events
+          - temporal-events
+          - pivot-events
+          - actors-and-systems
+          - hotspots-and-questions
+        allowed_artifact_types:
+          - domain_event
+          - temporal_event
+          - pivot_event
+          - actor
+          - external_system
+          - hotspot
+      - id: glossary
+        title: Doménový slovník
+        purpose: Zachytit pojmy, definice, kontext použití, konflikty významu a zdroj.
+      - id: observed-lifecycles
+        title: Pozorované životní cykly
+        purpose: Popsat pozorované stavy a přechody bez předčasného návrhu cílového modelu.
+        lifecycle_maturity: observed
+      - id: discovery-hotspots
+        title: Hotspoty a otevřené otázky
+        purpose: Prioritizovat nejasnosti podle dopadu na hranice, data, pravidla a rozhodnutí.
+    gate: G2
+  - id: process-modeling
+    order: 30
+    title: Process Modeling
+    objective: Rozpracovat vybrané end-to-end scénáře a business rozhodování.
+    x: 9100
+    y: 400
+    required_frames:
+      - id: process-model
+        title: Process Modeling
+        lanes:
+          - actor
+          - command-or-action
+          - ui
+          - policy-or-procedure
+          - external-system
+          - domain-event
+          - read-model
+          - value
+          - hotspots
+        allowed_artifact_types:
+          - actor
+          - command
+          - policy
+          - procedure
+          - external_system
+          - domain_event
+          - read_model
+          - value
+          - hotspot
+      - id: scenario-catalog
+        title: Katalog scénářů
+        purpose: Evidovat happy paths, varianty, výjimky, rozhodovací body a business hodnotu.
+    gate: null
+  - id: decompose
+    order: 40
+    title: Decompose
+    objective: Formulovat kandidátní subdomény, odpovědnosti a hranice podle jazyka, pravidel, dat a životních cyklů.
+    x: 13650
+    y: 400
+    required_frames:
+      - id: capability-and-subdomain-map
+        title: Capability a kandidátní subdomény
+      - id: candidate-lifecycles
+        title: Kandidátní životní cykly
+        lifecycle_maturity: candidate
+      - id: boundary-hypotheses
+        title: Hypotézy hranic
+        purpose: Zaznamenat důvody pro spojení či oddělení modelů a odpovědností.
+    gate: G3
+  - id: strategize
+    order: 50
+    title: Strategize
+    objective: Klasifikovat subdomény a určit investiční, sourcingovou a evoluční strategii.
+    x: 18200
+    y: 400
+    required_frames:
+      - id: core-supporting-generic
+        title: Core / Supporting / Generic
+      - id: differentiation-complexity
+        title: Diferenciace × komplexita
+      - id: build-buy-partner
+        title: Build / Buy / Partner
+      - id: strategic-risks
+        title: Strategická rizika a Wardley hypotézy
+    gate: G4
+  - id: connect
+    order: 60
+    title: Connect
+    objective: Navrhnout bounded contexts, vztahy, integrační kontrakty a ownership dat.
+    x: 22750
+    y: 400
+    required_frames:
+      - id: context-map
+        title: Context Map
+      - id: data-ownership
+        title: Data ownership a system of record
+      - id: integration-contracts
+        title: Integrační kontrakty
+      - id: context-relationship-decisions
+        title: Rozhodnutí o vztazích kontextů
+    gate: G5
+  - id: organize
+    order: 70
+    title: Organize
+    objective: Srovnat architektonické hranice s ownershipem týmů a požadovanými interakcemi.
+    x: 27300
+    y: 400
+    required_frames:
+      - id: team-topology
+        title: Team Topology
+      - id: cognitive-load
+        title: Kognitivní zátěž a mezery v kompetencích
+      - id: interaction-modes
+        title: Collaboration / X-as-a-Service / Facilitating
+      - id: governance
+        title: Governance, fitness functions a decision ownership
+    gate: G6
+  - id: define
+    order: 80
+    title: Define
+    objective: Validovat bounded contexts a rozpracovat behaviorální model prioritních oblastí.
+    x: 31850
+    y: 400
+    required_frames:
+      - id: bounded-context-canvases
+        title: Bounded Context Canvases
+      - id: design-level-es
+        title: Design-Level EventStorming
+        lanes:
+          - actor
+          - command
+          - external-system
+          - aggregate-or-consistency-boundary
+          - invariant
+          - domain-event
+          - policy-or-procedure
+          - projection-or-read-model
+          - hotspot
+        allowed_artifact_types:
+          - actor
+          - command
+          - external_system
+          - aggregate
+          - invariant
+          - domain_event
+          - policy
+          - procedure
+          - projection
+          - read_model
+          - hotspot
+      - id: validated-lifecycles
+        title: Validované business state machines
+        lifecycle_maturity: validated
+      - id: quality-attributes
+        title: Quality attribute scenarios
+      - id: adrs
+        title: Architektonická rozhodnutí
+    gate: G7
+  - id: code
+    order: 90
+    title: Code
+    objective: Převést validovaný model do implementačních hranic, kontraktů, testů a evolučního plánu.
+    x: 36400
+    y: 400
+    required_frames:
+      - id: implementation-boundaries
+        title: Implementační hranice
+      - id: implementation-state-machines
+        title: Implementační state machines
+        lifecycle_maturity: implementation
+        optional: true
+      - id: contract-and-invariant-tests
+        title: Contract a invariant tests
+      - id: migration-slices
+        title: Inkrementy, strangler slices a roadmap
+      - id: observability
+        title: Observabilita a provozní zpětná vazba
+    gate: G8
+gates:
+  - id: G1
+    name: Discovery připraveno
+    criteria:
+      - Business problém a očekávané rozhodnutí jsou explicitní.
+      - Scope a out-of-scope jsou odsouhlaseny.
+      - Jsou identifikováni doménoví experti a vlastníci rozhodnutí.
+      - Prioritní quality attributes a omezení mají alespoň pracovní podobu.
+  - id: G2
+    name: Společné porozumění doméně
+    criteria:
+      - Big Picture EventStorming pokrývá významný end-to-end tok.
+      - Události jsou formulovány jako business fakta v minulém čase.
+      - Existuje pracovní slovník a backlog hotspotů.
+      - Klíčové pozorované životní cykly mají zdroj a nejistoty.
+  - id: G3
+    name: Dekompoziční hypotézy připraveny
+    criteria:
+      - Kandidátní subdomény mají popsanou odpovědnost a důvod hranice.
+      - Kandidátní životní cykly nejsou vydávány za validovaný návrh.
+      - Konflikty jazyka, pravidel a ownershipu jsou explicitní.
+  - id: G4
+    name: Strategická klasifikace odsouhlasena
+    criteria:
+      - Core, Supporting a Generic klasifikace má business zdůvodnění.
+      - Sourcing a investiční strategie odpovídá diferenciaci a rizikům.
+  - id: G5
+    name: Context Map připravena
+    criteria:
+      - Každý bounded context má odpovědnost a ownera.
+      - Vlastnictví klíčových dat je jednoznačné nebo je evidován konflikt.
+      - Vztahy a integrační kontrakty mají směr a očekávání.
+  - id: G6
+    name: Socio-technický ownership připraven
+    criteria:
+      - Každá prioritní oblast má odpovědný tým nebo explicitní mezeru.
+      - Interakční módy týmů jsou časově omezené a zdůvodněné.
+      - Kognitivní zátěž a platform/enabling potřeby jsou vyhodnoceny.
+  - id: G7
+    name: Doménový návrh připraven pro implementaci
+    criteria:
+      - Prioritní bounded contexts mají canvas a validační záznam.
+      - Design-Level EventStorming pokrývá klíčové command-event flows.
+      - Invarianty a business lifecycle jsou validovány expertem.
+      - Quality attributes jsou promítnuty do rozhodnutí.
+  - id: G8
+    name: Implementační hand-off připraven
+    criteria:
+      - Implementační hranice nejsou mechanicky zaměněny za bounded contexts.
+      - Kontrakty a invarianty mají testovací strategii.
+      - Migrace, observabilita, rizika a rollback jsou explicitní.
+synchronization:
+  semantic_owner: yaml
+  visual_owner: miro
+  derived_outputs:
+    - mermaid
+  conflict_strategy: explicit-review
+  deletion_policy: tombstone-first
+  unmanaged_miro_items: preserve
