@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)][string]$WorkspaceRoot,
     [Parameter(Mandatory = $true)][string]$ProjectId,
