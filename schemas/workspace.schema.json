@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ddda.local/schemas/workspace.schema.json",
+  "title": "DDDA Workspace Registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["workspace", "platform", "projects"],
+  "properties": {
+    "workspace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "schema_version"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,62}$"},
+        "name": {"type": "string", "minLength": 1},
+        "schema_version": {"type": "integer", "minimum": 1}
+      }
+    },
+    "platform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "repository", "ref", "commit"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "repository": {"type": "string", "pattern": "^[^/]+/[^/]+$"},
+        "ref": {"type": "string", "minLength": 1},
+        "commit": {"type": "string", "pattern": "^[0-9a-f]{7,40}$"}
+      }
+    },
+    "projects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "path", "status"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,62}$"},
+          "path": {"type": "string", "minLength": 1},
+          "repository": {"type": ["string", "null"]},
+          "status": {"enum": ["active", "paused", "archived"]}
+        }
+      },
+      "uniqueItems": true
+    }
+  }
+}
