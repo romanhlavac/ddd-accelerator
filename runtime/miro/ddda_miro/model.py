@@ -111,10 +111,10 @@ class ManagedArtifact:
         if description:
             parts.append(f"<p>{description}</p>")
         parts.extend([
-            f"<p><small>Typ: {html.escape(self.artifact_type)}</small></p>",
-            f"<p><small>Stav: {html.escape(self.status)}</small></p>",
-            f"<p><small>Fáze: {html.escape(self.stage)}</small></p>",
-            f"<p><small>{self.marker(project_id)}</small></p>",
+            f"<p>Typ: {html.escape(self.artifact_type)}</p>",
+            f"<p>Stav: {html.escape(self.status)}</p>",
+            f"<p>Fáze: {html.escape(self.stage)}</p>",
+            f"<p>{self.marker(project_id)}</p>",
         ])
         return "".join(parts)
 
