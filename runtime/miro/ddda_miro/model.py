@@ -146,6 +146,38 @@ def update_artifact_from_remote(artifact: ManagedArtifact, remote: dict[str, str
     save_yaml(artifact.source_path, artifact.document)
 
 
+def create_artifact_from_remote(project_root: Path, artifact_root: str, remote: dict[str, str],
+                                remote_item: dict[str, Any], frame_id: str | None) -> Path:
+    artifact_id = str(remote.get("artifact_id") or "")
+    artifact_type = str(remote.get("artifact_type") or "")
+    stage = str(remote.get("stage") or "discover")
+    if not artifact_id or not artifact_type:
+        raise ValueError("A promoted Miro item requires artifact_id and artifact_type")
+    safe_id = re.sub(r"[^a-zA-Z0-9._-]+", "-", artifact_id).strip("-")
+    safe_type = re.sub(r"[^a-zA-Z0-9._-]+", "-", artifact_type).strip("-")
+    safe_stage = re.sub(r"[^a-zA-Z0-9._-]+", "-", stage).strip("-") or "discover"
+    path = project_root / artifact_root / safe_stage / safe_type / f"{safe_id}.yaml"
+    if path.exists():
+        raise ValueError(f"Promotion target already exists: {path}")
+    item_type = str(remote_item.get("type") or DEFAULT_ITEM_TYPES.get(artifact_type, "sticky_note"))
+    document: dict[str, Any] = {
+        "artifact": {
+            "id": artifact_id,
+            "type": artifact_type,
+            "name": str(remote.get("name") or artifact_id),
+            "description": str(remote.get("description") or ""),
+            "status": str(remote.get("status") or "candidate"),
+            "stage": stage,
+            "miro": {
+                "item_type": item_type,
+                "frame_id": frame_id,
+            },
+        }
+    }
+    save_yaml(path, document)
+    return path
+
+
 def semantic_hash(data: dict[str, Any]) -> str:
     selected = {key: str(data.get(key, "")) for key in ("artifact_id", "artifact_type", "name", "description", "status", "stage")}
     raw = json.dumps(selected, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
