@@ -44,6 +44,12 @@ if (-not (Test-Path $workspaceFile)) {
     throw "Nenalezen workspace.yaml. Nejprve spusť Initialize-DDDAWorkspace.ps1."
 }
 
+$workspaceText = Get-Content $workspaceFile -Raw
+$escapedProjectId = [regex]::Escape($ProjectId)
+if ($workspaceText -match "(?m)^\s*-\s+id:\s*$escapedProjectId\s*$") {
+    throw "Projekt '$ProjectId' je již registrován ve workspace.yaml."
+}
+
 $platformRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $platformCommit = Invoke-Git -RepositoryPath $platformRoot -Arguments @("rev-parse", "HEAD")
 $platformRef = Invoke-Git -RepositoryPath $platformRoot -Arguments @("branch", "--show-current")
@@ -57,7 +63,8 @@ if (Test-Path $projectPath) {
 New-Item -ItemType Directory -Force -Path $projectPath | Out-Null
 
 $projectTemplate = Get-Content (Join-Path $platformRoot "templates/project/project.yaml") -Raw
-$projectManifest = $projectTemplate.Replace("__PROJECT_ID__", $ProjectId).Replace("__PROJECT_NAME__", $Name.Replace('"', '\"')).Replace("__PROJECT_TYPE__", $Type)
+$escapedName = $Name.Replace('"', '\"')
+$projectManifest = $projectTemplate.Replace("__PROJECT_ID__", $ProjectId).Replace("__PROJECT_NAME__", $escapedName).Replace("__PROJECT_TYPE__", $Type)
 Set-Content -Path (Join-Path $projectPath "project.yaml") -Value $projectManifest -Encoding UTF8
 
 $lockTemplate = Get-Content (Join-Path $platformRoot "templates/project/ddda-lock.template.yaml") -Raw
@@ -78,18 +85,18 @@ foreach ($directory in $directories) {
 $projectReadme = @"
 # $Name
 
-Projekt DDDA typu `$Type`.
+Projekt DDDA typu ``$Type``.
 
 ## Kanonické soubory
 
-- `project.yaml` — konfigurace projektu,
-- `ddda.lock.yaml` — přesná verze platformy DDDA,
-- `ingestion/` — zdrojové vstupy,
-- `artifacts/` — verzované doménové a architektonické YAML artefakty,
-- `decisions/` — ADR a rozhodovací záznamy,
-- `workshops/` — facilitace a výstupy workshopů,
-- `miro/` — mapování objektů a synchronizační metadata,
-- `reports/` — generované nebo kurátorované reporty.
+- ``project.yaml`` — konfigurace projektu,
+- ``ddda.lock.yaml`` — přesná verze platformy DDDA,
+- ``ingestion/`` — zdrojové vstupy,
+- ``artifacts/`` — verzované doménové a architektonické YAML artefakty,
+- ``decisions/`` — ADR a rozhodovací záznamy,
+- ``workshops/`` — facilitace a výstupy workshopů,
+- ``miro/`` — mapování objektů a synchronizační metadata,
+- ``reports/`` — generované nebo kurátorované reporty.
 
 Projektový repozitář nesmí obsahovat obecné změny platformy DDDA.
 "@
@@ -108,12 +115,11 @@ if (-not [string]::IsNullOrWhiteSpace($RemoteUrl)) {
 
 if (-not $NoInitialCommit) {
     Invoke-Git -RepositoryPath $projectPath -Arguments @("add", ".") | Out-Null
-    Invoke-Git -RepositoryPath $projectPath -Arguments @("commit", "-m", "chore: initialize DDDA project") | Out-Null
-}
-
-$workspaceText = Get-Content $workspaceFile -Raw
-if ($workspaceText -match "(?m)^\s*- id:\s*$([regex]::Escape($ProjectId))\s*$") {
-    throw "Projekt '$ProjectId' je již registrován ve workspace.yaml. Adresář byl vytvořen, registr nebyl změněn."
+    try {
+        Invoke-Git -RepositoryPath $projectPath -Arguments @("commit", "-m", "chore: initialize DDDA project") | Out-Null
+    } catch {
+        throw "Projekt byl vytvořen, ale první commit selhal. Ověř git config user.name a user.email. $($_.Exception.Message)"
+    }
 }
 
 $repositoryValue = if ([string]::IsNullOrWhiteSpace($RemoteUrl)) { "null" } else { "`"$RemoteUrl`"" }
@@ -129,7 +135,7 @@ if ($workspaceText -match "(?m)^projects:\s*\[\]\s*$") {
 } elseif ($workspaceText -match "(?m)^projects:\s*$") {
     $workspaceText = $workspaceText.TrimEnd() + "`r`n" + $projectEntry
 } else {
-    throw "workspace.yaml nemá podporovaný blok 'projects'. Registruj projekt ručně."
+    throw "workspace.yaml nemá podporovaný blok 'projects'. Projekt byl vytvořen; registruj jej ručně."
 }
 Set-Content -Path $workspaceFile -Value $workspaceText -Encoding UTF8
 
