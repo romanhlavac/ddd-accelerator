@@ -96,3 +96,28 @@ def test_project_config_reuses_board_id_from_mapping(tmp_path):
     })
     save_yaml(tmp_path / "miro" / "miro-map.yaml", {"board_id": "board-from-map"})
     assert ProjectConfig.load(tmp_path).board_id == "board-from-map"
+
+
+def test_explicit_promotion_creates_yaml_for_new_marked_miro_item(tmp_path):
+    config = build_project(tmp_path)
+    client = FakeClient()
+    client.items.append({
+        "id": "item-new",
+        "type": "sticky_note",
+        "data": {"content": (
+            "<p><strong>Medical evidence is incomplete</strong></p>"
+            "<p>Owner must clarify the evidence threshold.</p>"
+            "<p><small>Typ: hotspot</small></p>"
+            "<p><small>Stav: candidate</small></p>"
+            "<p><small>Fáze: discover</small></p>"
+            "<p><small>DDDA:life-insurance:hotspot-medical-evidence</small></p>"
+        )},
+    })
+    result = sync_project(
+        config, client, direction="pull", dry_run=False, include_layout=False,
+        confirm_delete=False, promote_new=True,
+    )
+    assert any(item["action"] == "pull_promote_yaml" for item in result["operations"])
+    created = tmp_path / "artifacts" / "discover" / "hotspot" / "hotspot-medical-evidence.yaml"
+    assert created.exists()
+    assert load_yaml(created)["artifact"]["type"] == "hotspot"
