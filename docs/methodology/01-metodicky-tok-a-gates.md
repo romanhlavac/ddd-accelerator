@@ -1,108 +1,103 @@
-# Metodický tok a gates
+# Metodický tok DDDA a rozhodovací gaty
 
-## Princip
+## Účel
 
-DDDA používá evoluční tok. Každá fáze snižuje jiný typ nejistoty. Gate potvrzuje dostatečnost podkladů pro další rozhodnutí; nepotvrzuje absolutní správnost modelu.
+Tok chrání tým před předčasným solutioningem. Každá fáze má jinou otázku, jinou úroveň jistoty a jiný očekávaný artefakt. Fáze lze iterovat; nelze však tiše přeskočit chybějící evidence a vydávat hypotézu za přijatý model.
 
-## Tok
+```text
+Align → Discover → Decompose → Strategize → Connect → Organize → Define → Code
+   G1       G2          G3            G4          G5         G6        G7      G8
+```
 
-### Align
+## Statusy artefaktů
 
-**Otázka:** Proč tuto práci děláme a jaké rozhodnutí má umožnit?
+- `observed` — doložené pozorování ze zdroje nebo workshopu,
+- `candidate` — pracovní hypotéza,
+- `validated` — potvrzené doménovým expertem,
+- `accepted` — přijaté jako rozhodnutí nebo baseline,
+- `superseded` — historicky platné, nahrazené,
+- `deleted_pending` — tombstone čekající na kontrolované odstranění.
 
-Výstupy: business problém, cíle, scope, aktéři, constraints, assumptions, prioritní quality attributes, inventory vstupů.
+## Align / G1
 
-Gate G1: scope, sponsor, experti a očekávané rozhodnutí jsou explicitní.
+Business otázka: proč projekt existuje a jaké rozhodnutí má umožnit?
 
-### Discover
+Povinné evidence: business outcomes, stakeholder map, scope/out-of-scope, assumptions, constraints, success metrics, decision owner.
 
-**Otázka:** Co se v doméně skutečně děje a jak o tom lidé mluví?
+Gate G1 projde pouze tehdy, pokud scope není definován názvem technologie a existuje owner, který může rozhodnout o prioritách.
 
-Výstupy: Big Picture ES, slovník, aktéři, systémy, hotspoty, pozorované životní cykly.
+Prompt:
 
-Gate G2: end-to-end tok je dostatečně pokrytý a klíčové nejistoty jsou viditelné.
+> Zpracuj intake bez návrhu řešení. Odděl cíle, potřeby uživatelů, regulaci, omezení, metriky a otevřené předpoklady. U každé položky uveď ownera a source path.
 
-### Process Modeling
+## Discover / G2
 
-**Otázka:** Jak probíhají prioritní scénáře, rozhodnutí, výjimky a tvorba hodnoty?
+Business otázka: co se v doméně děje, kdo rozhoduje a kde vzniká hodnota nebo riziko?
 
-Výstupy: process models a katalog scénářů. Fáze nemá samostatný povinný gate; její výsledky vstupují do G3.
+Praktiky: Big Picture EventStorming, source inventory, glossary, actor/system map, pozorované lifecycles, hotspoty.
 
-### Decompose
+Gate G2 nevyžaduje hotové bounded contexts. Vyžaduje dostatečně sdílený obraz doménového dění a explicitní rozpory.
 
-**Otázka:** Kde se mění jazyk, pravidla, lifecycle, data ownership nebo tempo změn?
+## Decompose / G3
 
-Výstupy: kandidátní subdomény, boundary hypotheses, kandidátní životní cykly.
+Otázka: které části modelu mají odlišný jazyk, pravidla, tempo změn nebo lifecycle?
 
-Gate G3: hypotézy hranic mají důvody, nejistoty a validační plán.
+Evidence: process slices, clustery pravidel, kandidátní subdomény, kandidátní BC, candidate lifecycle models, rationale rozkladu.
 
-### Strategize
+Anti-pattern: „jeden systém = jeden BC“ nebo „jeden tým = jeden BC“ bez doménového důvodu.
 
-**Otázka:** Kde se podnik diferencuje a kam má investovat?
+## Strategize / G4
 
-Výstupy: Core/Supporting/Generic, diferenciace × komplexita, sourcing a evoluční strategie.
+Otázka: kde organizace diferencuje a kam má investovat?
 
-Gate G4: klasifikace má business zdůvodnění a vlastníka.
+Evidence: core/supporting/generic klasifikace, diferenciace vs. komplexita, build/buy/partner/retire, Wardley mapa tam, kde přináší rozhodovací hodnotu.
 
-### Connect
+## Connect / G5
 
-**Otázka:** Jaké modelové hranice potřebujeme a jak spolu budou komunikovat?
+Otázka: jak spolu bounded contexts komunikují a kdo vlastní data?
 
-Výstupy: bounded contexts, context map, data ownership, kontrakty, relationship patterns.
+Evidence: context map, upstream/downstream, source of truth, published language, ACL, integrační kontrakty, konzistence, latency a failure modes.
 
-Gate G5: směry vztahů, ownership a očekávání kontraktů jsou explicitní.
+## Organize / G6
 
-### Organize
+Otázka: je ownership proveditelný pro reálné týmy?
 
-**Otázka:** Kdo vlastní změnu a jaké týmové interakce jsou potřeba?
+Evidence: stream-aligned ownership, platform/enabling support, complicated subsystem kandidáti, cognitive load, interaction modes, rozhodovací pravomoci.
 
-Výstupy: team topology, interaction modes, cognitive load, governance a fitness functions.
+## Define / G7
 
-Gate G6: prioritní hranice mají vlastníka nebo explicitní organizační gap.
+Otázka: je konkrétní BC dostatečně vymezen pro detailní návrh?
 
-### Define
+Evidence: Bounded Context Canvas, Design-Level EventStorming, validovaný lifecycle, quality attribute scenarios, inbound/outbound contracts.
 
-**Otázka:** Jak se prioritní bounded context chová a jaká pravidla musí chránit?
+## Code / G8
 
-Výstupy: Bounded Context Canvas, Design-Level ES, agregátní/consistency boundaries, invarianty, validované business lifecycle, quality attribute scénáře a ADR.
+Otázka: chrání implementace skutečné invarianty a je provozovatelná?
 
-Gate G7: model je validován doménovým expertem a připraven na implementační rozhodnutí.
+Evidence: agregáty, invarianty, doménové události, aplikační porty, persistence/integration decisions, C4 pohledy, ADR, testy, observabilita a rollout.
 
-### Code
+CQRS nebo Event Sourcing vyžadují explicitní business a quality-attribute zdůvodnění.
 
-**Otázka:** Jak model převést do bezpečně evolvující implementace?
+## Gate review formát
 
-Výstupy: implementační hranice, kontrakty, testy invariantů, případné state machines, observabilita, migrační slices a rollback.
+```yaml
+gate_review:
+  gate: G5
+  outcome: conditional
+  reviewed_at: 2026-07-22
+  evidence:
+    - path: artifacts/connect/context-map.yaml
+      criterion: context_map
+      status: pass
+  conditions:
+    - owner: data-architecture
+      due: 2026-08-05
+      action: potvrdit source of truth pro party identity
+  approvals:
+    business_owner: pending
+    architecture_owner: accepted
+```
 
-Gate G8: implementace a migrace mají testovatelný kontrakt, rizika a provozní strategii.
+## Iterace a návrat
 
-## Pravidla přechodu
-
-- Fáze lze iterovat a vracet se zpět.
-- Přeskočení fáze musí být zdůvodněno v decision logu.
-- Gate lze schválit podmíněně; podmínky mají ownera a termín.
-- Model s `candidate` statusem se nesmí prezentovat jako schválená cílová architektura.
-- Technologická volba před G5 je výjimka vyžadující constraint nebo experimentální hypotézu.
-
-## Evidence
-
-Každé důležité tvrzení má obsahovat alespoň jeden typ evidence:
-
-- workshop a seznam validujících účastníků,
-- konkrétní zdrojový dokument,
-- kód nebo databázové schéma,
-- provozní měření,
-- regulatorní požadavek,
-- explicitní rozhodnutí vlastníka.
-
-## Gate review
-
-Gate review má 30–60 minut a používá strukturu:
-
-1. rozhodnutí, které má gate umožnit,
-2. změny od minulé revize,
-3. evidence,
-4. otevřené konflikty a rizika,
-5. checklist,
-6. rozhodnutí: pass / conditional pass / fail,
-7. vlastníci akcí.
+Návrat do předchozí fáze není selhání. Je to očekávaný důsledek nové evidence. Změna musí zanechat traceability: původní artefakt `superseded`, nový artefakt s odkazem na důvod a ADR nebo gate review.
