@@ -88,7 +88,7 @@ jobs:
           ./scripts/New-DDDAProject.ps1 `
             -WorkspaceRoot $workspace `
             -ProjectId "life-insurance-smoke-pwsh" `
-            -Name "Životní pojištění – test" `
+            -Name "Life Insurance Smoke" `
             -Type "portfolio-program" `
             -TypeAlias "greenfield-portfolio" `
             -NoInitialCommit
@@ -108,7 +108,7 @@ jobs:
         shell: powershell
         run: |
           if ($PSVersionTable.PSVersion.Major -ne 5) {
-            throw "Očekáván Windows PowerShell 5.1, nalezena verze $($PSVersionTable.PSVersion)."
+            throw "Expected Windows PowerShell 5.1, found $($PSVersionTable.PSVersion)."
           }
 
           ./scripts/Test-DDDAInstallation.ps1 -PlatformPath $PWD
@@ -117,16 +117,17 @@ jobs:
           $output = ./scripts/Initialize-DDDAWorkspace.ps1 `
             -WorkspaceRoot $workspace `
             -WorkspaceId "ci-smoke-ps51" `
-            -WorkspaceName "Český testovací workspace" 6>&1 | Out-String
+            -WorkspaceName "CI smoke workspace" 6>&1 | Out-String
 
-          if ($output -notmatch "DDDA workspace je připraven") {
-            throw "Český výstup nebyl ve Windows PowerShellu 5.1 korektně načten:`n$output"
+          $expected = "p$([char]0x0159)ipraven"
+          if ($output -notmatch [regex]::Escape($expected)) {
+            throw "Czech output was not decoded correctly in Windows PowerShell 5.1:`n$output"
           }
 
           ./scripts/New-DDDAProject.ps1 `
             -WorkspaceRoot $workspace `
             -ProjectId "life-insurance-smoke-ps51" `
-            -Name "Životní pojištění – test" `
+            -Name "Life Insurance Smoke" `
             -Type "portfolio-program" `
             -TypeAlias "greenfield-portfolio" `
             -NoInitialCommit
