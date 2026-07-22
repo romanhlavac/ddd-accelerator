@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ddda-miro"
+version = "0.2.0"
+description = "DDDA Miro REST API renderer and bidirectional YAML sync runtime"
+requires-python = ">=3.11"
+dependencies = ["ruamel.yaml>=0.18,<0.19"]
+
+[project.scripts]
+ddda-miro = "ddda_miro.cli:main"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
