@@ -6,7 +6,8 @@ param(
     [switch]$DryRun,
     [switch]$IncludeLayout,
     [switch]$ConfirmDelete,
-    [switch]$RecreateMissing
+    [switch]$RecreateMissing,
+    [switch]$PromoteNew
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
@@ -20,5 +21,6 @@ if ($DryRun) { $arguments += "--dry-run" }
 if ($IncludeLayout) { $arguments += "--include-layout" }
 if ($ConfirmDelete) { $arguments += "--confirm-delete" }
 if ($RecreateMissing) { $arguments += "--recreate-missing" }
+if ($PromoteNew) { $arguments += "--promote-new" }
 & $pythonExe @arguments
 exit $LASTEXITCODE
