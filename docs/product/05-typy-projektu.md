@@ -1,89 +1,92 @@
 # Typy projektů a workflow profily
 
-Typ projektu nastavuje výchozí metodický tok, povinné gates, očekávané vstupy a typická rizika. Nejde o pevnou škatulku; profil lze upravit, ale odchylka musí být explicitní v `project.yaml`.
+Typ projektu nastavuje výchozí metodický tok, povinné gates, očekávané vstupy a typická rizika. Nejde o pevnou škatulku; profil lze rozšířit, ale odchylka musí být explicitní v `project.yaml`.
 
-## Přehled
+Kanonický typ se ukládá do `project.type`. Starší nebo lokální označení lze uchovat v `project.type_alias`.
 
-| Kanonický typ | Legacy aliases | Použití | Důraz |
+## Přehled kanonických typů
+
+| Kanonický typ | Typické aliasy | Použití | Důraz |
 |---|---|---|---|
-| `greenfield-product` | new-product, green-field, startup | nový produkt nebo systém s jedním dominantním product scopem | discovery, diferenciace, rychlá validace hranic |
-| `greenfield-portfolio` | new-enterprise, program-greenfield | více produktů/domén v programu nebo nové společnosti | domain portfolio, context map, team topology, governance |
-| `legacy-modernization` | brownfield, strangler, replatforming | postupná náhrada nebo rozdělení existujícího systému | as-is discovery, seams, data ownership, migrační inkrementy |
-| `legacy-transformation` | core-replacement, business-transformation | souběžná změna business capability, operating modelu a core IT | cílové capability, přechodné stavy, governance, sourcing |
-| `integration-landscape` | integration-review, api-program | primárně vztahy mezi systémy a kontexty | ownership, kontrakty, coupling, ACL |
-| `purchased-product-adoption` | COTS, SaaS-adoption, package-implementation | bounded context je zčásti nebo zcela realizován koupeným produktem | fit-gap, konfigurační hranice, vendor model, anti-corruption layer |
-| `architecture-review` | assessment, health-check | zhodnocení existujícího návrhu nebo implementace | quality attributes, rizika, evidence, ADR |
-| `domain-discovery` | discovery-only, domain-analysis | časově omezené pochopení domény bez závazku implementace | jazyk, události, pravidla, subdomény, otázky |
+| `portfolio-program` | greenfield-portfolio, enterprise-transformation, transformation-program | více produktů, domén, systémů nebo týmů v jednom programu | portfolio domén, context map, Team Topologies, governance |
+| `greenfield-product` | greenfield, new-product | nový produkt nebo systém s jedním dominantním product scopem | discovery, diferenciace, první end-to-end slice |
+| `legacy-modernization` | modernization, brownfield | inkrementální změna stávajícího systému | as-is evidence, seams, data ownership, migrace |
+| `legacy-transformation` | core-replacement, business-transformation | souběžná změna business capability, operating modelu a core IT | cílové capability, přechodné stavy, governance |
+| `integration-landscape` | integration-review, api-program | nejasné vlastnictví dat a integrační vztahy | ownership, kontrakty, coupling, ACL |
+| `purchased-product-adoption` | cots, saas-adoption, package-implementation | capability realizovaná koupeným produktem nebo SaaS | fit-gap, vendor model, konfigurační hranice, ACL |
+| `architecture-review` | review, architecture-assessment | zhodnocení existujícího návrhu nebo implementace | quality attributes, rizika, evidence, ADR |
+| `domain-discovery` | discovery, strategic-ddd | časově omezené pochopení domény | jazyk, události, pravidla, subdomény, otázky |
 | `operating-model-and-teams` | team-topologies, org-design | změna ownershipu a týmového uspořádání | sociotechnické hranice, cognitive load, interaction modes |
+| `bounded-context-design` | tactical-ddd, bc-design | detailní návrh již vymezeného bounded contextu | behaviorální model, agregáty, invarianty, kontrakty |
 
-## 1. Greenfield product
+## 1. Portfolio program
 
-**Kdy použít:** nový digitální produkt, samostatná business capability nebo nový bounded product scope.
+Použijte pro novou společnost, velký transformační program nebo portfolio capability s více produkty a týmy.
 
-Povinné fáze: Align, Discover, Process Modeling, Decompose, Strategize, Connect, Define. Organize je povinné před škálováním více týmů.
+Vyžaduje zejména:
+
+- portfolio domén a subdomén,
+- capability a value-stream pohled,
+- strategickou klasifikaci,
+- context map na více úrovních,
+- týmový ownership a governance,
+- pravidla sdílených platforem a generic capabilities.
+
+`greenfield-portfolio` je zachovaný alias; kanonický typ je `portfolio-program`.
+
+## 2. Greenfield product
+
+Použijte pro nový digitální produkt, samostatnou business capability nebo nový bounded product scope.
 
 Typická rizika:
 
 - předčasné mapování bounded context = mikroservisa,
 - product vision bez doménových expertů,
 - univerzální model pro všechny budoucí varianty,
-- CQRS/Event Sourcing jako výchozí technická preference.
-
-## 2. Greenfield portfolio
-
-**Kdy použít:** nová pojišťovna, banka, marketplace nebo transformační program s více produkty a týmy.
-
-Navíc vyžaduje:
-
-- portfolio subdomén,
-- schopnosti a value streams,
-- strategickou klasifikaci,
-- context map na více úrovních,
-- team topology a governance,
-- pravidla sdílených platforem a generic capabilities.
+- CQRS nebo Event Sourcing jako výchozí technická preference.
 
 ## 3. Legacy modernization
 
-**Kdy použít:** stávající systém brání změnám, ale business scope zůstává převážně stabilní.
+Použijte, když stávající systém brání změnám, ale business scope zůstává převážně stabilní.
 
 Povinné doplňky:
 
-- mapa současných datových vlastníků a faktických system-of-record,
+- skuteční vlastníci dat a faktické system-of-record,
 - runtime a change coupling,
 - business kritičnost a provozní omezení,
 - seams a migrační slices,
 - přechodné integrační kontrakty,
-- observabilita a rollback.
+- observabilita, rollback a reconciliation.
 
-Big Picture ES zachycuje business realitu; technický tok legacy systému se dokumentuje odděleně, aby nekolonizoval cílový model.
+Big Picture EventStorming zachycuje business realitu; technický tok legacy systému se dokumentuje odděleně, aby nekolonizoval cílový model.
 
 ## 4. Legacy transformation
 
-**Kdy použít:** zároveň se mění produkty, procesy, regulace, organizace i core systém.
+Použijte, pokud se současně mění produkty, procesy, regulace, organizace i core systém.
 
-Vyžaduje paralelní modelování:
+Modelujte paralelně:
 
-- as-is business reality,
+- as-is business realitu,
 - target business capabilities a policies,
-- přechodných stavů,
-- změn ownershipu a operating modelu,
-- dočasných bounded contexts a anti-corruption vrstev.
+- přechodné stavy,
+- změny ownershipu a operating modelu,
+- dočasné bounded contexts a anti-corruption vrstvy.
 
 ## 5. Integration landscape
 
-**Kdy použít:** hlavním problémem je nejasné vlastnictví dat, point-to-point integrace, konfliktní API nebo eventy.
+Použijte, pokud je hlavním problémem nejasné vlastnictví dat, point-to-point integrace, konfliktní API nebo eventy.
 
-Process Modeling může být omezeno na integračně kritické scénáře. Povinné jsou Connect a quality attribute scénáře pro dostupnost, konzistenci, latenci a recoverability.
+Povinné jsou Connect a quality attribute scénáře pro dostupnost, konzistenci, latenci a recoverability. Process Modeling lze omezit na integračně kritické scénáře.
 
 ## 6. Purchased product adoption
 
-**Kdy použít:** capability je realizována SaaS nebo COTS produktem.
+Použijte, pokud capability realizuje SaaS nebo COTS produkt.
 
 DDD modelování má smysl pro:
 
 - vymezení business odpovědnosti bounded contextu,
-- pojmenování interního a vendor jazyka,
-- fit-gap analýzu pravidel a lifecycle,
+- rozlišení interního a vendor jazyka,
+- fit-gap pravidel a lifecycle,
 - data ownership,
 - integrační a konfigurační hranice,
 - rozhodnutí, co chránit anti-corruption layerem.
@@ -92,41 +95,73 @@ Taktické DDD uvnitř vendor produktu se nemodeluje bez přístupu a business d�
 
 ## 7. Architecture review
 
-**Kdy použít:** existuje konkrétní návrh, repozitář nebo provozovaný systém a cílem je rozhodnutí o riziku či investici.
+Použijte, pokud existuje konkrétní návrh, repozitář nebo provozovaný systém a cílem je rozhodnutí o riziku či investici.
 
-Workflow začíná Align a evidence inventory. EventStorming se používá pouze tam, kde je nutné ověřit, zda technické hranice odpovídají business chování.
-
-Výstupem je review report, prioritizovaná rizika, varianty, ADR a evoluční plán; nikoli automaticky kompletní nový model.
+Výstupem je review report, prioritizovaná rizika, varianty, ADR a evoluční plán; nikoliv automaticky kompletní nový model.
 
 ## 8. Domain discovery
 
-**Kdy použít:** potřebujeme ohraničený discovery sprint nebo přípravu workshopu.
-
-Výchozí konec je G3. Další fáze jsou doporučením, ne součástí scope.
+Použijte pro ohraničený discovery sprint nebo přípravu workshopů. Výchozí konec je G3; další fáze jsou doporučením, ne automatickou součástí scope.
 
 ## 9. Operating model and teams
 
-**Kdy použít:** hlavním problémem je ownership, fronty mezi týmy, kognitivní zátěž nebo nejasná role platform/enabling týmů.
+Použijte, pokud je hlavním problémem ownership, fronty mezi týmy, kognitivní zátěž nebo nejasná role platformních a enabling týmů.
 
-Doménové hranice musí existovat alespoň jako pracovní hypotézy. Organizační diagram nesmí být použit jako primární zdroj bounded contexts.
+Doménové hranice musí existovat alespoň jako pracovní hypotézy. Organizační diagram nesmí být primárním zdrojem bounded contexts.
 
-## Volba typu
+## 10. Bounded context design
 
-Položte postupně otázky:
+Použijte pro detailní návrh jednoho již vymezeného bounded contextu.
 
-1. Mění se především business model, software, integrace, nebo ownership týmů?
-2. Existuje provozovaný systém a musí být zachován kontinuální provoz?
-3. Je scope jeden produkt, nebo portfolio capability?
-4. Je významná část řešení koupená?
-5. Potřebujeme discovery, rozhodnutí, cílový návrh, nebo realizovatelnou migraci?
+Typický tok:
 
-Pokud odpovědi ukazují na více profilů, zvolte dominantní typ a přidejte `workflow.extensions`, například:
+```text
+BC purpose a published contracts
+→ Design-Level EventStorming
+→ commands, policies a read models
+→ lifecycle
+→ aggregates a invariants
+→ domain events
+→ application ports
+→ persistence a integration decisions
+→ component/code projection
+```
+
+Tento typ není vhodný, pokud ještě není jasné, kde bounded context začíná a končí.
+
+## Doplňkové toky
+
+Projekt může aktivovat doplňkové toky nezávisle na typu:
+
+- Wardley Mapping,
+- Team Topologies,
+- Quality Attribute Workshop,
+- threat modeling,
+- data ownership a integration design,
+- solution architecture,
+- migration planning,
+- architecture decision records.
+
+Doplňkový tok se eviduje v `workflow.extensions`; nemění kanonický typ projektu.
+
+## Příklad manifestu
 
 ```yaml
-project_type: legacy-transformation
+project:
+  id: life-insurance-greenfield
+  name: "Nová životní pojišťovna"
+  type: portfolio-program
+  type_alias: greenfield-portfolio
+  schema_version: 1
+  language: cs
+  status: active
 workflow:
-  profile: legacy-transformation
+  profile: portfolio-program
+  current_stage: discover
+  completed_gates:
+    - G1
   extensions:
     - purchased-product-adoption
-    - operating-model-and-teams
 ```
+
+Podrobné toky a gaty jsou v `docs/project-types-and-flows.md`.
