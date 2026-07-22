@@ -8,11 +8,42 @@ param(
         "portfolio-program",
         "greenfield-product",
         "legacy-modernization",
+        "legacy-transformation",
+        "integration-landscape",
+        "purchased-product-adoption",
         "domain-discovery",
         "architecture-review",
+        "operating-model-and-teams",
         "bounded-context-design"
     )]
     [string]$Type,
+    [ValidateSet(
+        "enterprise-transformation",
+        "transformation-program",
+        "greenfield-portfolio",
+        "new-enterprise",
+        "program-greenfield",
+        "greenfield",
+        "new-product",
+        "modernization",
+        "brownfield",
+        "core-replacement",
+        "business-transformation",
+        "integration-review",
+        "api-program",
+        "cots",
+        "saas-adoption",
+        "package-implementation",
+        "discovery",
+        "strategic-ddd",
+        "review",
+        "architecture-assessment",
+        "team-topologies",
+        "org-design",
+        "tactical-ddd",
+        "bc-design"
+    )]
+    [string]$TypeAlias,
     [string]$RemoteUrl,
     [switch]$NoInitialCommit
 )
@@ -64,7 +95,8 @@ New-Item -ItemType Directory -Force -Path $projectPath | Out-Null
 
 $projectTemplate = Get-Content (Join-Path $platformRoot "templates/project/project.yaml") -Raw
 $escapedName = $Name.Replace('"', '\"')
-$projectManifest = $projectTemplate.Replace("__PROJECT_ID__", $ProjectId).Replace("__PROJECT_NAME__", $escapedName).Replace("__PROJECT_TYPE__", $Type)
+$typeAliasYaml = if ([string]::IsNullOrWhiteSpace($TypeAlias)) { "null" } else { $TypeAlias }
+$projectManifest = $projectTemplate.Replace("__PROJECT_ID__", $ProjectId).Replace("__PROJECT_NAME__", $escapedName).Replace("__PROJECT_TYPE__", $Type).Replace("__PROJECT_TYPE_ALIAS__", $typeAliasYaml)
 Set-Content -Path (Join-Path $projectPath "project.yaml") -Value $projectManifest -Encoding UTF8
 
 $lockTemplate = Get-Content (Join-Path $platformRoot "templates/project/ddda-lock.template.yaml") -Raw
@@ -82,10 +114,11 @@ foreach ($directory in $directories) {
     }
 }
 
+$aliasLine = if ([string]::IsNullOrWhiteSpace($TypeAlias)) { "" } else { "`nPůvodní alias typu: ``$TypeAlias``." }
 $projectReadme = @"
 # $Name
 
-Projekt DDDA typu ``$Type``.
+Projekt DDDA typu ``$Type``.$aliasLine
 
 ## Kanonické soubory
 
