@@ -101,7 +101,13 @@ jobs:
       - name: Parse scripts and validate installation
         shell: pwsh
         run: ./scripts/Test-DDDAInstallation.ps1 -PlatformPath $PWD
-      - name: Bootstrap workspace and project
+      - name: Test Miro automation helpers
+        shell: pwsh
+        run: ./tests/powershell/Test-DDDAMiroAutomation.ps1 -PlatformPath $PWD
+      - name: Initialize platform after clone
+        shell: pwsh
+        run: ./scripts/Initialize-DDDAAfterClone.ps1 -PlatformPath $PWD -NonInteractive
+      - name: Bootstrap workspace, project and run offline doctor
         shell: pwsh
         run: |
           $workspace = Join-Path $env:RUNNER_TEMP "ddda-smoke-pwsh"
@@ -109,14 +115,8 @@ jobs:
           ./scripts/Initialize-DDDAWorkspace.ps1 -WorkspaceRoot $workspace -WorkspaceId "ci-smoke-pwsh" -WorkspaceName "CI smoke workspace"
           ./scripts/New-DDDAProject.ps1 -WorkspaceRoot $workspace -ProjectId "life-insurance-smoke-pwsh" -Name "Life Insurance Smoke" -Type "portfolio-program" -TypeAlias "greenfield-portfolio" -NoInitialCommit
           ./scripts/Test-DDDAInstallation.ps1 -PlatformPath $PWD -WorkspaceRoot $workspace -ProjectPath $project
-          if (-not (Test-Path (Join-Path $project "miro/miro-map.yaml"))) { throw "Missing miro-map.yaml" }
-      - name: Install packaged runtime and run offline doctor
-        shell: pwsh
-        run: |
-          $workspace = Join-Path $env:RUNNER_TEMP "ddda-smoke-pwsh"
-          $project = Join-Path $workspace "projects/life-insurance-smoke-pwsh"
-          ./scripts/Install-DDDAMiroRuntime.ps1 -PlatformPath $PWD
           ./scripts/Test-DDDAMiroConfiguration.ps1 -PlatformPath $PWD -ProjectPath $project
+          if (-not (Test-Path (Join-Path $project "miro/miro-map.yaml"))) { throw "Missing miro-map.yaml" }
 
   windows-powershell-51-smoke:
     runs-on: windows-latest
@@ -128,6 +128,7 @@ jobs:
         run: |
           if ($PSVersionTable.PSVersion.Major -ne 5) { throw "Expected Windows PowerShell 5.1" }
           ./scripts/Test-DDDAInstallation.ps1 -PlatformPath $PWD
+          ./tests/powershell/Test-DDDAMiroAutomation.ps1 -PlatformPath $PWD
           $workspace = Join-Path $env:RUNNER_TEMP "ddda-smoke-ps51"
           $output = ./scripts/Initialize-DDDAWorkspace.ps1 -WorkspaceRoot $workspace -WorkspaceId "ci-smoke-ps51" -WorkspaceName "CI smoke workspace" 6>&1 | Out-String
           $expected = "p$([char]0x0159)ipraven"
