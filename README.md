@@ -34,17 +34,27 @@ DDDA je Miro-first, multi-project pracovní prostředí pro řízenou doménovou
 
 ## Rychlý start na Windows
 
+Následující příkazy spusť z **parent adresáře**, ve kterém má vzniknout adresář `DDDA-Workspace`. Relativní cesta `.` vždy označuje tento aktuální parent adresář.
+
 ```powershell
-git clone https://github.com/romanhlavac/ddd-accelerator.git
-Set-Location .\ddd-accelerator
+# Musíš být v parent adresáři budoucího workspace.
+New-Item -ItemType Directory -Force .\DDDA-Workspace\platform | Out-Null
 
-.\scripts\Test-DDDAInstallation.ps1 -PlatformPath $PWD
+git clone `
+  https://github.com/romanhlavac/ddd-accelerator.git `
+  .\DDDA-Workspace\platform\ddd-accelerator
 
-.\scripts\Initialize-DDDAWorkspace.ps1 `
-  -WorkspaceRoot C:\Work\DDDA-Workspace
+$WorkspaceRoot = (Resolve-Path .\DDDA-Workspace).Path
+$PlatformRoot = (Resolve-Path .\DDDA-Workspace\platform\ddd-accelerator).Path
 
-.\scripts\New-DDDAProject.ps1 `
-  -WorkspaceRoot C:\Work\DDDA-Workspace `
+& (Join-Path $PlatformRoot 'scripts\Test-DDDAInstallation.ps1') `
+  -PlatformPath $PlatformRoot
+
+& (Join-Path $PlatformRoot 'scripts\Initialize-DDDAWorkspace.ps1') `
+  -WorkspaceRoot $WorkspaceRoot
+
+& (Join-Path $PlatformRoot 'scripts\New-DDDAProject.ps1') `
+  -WorkspaceRoot $WorkspaceRoot `
   -ProjectId life-insurance-greenfield `
   -Name "Nová životní pojišťovna" `
   -Type portfolio-program
