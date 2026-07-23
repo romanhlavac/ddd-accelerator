@@ -18,6 +18,7 @@ try {
 $requiredFiles = @(
     "README.md", "USAGE.md", "docs/README.md",
     "docs/cookbooks/README.md", "docs/cookbooks/11-chat-first-pracovni-rezim.md", "docs/cookbooks/12-miro-troubleshooting.md",
+    "docs/cookbooks/13-inicializace-po-clone.md", "docs/cookbooks/14-inicializace-ciloveho-miro-boardu.md",
     "docs/methodology/01-metodicky-tok-a-gates.md", "docs/methodology/02-typy-projektu-toky-use-cases.md",
     "docs/product/01-architektura-ddda.md", "docs/product/04-synchronizace.md", "docs/product/06-migrace-a-kompatibilita.md",
     "examples/life-insurance-greenfield/README.md", "examples/life-insurance-greenfield/project.yaml",
@@ -29,7 +30,9 @@ $requiredFiles = @(
     "runtime/miro/pyproject.toml", "runtime/miro/ddda_miro/client.py", "runtime/miro/ddda_miro/sync.py",
     "scripts/Initialize-DDDAWorkspace.ps1", "scripts/New-DDDAProject.ps1", "scripts/Test-DDDARepositoryScope.ps1",
     "scripts/Update-DDDAProject.ps1", "scripts/Install-DDDAMiroRuntime.ps1", "scripts/Initialize-DDDAMiroBoard.ps1",
-    "scripts/Invoke-DDDAMiroSync.ps1", "scripts/Start-DDDAMiroSyncWorker.ps1", "scripts/Test-DDDAMiroConfiguration.ps1"
+    "scripts/Invoke-DDDAMiroSync.ps1", "scripts/Start-DDDAMiroSyncWorker.ps1", "scripts/Test-DDDAMiroConfiguration.ps1",
+    "scripts/Initialize-DDDAAfterClone.ps1", "scripts/Invoke-DDDAMiroSmokeTest.ps1", "scripts/Initialize-DDDAProjectMiro.ps1",
+    "scripts/private/DDDAMiroSupport.ps1", "tests/powershell/Test-DDDAMiroAutomation.ps1"
 )
 foreach ($relativePath in $requiredFiles) {
     $fullPath = Join-Path $platformFull $relativePath
@@ -43,14 +46,15 @@ Get-ChildItem -Path (Join-Path $platformFull "schemas") -Filter "*.json" -File -
     try { Get-Content $_.FullName -Raw -Encoding UTF8 | ConvertFrom-Json | Out-Null; Add-Success "JSON je syntakticky validní: $($_.Name)" }
     catch { Add-Failure "Neplatný JSON $($_.FullName): $($_.Exception.Message)" }
 }
-Get-ChildItem -Path (Join-Path $platformFull "scripts") -Filter "*.ps1" -File -ErrorAction SilentlyContinue | ForEach-Object {
+Get-ChildItem -Path (Join-Path $platformFull "scripts") -Filter "*.ps1" -File -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
     $bytes = [System.IO.File]::ReadAllBytes($_.FullName)
     $hasUtf8Bom = $bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF
-    if ($hasUtf8Bom) { Add-Success "UTF-8 BOM: $($_.Name)" } else { Add-Failure "PowerShell skript nemá UTF-8 BOM: $($_.Name)" }
+    $relativeScript = $_.FullName.Substring($platformFull.Length).TrimStart('\', '/')
+    if ($hasUtf8Bom) { Add-Success "UTF-8 BOM: $relativeScript" } else { Add-Failure "PowerShell skript nemá UTF-8 BOM: $relativeScript" }
     $tokens = $null; $parseErrors = $null
     [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$parseErrors) | Out-Null
-    if ($parseErrors.Count -eq 0) { Add-Success "PowerShell parser: $($_.Name)" }
-    else { foreach ($parseError in $parseErrors) { Add-Failure "PowerShell chyba $($_.Name): $($parseError.Message)" } }
+    if ($parseErrors.Count -eq 0) { Add-Success "PowerShell parser: $relativeScript" }
+    else { foreach ($parseError in $parseErrors) { Add-Failure "PowerShell chyba $relativeScript: $($parseError.Message)" } }
 }
 if (-not [string]::IsNullOrWhiteSpace($WorkspaceRoot)) {
     $workspaceFull = [System.IO.Path]::GetFullPath($WorkspaceRoot)
