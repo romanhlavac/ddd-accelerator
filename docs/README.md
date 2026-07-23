@@ -4,9 +4,11 @@
 
 1. [README platformy](../README.md)
 2. [Praktický provozní návod](../USAGE.md)
-3. [Založení projektu](cookbooks/01-zalozeni-projektu.md)
-4. [Miro board a synchronizace](cookbooks/02-priprava-miro-boardu.md)
-5. [Referenční projekt životní pojišťovny](../examples/life-insurance-greenfield/README.md)
+3. [Inicializace po clone](cookbooks/13-inicializace-po-clone.md)
+4. [Založení projektu](cookbooks/01-zalozeni-projektu.md)
+5. [Inicializace cílového Miro boardu](cookbooks/14-inicializace-ciloveho-miro-boardu.md)
+6. [Miro board a synchronizace](cookbooks/02-priprava-miro-boardu.md)
+7. [Referenční projekt životní pojišťovny](../examples/life-insurance-greenfield/README.md)
 
 ## Metodika
 
@@ -39,6 +41,8 @@
 - [10 Legacy modernizace](cookbooks/10-legacy-modernizace.md)
 - [11 Chat-first pracovní režim](cookbooks/11-chat-first-pracovni-rezim.md)
 - [12 Miro troubleshooting](cookbooks/12-miro-troubleshooting.md)
+- [13 Inicializace po clone](cookbooks/13-inicializace-po-clone.md)
+- [14 Inicializace cílového Miro boardu](cookbooks/14-inicializace-ciloveho-miro-boardu.md)
 
 ## Strukturní pravidlo
 
