@@ -1,64 +1,36 @@
 # Kuchařka 03 — Big Picture EventStorming
 
-## Výsledek
+## Cíl
 
-Vznikne společný obraz významného end-to-end business dění, pracovní slovník, hotspoty, pivot events a pozorované životní cykly.
+Objevit end-to-end business dění, jazyk, pivoty, hodnotu, externí závislosti a hotspoty bez návrhu služeb nebo databází.
 
-## Předpoklady
+## Příprava
 
-- G1 je splněn nebo podmíněně schválen,
-- účastní se business role s reálnou znalostí procesu,
-- scope workshopu je formulován businessově,
-- frame `big-picture-es` je připraven.
+- scope a časový horizont,
+- 6–15 účastníků s doménovou znalostí,
+- 90–180 minut,
+- frame `discover-big-picture-es`,
+- seed otázky ze zdrojů, ne předvyplněná pravda.
 
-## Role
+## Prompt před workshopem
 
-- facilitátor řídí postup a chrání business-first diskusi,
-- doménoví experti popisují fakta a výjimky,
-- zapisovatel spravuje otázky a rozhodnutí,
-- architekt sleduje hranice, pravidla a quality attributes, ale nenavrhuje služby.
+> Z ingestion připrav maximálně 20 kandidátních business událostí jako otázky. U každé uveď source path a confidence. Nevytvářej agregáty, API ani systémy jako cílový návrh.
 
-## Postup
+## Facilitační kroky
 
-1. Připomeňte cíl, scope, časový limit a barevnou legendu.
-2. Účastníci zapisují samostatně významné doménové události v minulém čase.
-3. Události se řadí na časovou osu; duplicity se dočasně zachovají, pokud mohou vyjadřovat rozdílný význam.
-4. Doplňte časové události a externí spouštěče.
-5. Označte pivot events, které mění fázi procesu, odpovědnost nebo business riziko.
-6. Doplňte aktéry a externí systémy pouze tam, kde pomáhají porozumění.
-7. Červeně evidujte nejasnosti, výjimky, konfliktní jazyk a chybějící vlastníky.
-8. Projděte unhappy paths, ruční zásahy, storna a regulatorní scénáře.
-9. Identifikujte klíčové objekty s pozorovanými stavy; přesuňte je do frame observed lifecycles.
-10. Proveďte společný playback od začátku do konce.
-11. Povýšte stabilní poznámky na spravované artefakty; ostatní ponechte jako workshopové poznámky.
-12. Synchronizujte do YAML a vytvořte backlog otázek.
+1. silent storming událostí v minulém čase,
+2. seřazení na časové ose,
+3. odstranění duplicit,
+4. pivot a temporal events,
+5. aktéři a externí systémy,
+6. hotspoty, rozpory a neznámé,
+7. value-up/value-down,
+8. výběr slices.
 
-## Facilitační otázky
+## Po workshopu
 
-- Co se stalo předtím a jak to víme?
-- Co je business fakt a co pouze technická notifikace?
-- Kdo může tento výsledek zpochybnit nebo zvrátit?
-- Jaká výjimka je drahá, častá nebo regulatorně významná?
-- Používají dvě skupiny stejný pojem jinak?
-- Kdy se mění odpovědnost za data nebo rozhodnutí?
+> Importuj pouze sticky notes označené jako validované nebo candidate managed artifacts. Vytvoř YAML domain events, actors, systems a hotspots. Neřízené poznámky ponech v Miru. Proveď pull dry-run a připrav diff.
 
-## Definition of Done
+## Gate G2
 
-- hlavní tok lze přehrát jako srozumitelný příběh,
-- události jsou businessové a v minulém čase,
-- existuje explicitní seznam hotspotů,
-- důležité pojmy mají pracovní definice,
-- životní cykly jsou označeny jako observed, nikoli target,
-- nejasnosti mají ownera nebo plán validace.
-
-## Typické chyby
-
-- kreslení současné systémové architektury místo business dění,
-- nahrazování událostí stavovými hodnotami `StatusChanged`,
-- snaha vyřešit všechny hotspoty během jednoho workshopu,
-- předčasné zakreslení bounded contexts,
-- dominance jednoho technického účastníka.
-
-## Navazující krok
-
-Vyberte scénáře s vysokou hodnotou, nejistotou nebo rizikem a pokračujte Process Modelingem.
+G2 neprojde, pokud tým pouze přepsal dnešní systémový workflow a neodhalil business rozhodnutí nebo rozpory.

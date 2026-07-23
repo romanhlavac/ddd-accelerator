@@ -1,42 +1,31 @@
 # Kuchařky DDDA
 
-Kuchařky jsou provozní návody krok za krokem. Metodická dokumentace vysvětluje proč a kdy; kuchařka říká co připravit, co udělat, jak ověřit výsledek a co dělat při problému.
+Kuchařka je opakovatelný pracovní postup pro chat, workshop, Miro, YAML a Git. Není to pouze seznam příkazů. Každá kuchařka má vysvětlit, jaké rozhodnutí podporuje, jakou evidence vyžaduje, co má změnit v Miru, jaké soubory vzniknou, jak se výsledek validuje a kdy je nutné se vrátit o fázi zpět.
 
-## Katalog
+## Jak kuchařky používat
 
-| Kuchařka | Použijte, když |
-|---|---|
-| [01 — Založení projektu](01-zalozeni-projektu.md) | vytváříte nový izolovaný projekt v existující instalaci |
-| [02 — Příprava Miro boardu](02-priprava-miro-boardu.md) | potřebujete založit scaffold a připravit workshop |
-| [03 — Big Picture EventStorming](03-big-picture-eventstorming.md) | facilitujete doménové discovery napříč end-to-end tokem |
-| [04 — Process Modeling](04-process-modeling.md) | rozpracováváte prioritní scénář a rozhodování |
-| [05 — Design-Level EventStorming](05-design-level-eventstorming.md) | navrhujete chování uvnitř validovaného bounded contextu |
-| [06 — Stavové modely](06-stavove-modely.md) | převádíte observed lifecycle na candidate, validated a případně implementation model |
-| [07 — Synchronizace](07-synchronizace-miro-yaml-git.md) | přenášíte změny mezi Mirem a YAML/Gitem |
-| [08 — Gate review](08-gate-review.md) | potvrzujete připravenost k dalšímu kroku |
-| [09 — Přidání typu projektu](09-pridani-typu-projektu.md) | rozšiřujete DDDA o nový workflow profil |
-| [10 — Legacy modernizace](10-legacy-modernizace.md) | připravujete seams, strangler slices a přechodné stavy |
+1. V chatu deklaruj `scope` a aktivní projekt.
+2. Načti `project.yaml`, `ddda.lock.yaml`, tento index a relevantní kuchařku.
+3. Popiš business nebo architektonické rozhodnutí.
+4. Zkontroluj vstupy a chybějící evidence.
+5. Nech chat navrhnout plán a prompty.
+6. Před Miro write nebo synchronizací proveď dry-run.
+7. Po změně zkontroluj YAML, Miro mapping, sync report a Git diff.
+8. Commituj význam změny, nikoli pouze technický sync.
 
-## Standardní struktura kuchařky
+## Anatomie kuchařky
 
-Každá kuchařka má:
+- **Účel a rozhodnutí** — proč se postup provádí.
+- **Entry criteria** — kdy má smysl začít.
+- **Vstupy a role** — evidence a účastníci.
+- **Chat prompt** — doporučený výchozí prompt.
+- **Postup** — facilitační a technické kroky.
+- **Miro změny** — očekávané frames a itemy.
+- **YAML/Git výstupy** — kanonické soubory a review.
+- **Kontroly** — Definition of Done.
+- **Anti-patterny** — časté chyby.
+- **Navazující gate** — rozhodnutí, které výstup podporuje.
 
-1. účel a očekávaný výsledek,
-2. předpoklady,
-3. vstupy,
-4. role,
-5. postup,
-6. kontrolní body,
-7. výstupy a jejich umístění,
-8. typické chyby,
-9. varianty podle typu projektu,
-10. navazující krok.
+## Doporučené pořadí
 
-## Pravidlo konzistence
-
-Při změně metodického toku, scaffoldů, schémat nebo synchronizačního kontraktu je nutné ve stejném pull requestu aktualizovat:
-
-- produktovou dokumentaci,
-- dotčené kuchařky,
-- referenční příklad,
-- validační schéma nebo test, pokud se mění formát.
+Pro nový projekt obvykle: 01 → 02 → 03 → 04 → 06 → 08. Po stabilizaci hranic následuje 05 pro konkrétní BC. Kuchařky 07, 11 a 12 jsou průřezové. Kuchařka 10 rozšiřuje tok legacy modernizace.

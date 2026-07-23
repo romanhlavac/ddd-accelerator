@@ -1,79 +1,52 @@
-# Kuchařka 06 — Stavové modely v metodickém toku
+# Kuchařka 06 — Stavové modely
 
-## Výsledek
+## Účel
 
-Životní cyklus klíčového doménového objektu je dohledatelně rozvíjen od pozorované reality přes kandidátní a validovaný business model až k případné implementační state machine.
+Stavový model vysvětluje business chování objektu v čase, povolené a zakázané přechody, autoritu, časové podmínky a důsledky. Nevzniká automaticky ze sloupce `status` ani z UI obrazovek.
 
-## 1. Observed lifecycle — Discover
+## Čtyři úrovně
 
-Zachyťte pouze to, co je podloženo vstupy nebo zkušeností expertů:
+| Fáze | Úroveň | Otázka |
+|---|---|---|
+| Discover | observed | Jaké stavy a přechody skutečně pozorujeme? |
+| Decompose | candidate | Naznačují odlišné lifecycles jiné modely nebo boundaries? |
+| Define | validated | Jaký business state machine schvaluje doménový expert? |
+| Code | implementation | Je explicitní technický automat užitečný a jak mapuje business model? |
 
-- pozorované stavy,
-- události nebo akce, které do nich vedou,
-- role oprávněné stav změnit,
-- výjimky a ruční zásahy,
-- zdroj evidence,
-- nejistotu.
+## Vstupy
 
-Neopravujte zde současnou realitu podle cílové představy.
+Events, commands, policies, temporal events, interview evidence, exceptions, authorization rules a quality scenarios.
 
-## 2. Candidate lifecycle — Decompose
+## Chat prompt
 
-Použijte observed model jako vstup a formulujte hypotézu:
+> Z validovaných events odvoď observed lifecycle pro `Policy`. Rozliš state, milestone, condition a derived status. U každého přechodu uveď command, actor/authority, guard, resulting event, timeout, compensation a forbidden alternatives. Nezaváděj state bez evidence.
 
-- které stavy mají vlastní business význam,
-- kde se mění pravidla nebo odpovědnost,
-- zda jeden objekt neskrývá více nezávislých lifecycle,
-- které přechody jsou zakázané,
-- které lifecycle indikují hranici subdomény nebo bounded contextu.
+## Postup
 
-Každá změna proti observed modelu má důvod.
+1. Seřaď lifecycle events.
+2. Hledej období, ve kterých se mění povolené chování.
+3. Odděl milestone od stavu.
+4. Pojmenuj commands a autority přechodů.
+5. Doplň timeouts a scheduled transitions.
+6. Zapiš forbidden transitions a jejich business důvod.
+7. Ověř concurrent commands a duplicates.
+8. Porovnej lifecycle s candidate boundaries.
+9. Validuj s expertem pomocí příkladů.
+10. Rozhodni, zda implementace potřebuje explicitní state machine.
 
-## 3. Validated business state machine — Define
+## Miro změny
 
-S doménovým expertem schvalte:
+Observed model patří do Discover, candidate do Decompose, validated do Define a implementation view do Code. Nepřepisuj předchozí úroveň; odkazuj na ni a zaznamenej rationale změn.
 
-- počáteční a terminální stavy,
-- povolené přechody,
-- business command nebo rozhodnutí,
-- vzniklou událost,
-- preconditions a invarianty,
-- oprávněného aktéra,
-- časové a regulatorní podmínky.
+## Výstupy
 
-Model nesmí obsahovat technické retry, fronty nebo interní statusy, pokud nemají business význam.
-
-## 4. Implementation state machine — Code
-
-Vytvářejte pouze tehdy, pokud explicitní automat zlepšuje správnost, audit nebo srozumitelnost. Může obsahovat technické mezistavy, ale musí mapovat zpět na business model.
-
-Doplňte:
-
-- persistence a recovery,
-- souběh a idempotenci,
-- timeouty a retry,
-- observabilitu,
-- migraci existujících instancí,
-- testy zakázaných přechodů.
-
-## Povinná traceability
-
-```yaml
-artifact_id: lifecycle-policy-validated
-artifact_type: lifecycle
-maturity: validated
-supersedes: lifecycle-policy-candidate
-based_on:
-  - lifecycle-policy-observed
-validated_by:
-  - Head of Policy Operations
-validation_date: 2026-07-22
-```
+State diagram, transition table, command-event mapping, authority matrix, timeout policy, forbidden transitions, acceptance tests a traceability na source events.
 
 ## Kontroly
 
-- stav není pouze hodnota z legacy databáze bez business významu,
-- přechod má příčinu a výsledný business fakt,
-- kandidátní model není označen jako validovaný,
-- implementační stav nemění význam business lifecycle,
-- dva bounded contexts nesdílejí jeden autoritativní stav bez jasného ownershipu.
+- každý state mění povolené chování,
+- každá transition má trigger a resulting event,
+- derived status není chybně persistovaný jako authority,
+- timeout má ownera a recovery,
+- model rozlišuje business a technický stav,
+- implementation state machine nepřidává business význam bez doménového rozhodnutí.

@@ -2,51 +2,49 @@
 
 ## Výsledek
 
-Board obsahuje navigační osu, frame pro relevantní fáze, legendy, instrukce, gate checklisty a metadata projektu.
+Projekt má ověřené Miro credentials, renderovaný metodický board, stabilní mapping framů a připravený dry-run synchronizace.
 
-## Vstupy
+## Předpoklady
 
-- validní `project.yaml`,
-- scaffold `scaffolds/miro/strategic-ddd-method-board.yaml`,
-- schéma `schemas/miro-scaffold.schema.json`,
-- Miro board přidělený pouze danému projektu,
-- seznam účastníků a plán workshopů.
+- Miro app se scopes `boards:read` a `boards:write`,
+- token v `MIRO_ACCESS_TOKEN`,
+- board ID v environment variable z `project.yaml`, nebo oprávnění vytvořit board,
+- nainstalovaný Python 3.11+.
 
-## Postup
+## Instalace runtime
 
-1. Ověřte, že board ID odpovídá projektu.
-2. Načtěte scaffold a zvolte workflow profile; nepovinné fáze lze skrýt, nikoli tiše odstranit z metodiky.
-3. Vytvořte horní navigaci Align → Discover → Decompose → Strategize → Connect → Organize → Define → Code.
-4. Vytvořte frame podle souřadnic a velikostí scaffoldu.
-5. Do každého frame vložte cíl, vstupy, facilitační instrukci, legendu, pracovní oblast, otázky a gate.
-6. Označte frame metadata `dd_d_a_id`, `dd_d_a_stage`, `dd_d_a_artifact_type` a `dd_d_a_source_path`.
-7. Připravte parkoviště pro out-of-scope témata a oblast pro rozhodnutí.
-8. Zamkněte navigaci, legendy a instrukce; pracovní plochy nechte editovatelné.
-9. Připravte projektový soubor `miro/miro-map.yaml`; tokeny a secrets do něj nepatří.
-10. Proveďte desetiminutový dry-run s facilitátorem.
+```powershell
+& (Join-Path $PlatformRoot 'scripts\Install-DDDAMiroRuntime.ps1')
+```
 
-## Aktuální omezení
+## Chat prompt
 
-Deklarativní scaffold a synchronizační kontrakt jsou součástí DDDA. Automatický Miro API renderer a obousměrný synchronizační worker zatím nejsou implementovány. Board je proto v této alpha verzi nutné připravit ručně podle scaffoldu nebo pomocí navazujícího integračního nástroje.
+> Zkontroluj Miro konfiguraci bez vypsání tokenu. Proveď doctor, potom dry-run renderu. Shrň frames, create/update operace a rizika. Skutečný render spusť až po mém potvrzení.
+
+## Doctor
+
+```powershell
+& (Join-Path $PlatformRoot 'scripts\Test-DDDAMiroConfiguration.ps1') `
+  -ProjectPath $ProjectRoot -Online
+```
+
+## Render
+
+```powershell
+& (Join-Path $PlatformRoot 'scripts\Initialize-DDDAMiroBoard.ps1') `
+  -ProjectPath $ProjectRoot -DryRun
+
+& (Join-Path $PlatformRoot 'scripts\Initialize-DDDAMiroBoard.ps1') `
+  -ProjectPath $ProjectRoot
+```
+
+## Miro změny
+
+Vzniknou frames pro control center, Align, Big Picture ES, evidence, Process Modeling, decomposition, lifecycle, strategy, context map, teams, BC canvas, Design-Level ES, quality attributes, tactical model a C4/ADR.
 
 ## Kontroly
 
-- Big Picture ES je v Discover, nikoli v Define.
-- Process Modeling je explicitní most mezi Discover a Decompose.
-- Design-Level ES je až v Define a je vázán na konkrétní bounded context.
-- Lifecycle frames jsou na úrovních observed, candidate, validated a volitelně implementation.
-- Barvy odpovídají centrální legendě.
-- Stabilní ID a YAML cesty nejsou nahrazeny pouze názvem sticky note.
-
-## Chyby
-
-- jeden obří frame bez metodického toku,
-- import starého boardu bez stabilních ID,
-- metadata jsou pouze v textu sticky note,
-- zamknutá pracovní plocha nebo odemčená legenda,
-- přepis workshopových poznámek automatickou synchronizací,
-- tvrzení, že živá synchronizace funguje, přestože není nasazen Miro konektor.
-
-## Navazující krok
-
-Proveďte G1 a naplánujte Big Picture EventStorming.
+- mapping obsahuje Miro item ID každého frame,
+- opakovaný render nevytvoří duplikáty,
+- unmanaged poznámky zůstanou zachovány,
+- board není sdílen širšímu publiku bez rozhodnutí data ownera.

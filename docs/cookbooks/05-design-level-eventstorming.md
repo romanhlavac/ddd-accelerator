@@ -1,48 +1,77 @@
 # Kuchařka 05 — Design-Level EventStorming
 
-## Výsledek
+## Účel
 
-Uvnitř jednoho validovaného bounded contextu vznikne behaviorální model commandů, consistency boundaries/agregátů, invariantů, událostí, policies a projekcí.
+Design-Level EventStorming modeluje chování uvnitř jednoho konkrétního bounded contextu. Převádí validované business scénáře do commands, invariantů, aggregate candidates, domain events, policies a projections. Nesmí opravovat nejasné strategické hranice taktickými patterny.
 
-## Předpoklady
+## Entry criteria
 
-- bounded context má jasnou odpovědnost, ownera a hranici,
-- Context Map a data ownership jsou alespoň pracovně schváleny,
-- je vybrán konkrétní business scénář,
-- účastní se doménový expert a vývojáři odpovědní za implementaci.
+- BC má purpose, ownera a ubiquitous language,
+- inbound/outbound contracts jsou candidate nebo validated,
+- G5 je splněn a G7 je připravován,
+- vybraný flow patří převážně dovnitř jednoho BC,
+- existuje process slice a validovaný nebo candidate lifecycle.
 
-## Postup
+## Role a příprava
 
-1. Uveďte název bounded contextu, jeho odpovědnost a out-of-scope.
-2. Vezměte jeden scénář z Process Modelingu.
-3. Zapište command jako záměr aktéra nebo policy.
-4. Určete fakta potřebná pro rozhodnutí a jejich vlastníka.
-5. Navrhněte consistency boundary pouze pro pravidla, která musí být atomicky pravdivá.
-6. Formulujte invarianty jako testovatelné business věty.
-7. Zapište vzniklé doménové události v minulém čase.
-8. Doplňte policies, které reagují na události a mohou vyvolat další command.
-9. Doplňte projekce/read modely pro rozhodování a dotazy.
-10. Ověřte chybové scénáře, idempotenci, souběh a časové podmínky.
-11. Označte hranice konzistence, nikoli automaticky deployable služby.
-12. Přeneste rozhodnutí do YAML a relevantních ADR.
+Doménový expert, product owner, developer, tester a architekt. Připrav BC Canvas, context map, rules, lifecycle, quality scenarios a otevřené kontrakty.
 
-## Kontrolní otázky
+## Modelovací sekvence
 
-- Musí být toto pravidlo pravdivé ihned, nebo stačí eventual consistency?
-- Který objekt je skutečným vlastníkem změny?
-- Je navržený agregát příliš velký kvůli pohodlí dotazu?
-- Není policy ve skutečnosti lidské rozhodnutí?
-- Je událost business fakt, nebo integrační obálka?
-- Co se stane při opakovaném commandu nebo doručení události?
+```text
+Actor → Command → Aggregate candidate → Invariant → Domain Event
+→ Policy → Command → Projection/Read Model
+```
 
-## Chyby
+Aggregate candidate je hypotéza consistency boundary. Nejdřív formuluj invariant, potom rozhoduj, co musí být atomicky dostupné.
 
-- začít třídami, endpointy nebo databázovým schématem,
-- přenést jeden agregát přes více bounded contexts,
-- označit každou validaci jako invariant,
-- použít Design-Level ES k rozhodování o strategických hranicích,
-- zavést Event Sourcing jen proto, že model používá doménové události.
+## Chat prompt
 
-## Navazující krok
+> Scope: project. Modeluj pouze BC `Policy Administration`. Pro každý command popiš actor/authority, intent, preconditions, invariant, consistency boundary, resulting domain event, policy reactions, projections a external contracts. Vyznač vše, co vyžaduje synchronní cross-context transakci, jako hotspot. Navrhni acceptance examples a nejjednodušší implementační variantu.
 
-Validujte business lifecycle, vytvořte contract/invariant tests a ADR pro důležitá technická rozhodnutí.
+## Facilitační postup
+
+1. Potvrď purpose a hranici BC.
+2. Vyber jeden end-to-end scénář.
+3. Zapiš commands a autority.
+4. U každého commandu formuluj business invariant.
+5. Navrhni minimální consistency boundary.
+6. Zapiš domain event v business jazyce.
+7. Doplň policies a následné commands.
+8. Urči projections a query needs.
+9. Přidej duplicate, concurrency, timeout a compensation scénáře.
+10. Proveď walkthrough proti lifecycle a quality scenarios.
+
+## Miro změny
+
+Použij frame `define-design-level-es`. Odděl interní domain events od published integration events. Cross-context dependencies kresli přes hranici frame a odkaž je na context map; nekresli je jako interní atomickou transakci.
+
+## YAML a Git výstupy
+
+- commands a handlers,
+- invariants,
+- aggregate candidates s rationale,
+- internal domain events,
+- integration contracts nebo mapping,
+- policies,
+- projections,
+- acceptance examples,
+- ADR candidates.
+
+## Kontroly
+
+- aggregate není tabulka ani celý BC,
+- invariant vyžaduje skutečnou konzistenci,
+- domain event je business fact,
+- integration event je verzovaný contract,
+- policy nespouští nekonečný event-command loop,
+- model vysvětluje concurrency a idempotence,
+- tactical design podporuje prioritní quality attributes.
+
+## Anti-patterny
+
+- agregát pro každou entitu,
+- přímé sdílení databáze přes BC,
+- distribuovaný aggregate,
+- Event Sourcing bez temporal/audit důvodu,
+- read model používaný jako write authority.

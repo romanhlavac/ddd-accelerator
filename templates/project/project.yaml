@@ -14,8 +14,15 @@ ddda:
 
 miro:
   board_id: null
+  board_id_env: __MIRO_BOARD_ID_ENV__
+  access_token_env: MIRO_ACCESS_TOKEN
+  team_id: null
+  team_id_env: MIRO_TEAM_ID
+  project_id: null
+  project_id_env: MIRO_PROJECT_ID
   workspace_area: __PROJECT_ID__
-  synchronization: disabled
+  scaffold: scaffolds/miro/strategic-ddd-method-board.yaml
+  synchronization: bidirectional
 
 artifacts:
   canonical_source: yaml

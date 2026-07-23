@@ -1,0 +1,10 @@
+artifact:
+  id: charter-life-insurance-greenfield
+  type: decision
+  name: Greenfield life insurer program charter
+  description: Deliver the first individual risk-life product and establish an evolvable domain and operating model.
+  status: candidate
+  stage: align
+  miro:
+    item_type: shape
+    frame_id: align-intake
