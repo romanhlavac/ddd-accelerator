@@ -7,7 +7,8 @@ param(
     [switch]$DryRun,
     [switch]$ResetToken,
     [switch]$ForceRecreateRuntime,
-    [switch]$NonInteractive
+    [switch]$NonInteractive,
+    [switch]$Resume
 )
 
 Set-StrictMode -Version Latest
@@ -21,6 +22,7 @@ catch {
 }
 
 . (Join-Path $PSScriptRoot "private/DDDAMiroSupport.ps1")
+. (Join-Path $PSScriptRoot "private/DDDAGitStatus.ps1")
 
 function Invoke-ProjectMiroCli {
     param([Parameter(Mandatory = $true)][string[]]$CommandArguments)
@@ -63,7 +65,17 @@ try {
     }
 
     Assert-DDDACleanGitRepository -RepositoryPath $script:PlatformRoot -Label "Platformní"
-    Assert-DDDACleanGitRepository -RepositoryPath $script:ProjectRoot -Label "Projektový"
+
+    $initialProjectChanges = Invoke-DDDAGit -RepositoryPath $script:ProjectRoot -Arguments @("status", "--porcelain")
+    if ($Resume) {
+        $null = Assert-DDDAGitChangesWithinPath -PorcelainText $initialProjectChanges -AllowedPrefix "miro/" -Label "Projektový repozitář v resume režimu"
+        if (-not [string]::IsNullOrWhiteSpace($initialProjectChanges)) {
+            Write-Host "Resume: používají se existující necommitnuté změny omezené na miro/."
+        }
+    }
+    else {
+        Assert-DDDACleanGitRepository -RepositoryPath $script:ProjectRoot -Label "Projektový"
+    }
 
     $accessToken = Get-DDDAMiroAccessToken -ResetToken:$ResetToken -NonInteractive:$NonInteractive
     $env:MIRO_ACCESS_TOKEN = $accessToken
@@ -102,7 +114,13 @@ try {
 
     if ($DryRun) {
         Assert-DDDACleanGitRepository -RepositoryPath $script:PlatformRoot -Label "Platformní"
-        Assert-DDDACleanGitRepository -RepositoryPath $script:ProjectRoot -Label "Projektový"
+        if ($Resume) {
+            $dryRunProjectChanges = Invoke-DDDAGit -RepositoryPath $script:ProjectRoot -Arguments @("status", "--porcelain")
+            $null = Assert-DDDAGitChangesWithinPath -PorcelainText $dryRunProjectChanges -AllowedPrefix "miro/" -Label "Projektový repozitář po resume dry-run"
+        }
+        else {
+            Assert-DDDACleanGitRepository -RepositoryPath $script:ProjectRoot -Label "Projektový"
+        }
         Write-Host ""
         Write-Host "DDDA projektový Miro dry-run: PASS"
         return
@@ -154,21 +172,13 @@ try {
     Assert-DDDACleanGitRepository -RepositoryPath $script:PlatformRoot -Label "Platformní"
 
     $projectChanges = Invoke-DDDAGit -RepositoryPath $script:ProjectRoot -Arguments @("status", "--porcelain")
-    $unexpectedChanges = @()
-    foreach ($line in @($projectChanges -split "`r?`n")) {
-        if ([string]::IsNullOrWhiteSpace($line)) {
-            continue
-        }
-        $changedPath = $line.Substring([Math]::Min(3, $line.Length)).Trim().Replace('\', '/')
-        if ($changedPath -match ' -> ') {
-            $changedPath = ($changedPath -split ' -> ')[-1]
-        }
-        if (-not $changedPath.StartsWith("miro/")) {
-            $unexpectedChanges += $line
-        }
-    }
+    $projectEntries = @(ConvertFrom-DDDAGitPorcelain -PorcelainText $projectChanges)
+    $unexpectedChanges = @(
+        $projectEntries |
+            Where-Object { -not $_.Path.StartsWith("miro/", [System.StringComparison]::OrdinalIgnoreCase) }
+    )
     if ($unexpectedChanges.Count -gt 0) {
-        throw "Inicializace změnila neočekávané projektové soubory:`n$($unexpectedChanges -join "`n")"
+        throw "Inicializace změnila neočekávané projektové soubory:`n$($unexpectedChanges.Line -join "`n")"
     }
 
     Write-Host ""
