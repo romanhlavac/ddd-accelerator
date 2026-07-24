@@ -2,13 +2,14 @@
 
 ## Začít zde
 
-1. [README platformy](../README.md)
-2. [Praktický provozní návod](../USAGE.md)
-3. [Inicializace po clone](cookbooks/13-inicializace-po-clone.md)
-4. [Založení projektu](cookbooks/01-zalozeni-projektu.md)
+1. [První spuštění a referenční example projekt](cookbooks/15-prvni-spusteni-a-example-projekt.md)
+2. [README platformy](../README.md)
+3. [Praktický provozní návod](../USAGE.md)
+4. [Inicializace po clone](cookbooks/13-inicializace-po-clone.md)
 5. [Inicializace cílového Miro boardu](cookbooks/14-inicializace-ciloveho-miro-boardu.md)
-6. [Miro board a synchronizace](cookbooks/02-priprava-miro-boardu.md)
-7. [Referenční projekt životní pojišťovny](../examples/life-insurance-greenfield/README.md)
+6. [Založení vlastního projektu](cookbooks/01-zalozeni-projektu.md)
+7. [Miro board a synchronizace](cookbooks/02-priprava-miro-boardu.md)
+8. [Referenční projekt životní pojišťovny](../examples/life-insurance-greenfield/README.md)
 
 ## Metodika
 
@@ -43,6 +44,7 @@
 - [12 Miro troubleshooting](cookbooks/12-miro-troubleshooting.md)
 - [13 Inicializace po clone](cookbooks/13-inicializace-po-clone.md)
 - [14 Inicializace cílového Miro boardu](cookbooks/14-inicializace-ciloveho-miro-boardu.md)
+- [15 První spuštění a referenční example projekt](cookbooks/15-prvni-spusteni-a-example-projekt.md)
 
 ## Strukturní pravidlo
 

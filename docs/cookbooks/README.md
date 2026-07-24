@@ -28,4 +28,4 @@ Kuchařka je opakovatelný pracovní postup pro chat, workshop, Miro, YAML a Git
 
 ## Doporučené pořadí
 
-Po novém clone začni kuchařkou 13. Potom obvykle následuje 01 → 14 → 02 → 03 → 04 → 06 → 08. Po stabilizaci hranic následuje 05 pro konkrétní BC. Kuchařky 07, 11 a 12 jsou průřezové. Kuchařka 10 rozšiřuje tok legacy modernizace.
+Nový uživatel začíná kuchařkou 15, která automatizuje clone → platformní testy → workspace → referenční example projekt → projektový Miro smoke test. Kuchařky 13 a 14 popisují nižší provozní kroky samostatně. Pro vlastní projekt potom obvykle následuje 01 → 02 → 03 → 04 → 06 → 08. Po stabilizaci hranic následuje 05 pro konkrétní BC. Kuchařky 07, 11 a 12 jsou průřezové. Kuchařka 10 rozšiřuje tok legacy modernizace.

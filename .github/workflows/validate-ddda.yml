@@ -104,10 +104,10 @@ jobs:
       - name: Test Miro automation helpers
         shell: pwsh
         run: ./tests/powershell/Test-DDDAMiroAutomation.ps1 -PlatformPath $PWD
-      - name: Initialize platform after clone
+      - name: Test complete offline first run
         shell: pwsh
-        run: ./scripts/Initialize-DDDAAfterClone.ps1 -PlatformPath $PWD -NonInteractive
-      - name: Bootstrap workspace, project and run offline doctor
+        run: ./tests/powershell/Test-DDDAFirstRun.ps1 -PlatformPath $PWD
+      - name: Bootstrap generic workspace, project and run offline doctor
         shell: pwsh
         run: |
           $workspace = Join-Path $env:RUNNER_TEMP "ddda-smoke-pwsh"

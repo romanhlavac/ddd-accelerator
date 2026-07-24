@@ -26,6 +26,7 @@ $requiredFiles = @(
     "README.md", "USAGE.md", "docs/README.md",
     "docs/cookbooks/README.md", "docs/cookbooks/11-chat-first-pracovni-rezim.md", "docs/cookbooks/12-miro-troubleshooting.md",
     "docs/cookbooks/13-inicializace-po-clone.md", "docs/cookbooks/14-inicializace-ciloveho-miro-boardu.md",
+    "docs/cookbooks/15-prvni-spusteni-a-example-projekt.md",
     "docs/methodology/01-metodicky-tok-a-gates.md", "docs/methodology/02-typy-projektu-toky-use-cases.md",
     "docs/product/01-architektura-ddda.md", "docs/product/04-synchronizace.md", "docs/product/06-migrace-a-kompatibilita.md",
     "examples/life-insurance-greenfield/README.md", "examples/life-insurance-greenfield/project.yaml",
@@ -39,7 +40,9 @@ $requiredFiles = @(
     "scripts/Update-DDDAProject.ps1", "scripts/Install-DDDAMiroRuntime.ps1", "scripts/Initialize-DDDAMiroBoard.ps1",
     "scripts/Invoke-DDDAMiroSync.ps1", "scripts/Start-DDDAMiroSyncWorker.ps1", "scripts/Test-DDDAMiroConfiguration.ps1",
     "scripts/Initialize-DDDAAfterClone.ps1", "scripts/Invoke-DDDAMiroSmokeTest.ps1", "scripts/Initialize-DDDAProjectMiro.ps1",
-    "scripts/private/DDDAMiroSupport.ps1", "tests/powershell/Test-DDDAMiroAutomation.ps1"
+    "scripts/New-DDDAExampleProject.ps1", "scripts/Initialize-DDDAFirstRun.ps1",
+    "scripts/private/DDDAMiroSupport.ps1", "scripts/private/DDDAGitStatus.ps1",
+    "tests/powershell/Test-DDDAMiroAutomation.ps1", "tests/powershell/Test-DDDAFirstRun.ps1"
 )
 
 $missingRequiredFiles = @()
