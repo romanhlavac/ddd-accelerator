@@ -12,6 +12,7 @@ DDDA je chat-first, Miro-first a Git-verzované pracovní prostředí pro domén
 - dry-run, explicitní konflikty, tombstone delete, auditní sync reporty a idempotentní mapping,
 - řízený polling worker pro průběžnou synchronizaci,
 - automatizovaná inicializace po clone a opakovatelný online Miro smoke test,
+- automatizované vytvoření workspace a materializace referenčního example projektu,
 - idempotentní inicializace cílového Miro boardu pro konkrétní projekt,
 - Mermaid jako odvozená textová projekce,
 - česká metodika, kuchařky, typové workflow a referenční projekt životní pojišťovny.
@@ -27,9 +28,11 @@ DDDA je chat-first, Miro-first a Git-verzované pracovní prostředí pro domén
 
 Sémantický konflikt se nikdy neřeší implicitním last-write-wins. Runtime vytvoří conflict record a vyžádá rozhodnutí.
 
-## Rychlý start
+## Kanonický první start
 
-Před spuštěním se přesuň do **parent adresáře**, ve kterém má vzniknout `DDDA-Workspace`.
+Toto je doporučený postup pro nového uživatele. Po `git clone` se workspace, referenční example projekt i oba Miro smoke testy spouštějí jedním orchestrátorem.
+
+Z parent adresáře, ve kterém má vzniknout `DDDA-Workspace`:
 
 ```powershell
 New-Item -ItemType Directory -Force .\DDDA-Workspace\platform | Out-Null
@@ -38,54 +41,79 @@ git clone `
   https://github.com/romanhlavac/ddd-accelerator.git `
   .\DDDA-Workspace\platform\ddd-accelerator
 
-$WorkspaceRoot = (Resolve-Path .\DDDA-Workspace).Path
-$PlatformRoot = (Resolve-Path .\DDDA-Workspace\platform\ddd-accelerator).Path
+Set-Location .\DDDA-Workspace\platform\ddd-accelerator
 
-& (Join-Path $PlatformRoot 'scripts\Initialize-DDDAAfterClone.ps1') `
-  -PlatformPath $PlatformRoot `
-  -WithMiro `
-  -Full
+.\scripts\Initialize-DDDAFirstRun.ps1 -WithMiro -Full
+```
 
-& (Join-Path $PlatformRoot 'scripts\Initialize-DDDAWorkspace.ps1') `
-  -WorkspaceRoot $WorkspaceRoot
+Jediný příkaz po clone automaticky provede:
 
-& (Join-Path $PlatformRoot 'scripts\New-DDDAProject.ps1') `
-  -WorkspaceRoot $WorkspaceRoot `
-  -ProjectId life-insurance-greenfield `
-  -Name 'Nová životní pojišťovna' `
-  -Type portfolio-program `
-  -TypeAlias greenfield-portfolio
+1. kontrolu platformy, Pythonu a PowerShell skriptů;
+2. instalaci Miro runtime;
+3. izolovaný online platformní Miro smoke test;
+4. vytvoření `DDDA-Workspace`;
+5. materializaci skutečného referenčního projektu `life-insurance-greenfield` včetně artifacts, ingestion a workshop prompts;
+6. kontrolu workspace a projektu;
+7. vytvoření cílového Miro boardu example projektu;
+8. online doctor a idempotentní kontrolní render projektového boardu.
 
-& (Join-Path $PlatformRoot 'scripts\Initialize-DDDAProjectMiro.ps1') `
-  -WorkspaceRoot $WorkspaceRoot `
-  -ProjectId life-insurance-greenfield `
+První online běh si vyžádá Miro access token se scopes `boards:read` a `boards:write`. Na Windows jej uloží pomocí DPAPI mimo Git root. Skript neprovádí automatický push, merge ani commit projektového Miro mappingu.
+
+Detailní iniciační postup a očekávané výstupy jsou v [kuchařce 15 — První spuštění a referenční example projekt](docs/cookbooks/15-prvni-spusteni-a-example-projekt.md).
+
+## Offline první start
+
+Bez Miro API:
+
+```powershell
+.\scripts\Initialize-DDDAFirstRun.ps1
+```
+
+Tím vznikne a projde kontrolou workspace i referenční example projekt. Projektový board lze doplnit později:
+
+```powershell
+.\scripts\Initialize-DDDAProjectMiro.ps1 `
+  -WorkspaceRoot '..\..' `
+  -ProjectId 'life-insurance-greenfield' `
   -CreateBoard
 ```
 
-První online běh si vyžádá Miro access token se scopes `boards:read` a `boards:write`. Na Windows jej uloží pomocí DPAPI mimo Git root. Další smoke testy a inicializace projektových boardů stejný token znovu použijí.
+## Samostatné provozní příkazy
 
-Pouze offline inicializace bez Miro API:
-
-```powershell
-& (Join-Path $PlatformRoot 'scripts\Initialize-DDDAAfterClone.ps1') `
-  -PlatformPath $PlatformRoot
-```
-
-## Samostatný online Miro smoke test
+Pouze platformní inicializace po clone:
 
 ```powershell
-& (Join-Path $PlatformRoot 'scripts\Invoke-DDDAMiroSmokeTest.ps1') `
-  -PlatformPath $PlatformRoot `
-  -Full
+.\scripts\Initialize-DDDAAfterClone.ps1 -WithMiro -Full
 ```
 
-Test vytvoří izolovaný workspace, projekt a board, ověří YAML ↔ Miro, `PromoteNew`, polling worker a idempotenci. Po úspěchu board a workspace odstraní; při chybě je ponechá pro diagnostiku.
+Pouze opakovaný online Miro smoke test platformy:
+
+```powershell
+.\scripts\Invoke-DDDAMiroSmokeTest.ps1 -Full
+```
+
+Pouze materializace referenčního example projektu v existujícím workspace:
+
+```powershell
+.\scripts\New-DDDAExampleProject.ps1 -WorkspaceRoot '..\..'
+```
+
+Pouze vytvoření nebo kontrolní render projektového boardu:
+
+```powershell
+.\scripts\Initialize-DDDAProjectMiro.ps1 `
+  -WorkspaceRoot '..\..' `
+  -ProjectId 'life-insurance-greenfield' `
+  -CreateBoard
+```
 
 ## Řízený synchronizační worker
 
 Pro průběžnou spolupráci lze spustit polling worker. Worker nejméně jednou za 30 sekund provede kontrolovaný režim `Both`, zapisuje auditní report a při prvním konfliktu se ukončí s exit code `2`, aby se konflikt nešířil dál.
 
 ```powershell
+$WorkspaceRoot = (Resolve-Path '..\..').Path
+$PlatformRoot = (Resolve-Path '.').Path
 $ProjectRoot = Join-Path $WorkspaceRoot 'projects\life-insurance-greenfield'
 
 & (Join-Path $PlatformRoot 'scripts\Start-DDDAMiroSyncWorker.ps1') `
@@ -103,4 +131,4 @@ Typický prompt:
 
 ## Dokumentace
 
-Začni v [indexu dokumentace](docs/README.md), pokračuj [hlavním návodem](USAGE.md), [inicializací po clone](docs/cookbooks/13-inicializace-po-clone.md), [inicializací cílového Miro boardu](docs/cookbooks/14-inicializace-ciloveho-miro-boardu.md) a referenčním [greenfield příkladem životní pojišťovny](examples/life-insurance-greenfield/README.md).
+Začni [kuchařkou prvního spuštění](docs/cookbooks/15-prvni-spusteni-a-example-projekt.md), pokračuj [indexem dokumentace](docs/README.md), [hlavním návodem](USAGE.md), [inicializací po clone](docs/cookbooks/13-inicializace-po-clone.md), [inicializací cílového Miro boardu](docs/cookbooks/14-inicializace-ciloveho-miro-boardu.md) a referenčním [greenfield příkladem životní pojišťovny](examples/life-insurance-greenfield/README.md).
