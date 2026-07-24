@@ -41,7 +41,8 @@ $requiredFiles = @(
     "scripts/Invoke-DDDAMiroSync.ps1", "scripts/Start-DDDAMiroSyncWorker.ps1", "scripts/Test-DDDAMiroConfiguration.ps1",
     "scripts/Initialize-DDDAAfterClone.ps1", "scripts/Invoke-DDDAMiroSmokeTest.ps1", "scripts/Initialize-DDDAProjectMiro.ps1",
     "scripts/New-DDDAExampleProject.ps1", "scripts/Initialize-DDDAFirstRun.ps1",
-    "scripts/private/DDDAMiroSupport.ps1", "tests/powershell/Test-DDDAMiroAutomation.ps1", "tests/powershell/Test-DDDAFirstRun.ps1"
+    "scripts/private/DDDAMiroSupport.ps1", "scripts/private/DDDAGitStatus.ps1",
+    "tests/powershell/Test-DDDAMiroAutomation.ps1", "tests/powershell/Test-DDDAFirstRun.ps1"
 )
 
 $missingRequiredFiles = @()
