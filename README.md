@@ -11,6 +11,8 @@ DDDA je chat-first, Miro-first a Git-verzované pracovní prostředí pro domén
 - obousměrná synchronizace spravovaných artefaktů YAML ↔ Miro,
 - dry-run, explicitní konflikty, tombstone delete, auditní sync reporty a idempotentní mapping,
 - řízený polling worker pro průběžnou synchronizaci,
+- automatizovaná inicializace po clone a opakovatelný online Miro smoke test,
+- idempotentní inicializace cílového Miro boardu pro konkrétní projekt,
 - Mermaid jako odvozená textová projekce,
 - česká metodika, kuchařky, typové workflow a referenční projekt životní pojišťovny.
 
@@ -39,8 +41,10 @@ git clone `
 $WorkspaceRoot = (Resolve-Path .\DDDA-Workspace).Path
 $PlatformRoot = (Resolve-Path .\DDDA-Workspace\platform\ddd-accelerator).Path
 
-& (Join-Path $PlatformRoot 'scripts\Test-DDDAInstallation.ps1') `
-  -PlatformPath $PlatformRoot
+& (Join-Path $PlatformRoot 'scripts\Initialize-DDDAAfterClone.ps1') `
+  -PlatformPath $PlatformRoot `
+  -WithMiro `
+  -Full
 
 & (Join-Path $PlatformRoot 'scripts\Initialize-DDDAWorkspace.ps1') `
   -WorkspaceRoot $WorkspaceRoot
@@ -51,43 +55,45 @@ $PlatformRoot = (Resolve-Path .\DDDA-Workspace\platform\ddd-accelerator).Path
   -Name 'Nová životní pojišťovna' `
   -Type portfolio-program `
   -TypeAlias greenfield-portfolio
+
+& (Join-Path $PlatformRoot 'scripts\Initialize-DDDAProjectMiro.ps1') `
+  -WorkspaceRoot $WorkspaceRoot `
+  -ProjectId life-insurance-greenfield `
+  -CreateBoard
 ```
 
-## Zapojení Miro
+První online běh si vyžádá Miro access token se scopes `boards:read` a `boards:write`. Na Windows jej uloží pomocí DPAPI mimo Git root. Další smoke testy a inicializace projektových boardů stejný token znovu použijí.
 
-Miro app musí mít scope `boards:read` a `boards:write`. Token se neukládá do Gitu.
+Pouze offline inicializace bez Miro API:
 
 ```powershell
-$env:MIRO_ACCESS_TOKEN = '<token>'
-$env:LIFE_INSURANCE_GREENFIELD_MIRO_BOARD_ID = '<board-id>'
-
-& (Join-Path $PlatformRoot 'scripts\Install-DDDAMiroRuntime.ps1')
-
-$ProjectRoot = Join-Path $WorkspaceRoot 'projects\life-insurance-greenfield'
-
-& (Join-Path $PlatformRoot 'scripts\Test-DDDAMiroConfiguration.ps1') `
-  -ProjectPath $ProjectRoot `
-  -Online
-
-& (Join-Path $PlatformRoot 'scripts\Initialize-DDDAMiroBoard.ps1') `
-  -ProjectPath $ProjectRoot `
-  -DryRun
-
-& (Join-Path $PlatformRoot 'scripts\Initialize-DDDAMiroBoard.ps1') `
-  -ProjectPath $ProjectRoot
+& (Join-Path $PlatformRoot 'scripts\Initialize-DDDAAfterClone.ps1') `
+  -PlatformPath $PlatformRoot
 ```
+
+## Samostatný online Miro smoke test
+
+```powershell
+& (Join-Path $PlatformRoot 'scripts\Invoke-DDDAMiroSmokeTest.ps1') `
+  -PlatformPath $PlatformRoot `
+  -Full
+```
+
+Test vytvoří izolovaný workspace, projekt a board, ověří YAML ↔ Miro, `PromoteNew`, polling worker a idempotenci. Po úspěchu board a workspace odstraní; při chybě je ponechá pro diagnostiku.
 
 ## Řízený synchronizační worker
 
 Pro průběžnou spolupráci lze spustit polling worker. Worker nejméně jednou za 30 sekund provede kontrolovaný režim `Both`, zapisuje auditní report a při prvním konfliktu se ukončí s exit code `2`, aby se konflikt nešířil dál.
 
 ```powershell
+$ProjectRoot = Join-Path $WorkspaceRoot 'projects\life-insurance-greenfield'
+
 & (Join-Path $PlatformRoot 'scripts\Start-DDDAMiroSyncWorker.ps1') `
   -ProjectPath $ProjectRoot `
   -IntervalSeconds 60
 ```
 
-Worker neprovádí Git commit, push ani merge a neobnovuje OAuth token. Rotaci nebo refresh tokenu musí zajistit provozní prostředí; pro lokální práci lze token před spuštěním znovu nastavit v environment variable.
+Worker neprovádí Git commit, push ani merge a neobnovuje OAuth token. Rotaci nebo refresh tokenu musí zajistit provozní prostředí; pro lokální práci lze použít uložený token nebo `MIRO_ACCESS_TOKEN`.
 
 ## Ovládání přes chat
 
@@ -97,4 +103,4 @@ Typický prompt:
 
 ## Dokumentace
 
-Začni v [indexu dokumentace](docs/README.md), pokračuj [hlavním návodem](USAGE.md) a referenčním [greenfield příkladem životní pojišťovny](examples/life-insurance-greenfield/README.md).
+Začni v [indexu dokumentace](docs/README.md), pokračuj [hlavním návodem](USAGE.md), [inicializací po clone](docs/cookbooks/13-inicializace-po-clone.md), [inicializací cílového Miro boardu](docs/cookbooks/14-inicializace-ciloveho-miro-boardu.md) a referenčním [greenfield příkladem životní pojišťovny](examples/life-insurance-greenfield/README.md).
