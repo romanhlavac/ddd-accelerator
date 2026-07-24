@@ -184,9 +184,11 @@ Orchestrátor je resumable:
 - existující workspace znovu použije;
 - existující validní example projekt znovu použije;
 - existující `board_id` z `miro/miro-map.yaml` použije místo vytvoření dalšího boardu;
-- při nečistém projektovém repozitáři se zastaví před Miro write operací.
+- po přerušeném projektovém Miro bootstrapu automaticky použije bezpečný `-Resume` režim;
+- `-Resume` připustí pouze necommitnuté změny pod `miro/`; změny v `project.yaml`, artifacts, ingestion nebo jiných projektových souborech běh zastaví;
+- druhý běh znovu provede dry-run, online doctor a idempotentní render bez vytvoření dalšího boardu.
 
-Při selhání platformního smoke testu zůstává dočasný board a workspace pro diagnostiku. Detaily jsou v kuchařce 13.
+Při selhání platformního smoke testu zůstává dočasný board a workspace pro diagnostiku. Detaily jsou v kuchařce 13. Při selhání po vytvoření projektového boardu neupravuj ani nemaž `miro/miro-map.yaml`; po opravě platformy spusť stejný first-run příkaz znovu.
 
 ## Definition of Done
 
