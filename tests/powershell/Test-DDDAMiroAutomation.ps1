@@ -7,6 +7,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 . (Join-Path $PlatformPath "scripts/private/DDDAMiroSupport.ps1")
+. (Join-Path $PlatformPath "scripts/private/DDDAGitStatus.ps1")
 
 function Assert-Equal {
     param(
@@ -47,6 +48,22 @@ Assert-True -Condition ($encoded.Json -eq $decoded) -Message "JSON text a UTF-8 
 
 $encodedBoardId = [Uri]::EscapeDataString("uXjVH4yfs6Y=")
 Assert-True -Condition ($encodedBoardId.EndsWith("%3D")) -Message "Board ID není bezpečně URL encoded."
+
+Assert-Equal -Expected "miro/miro-map.yaml" -Actual (Get-DDDAGitPorcelainPath -Line " M miro/miro-map.yaml") -Message "Standardní Git porcelain řádek nebyl rozpoznán."
+Assert-Equal -Expected "miro/miro-map.yaml" -Actual (Get-DDDAGitPorcelainPath -Line "M miro/miro-map.yaml") -Message "Trimovaný první Git porcelain řádek nebyl rozpoznán."
+Assert-Equal -Expected "miro/new-map.yaml" -Actual (Get-DDDAGitPorcelainPath -Line "R  miro/old-map.yaml -> miro/new-map.yaml") -Message "Git rename porcelain řádek nebyl rozpoznán."
+
+$allowedEntries = @(Assert-DDDAGitChangesWithinPath -PorcelainText "M miro/miro-map.yaml`n?? miro/report.yaml" -AllowedPrefix "miro/" -Label "Test")
+Assert-Equal -Expected 2 -Actual $allowedEntries.Count -Message "Povolené Miro změny nebyly správně rozpoznány."
+
+$outsideRejected = $false
+try {
+    $null = Assert-DDDAGitChangesWithinPath -PorcelainText "M project.yaml" -AllowedPrefix "miro/" -Label "Test"
+}
+catch {
+    $outsideRejected = $true
+}
+Assert-True -Condition $outsideRejected -Message "Změna mimo miro/ musí být v resume režimu odmítnuta."
 
 $platformFull = [System.IO.Path]::GetFullPath($PlatformPath).TrimEnd('\', '/')
 $secretFull = [System.IO.Path]::GetFullPath((Get-DDDAMiroSecretPath))
@@ -94,7 +111,7 @@ foreach ($parameterName in @("ResetToken", "KeepArtifacts", "CleanupOnFailure", 
 }
 
 $projectCommand = Get-Command (Join-Path $PlatformPath "scripts/Initialize-DDDAProjectMiro.ps1")
-foreach ($parameterName in @("WorkspaceRoot", "ProjectId", "CreateBoard", "DryRun", "ResetToken")) {
+foreach ($parameterName in @("WorkspaceRoot", "ProjectId", "CreateBoard", "DryRun", "ResetToken", "Resume")) {
     Assert-True -Condition $projectCommand.Parameters.ContainsKey($parameterName) -Message "Project Miro initializer nemá parametr $parameterName."
 }
 
