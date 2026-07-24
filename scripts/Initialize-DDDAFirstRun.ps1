@@ -47,6 +47,7 @@ $workspaceFull = Resolve-DDDAFirstRunWorkspaceRoot -PlatformRoot $platformRoot -
 $projectId = "life-insurance-greenfield"
 $projectRoot = Join-Path (Join-Path $workspaceFull "projects") $projectId
 $workspaceFile = Join-Path $workspaceFull "workspace.yaml"
+$projectAlreadyExisted = Test-Path $projectRoot
 
 if ($WithMiro -and $NoInitialCommit) {
     throw "-NoInitialCommit nelze kombinovat s -WithMiro. Projektový Miro bootstrap vyžaduje čistý projektový Git repozitář."
@@ -122,6 +123,7 @@ if ($WithMiro) {
         "-ProjectId", $projectId,
         "-CreateBoard"
     )
+    if ($projectAlreadyExisted) { $projectMiroArguments += "-Resume" }
     if ($NonInteractive) { $projectMiroArguments += "-NonInteractive" }
 
     Invoke-DDDAChildPowerShell -ScriptPath (Join-Path $platformRoot "scripts/Initialize-DDDAProjectMiro.ps1") -Arguments $projectMiroArguments
