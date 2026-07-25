@@ -15,6 +15,13 @@ from .engine import (
 )
 
 
+def configure_utf8_streams() -> None:
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            reconfigure(encoding="utf-8", errors="strict")
+
+
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(prog="ddda-steering", description="DDDA project steering runtime")
     sub = root.add_subparsers(dest="command", required=True)
@@ -47,6 +54,7 @@ def parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    configure_utf8_streams()
     args = parser().parse_args(argv)
     try:
         if args.command == "intake-summary":
