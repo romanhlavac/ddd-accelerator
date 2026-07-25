@@ -29,7 +29,7 @@ if (-not [string]::IsNullOrWhiteSpace($Note)) { $arguments += @("--note", $Note)
 foreach ($value in $Condition) { $arguments += @("--condition", $value) }
 $result = Invoke-DDDASteeringJson -PlatformRoot $platformRoot -Arguments $arguments
 
-Write-Host "Gate $Gate: $Outcome"
+Write-Host "Gate ${Gate}: $Outcome"
 Write-Host "Aktuální fáze: $($result.current_stage)"
 Write-Host "Další gate: $($result.next_gate)"
 Write-Host "Před commitem zkontroluj: git -C `"$projectRoot`" diff"
