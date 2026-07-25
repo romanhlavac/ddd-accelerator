@@ -21,8 +21,9 @@ jobs:
           Expand-Archive source.zip -DestinationPath source
           $root = (Get-ChildItem source -Directory | Select-Object -First 1).FullName
           git -C $root init -q
+          git -C $root config core.autocrlf false
           git -C $root config user.name "DDDA Diagnostic"
           git -C $root config user.email "ddda-diagnostic@example.invalid"
-          git -C $root add .
+          git -C $root add -A 2>$null
           git -C $root commit -qm baseline
           & (Join-Path $root "scripts/Test-DDDAInstallation.ps1") -PlatformPath $root
