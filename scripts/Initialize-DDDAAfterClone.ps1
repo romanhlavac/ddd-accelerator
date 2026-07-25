@@ -17,8 +17,7 @@ try {
     [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
     $OutputEncoding = [Console]::OutputEncoding
 }
-catch {
-}
+catch {}
 
 . (Join-Path $PSScriptRoot "private/DDDAMiroSupport.ps1")
 
@@ -39,17 +38,30 @@ Invoke-DDDAChildPowerShell -ScriptPath (Join-Path $platformRoot "scripts/Test-DD
 
 $pythonCommand = Resolve-DDDAPythonCommand
 $installArguments = @("-PlatformPath", $platformRoot, "-PythonCommand", $pythonCommand)
-if ($ForceRecreateRuntime) {
-    $installArguments += "-ForceRecreate"
-}
+if ($ForceRecreateRuntime) { $installArguments += "-ForceRecreate" }
+
+Invoke-DDDAChildPowerShell -ScriptPath (Join-Path $platformRoot "scripts/Install-DDDASteeringRuntime.ps1") -Arguments $installArguments
 Invoke-DDDAChildPowerShell -ScriptPath (Join-Path $platformRoot "scripts/Install-DDDAMiroRuntime.ps1") -Arguments $installArguments
 
-$pythonExe = Join-Path $platformRoot ".ddda/runtime/miro-venv/Scripts/python.exe"
-if (-not (Test-Path $pythonExe)) {
-    throw "DDDA Miro runtime nebyl vytvořen: $pythonExe"
+$steeringPython = if (Test-DDDAIsWindows) {
+    Join-Path $platformRoot ".ddda/runtime/steering-venv/Scripts/python.exe"
+}
+else {
+    Join-Path $platformRoot ".ddda/runtime/steering-venv/bin/python"
+}
+$miroPython = if (Test-DDDAIsWindows) {
+    Join-Path $platformRoot ".ddda/runtime/miro-venv/Scripts/python.exe"
+}
+else {
+    Join-Path $platformRoot ".ddda/runtime/miro-venv/bin/python"
 }
 
-& $pythonExe -m ddda_miro --help *> $null
+if (-not (Test-Path $steeringPython)) { throw "DDDA steering runtime nebyl vytvořen: $steeringPython" }
+if (-not (Test-Path $miroPython)) { throw "DDDA Miro runtime nebyl vytvořen: $miroPython" }
+
+& $steeringPython -m ddda_steering --help *> $null
+Assert-DDDALastExitCode -Operation "Ověření DDDA steering CLI"
+& $miroPython -m ddda_miro --help *> $null
 Assert-DDDALastExitCode -Operation "Ověření DDDA Miro CLI"
 
 Assert-DDDACleanGitRepository -RepositoryPath $platformRoot -Label "Platformní"
@@ -62,10 +74,9 @@ if ($WithMiro) {
     if ($KeepArtifacts) { $smokeArguments += "-KeepArtifacts" }
     if ($CleanupOnFailure) { $smokeArguments += "-CleanupOnFailure" }
     if ($NonInteractive) { $smokeArguments += "-NonInteractive" }
-
     Invoke-DDDAChildPowerShell -ScriptPath (Join-Path $platformRoot "scripts/Invoke-DDDAMiroSmokeTest.ps1") -Arguments $smokeArguments
 }
 
 Write-Host ""
 Write-Host "DDDA inicializace po clone: PASS"
-Write-Host "Další krok: založ workspace a projekt; poté spusť Initialize-DDDAProjectMiro.ps1."
+Write-Host "Další krok: spusť Initialize-DDDAFirstRun.ps1 pro example nebo Initialize-DDDAProjectFirstRun.ps1 pro vlastní intake."

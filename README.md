@@ -4,18 +4,19 @@ DDDA je chat-first, Miro-first a Git-verzované pracovní prostředí pro domén
 
 ## Co je implementováno
 
-- multi-project workspace a samostatný Git repozitář pro každý projekt,
-- chatové pracovní postupy a projektové prompty,
-- deklarativní Miro scaffold pro tok Align → Discover → Decompose → Strategize → Connect → Organize → Define → Code,
-- živý renderer Miro boardu přes REST API v2,
-- obousměrná synchronizace spravovaných artefaktů YAML ↔ Miro,
-- dry-run, explicitní konflikty, tombstone delete, auditní sync reporty a idempotentní mapping,
-- řízený polling worker pro průběžnou synchronizaci,
-- automatizovaná inicializace po clone a opakovatelný online Miro smoke test,
-- automatizované vytvoření workspace a materializace referenčního example projektu,
-- idempotentní inicializace cílového Miro boardu pro konkrétní projekt,
-- Mermaid jako odvozená textová projekce,
-- česká metodika, kuchařky, typové workflow a referenční projekt životní pojišťovny.
+- multi-project workspace a samostatný Git repozitář pro každý projekt;
+- kanonická starter metodika `Align → Discover → Decompose → Strategize → Connect → Organize → Define → Code` s gatami G1–G8;
+- chatové pracovní postupy, projektové prompty a přenosný knowledge pack;
+- řízený project intake, lifecycle tailoring, current status, next actions a evidence-driven gate records;
+- agentní scope a handoff kontrakt, mode/model policy a explicitní Git approval boundary;
+- deklarativní Miro scaffold a živý REST API v2 renderer;
+- obousměrná synchronizace spravovaných artefaktů YAML ↔ Miro;
+- dry-run, explicitní konflikty, tombstone delete, auditní reporty a idempotentní mapping;
+- řízený polling worker;
+- automatizovaná inicializace po clone a online Miro smoke test;
+- automatizované vytvoření workspace a referenčního example projektu;
+- automatizovaný one-command bootstrap libovolného řízeného projektu;
+- česká metodika, capability katalog, kuchařky, CLI reference a referenční projekt životní pojišťovny.
 
 ## Základní ownership
 
@@ -25,12 +26,11 @@ DDDA je chat-first, Miro-first a Git-verzované pracovní prostředí pro domén
 | Miro | workshopovou interakci, polohu, velikost a vizuální seskupení |
 | Git | historii, review a schválení změn |
 | Mermaid | generované pohledy pro chat a dokumentaci |
+| Chat | porozumění, otázky, varianty, review a potvrzení execution kroku |
 
-Sémantický konflikt se nikdy neřeší implicitním last-write-wins. Runtime vytvoří conflict record a vyžádá rozhodnutí.
+Sémantický konflikt se nikdy neřeší implicitním last-write-wins. Gate se nikdy neschválí pouze proto, že automatizace našla požadované soubory.
 
 ## Kanonický první start
-
-Toto je doporučený postup pro nového uživatele. Po `git clone` se workspace, referenční example projekt i oba Miro smoke testy spouštějí jedním orchestrátorem.
 
 Z parent adresáře, ve kterém má vzniknout `DDDA-Workspace`:
 
@@ -46,70 +46,78 @@ Set-Location .\DDDA-Workspace\platform\ddd-accelerator
 .\scripts\Initialize-DDDAFirstRun.ps1 -WithMiro -Full
 ```
 
-Jediný příkaz po clone automaticky provede:
+Jediný příkaz po clone:
 
-1. kontrolu platformy, Pythonu a PowerShell skriptů;
-2. instalaci Miro runtime;
-3. izolovaný online platformní Miro smoke test;
-4. vytvoření `DDDA-Workspace`;
-5. materializaci skutečného referenčního projektu `life-insurance-greenfield` včetně artifacts, ingestion a workshop prompts;
-6. kontrolu workspace a projektu;
-7. vytvoření cílového Miro boardu example projektu;
-8. online doctor a idempotentní kontrolní render projektového boardu.
+1. zkontroluje Git, PowerShell, Python a povinné soubory;
+2. nainstaluje steering a Miro runtime;
+3. spustí izolovaný online platformní Miro smoke test;
+4. vytvoří workspace;
+5. materializuje `life-insurance-greenfield` jako samostatný Git repozitář;
+6. provede kontroly workspace a projektu;
+7. vytvoří cílový Miro board example projektu;
+8. provede online doctor a idempotentní render.
 
-První online běh si vyžádá Miro access token se scopes `boards:read` a `boards:write`. Na Windows jej uloží pomocí DPAPI mimo Git root. Skript neprovádí automatický push, merge ani commit projektového Miro mappingu.
+První online běh si vyžádá Miro access token se scopes `boards:read` a `boards:write`. Na Windows jej uloží přes DPAPI mimo Git root. Skript neprovádí push ani merge a necommituje Miro mapping.
 
-Detailní iniciační postup a očekávané výstupy jsou v [kuchařce 15 — První spuštění a referenční example projekt](docs/cookbooks/15-prvni-spusteni-a-example-projekt.md).
+Detail: [Clone, smoke testy, workspace a example projekt](docs/getting-started/01-clone-smoke-example.md).
 
 ## Offline první start
-
-Bez Miro API:
 
 ```powershell
 .\scripts\Initialize-DDDAFirstRun.ps1
 ```
 
-Tím vznikne a projde kontrolou workspace i referenční example projekt. Projektový board lze doplnit později:
+## Řízený vlastní projekt
+
+Nejprve připrav potvrzený intake podle `templates/project/project-intake.template.yaml`. Potom:
 
 ```powershell
-.\scripts\Initialize-DDDAProjectMiro.ps1 `
-  -WorkspaceRoot '..\..' `
-  -ProjectId 'life-insurance-greenfield' `
-  -CreateBoard
+$WorkspaceRoot = (Resolve-Path '..\..').Path
+
+.\scripts\Initialize-DDDAProjectFirstRun.ps1 `
+  -WorkspaceRoot $WorkspaceRoot `
+  -IntakeFile '..\claims-modernization.intake.yaml' `
+  -WithMiro `
+  -Full
 ```
 
-## Samostatné provozní příkazy
+Skript vytvoří projekt, project profile, tailoring, project charter, G1–G8 records, agent contract, current status, next actions, iniciační commit a volitelně projektový Miro board.
 
-Pouze platformní inicializace po clone:
+Detail: [Kuchařka 16](docs/cookbooks/16-zalozeni-rizeneho-projektu.md).
+
+## Current status a gate review
 
 ```powershell
-.\scripts\Initialize-DDDAAfterClone.ps1 -WithMiro -Full
+.\scripts\Get-DDDAProjectStatus.ps1 -ProjectPath $ProjectRoot
+
+.\scripts\Test-DDDAGates.ps1 -ProjectPath $ProjectRoot
+
+.\scripts\Complete-DDDALifecycleStep.ps1 `
+  -ProjectPath $ProjectRoot `
+  -Gate G1 `
+  -Outcome passed `
+  -Reviewer 'Business owner'
 ```
 
-Pouze opakovaný online Miro smoke test platformy:
+`Complete-DDDALifecycleStep.ps1` standardně pouze aktualizuje projektové soubory. Push ani merge neprovádí. Lokální commit vytvoří jen s explicitním `-Commit`.
+
+## Acceptance test PR #8
+
+Offline:
 
 ```powershell
-.\scripts\Invoke-DDDAMiroSmokeTest.ps1 -Full
+.\scripts\Test-DDDAAcceptance.ps1 -Suite project-steering
 ```
 
-Pouze materializace referenčního example projektu v existujícím workspace:
+Online proti Miro:
 
 ```powershell
-.\scripts\New-DDDAExampleProject.ps1 -WorkspaceRoot '..\..'
+.\scripts\Test-DDDAAcceptance.ps1 -Suite project-steering -WithMiro -Full
 ```
 
-Pouze vytvoření nebo kontrolní render projektového boardu:
-
-```powershell
-.\scripts\Initialize-DDDAProjectMiro.ps1 `
-  -WorkspaceRoot '..\..' `
-  -ProjectId 'life-insurance-greenfield' `
-  -CreateBoard
-```
+Runner používá izolovaný workspace a board. Po úspěchu je odstraní a zachová report. Vizuální review lze vynutit přes `-KeepReviewBoard`.
 
 ## Řízený synchronizační worker
-
-Pro průběžnou spolupráci lze spustit polling worker. Worker nejméně jednou za 30 sekund provede kontrolovaný režim `Both`, zapisuje auditní report a při prvním konfliktu se ukončí s exit code `2`, aby se konflikt nešířil dál.
 
 ```powershell
 $WorkspaceRoot = (Resolve-Path '..\..').Path
@@ -121,14 +129,22 @@ $ProjectRoot = Join-Path $WorkspaceRoot 'projects\life-insurance-greenfield'
   -IntervalSeconds 60
 ```
 
-Worker neprovádí Git commit, push ani merge a neobnovuje OAuth token. Rotaci nebo refresh tokenu musí zajistit provozní prostředí; pro lokální práci lze použít uložený token nebo `MIRO_ACCESS_TOKEN`.
+Worker neprovádí Git commit, push ani merge a při sémantickém konfliktu se zastaví.
 
 ## Ovládání přes chat
 
 Typický prompt:
 
-> Scope: project. Aktivní projekt: `life-insurance-greenfield`. Nejprve načti `project.yaml`, `ddda.lock.yaml`, `docs/README.md` a relevantní cookbook. Proveď dry-run Miro synchronizace. Vypiš plánované create/update/delete operace, konflikty a dotčené YAML soubory. Nic nezapisuj, dokud plán nepotvrdím.
+> Scope: project. Aktivní projekt: `claims-modernization`. Načti `project.yaml`, `project-intake.yaml`, `lifecycle-tailoring.yaml`, `artifacts/status/current-status.yaml` a `knowledge/00-knowledge-index.md`. Shrň aktuální fázi, další gate, chybějící evidence a navrhni nejmenší další krok. Nic nezapisuj bez potvrzení.
 
 ## Dokumentace
 
-Začni [kuchařkou prvního spuštění](docs/cookbooks/15-prvni-spusteni-a-example-projekt.md), pokračuj [indexem dokumentace](docs/README.md), [hlavním návodem](USAGE.md), [inicializací po clone](docs/cookbooks/13-inicializace-po-clone.md), [inicializací cílového Miro boardu](docs/cookbooks/14-inicializace-ciloveho-miro-boardu.md) a referenčním [greenfield příkladem životní pojišťovny](examples/life-insurance-greenfield/README.md).
+Začni zde:
+
+1. [Getting started](docs/getting-started/01-clone-smoke-example.md)
+2. [USAGE — úplný provozní návod](USAGE.md)
+3. [Capability katalog](docs/capabilities/README.md)
+4. [Index dokumentace](docs/README.md)
+5. [Kuchařka řízeného projektu](docs/cookbooks/16-zalozeni-rizeneho-projektu.md)
+6. [Status a gaty](docs/cookbooks/17-status-gates-a-dalsi-krok.md)
+7. [Referenční greenfield example](examples/life-insurance-greenfield/README.md)

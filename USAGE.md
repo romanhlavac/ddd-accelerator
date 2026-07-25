@@ -1,34 +1,36 @@
 # DDDA — chat-first provozní návod
 
-Tento dokument je hlavní provozní příručka. Popisuje instalaci, role jednotlivých repozitářů, práci přes chat, projektové typy, Miro renderer, obousměrnou synchronizaci, Git/PR workflow a upgrade.
+Tento dokument je hlavní end-to-end uživatelská příručka. Popisuje první clone, smoke testy, workspace, example projekt, vlastní řízený projekt, starter metodiku, status a gaty, Miro, Git, diagnostiku a bezpečnost.
 
 ## 1. Pracovní model
 
 DDDA má dvě oddělené změnové oblasti:
 
-1. **platforma** — metodika, schémata, runtime, scaffoldy a obecná dokumentace,
-2. **projekt** — vstupy, doménové modely, ADR, Miro mapping, reporty a rozhodnutí konkrétní iniciativy.
+1. **platforma** — metodika, knowledge pack, schémata, runtime, scaffoldy, skripty a obecná dokumentace;
+2. **projekt** — intake, evidence, doménové modely, gate records, ADR, Miro mapping, reporty a rozhodnutí konkrétní iniciativy.
 
-Každá chatová relace má začít uvedením scope:
+Každá chatová relace začíná scope:
 
 ```text
 Scope: project
-Aktivní projekt: life-insurance-greenfield
-Povoleno: project.yaml, ingestion/, artifacts/, decisions/, workshops/, miro/, reports/
-Zakázáno: platformní repozitář
+Aktivní projekt: claims-modernization
+Povoleno: project.yaml, project-intake.yaml, lifecycle-tailoring.yaml, ingestion/, artifacts/, decisions/, workshops/, miro/, reports/, .ddda/
+Zakázáno: platformní repozitář, secrets, implicitní push/merge, automatické gate approval
 ```
 
 nebo:
 
 ```text
 Scope: platform
-Povoleno: docs/, schemas/, scripts/, runtime/, templates/, scaffolds/
+Povoleno: docs/, knowledge/, config/, schemas/, scripts/, runtime/, templates/, scaffolds/
 Zakázáno: klientská a projektová data
 ```
 
-## 2. Instalace z parent adresáře
+Chat vysvětluje, navrhuje a reviewuje. Skripty provádějí potvrzené změny. Člověk schvaluje scope, gaty, sémantické konflikty, commit, push a merge.
 
-Přesuň se do parent adresáře, ve kterém má vzniknout `DDDA-Workspace`. `.` v následujících příkazech označuje právě tento adresář.
+## 2. Kanonický první clone a smoke testy
+
+Z parent adresáře:
 
 ```powershell
 New-Item -ItemType Directory -Force .\DDDA-Workspace\platform | Out-Null
@@ -37,357 +39,474 @@ git clone `
   https://github.com/romanhlavac/ddd-accelerator.git `
   .\DDDA-Workspace\platform\ddd-accelerator
 
-$WorkspaceRoot = (Resolve-Path .\DDDA-Workspace).Path
-$PlatformRoot = (Resolve-Path .\DDDA-Workspace\platform\ddd-accelerator).Path
+Set-Location .\DDDA-Workspace\platform\ddd-accelerator
 
-& (Join-Path $PlatformRoot 'scripts\Test-DDDAInstallation.ps1') -PlatformPath $PlatformRoot
-& (Join-Path $PlatformRoot 'scripts\Initialize-DDDAWorkspace.ps1') -WorkspaceRoot $WorkspaceRoot
+.\scripts\Initialize-DDDAFirstRun.ps1 -WithMiro -Full
 ```
 
-Výsledek:
+Tento příkaz automaticky:
 
-```text
-DDDA-Workspace/
-├── platform/ddd-accelerator/.git
-├── projects/
-├── workspace.yaml
-└── DDDA.code-workspace
-```
+1. ověří platformní Git root a čistý stav;
+2. ověří PowerShell a Python;
+3. nainstaluje steering a Miro runtime;
+4. spustí izolovaný platformní Miro smoke test;
+5. vytvoří workspace;
+6. materializuje referenční example projekt;
+7. provede workspace a project doctor;
+8. vytvoří projektový Miro board;
+9. ověří idempotentní render.
 
-## 3. Založení projektu přes chat
+První online běh si vyžádá token se scopes `boards:read` a `boards:write`. Na Windows se uloží pomocí DPAPI mimo Git.
 
-Doporučený prompt:
-
-> Pomoz mi založit DDDA projekt. Nejprve se ptej na business problém, očekávané rozhodnutí, scope, out-of-scope, aktéry, regulaci, dominantní quality attributes, existující systémy a týmy. Potom doporuč nejmenší vhodný kanonický typ projektu a vypiš přesný `New-DDDAProject.ps1` příkaz. Nic nevytvářej, dokud nepotvrdím project ID, název a typ.
-
-Příklad:
+Offline varianta:
 
 ```powershell
-& (Join-Path $PlatformRoot 'scripts\New-DDDAProject.ps1') `
-  -WorkspaceRoot $WorkspaceRoot `
-  -ProjectId life-insurance-greenfield `
-  -Name 'Nová životní pojišťovna' `
-  -Type portfolio-program `
-  -TypeAlias greenfield-portfolio
+.\scripts\Initialize-DDDAFirstRun.ps1
 ```
 
-Skript vytvoří samostatný Git repozitář, manifest, lock, Miro mapping, sync state, adresář konfliktů a auditních reportů.
+Detail: `docs/getting-started/01-clone-smoke-example.md`.
 
-## 4. Typy projektů, use cases a tok
+## 3. Example projekt a další krok
 
-### 4.1 `portfolio-program`
-
-Použití: nová společnost, transformační program, více produktů/domén/týmů.
+Standardní example je:
 
 ```text
-Strategický záměr → capability landscape → portfolio subdomén → kandidátní BC
-→ context map → team topology → guardrails → inkrementy → delivery streams
+DDDA-Workspace/projects/life-insurance-greenfield
 ```
 
-Use cases: greenfield pojišťovna nebo banka; transformace core systému napříč value streams; build/buy/partner/retire portfolio.
-
-Prompt:
-
-> Proveď portfolio intake. Odděl business capabilities, domény, subdomény, systémy a organizační útvary. Nevytvářej bounded contexts z org chartu. Navrhni gaty a pořadí workshopů.
-
-### 4.2 `greenfield-product`
-
-```text
-Product vision → potřeby uživatelů → Big Picture ES → subdomény a BC
-→ quality attributes → první end-to-end slice → Design-Level ES → tactical design
-```
-
-Use cases: nový underwriting portal, digitální claim intake, nový marketplace.
-
-Prompt:
-
-> Najdi nejmenší hodnotný end-to-end slice. Nezačínej mikroservisami. Ukaž business události, rozhodnutí, invarianty a externí závislosti.
-
-### 4.3 `legacy-modernization`
-
-```text
-Business pain → as-is evidence → skrytá pravidla → target boundaries
-→ seams/ACL → migrační slice → reconciliation → decommission
-```
-
-Use cases: rozdělení monolitu, náhrada COTS, odstranění vendor lock-in.
-
-Prompt:
-
-> Odděl business realitu od současné implementace. Zmapuj system-of-record, runtime coupling, change coupling, rollback a decommission kritéria.
-
-### 4.4 `legacy-transformation`
-
-```text
-As-is business + target capabilities + transition states
-→ dočasné BC → změna ownershipu → migrační vlny → nový operating model
-```
-
-Použití: současně se mění produkty, procesy, operating model i core IT.
-
-### 4.5 `integration-landscape`
-
-```text
-Business scénáře → context map → source of truth → kontrakty
-→ konzistence/latence → failure modes → ACL → observabilita
-```
-
-Použití: nejasné vlastnictví dat, point-to-point integrace, konfliktní API/eventy.
-
-### 4.6 `purchased-product-adoption`
-
-```text
-Business odpovědnost → vendor model → fit-gap → data ownership
-→ konfigurační hranice → ACL → exit/continuity plan
-```
-
-Taktické DDD uvnitř vendor produktu se bez přístupu a důvodu nemodeluje.
-
-### 4.7 `domain-discovery`
-
-```text
-Intake → ingestion → glossary → commands/events/actors → hotspots
-→ lifecycles → subdomény → kandidátní BC → validační backlog
-```
-
-Použití: časově omezené poznání domény, typicky do G3.
-
-### 4.8 `architecture-review`
-
-```text
-Review scope → evidence → business/domain alignment → quality attributes
-→ boundaries/data ownership → integration/security/operations → findings → ADR backlog
-```
-
-Prompt:
-
-> Každý finding strukturovat jako evidence → symptom → root cause → dopad → riziko → doporučení → ověřovací krok.
-
-### 4.9 `operating-model-and-teams`
-
-```text
-Doménové hypotézy → tok změn → ownership → cognitive load
-→ stream-aligned/platform/enabling/complicated-subsystem → interaction modes
-```
-
-Použití: ownership, cognitive load, fronty mezi týmy, Team Topologies.
-
-### 4.10 `bounded-context-design`
-
-```text
-Purpose/UL/contracts → Design-Level ES → lifecycle → aggregates/invariants
-→ domain events → application ports → persistence/integration → code views
-```
-
-Použití: detail jednoho již vymezeného bounded contextu.
-
-## 5. Ingestion řízený chatem
-
-1. Vlož zdroje do `ingestion/`.
-2. Vytvoř `ingestion/catalog.yaml` s původem, datem, ownerem, důvěryhodností a citlivostí.
-3. Nech chat rozdělit fakta, tvrzení, hypotézy a otevřené otázky.
-4. Nech vygenerovat glossary a seznam workshopových hotspotů.
-
-Prompt:
-
-> Analyzuj pouze soubory v `ingestion/`. Zachovej terminologii zdrojů. U každého závěru uveď source path. Nevysvětlené rozpory zapiš jako hotspot, ne jako sjednocený fakt.
-
-## 6. Miro app a runtime
-
-Miro REST API používá OAuth bearer token. Runtime očekává scopes `boards:read` a `boards:write`.
+Po online inicializaci zkontroluj projektový mapping:
 
 ```powershell
-$env:MIRO_ACCESS_TOKEN = '<token>'
-$env:LIFE_INSURANCE_GREENFIELD_MIRO_BOARD_ID = '<board-id>'
-
-& (Join-Path $PlatformRoot 'scripts\Install-DDDAMiroRuntime.ps1')
+$WorkspaceRoot = (Resolve-Path '..\..').Path
 $ProjectRoot = Join-Path $WorkspaceRoot 'projects\life-insurance-greenfield'
 
-& (Join-Path $PlatformRoot 'scripts\Test-DDDAMiroConfiguration.ps1') `
-  -ProjectPath $ProjectRoot
+git -C $ProjectRoot status --short
+git -C $ProjectRoot diff -- miro/miro-map.yaml
 ```
 
-Online kontrola:
+Je-li diff správný:
 
 ```powershell
-& (Join-Path $PlatformRoot 'scripts\Test-DDDAMiroConfiguration.ps1') `
-  -ProjectPath $ProjectRoot `
-  -Online
+git -C $ProjectRoot add miro/miro-map.yaml
+git -C $ProjectRoot commit -m 'chore: initialize example Miro board'
 ```
 
-## 7. Render Miro boardu
+Doporučený chat:
 
-Vždy začni dry-runem:
+> Scope: project. Aktivní projekt: `life-insurance-greenfield`. Načti `project.yaml`, relevantní artefakty, `artifacts/status/current-status.yaml`, pokud existuje, a knowledge index. Shrň stav, nejistoty a nejmenší další krok. Nic nezapisuj bez potvrzení.
+
+## 4. Založení vlastního řízeného projektu
+
+### 4.1 Intake přes chat
+
+Použij prompt:
+
+> Pomoz mi připravit DDDA project intake. Nezačínej technologií. Ptej se na business problém, rozhodnutí, goal, scope/out-of-scope, aktéry, ownery, omezení, předpoklady, quality attributes, existující systémy a týmy. Doporuč nejmenší vhodný kanonický typ projektu. Výstup připrav podle `templates/project/project-intake.template.yaml`. Nic nevytvářej, dokud intake nepotvrdím.
+
+Povinné intake části:
+
+- project ID, name a type;
+- business problem;
+- decision to enable;
+- goal;
+- scope-in a explicitní out-of-scope;
+- actors;
+- quality attributes;
+- ownery, pokud jsou známí.
+
+### 4.2 Jeden execution příkaz
 
 ```powershell
-& (Join-Path $PlatformRoot 'scripts\Initialize-DDDAMiroBoard.ps1') `
-  -ProjectPath $ProjectRoot `
-  -DryRun
+$WorkspaceRoot = (Resolve-Path '..\..').Path
+
+.\scripts\Initialize-DDDAProjectFirstRun.ps1 `
+  -WorkspaceRoot $WorkspaceRoot `
+  -IntakeFile '..\claims-modernization.intake.yaml' `
+  -WithMiro `
+  -Full
 ```
 
-Pokud board ID není nastavené, lze vytvořit privátní board:
+Vznikne:
+
+```text
+projects/claims-modernization/
+├── project.yaml
+├── project-intake.yaml
+├── project-profile.yaml
+├── lifecycle-tailoring.yaml
+├── artifacts/align/project-charter.yaml
+├── artifacts/status/current-status.yaml
+├── artifacts/status/next-actions.yaml
+├── decisions/gates/G1.yaml ... G8.yaml
+├── .ddda/session-context.yaml
+├── .ddda/agent-contract.yaml
+├── miro/
+└── reports/project-status.yaml
+```
+
+Skript vytvoří iniciační commit. Miro mapping po online bootstrapu zůstane k samostatnému review a commitu.
+
+Offline:
 
 ```powershell
-& (Join-Path $PlatformRoot 'scripts\Initialize-DDDAMiroBoard.ps1') `
+.\scripts\Initialize-DDDAProjectFirstRun.ps1 `
+  -WorkspaceRoot $WorkspaceRoot `
+  -IntakeFile '..\claims-modernization.intake.yaml'
+```
+
+Po přerušeném běhu:
+
+```powershell
+.\scripts\Initialize-DDDAProjectFirstRun.ps1 `
+  -WorkspaceRoot $WorkspaceRoot `
+  -IntakeFile '..\claims-modernization.intake.yaml' `
+  -WithMiro `
+  -Resume
+```
+
+Resume odmítne necommitnuté změny mimo řízené DDDA cesty.
+
+## 5. Typy projektů
+
+### 5.1 `portfolio-program`
+
+Více domén, produktů a týmů. Starter tok zůstává zachován; programová rozšíření přijdou v PR #9.
+
+### 5.2 `greenfield-product`
+
+Product vision → potřeby uživatelů → Big Picture EventStorming → subdomény a BC → první hodnotný slice → tactical design.
+
+### 5.3 `legacy-modernization`
+
+Business pain → as-is evidence → skrytá pravidla → seams/ACL → migrační slice → reconciliation → decommission.
+
+### 5.4 `legacy-transformation`
+
+Současná změna business modelu, operating modelu a core IT včetně transition states.
+
+### 5.5 `integration-landscape`
+
+Business scénáře → context map → source of truth → kontrakty → konzistence, latency, failure modes a observability.
+
+### 5.6 `purchased-product-adoption`
+
+Business odpovědnost → vendor model → fit-gap → data ownership → ACL → exit a continuity plan.
+
+### 5.7 `domain-discovery`
+
+Intake → evidence → glossary → commands/events/actors → hotspots → subdomény → kandidátní BC → validation backlog.
+
+### 5.8 `architecture-review`
+
+Scope → evidence → business/domain alignment → quality attributes → boundaries/data ownership → findings → ADR backlog.
+
+### 5.9 `operating-model-and-teams`
+
+Doménové hypotézy → flow of change → ownership → cognitive load → Team Topologies → interaction modes.
+
+### 5.10 `bounded-context-design`
+
+Purpose a ubiquitous language → Design-Level EventStorming → lifecycle → aggregates/invariants → ports → persistence/integration.
+
+## 6. Starter metodika a tailoring
+
+Kanonické jádro:
+
+```text
+Align → Discover → Decompose → Strategize → Connect → Organize → Define → Code
+   G1       G2          G3            G4          G5         G6        G7      G8
+```
+
+Tailoring určuje hloubku, rozšíření a případně odložené fáze. Neodstraňuje význam starter metodiky a nesmí automaticky označit odloženou gate za splněnou.
+
+Automatizace rozlišuje:
+
+- **evidence status** — zda existují očekávané podklady;
+- **artifact status** — observed, candidate, validated, accepted, superseded, deleted_pending;
+- **gate decision** — passed, conditional nebo rejected po explicitním review.
+
+## 7. Current status a konverzační menu
+
+```powershell
+.\scripts\Get-DDDAProjectStatus.ps1 -ProjectPath $ProjectRoot
+```
+
+Regeneruje `current-status.yaml`, `next-actions.yaml` a `reports/project-status.yaml`.
+
+Strojově čitelný výstup:
+
+```powershell
+.\scripts\Get-DDDAProjectStatus.ps1 -ProjectPath $ProjectRoot -Json
+```
+
+Doporučený chat:
+
+> Načti current status a next actions. Vysvětli, proč je další gate právě tato. Ukaž chybějící evidence, nejistoty a maximálně tři další kroky. Neprováděj zápis bez potvrzení.
+
+## 8. Gate engine
+
+Všechny gaty:
+
+```powershell
+.\scripts\Test-DDDAGates.ps1 -ProjectPath $ProjectRoot
+```
+
+Jedna gate:
+
+```powershell
+.\scripts\Test-DDDAGates.ps1 -ProjectPath $ProjectRoot -Gate G3
+```
+
+`ready_for_review` není approval. Je to technická informace, že byly nalezeny požadované evidence paths.
+
+Explicitní review:
+
+```powershell
+.\scripts\Complete-DDDALifecycleStep.ps1 `
   -ProjectPath $ProjectRoot `
+  -Gate G1 `
+  -Outcome passed `
+  -Reviewer 'Business owner' `
+  -Note 'Scope a decision owner potvrzeny'
+```
+
+Conditional:
+
+```powershell
+.\scripts\Complete-DDDALifecycleStep.ps1 `
+  -ProjectPath $ProjectRoot `
+  -Gate G5 `
+  -Outcome conditional `
+  -Reviewer 'Architecture owner' `
+  -Condition 'Potvrdit source of truth pro party identity'
+```
+
+Lokální commit pouze explicitně:
+
+```powershell
+.\scripts\Complete-DDDALifecycleStep.ps1 `
+  -ProjectPath $ProjectRoot `
+  -Gate G1 `
+  -Outcome passed `
+  -Reviewer 'Business owner' `
+  -Commit
+```
+
+Push ani merge se neprovádí.
+
+## 9. Knowledge pack a práce s kontextem
+
+Začni `knowledge/00-knowledge-index.md`. Načítej pouze relevantní playbook. Před složitější projektovou úlohou vždy načti:
+
+```text
+project.yaml
+project-intake.yaml
+lifecycle-tailoring.yaml
+artifacts/status/current-status.yaml
+knowledge/00-knowledge-index.md
+```
+
+Facts musí zachovat source path. Hypotézy zůstávají candidate. Rozhodnutí mají ownera a Git review boundary.
+
+Mode policy:
+
+- Ask/Plan — porozumění, review, varianty, facilitační a rozhodovací framing;
+- Agent — potvrzené souborové změny a execution skripty;
+- Debug — reprodukce a izolace technické chyby;
+- explicitní reasoning — gates, BC boundaries, ADR a investiční rozhodnutí;
+- Auto — jen nízkorizikový drafting, ne finální rozhodnutí.
+
+## 10. Ingestion řízený chatem
+
+Současný PR #8 zachovává manuálně řízený ingestion:
+
+1. vlož zdroje do `ingestion/`;
+2. vytvoř `ingestion/catalog.yaml` s provenance, ownerem, důvěryhodností a citlivostí;
+3. nech chat oddělit fakta, tvrzení, hypotézy a otázky;
+4. zapiš rozpory jako hotspoty.
+
+Automatizované extraktory a input-fit assessment jsou plánované v PR #10.
+
+## 11. Miro app a runtime
+
+Miro runtime očekává scopes `boards:read` a `boards:write`. Pro běžnou práci používej secret store vytvořený first-runem; token nevkládej do příkazové historie.
+
+Offline doctor:
+
+```powershell
+.\scripts\Test-DDDAMiroConfiguration.ps1 -ProjectPath $ProjectRoot
+```
+
+Online doctor:
+
+```powershell
+.\scripts\Test-DDDAMiroConfiguration.ps1 -ProjectPath $ProjectRoot -Online
+```
+
+## 12. Render projektového boardu
+
+Dry-run:
+
+```powershell
+.\scripts\Initialize-DDDAMiroBoard.ps1 -ProjectPath $ProjectRoot -DryRun
+```
+
+Vytvoření boardu:
+
+```powershell
+.\scripts\Initialize-DDDAProjectMiro.ps1 `
+  -WorkspaceRoot $WorkspaceRoot `
+  -ProjectId 'claims-modernization' `
   -CreateBoard
 ```
 
-Renderer vytváří nebo aktualizuje frames podle scaffoldu a zapisuje stabilní vazby do `miro/miro-map.yaml`.
+Renderer zapisuje stabilní vazby do `miro/miro-map.yaml`. Status a next-actions jsou standardní managed artifacts a zobrazí se v projektovém boardu.
 
-Prompt:
+## 13. Obousměrná synchronizace
 
-> Proveď dry-run renderu Miro boardu. Shrň počet framů, create/update operace a chybějící konfiguraci. Po mém potvrzení spusť skutečný render. Nezapisuj token ani board ID do Gitu.
-
-## 8. Obousměrná synchronizace
-
-### Pull
+Pull:
 
 ```powershell
-& (Join-Path $PlatformRoot 'scripts\Invoke-DDDAMiroSync.ps1') `
-  -ProjectPath $ProjectRoot `
-  -Direction Pull `
-  -DryRun
+.\scripts\Invoke-DDDAMiroSync.ps1 -ProjectPath $ProjectRoot -Direction Pull -DryRun
 ```
 
-### Push
+Push:
 
 ```powershell
-& (Join-Path $PlatformRoot 'scripts\Invoke-DDDAMiroSync.ps1') `
-  -ProjectPath $ProjectRoot `
-  -Direction Push `
-  -DryRun
+.\scripts\Invoke-DDDAMiroSync.ps1 -ProjectPath $ProjectRoot -Direction Push -DryRun
 ```
 
-### Both
+Both:
 
 ```powershell
-& (Join-Path $PlatformRoot 'scripts\Invoke-DDDAMiroSync.ps1') `
-  -ProjectPath $ProjectRoot `
-  -Direction Both
+.\scripts\Invoke-DDDAMiroSync.ps1 -ProjectPath $ProjectRoot -Direction Both
 ```
 
-Runtime synchronizuje pouze spravované artefakty s markerem `DDDA:<project>:<artifact>`. Nespravované workshopové poznámky zachová.
+Synchronizují se pouze položky s markerem `DDDA:<project>:<artifact>`. Unmanaged workshopový obsah se zachová.
 
-## 9. Průběžný synchronizační worker
-
-Worker je řízené polling spuštění stejného synchronizačního algoritmu; nejde o nekontrolovaný background merge. Minimální interval je 30 sekund. Každý cyklus:
-
-1. načte aktuální YAML, mapping, common-base state a Miro items,
-2. provede režim `Both`,
-3. zapíše auditní report,
-4. při konfliktu se ukončí s exit code `2`,
-5. neprovádí Git commit, push ani merge.
+## 14. Polling worker
 
 ```powershell
-& (Join-Path $PlatformRoot 'scripts\Start-DDDAMiroSyncWorker.ps1') `
+.\scripts\Start-DDDAMiroSyncWorker.ps1 `
   -ProjectPath $ProjectRoot `
   -IntervalSeconds 60
 ```
 
-Pro technický test dvou cyklů:
+Worker provádí stejný řízený sync, zapisuje report, při konfliktu končí exit code 2 a nikdy neprovádí commit, push nebo merge.
+
+Technický test dvou cyklů:
 
 ```powershell
-& (Join-Path $PlatformRoot 'scripts\Start-DDDAMiroSyncWorker.ps1') `
+.\scripts\Start-DDDAMiroSyncWorker.ps1 `
   -ProjectPath $ProjectRoot `
   -IntervalSeconds 30 `
   -MaxCycles 2
 ```
 
-Worker používá bearer token dostupný při startu. Automatický OAuth refresh není součástí lokálního runtime; token rotation/refresh musí zajistit secret manager nebo hostující služba. Po změně tokenu lokální worker restartuj.
+## 15. Konflikty a mazání
 
-### Obnova chybějící spravované položky
+Při souběžné změně stejné sémantiky vznikne explicitní conflict record v `miro/conflicts/`. Nic se nepřepisuje last-write-wins.
 
-Pokud mapping odkazuje na Miro item, který byl ručně odstraněn, runtime záměrně vytvoří konflikt `mapped_remote_item_missing`. Po ověření, že položka má být obnovena, použij explicitní přepínač:
+Obnova chybějící mapped položky:
 
 ```powershell
-& (Join-Path $PlatformRoot 'scripts\Invoke-DDDAMiroSync.ps1') `
+.\scripts\Invoke-DDDAMiroSync.ps1 `
   -ProjectPath $ProjectRoot `
   -Direction Push `
   -RecreateMissing `
   -DryRun
 ```
 
-Po kontrole odstraň `-DryRun`. Tím se zabrání tichému znovuvytváření položek, které někdo záměrně odstranil.
+Mazání je tombstone-first přes `artifact.status: deleted_pending`. Skutečné odstranění vyžaduje `-ConfirmDelete`.
 
-## 10. Konflikty
+## 16. Git a PR workflow
 
-Konflikt vzniká, pokud se od poslední společné base změnila stejná sémantika v YAML i Miru. Runtime vytvoří `miro/conflicts/<timestamp>-<artifact>.yaml` a vrátí exit code 2.
-
-Prompt:
-
-> Otevři všechny pending conflict records. Pro každý ukaž base, YAML a Miro variantu, business dopad a doporučené řešení. Nic nepřepisuj automaticky. Po rozhodnutí aktualizuj YAML, proveď dry-run push a připrav projektový commit.
-
-## 11. Mazání
-
-Mazání je tombstone-first:
-
-```yaml
-artifact:
-  status: deleted_pending
-```
-
-První sync pouze oznámí pending delete. Skutečné odstranění z Mira vyžaduje:
+Před commitem:
 
 ```powershell
-& (Join-Path $PlatformRoot 'scripts\Invoke-DDDAMiroSync.ps1') `
-  -ProjectPath $ProjectRoot `
-  -Direction Push `
-  -ConfirmDelete
-```
-
-## 12. Gate review přes chat
-
-Prompt:
-
-> Proveď review gate G3. Načti povinnou evidence z metodiky. U každého kritéria uveď konkrétní artefakt a source path. Výsledek klasifikuj pass / conditional / fail. Neoznač gate jako completed bez explicitního potvrzení business a architecture ownera.
-
-## 13. Git a PR
-
-Před projektovým commitem:
-
-```powershell
-& (Join-Path $PlatformRoot 'scripts\Test-DDDARepositoryScope.ps1') `
+.\scripts\Test-DDDARepositoryScope.ps1 `
   -PlatformPath $PlatformRoot `
   -ProjectPath $ProjectRoot `
   -Scope project `
   -RequireChanges
+
+git -C $ProjectRoot diff
+git -C $ProjectRoot diff --check
 ```
 
 Prompt:
 
-> Připrav projektový commit. Nejprve ukaž `git diff`, odděl generované reporty od sémantických změn, navrhni commit message a zkontroluj, že platformní repo je čisté. Nepushuj bez potvrzení.
+> Připrav projektový commit. Odděl generované reporty od sémantických změn, ukaž diff, navrhni commit message a ověř čistý platformní repozitář. Nepushuj bez potvrzení.
 
-## 14. Upgrade
+## 17. Acceptance testy
 
-Projekt se neupgraduje automaticky. Upgrade má vlastní projektový PR:
+Offline PR #8 suite:
 
 ```powershell
-& (Join-Path $PlatformRoot 'scripts\Update-DDDAProject.ps1') `
+.\scripts\Test-DDDAAcceptance.ps1 -Suite project-steering
+```
+
+Online proti Miro:
+
+```powershell
+.\scripts\Test-DDDAAcceptance.ps1 -Suite project-steering -WithMiro -Full
+```
+
+Vizuální review:
+
+```powershell
+.\scripts\Test-DDDAAcceptance.ps1 `
+  -Suite project-steering `
+  -WithMiro `
+  -Full `
+  -KeepReviewBoard
+```
+
+Po PASS se standardně odstraní dočasný workspace i board; report zůstane v lokálním DDDA state adresáři.
+
+## 18. Upgrade projektu
+
+```powershell
+.\scripts\Update-DDDAProject.ps1 `
   -PlatformPath $PlatformRoot `
   -ProjectPath $ProjectRoot `
   -TargetRef main
 ```
 
-## 15. Diagnostika
+Upgrade je samostatná projektová změna a nemá automaticky měnit přijaté doménové rozhodnutí.
+
+## 19. Diagnostika
 
 ```powershell
-& (Join-Path $PlatformRoot 'scripts\Test-DDDAInstallation.ps1') `
+.\scripts\Test-DDDAInstallation.ps1 `
   -PlatformPath $PlatformRoot `
   -WorkspaceRoot $WorkspaceRoot `
   -ProjectPath $ProjectRoot
 
 git -C $PlatformRoot status
 git -C $ProjectRoot status
+Get-Content (Join-Path $ProjectRoot 'artifacts\status\current-status.yaml')
 Get-Content (Join-Path $ProjectRoot 'miro\miro-map.yaml')
 Get-Content (Join-Path $ProjectRoot 'miro\sync-state.yaml')
 ```
 
-## 16. Bezpečnostní pravidla
+## 20. Bezpečnostní pravidla
 
-- tokeny a client secrets pouze v environment variables nebo secret store,
-- board ID lze držet v environment variable,
-- žádný automatický push/merge,
-- žádný last-write-wins pro sémantické konflikty,
-- klientská data nikdy do platformního repozitáře,
-- před citlivým exportem ověř `classification.data_sensitivity`.
+- tokeny a client secrets pouze v environment variables nebo secret store;
+- token se nesmí objevit v intake, reportu, Gitu nebo shell history;
+- žádný automatický push nebo merge;
+- žádný last-write-wins pro sémantické konflikty;
+- žádné automatické gate approval;
+- klientská data nikdy do platformního repozitáře;
+- před citlivým exportem ověř `classification.data_sensitivity`;
+- Miro acceptance test nepoužívá produkční projektový board.
+
+## 21. Kde hledat detail
+
+- capability katalog: `docs/capabilities/README.md`;
+- schemas a kontrakty: `docs/reference/contracts.md`;
+- CLI reference: `docs/reference/cli.md`;
+- řízený project bootstrap: `docs/cookbooks/16-zalozeni-rizeneho-projektu.md`;
+- status a gate review: `docs/cookbooks/17-status-gates-a-dalsi-krok.md`;
+- Miro troubleshooting: `docs/cookbooks/12-miro-troubleshooting.md`;
+- knowledge index: `knowledge/00-knowledge-index.md`.

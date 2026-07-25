@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ddda.local/schemas/gate-status.schema.json",
+  "title": "DDDA Gate Decision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["gate"],
+  "properties": {
+    "gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "stage", "question", "status", "evidence", "approvals", "conditions"],
+      "properties": {
+        "id": {"pattern": "^G[1-8]$"},
+        "stage": {"enum": ["align", "discover", "decompose", "strategize", "connect", "organize", "define", "code"]},
+        "question": {"type": "string"},
+        "status": {"enum": ["not_ready", "ready_for_review", "passed", "conditional", "rejected"]},
+        "evidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["present", "missing", "disputed"],
+          "properties": {
+            "present": {"type": "array", "items": {"type": "string"}},
+            "missing": {"type": "array", "items": {"type": "string"}},
+            "disputed": {"type": "array", "items": {"type": "string"}}
+          }
+        },
+        "approvals": {"type": "object", "additionalProperties": {"enum": ["pending", "accepted", "rejected"]}},
+        "conditions": {"type": "array", "items": {"type": "string"}},
+        "reviewed_at": {"type": ["string", "null"]},
+        "reviewed_by": {"type": ["string", "null"]},
+        "note": {"type": ["string", "null"]}
+      }
+    }
+  }
+}

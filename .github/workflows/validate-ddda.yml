@@ -32,6 +32,7 @@ jobs:
           from pathlib import Path
           paths = [Path("README.md"), Path("USAGE.md")]
           paths.extend(Path("docs").rglob("*.md"))
+          paths.extend(Path("knowledge").rglob("*.md"))
           paths.extend(Path("scripts").rglob("*.ps1"))
           forbidden = (r"C:\Work", "C:/Work")
           failures = []
@@ -43,11 +44,16 @@ jobs:
           root_docs = [path.name for path in Path("docs").glob("*.md")]
           if root_docs != ["README.md"]:
               failures.append(f"docs root must contain only README.md, found: {root_docs}")
+          expected_knowledge = [f"{index:02d}-" for index in range(13)]
+          found_knowledge = sorted(path.name for path in Path("knowledge").glob("*.md"))
+          for prefix in expected_knowledge:
+              if not any(name.startswith(prefix) for name in found_knowledge):
+                  failures.append(f"knowledge pack missing prefix {prefix}")
           if failures:
               raise SystemExit("\n".join(failures))
           print("Documentation structure and path examples OK")
           PY
-      - name: Validate schemas, YAML syntax and examples
+      - name: Validate schemas, YAML syntax, capability catalog and examples
         shell: bash
         run: |
           python - <<'PY'
@@ -55,26 +61,41 @@ jobs:
           from pathlib import Path
           import jsonschema
           import yaml
+
           schemas = {}
           for path in sorted(Path("schemas").glob("*.json")):
-              with path.open("r", encoding="utf-8") as handle:
-                  schemas[path.name] = json.load(handle)
+              schemas[path.name] = json.loads(path.read_text(encoding="utf-8"))
               print(f"JSON OK: {path}")
+
           yaml_paths = []
-          for root in ("templates", "scaffolds", "examples"):
+          for root in ("templates", "scaffolds", "examples", "config", "docs/reference"):
               yaml_paths.extend(Path(root).rglob("*.yaml"))
               yaml_paths.extend(Path(root).rglob("*.yml"))
           parsed = {}
           for path in sorted(set(yaml_paths)):
-              with path.open("r", encoding="utf-8-sig") as handle:
-                  parsed[path.as_posix()] = yaml.safe_load(handle)
+              parsed[path.as_posix()] = yaml.safe_load(path.read_text(encoding="utf-8-sig"))
               print(f"YAML OK: {path}")
+
           jsonschema.validate(parsed["examples/life-insurance-greenfield/project.yaml"], schemas["project.schema.json"])
           jsonschema.validate(parsed["scaffolds/miro/strategic-ddd-method-board.yaml"], schemas["miro-scaffold.schema.json"])
+          jsonschema.validate(parsed["templates/project/project-intake.template.yaml"], schemas["project-intake.schema.json"])
+          catalog = parsed["docs/reference/capability-catalog.yaml"]
+          jsonschema.validate(catalog, schemas["capability-catalog.schema.json"])
+
+          failures = []
+          for capability in catalog["capabilities"]:
+              for path_value in capability["documentation"] + capability["commands"] + capability["tests"]:
+                  if path_value.endswith("/tests"):
+                      if not Path(path_value).is_dir():
+                          failures.append(f"{capability['id']}: missing directory {path_value}")
+                  elif not Path(path_value).exists():
+                      failures.append(f"{capability['id']}: missing referenced path {path_value}")
           for path, document in parsed.items():
               if path.startswith("examples/life-insurance-greenfield/artifacts/") and isinstance(document, dict) and "artifact" in document:
                   jsonschema.validate(document, schemas["managed-artifact.schema.json"])
-                  print(f"Artifact schema OK: {path}")
+          if failures:
+              raise SystemExit("\n".join(failures))
+          print("Schemas and capability documentation coverage OK")
           PY
 
   miro-runtime-tests:
@@ -93,6 +114,22 @@ jobs:
           PYTHONPATH: runtime/miro
         run: python -m pytest -q runtime/miro/tests
 
+  steering-runtime-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install test dependencies
+        run: python -m pip install --disable-pip-version-check "ruamel.yaml>=0.18,<0.19" "pytest>=8,<9"
+      - name: Run steering runtime tests
+        env:
+          PYTHONPATH: runtime/steering
+        run: python -m pytest -q runtime/steering/tests
+
   powershell7-smoke:
     runs-on: windows-latest
     steps:
@@ -107,6 +144,9 @@ jobs:
       - name: Test complete offline first run
         shell: pwsh
         run: ./tests/powershell/Test-DDDAFirstRun.ps1 -PlatformPath $PWD
+      - name: Test project steering and gates
+        shell: pwsh
+        run: ./tests/powershell/Test-DDDAProjectSteering.ps1 -PlatformPath $PWD
       - name: Bootstrap generic workspace, project and run offline doctor
         shell: pwsh
         run: |
@@ -129,6 +169,7 @@ jobs:
           if ($PSVersionTable.PSVersion.Major -ne 5) { throw "Expected Windows PowerShell 5.1" }
           ./scripts/Test-DDDAInstallation.ps1 -PlatformPath $PWD
           ./tests/powershell/Test-DDDAMiroAutomation.ps1 -PlatformPath $PWD
+          ./tests/powershell/Test-DDDAProjectSteering.ps1 -PlatformPath $PWD
           $workspace = Join-Path $env:RUNNER_TEMP "ddda-smoke-ps51"
           $output = ./scripts/Initialize-DDDAWorkspace.ps1 -WorkspaceRoot $workspace -WorkspaceId "ci-smoke-ps51" -WorkspaceName "CI smoke workspace" 6>&1 | Out-String
           $expected = "p$([char]0x0159)ipraven"
