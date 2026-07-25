@@ -147,7 +147,7 @@ intake:
     $passed = $true
     Write-AcceptanceReport -Status "PASS" -ErrorMessage $null
     Write-Host ""
-    Write-Host "DDDA acceptance $Suite: PASS"
+    Write-Host "DDDA acceptance ${Suite}: PASS"
     Write-Host "Report: $reportFile"
 }
 catch {
