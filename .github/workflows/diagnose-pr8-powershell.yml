@@ -7,10 +7,10 @@ permissions:
   contents: read
 
 jobs:
-  compact-first-run:
+  compact-powershell-7:
     runs-on: windows-latest
     steps:
-      - name: Run first-run and print only failure tail
+      - name: Run PowerShell 7 suite and print only failure tail
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -26,11 +26,24 @@ jobs:
           git -C $root config user.email "ddda-diagnostic@example.invalid"
           git -C $root add -A 2>$null
           git -C $root commit -qm baseline
-          $output = @()
-          try { $output = @(& (Join-Path $root "tests/powershell/Test-DDDAFirstRun.ps1") -PlatformPath $root 6>&1 5>&1 4>&1 3>&1 2>&1); $code = $LASTEXITCODE }
-          catch { $output += ($_ | Out-String); $code = 1 }
-          if ($code -ne 0) { $output | Select-Object -Last 50 | ForEach-Object { Write-Host $_ }; exit $code }
-          Write-Host "Compact first-run diagnostic: PASS"
+          $commands = @(
+            @{ name = "first-run"; path = "tests/powershell/Test-DDDAFirstRun.ps1" },
+            @{ name = "project-steering"; path = "tests/powershell/Test-DDDAProjectSteering.ps1" }
+          )
+          foreach ($command in $commands) {
+            $output = @()
+            try { $output = @(& (Join-Path $root $command.path) -PlatformPath $root 6>&1 5>&1 4>&1 3>&1 2>&1); $code = $LASTEXITCODE }
+            catch { $output += ($_ | Out-String); $code = 1 }
+            if ($code -ne 0) {
+              Write-Host "FAILED: $($command.name)"
+              $interesting = @($output | Where-Object { [string]$_ -match 'Traceback|Error|Exception|FAILED|FAIL|selhal|chyb|File |line |TypeError|ValueError|AttributeError|KeyError' })
+              $interesting | Select-Object -Last 80 | ForEach-Object { Write-Host $_ }
+              Write-Host "--- failure tail ---"
+              $output | Select-Object -Last 80 | ForEach-Object { Write-Host $_ }
+              exit $code
+            }
+          }
+          Write-Host "Compact PowerShell 7 diagnostic: PASS"
 
   compact-powershell-51:
     runs-on: windows-latest
@@ -61,6 +74,13 @@ jobs:
             $output = @()
             try { $output = @(& (Join-Path $root $command.path) -PlatformPath $root 6>&1 5>&1 4>&1 3>&1 2>&1); $code = $LASTEXITCODE }
             catch { $output += ($_ | Out-String); $code = 1 }
-            if ($code -ne 0) { Write-Host "FAILED: $($command.name)"; $output | Select-Object -Last 50 | ForEach-Object { Write-Host $_ }; exit $code }
+            if ($code -ne 0) {
+              Write-Host "FAILED: $($command.name)"
+              $interesting = @($output | Where-Object { [string]$_ -match 'Traceback|Error|Exception|FAILED|FAIL|selhal|chyb|File |line |TypeError|ValueError|AttributeError|KeyError' })
+              $interesting | Select-Object -Last 80 | ForEach-Object { Write-Host $_ }
+              Write-Host "--- failure tail ---"
+              $output | Select-Object -Last 80 | ForEach-Object { Write-Host $_ }
+              exit $code
+            }
           }
           Write-Host "Compact Windows PowerShell 5.1 diagnostic: PASS"
