@@ -1,0 +1,28 @@
+name: Diagnose PR8 PowerShell
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  compact-installation-diagnostic:
+    runs-on: windows-latest
+    steps:
+      - name: Download source and run compact diagnostic
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          $headers = @{ Authorization = "Bearer $env:GH_TOKEN"; Accept = "application/vnd.github+json"; "X-GitHub-Api-Version" = "2022-11-28" }
+          Invoke-WebRequest -Headers $headers -Uri "https://api.github.com/repos/${{ github.repository }}/zipball/$env:SOURCE_SHA" -OutFile source.zip
+          Expand-Archive source.zip -DestinationPath source
+          $root = (Get-ChildItem source -Directory | Select-Object -First 1).FullName
+          git -C $root init -q
+          git -C $root config user.name "DDDA Diagnostic"
+          git -C $root config user.email "ddda-diagnostic@example.invalid"
+          git -C $root add .
+          git -C $root commit -qm baseline
+          & (Join-Path $root "scripts/Test-DDDAInstallation.ps1") -PlatformPath $root
