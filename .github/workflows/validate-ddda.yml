@@ -8,13 +8,14 @@ on:
       - "agent/**"
       - "docs/**"
       - "feat/**"
+      - "feature/**"
       - "fix/**"
 
 permissions:
   contents: read
 
 jobs:
-  schemas-docs-and-yaml:
+  repository-contracts:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -24,79 +25,9 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install validators
-        run: python -m pip install --disable-pip-version-check pyyaml jsonschema
-      - name: Validate documentation structure and paths
-        shell: bash
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          paths = [Path("README.md"), Path("USAGE.md")]
-          paths.extend(Path("docs").rglob("*.md"))
-          paths.extend(Path("knowledge").rglob("*.md"))
-          paths.extend(Path("scripts").rglob("*.ps1"))
-          forbidden = (r"C:\Work", "C:/Work")
-          failures = []
-          for path in sorted(set(paths)):
-              text = path.read_text(encoding="utf-8-sig")
-              for value in forbidden:
-                  if value in text:
-                      failures.append(f"{path}: contains forbidden absolute path {value!r}")
-          root_docs = [path.name for path in Path("docs").glob("*.md")]
-          if root_docs != ["README.md"]:
-              failures.append(f"docs root must contain only README.md, found: {root_docs}")
-          expected_knowledge = [f"{index:02d}-" for index in range(13)]
-          found_knowledge = sorted(path.name for path in Path("knowledge").glob("*.md"))
-          for prefix in expected_knowledge:
-              if not any(name.startswith(prefix) for name in found_knowledge):
-                  failures.append(f"knowledge pack missing prefix {prefix}")
-          if failures:
-              raise SystemExit("\n".join(failures))
-          print("Documentation structure and path examples OK")
-          PY
-      - name: Validate schemas, YAML syntax, capability catalog and examples
-        shell: bash
-        run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          import jsonschema
-          import yaml
-
-          schemas = {}
-          for path in sorted(Path("schemas").glob("*.json")):
-              schemas[path.name] = json.loads(path.read_text(encoding="utf-8"))
-              print(f"JSON OK: {path}")
-
-          yaml_paths = []
-          for root in ("templates", "scaffolds", "examples", "config", "docs/reference"):
-              yaml_paths.extend(Path(root).rglob("*.yaml"))
-              yaml_paths.extend(Path(root).rglob("*.yml"))
-          parsed = {}
-          for path in sorted(set(yaml_paths)):
-              parsed[path.as_posix()] = yaml.safe_load(path.read_text(encoding="utf-8-sig"))
-              print(f"YAML OK: {path}")
-
-          jsonschema.validate(parsed["examples/life-insurance-greenfield/project.yaml"], schemas["project.schema.json"])
-          jsonschema.validate(parsed["scaffolds/miro/strategic-ddd-method-board.yaml"], schemas["miro-scaffold.schema.json"])
-          jsonschema.validate(parsed["templates/project/project-intake.template.yaml"], schemas["project-intake.schema.json"])
-          catalog = parsed["docs/reference/capability-catalog.yaml"]
-          jsonschema.validate(catalog, schemas["capability-catalog.schema.json"])
-
-          failures = []
-          for capability in catalog["capabilities"]:
-              for path_value in capability["documentation"] + capability["commands"] + capability["tests"]:
-                  if path_value.endswith("/tests"):
-                      if not Path(path_value).is_dir():
-                          failures.append(f"{capability['id']}: missing directory {path_value}")
-                  elif not Path(path_value).exists():
-                      failures.append(f"{capability['id']}: missing referenced path {path_value}")
-          for path, document in parsed.items():
-              if path.startswith("examples/life-insurance-greenfield/artifacts/") and isinstance(document, dict) and "artifact" in document:
-                  jsonschema.validate(document, schemas["managed-artifact.schema.json"])
-          if failures:
-              raise SystemExit("\n".join(failures))
-          print("Schemas and capability documentation coverage OK")
-          PY
+        run: python -m pip install --disable-pip-version-check "ruamel.yaml>=0.18,<0.19" "jsonschema>=4.22,<5"
+      - name: Validate lint, schemas and security contracts
+        run: python runtime/platform/validate_repository.py --root . --suite all
 
   miro-runtime-tests:
     runs-on: ubuntu-latest
@@ -124,52 +55,62 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install test dependencies
-        run: python -m pip install --disable-pip-version-check "ruamel.yaml>=0.18,<0.19" "pytest>=8,<9"
+        run: python -m pip install --disable-pip-version-check "ruamel.yaml>=0.18,<0.19" "jsonschema>=4.22,<5" "pytest>=8,<9"
       - name: Run steering runtime tests
         env:
           PYTHONPATH: runtime/steering
         run: python -m pytest -q runtime/steering/tests
 
-  powershell7-smoke:
+  powershell7-platform-lifecycle:
     runs-on: windows-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Parse scripts and validate installation
+      - name: Doctor and parser validation
         shell: pwsh
-        run: ./scripts/Test-DDDAInstallation.ps1 -PlatformPath $PWD
-      - name: Test Miro automation helpers
-        shell: pwsh
-        run: ./tests/powershell/Test-DDDAMiroAutomation.ps1 -PlatformPath $PWD
-      - name: Test complete offline first run
-        shell: pwsh
-        run: ./tests/powershell/Test-DDDAFirstRun.ps1 -PlatformPath $PWD
-      - name: Test project steering and gates
-        shell: pwsh
-        run: ./tests/powershell/Test-DDDAProjectSteering.ps1 -PlatformPath $PWD
-      - name: Bootstrap generic workspace, project and run offline doctor
+        run: ./ddda.ps1 doctor
+      - name: Existing component and regression tests
         shell: pwsh
         run: |
-          $workspace = Join-Path $env:RUNNER_TEMP "ddda-smoke-pwsh"
-          $project = Join-Path $workspace "projects/life-insurance-smoke-pwsh"
-          ./scripts/Initialize-DDDAWorkspace.ps1 -WorkspaceRoot $workspace -WorkspaceId "ci-smoke-pwsh" -WorkspaceName "CI smoke workspace"
-          ./scripts/New-DDDAProject.ps1 -WorkspaceRoot $workspace -ProjectId "life-insurance-smoke-pwsh" -Name "Life Insurance Smoke" -Type "portfolio-program" -TypeAlias "greenfield-portfolio" -NoInitialCommit
-          ./scripts/Test-DDDAInstallation.ps1 -PlatformPath $PWD -WorkspaceRoot $workspace -ProjectPath $project
-          ./scripts/Test-DDDAMiroConfiguration.ps1 -PlatformPath $PWD -ProjectPath $project
-          if (-not (Test-Path (Join-Path $project "miro/miro-map.yaml"))) { throw "Missing miro-map.yaml" }
+          ./tests/powershell/Test-DDDAMiroAutomation.ps1 -PlatformPath $PWD
+          ./tests/powershell/Test-DDDAProjectSteering.ps1 -PlatformPath $PWD
+          ./tests/powershell/Test-DDDAFirstRun.ps1 -PlatformPath $PWD
+      - name: Security and isolation tests
+        shell: pwsh
+        run: ./tests/powershell/Test-DDDAPlatformSecurity.ps1 -PlatformPath $PWD
+      - name: Build and validate candidate package
+        id: package
+        shell: pwsh
+        run: |
+          $package = Join-Path $env:RUNNER_TEMP "ddda-ci-candidate.zip"
+          $result = ./scripts/platform/New-DDDAPlatformPackage.ps1 -PlatformPath $PWD -Kind candidate -Version "ci.${{ github.run_id }}.${{ github.run_attempt }}" -OutputPath $package -Json | ConvertFrom-Json
+          ./scripts/platform/Test-DDDAPlatformPackage.ps1 -PackagePath $package -ExpectedCommit "${{ github.sha }}" -ExpectedKind candidate
+          "package=$package" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "sha256=$($result.sha256)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+      - name: Package-first smoke and E2E lifecycle
+        shell: pwsh
+        run: |
+          ./tests/powershell/Test-DDDAPlatformLifecycle.ps1 -PackagePath "${{ steps.package.outputs.package }}" -ExpectedCommit "${{ github.sha }}"
+      - name: Platform test dispatcher
+        shell: pwsh
+        run: |
+          ./ddda.ps1 test -Suite lint
+          ./ddda.ps1 test -Suite schema
+          ./ddda.ps1 test -Suite security -PackagePath "${{ steps.package.outputs.package }}"
 
-  windows-powershell-51-smoke:
+  windows-powershell-51-compatibility:
     runs-on: windows-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Validate UTF-8 BOM and Czech output in Windows PowerShell 5.1
+      - name: Validate retained Windows PowerShell 5.1 compatibility
         shell: powershell
         run: |
           if ($PSVersionTable.PSVersion.Major -ne 5) { throw "Expected Windows PowerShell 5.1" }
           ./scripts/Test-DDDAInstallation.ps1 -PlatformPath $PWD
           ./tests/powershell/Test-DDDAMiroAutomation.ps1 -PlatformPath $PWD
           ./tests/powershell/Test-DDDAProjectSteering.ps1 -PlatformPath $PWD
+          ./tests/powershell/Test-DDDAPlatformSecurity.ps1 -PlatformPath $PWD
           $workspace = Join-Path $env:RUNNER_TEMP "ddda-smoke-ps51"
           $output = ./scripts/Initialize-DDDAWorkspace.ps1 -WorkspaceRoot $workspace -WorkspaceId "ci-smoke-ps51" -WorkspaceName "CI smoke workspace" 6>&1 | Out-String
           $expected = "p$([char]0x0159)ipraven"
