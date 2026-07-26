@@ -16,6 +16,21 @@ function Assert-True {
     if (-not $Condition) { throw $Message }
 }
 
+function Get-StatusFilesHash {
+    param([Parameter(Mandatory = $true)][string]$ProjectRoot)
+
+    $lines = foreach ($relative in @(
+        "artifacts/status/current-status.yaml",
+        "artifacts/status/next-actions.yaml",
+        "reports/project-status.yaml"
+    )) {
+        $path = Join-Path $ProjectRoot $relative
+        $hash = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash
+        "${relative}:${hash}"
+    }
+    return ($lines -join "`n")
+}
+
 try {
     New-Item -ItemType Directory -Force -Path $workspaceRoot | Out-Null
     @"
@@ -65,12 +80,19 @@ intake:
         Assert-True -Condition (Test-Path (Join-Path $projectRoot $relative)) -Message "Chybí steering výstup: $relative"
     }
 
+    $beforeStatusRead = Get-StatusFilesHash -ProjectRoot $projectRoot
     $status = & (Join-Path $platformRoot "scripts/Get-DDDAProjectStatus.ps1") -PlatformPath $platformRoot -ProjectPath $projectRoot -Json | ConvertFrom-Json
+    $afterStatusRead = Get-StatusFilesHash -ProjectRoot $projectRoot
+    Assert-True -Condition ($beforeStatusRead -eq $afterStatusRead) -Message "Read-only status query změnila generované status soubory."
     Assert-True -Condition ($status.next_gate -eq "G1") -Message "Před gate review musí být další gate G1."
 
     & (Join-Path $platformRoot "scripts/Complete-DDDALifecycleStep.ps1") -PlatformPath $platformRoot -ProjectPath $projectRoot -Gate G1 -Outcome passed -Reviewer "CI reviewer" -Note "Evidence reviewed"
     if ($LASTEXITCODE -ne 0) { throw "Gate G1 review selhal." }
+
+    $beforeStatusRead = Get-StatusFilesHash -ProjectRoot $projectRoot
     $statusAfter = & (Join-Path $platformRoot "scripts/Get-DDDAProjectStatus.ps1") -PlatformPath $platformRoot -ProjectPath $projectRoot -Json | ConvertFrom-Json
+    $afterStatusRead = Get-StatusFilesHash -ProjectRoot $projectRoot
+    Assert-True -Condition ($beforeStatusRead -eq $afterStatusRead) -Message "Read-only status query po gate review změnila generované status soubory."
     Assert-True -Condition ($statusAfter.next_gate -eq "G2") -Message "Po G1 musí být další gate G2."
     Assert-True -Condition ($statusAfter.current_stage -eq "discover") -Message "Po G1 musí být aktuální fáze discover."
 
