@@ -18,7 +18,8 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 - generovaný minimal example workspace a manifest-driven ingestion;
 - machine-readable i čitelný validation report;
 - kontrolovaný promotion a release lifecycle;
-- GitHub Actions CI, které na přesném source SHA provádí source-level i package-first validaci a publikuje krátkodobý candidate package jako build artifact.
+- GitHub Actions CI, které na přesném source SHA provádí source-level i package-first validaci a publikuje krátkodobý candidate package jako build artifact;
+- GitHub REST promotion klient s autentizací přes `GH_TOKEN`, `GITHUB_TOKEN`, `gh auth token` nebo existující Git credential helper, bez povinné instalace GitHub CLI.
 
 ### Changed
 
