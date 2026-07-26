@@ -87,11 +87,12 @@ try {
 
     Assert-DDDACleanGitRepository -RepositoryPath $script:PlatformRoot -Label "Platformní"
 
+    $controlledMiroPrefixes = @("miro/", "reports/miro-sync/")
     $initialProjectChanges = Invoke-DDDAGit -RepositoryPath $script:ProjectRoot -Arguments @("status", "--porcelain")
     if ($Resume) {
-        $null = Assert-DDDAGitChangesWithinPath -PorcelainText $initialProjectChanges -AllowedPrefix "miro/" -Label "Projektový repozitář v resume režimu"
+        $null = Assert-DDDAGitChangesWithinPath -PorcelainText $initialProjectChanges -AllowedPrefix $controlledMiroPrefixes -Label "Projektový repozitář v resume režimu"
         if (-not [string]::IsNullOrWhiteSpace($initialProjectChanges)) {
-            Write-Host "Resume: používají se existující necommitnuté změny omezené na miro/."
+            Write-Host "Resume: používají se existující necommitnuté změny omezené na miro/ a reports/miro-sync/."
         }
     }
     else {
@@ -137,7 +138,7 @@ try {
         Assert-DDDACleanGitRepository -RepositoryPath $script:PlatformRoot -Label "Platformní"
         if ($Resume) {
             $dryRunProjectChanges = Invoke-DDDAGit -RepositoryPath $script:ProjectRoot -Arguments @("status", "--porcelain")
-            $null = Assert-DDDAGitChangesWithinPath -PorcelainText $dryRunProjectChanges -AllowedPrefix "miro/" -Label "Projektový repozitář po resume dry-run"
+            $null = Assert-DDDAGitChangesWithinPath -PorcelainText $dryRunProjectChanges -AllowedPrefix $controlledMiroPrefixes -Label "Projektový repozitář po resume dry-run"
         }
         else {
             Assert-DDDACleanGitRepository -RepositoryPath $script:ProjectRoot -Label "Projektový"
