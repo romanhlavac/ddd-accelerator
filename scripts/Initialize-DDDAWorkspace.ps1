@@ -30,10 +30,18 @@ $packageManifestPath = Join-Path $platformRoot "ddda-package.json"
 $platformCommit = $null
 $platformRef = $null
 $repositoryName = "romanhlavac/ddd-accelerator"
-$distribution = "git"
+$distribution = $null
 
-$gitDirectory = Join-Path $platformRoot ".git"
-if (Test-Path -LiteralPath $gitDirectory) {
+if (Test-Path -LiteralPath $packageManifestPath -PathType Leaf) {
+    $packageManifest = Get-Content -LiteralPath $packageManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    if ($packageManifest.schema_version -ne 1) {
+        throw "Nepodporovaná verze package manifestu: $($packageManifest.schema_version)"
+    }
+    $platformCommit = [string]$packageManifest.source_commit
+    $platformRef = "package:$($packageManifest.kind)/$($packageManifest.version)"
+    $distribution = "package"
+}
+elseif (Test-Path -LiteralPath (Join-Path $platformRoot ".git")) {
     $gitRoot = Get-DDDAPlatformGitRoot -Path $platformRoot
     if ($gitRoot -ne [System.IO.Path]::GetFullPath($platformRoot).TrimEnd('\', '/')) {
         throw "Skript musí být spuštěn z DDDA Git rootu. Očekáváno: $platformRoot; nalezeno: $gitRoot"
@@ -52,15 +60,7 @@ if (Test-Path -LiteralPath $gitDirectory) {
     catch {
         $repositoryName = "romanhlavac/ddd-accelerator"
     }
-}
-elseif (Test-Path -LiteralPath $packageManifestPath -PathType Leaf) {
-    $packageManifest = Get-Content -LiteralPath $packageManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
-    if ($packageManifest.schema_version -ne 1) {
-        throw "Nepodporovaná verze package manifestu: $($packageManifest.schema_version)"
-    }
-    $platformCommit = [string]$packageManifest.source_commit
-    $platformRef = "package:$($packageManifest.kind)/$($packageManifest.version)"
-    $distribution = "package"
+    $distribution = "git"
 }
 else {
     throw "PlatformPath není Git distribuce ani rozbalený DDDA package: $platformRoot"
