@@ -87,14 +87,40 @@ jobs:
       - name: Package-first validation
         shell: pwsh
         run: |
-          $ErrorActionPreference = 'Stop'
-          $packagePath = '${{ steps.package.outputs.package_path }}'
-          .\scripts\platform\Test-DDDAPlatformPackage.ps1 -PackagePath $packagePath -ExpectedCommit $env:SOURCE_SHA -ExpectedKind candidate
-          .\ddda.ps1 test -Suite integration -PackagePath $packagePath -NonInteractive
-          .\ddda.ps1 test -Suite smoke -PackagePath $packagePath -NonInteractive
-          .\ddda.ps1 test -Suite security -PackagePath $packagePath -NonInteractive
-          .\ddda.ps1 test -Suite e2e -PackagePath $packagePath -NonInteractive
-          .\ddda.ps1 test -Suite acceptance -PackagePath $packagePath -CleanupOnFailure -NonInteractive
+          $log = Join-Path $env:RUNNER_TEMP 'platform-package-first.log'
+          $previousPreference = $ErrorActionPreference
+          $code = 1
+          try {
+            $ErrorActionPreference = 'Continue'
+            & {
+              $packagePath = '${{ steps.package.outputs.package_path }}'
+              .\scripts\platform\Test-DDDAPlatformPackage.ps1 -PackagePath $packagePath -ExpectedCommit $env:SOURCE_SHA -ExpectedKind candidate
+              .\ddda.ps1 test -Suite integration -PackagePath $packagePath -NonInteractive
+              .\ddda.ps1 test -Suite smoke -PackagePath $packagePath -NonInteractive
+              .\ddda.ps1 test -Suite security -PackagePath $packagePath -NonInteractive
+              .\ddda.ps1 test -Suite e2e -PackagePath $packagePath -NonInteractive
+              .\ddda.ps1 test -Suite acceptance -PackagePath $packagePath -CleanupOnFailure -NonInteractive
+            } *> $log
+            $code = $LASTEXITCODE
+            if ($null -eq $code) { $code = 0 }
+          }
+          catch {
+            ($_ | Out-String) | Add-Content -LiteralPath $log -Encoding UTF8
+            $code = 1
+          }
+          finally {
+            $ErrorActionPreference = $previousPreference
+          }
+          Get-Content -LiteralPath $log -Tail 240
+          exit $code
+
+      - name: Upload package-first diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: platform-package-first-${{ github.run_id }}
+          path: ${{ runner.temp }}/platform-package-first.log
+          if-no-files-found: error
 
       - name: Verify repository remains clean
         shell: pwsh
