@@ -186,11 +186,26 @@ jobs:
           }
           Write-Host "Validated report: $($reports[0].FullName)"
 
+      - name: Stage validate-pr reports
+        if: always()
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $source = Join-Path $env:LOCALAPPDATA ("DDDA\validation-reports\pr-{0}-{1}" -f $env:PR_NUMBER, $env:SOURCE_SHA)
+          $target = Join-Path $env:RUNNER_TEMP 'validate-pr-reports'
+          New-Item -ItemType Directory -Path $target -Force | Out-Null
+          if (Test-Path -LiteralPath $source -PathType Container) {
+              Copy-Item -LiteralPath $source -Destination $target -Recurse -Force
+          }
+          else {
+              Set-Content -LiteralPath (Join-Path $target 'missing-report.txt') -Encoding UTF8 -Value "Validation report root was not created: $source"
+          }
+
       - name: Upload validate-pr reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: validate-pr-${{ env.PR_NUMBER }}-${{ env.SOURCE_SHA }}
-          path: ${{ env.LOCALAPPDATA }}/DDDA/validation-reports/pr-${{ env.PR_NUMBER }}-${{ env.SOURCE_SHA }}/**
+          path: ${{ runner.temp }}/validate-pr-reports/**
           if-no-files-found: error
           retention-days: 14
