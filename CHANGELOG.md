@@ -23,7 +23,8 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 ### Changed
 
 - dokumentace je organizována do getting-started, methodology, capabilities, cookbooks, product, reference, developer-guide, user-guide, ADR a migration sekcí;
-- projektový Miro bootstrap publikuje vedle scaffoldu také aktuální managed YAML artefakty.
+- projektový Miro bootstrap publikuje vedle scaffoldu také aktuální managed YAML artefakty;
+- JSON reporty a jejich testy zachovávají prázdné kolekce jako skutečná pole v PowerShellu 7 i Windows PowerShellu 5.1.
 
 ### Compatibility
 
