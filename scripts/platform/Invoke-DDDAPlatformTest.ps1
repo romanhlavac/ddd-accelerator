@@ -85,7 +85,7 @@ function New-PackagePlatformContext {
     Expand-Archive -LiteralPath $packageFull -DestinationPath $packagePlatformRoot -Force
 
     if (-not (Test-Path -LiteralPath (Join-Path $packagePlatformRoot "ddda-package.json") -PathType Leaf)) {
-        throw "Rozbalený package neobsahuje dd கடa-package.json: $packagePlatformRoot"
+        throw "Rozbalený package neobsahuje dd‌da-package.json: $packagePlatformRoot"
     }
 
     $null = Invoke-DDDAPlatformNative -Command "git" -Arguments @("-C", $packagePlatformRoot, "init", "-b", "main")
