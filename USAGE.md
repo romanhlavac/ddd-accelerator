@@ -54,7 +54,8 @@ Tento příkaz automaticky:
 6. materializuje referenční example projekt;
 7. provede workspace a project doctor;
 8. vytvoří projektový Miro board;
-9. ověří idempotentní render.
+9. odešle aktuální managed YAML artefakty na board;
+10. ověří idempotentní render i managed artifact push.
 
 První online běh si vyžádá token se scopes `boards:read` a `boards:write`. Na Windows se uloží pomocí DPAPI mimo Git.
 
@@ -74,21 +75,21 @@ Standardní example je:
 DDDA-Workspace/projects/life-insurance-greenfield
 ```
 
-Po online inicializaci zkontroluj projektový mapping:
+Po online inicializaci zkontroluj projektový mapping, sync state a sync report:
 
 ```powershell
 $WorkspaceRoot = (Resolve-Path '..\..').Path
 $ProjectRoot = Join-Path $WorkspaceRoot 'projects\life-insurance-greenfield'
 
 git -C $ProjectRoot status --short
-git -C $ProjectRoot diff -- miro/miro-map.yaml
+git -C $ProjectRoot diff -- miro/ reports/miro-sync/
 ```
 
 Je-li diff správný:
 
 ```powershell
-git -C $ProjectRoot add miro/miro-map.yaml
-git -C $ProjectRoot commit -m 'chore: initialize example Miro board'
+git -C $ProjectRoot add miro/miro-map.yaml miro/sync-state.yaml reports/miro-sync/
+git -C $ProjectRoot commit -m 'chore: initialize example Miro board and managed artifacts'
 ```
 
 Doporučený chat:
@@ -144,7 +145,7 @@ projects/claims-modernization/
 └── reports/project-status.yaml
 ```
 
-Skript vytvoří iniciační commit. Miro mapping po online bootstrapu zůstane k samostatnému review a commitu.
+Skript vytvoří iniciační commit. Miro mapping, sync state a sync report po online bootstrapu zůstanou k samostatnému review a commitu.
 
 Offline:
 
@@ -351,7 +352,7 @@ Online doctor:
 .\scripts\Test-DDDAMiroConfiguration.ps1 -ProjectPath $ProjectRoot -Online
 ```
 
-## 12. Render projektového boardu
+## 12. Inicializace projektového boardu a managed artefaktů
 
 Dry-run:
 
@@ -368,7 +369,7 @@ Vytvoření boardu:
   -CreateBoard
 ```
 
-Renderer zapisuje stabilní vazby do `miro/miro-map.yaml`. Status a next-actions jsou standardní managed artifacts a zobrazí se v projektovém boardu.
+Inicializátor nejprve vykreslí scaffold a potom automaticky provede managed artifact push. Stabilní vazby zapisuje do `miro/miro-map.yaml`, common-base hashe do `miro/sync-state.yaml` a auditní výsledek do `reports/miro-sync/`. Status a next-actions jsou standardní managed artifacts a po úspěšném běhu jsou na projektovém boardu i v mappingu.
 
 ## 13. Obousměrná synchronizace
 
@@ -457,7 +458,7 @@ Offline PR #8 suite:
 Online proti Miro:
 
 ```powershell
-.\scripts\Test-DDDAAcceptance.ps1 -Suite project-steering -WithMiro -Full
+.\scripts\Test-DDDAAcceptance.ps1 -Suite project-steering -WithMiro -Full -CleanupOnFailure
 ```
 
 Vizuální review:
