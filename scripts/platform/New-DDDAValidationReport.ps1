@@ -41,12 +41,17 @@ elseif ($Status -eq "PASS") {
 
 $suitesFull = (Resolve-Path -LiteralPath $SuitesJsonPath).Path
 $suitesText = Get-Content -LiteralPath $suitesFull -Raw -Encoding UTF8
-$suites = if ([string]::IsNullOrWhiteSpace($suitesText)) {
-    @()
+$suiteList = [System.Collections.Generic.List[object]]::new()
+if (-not [string]::IsNullOrWhiteSpace($suitesText)) {
+    $parsedSuites = $suitesText | ConvertFrom-Json
+    foreach ($suite in @($parsedSuites)) {
+        if ($null -ne $suite) {
+            $suiteList.Add($suite)
+        }
+    }
 }
-else {
-    @($suitesText | ConvertFrom-Json)
-}
+$suites = [object[]]$suiteList.ToArray()
+
 if ($Status -eq "PASS" -and $suites.Count -eq 0) {
     throw "PASS validation report vyžaduje alespoň jednu suite."
 }
@@ -64,7 +69,7 @@ $source = [ordered]@{
     commit = $Commit
 }
 
-$report = [ordered]@{
+$report = [pscustomobject][ordered]@{
     schema_version = 1
     validation_id = $ValidationId
     status = $Status
@@ -75,9 +80,14 @@ $report = [ordered]@{
     workspace = if ([string]::IsNullOrWhiteSpace($Workspace)) { $null } else { [System.IO.Path]::GetFullPath($Workspace) }
     miro_board_id = if ([string]::IsNullOrWhiteSpace($MiroBoardId)) { $null } else { $MiroBoardId }
     suites = $suites
-    diagnostics = @($Diagnostics)
+    diagnostics = [string[]]@($Diagnostics)
 }
 Write-DDDAPlatformJson -Value $report -Path $jsonPath
+
+$jsonText = Get-Content -LiteralPath $jsonPath -Raw -Encoding UTF8
+if ($suites.Count -eq 0 -and $jsonText -notmatch '"suites"\s*:\s*\[\s*\]') {
+    throw "Validation report nezapsal prázdné suites jako JSON pole."
+}
 
 $markdown = [System.Collections.Generic.List[string]]::new()
 $markdown.Add("# DDDA validation report")
