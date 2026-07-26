@@ -28,32 +28,25 @@ else {
     }
 
     $pythonExe = Get-DDDASteeringPythonExe -PlatformRoot $platformRoot
-    $pythonCode = @'
-import json
-import sys
-from pathlib import Path
-from ruamel.yaml import YAML
-
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8")
-
-path = Path(sys.argv[1])
-with path.open("r", encoding="utf-8-sig") as handle:
-    document = YAML(typ="safe").load(handle) or {}
-
-report = document.get("status_report")
-if not isinstance(report, dict):
-    raise SystemExit(f"Status report nemá objekt status_report: {path}")
-
-print(json.dumps(report, ensure_ascii=False))
-'@
-
-    $output = & $pythonExe -c $pythonCode $reportPath 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        throw "Načtení DDDA status reportu selhalo:`n$($output | Out-String)"
+    $readerScript = Join-Path $platformRoot "runtime/steering/read_status.py"
+    if (-not (Test-Path -LiteralPath $readerScript)) {
+        throw "Read-only status reader neexistuje: $readerScript"
     }
 
-    $text = ($output | Out-String).Trim()
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "Continue"
+        $output = @(& $pythonExe $readerScript $reportPath 2>&1)
+        $exitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+
+    $text = ($output | ForEach-Object { $_.ToString() } | Out-String).Trim()
+    if ($exitCode -ne 0) {
+        throw "Načtení DDDA status reportu selhalo. Exit code: $exitCode`n$text"
+    }
     if ([string]::IsNullOrWhiteSpace($text)) {
         throw "Načtení DDDA status reportu nevrátilo výsledek."
     }
