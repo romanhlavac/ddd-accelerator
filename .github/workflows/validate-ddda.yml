@@ -24,10 +24,12 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install validators
-        run: python -m pip install --disable-pip-version-check "ruamel.yaml>=0.18,<0.19" "jsonschema>=4.22,<5"
+      - name: Install validators and tests
+        run: python -m pip install --disable-pip-version-check "ruamel.yaml>=0.18,<0.19" "jsonschema>=4.22,<5" "pytest>=8,<9"
       - name: Validate lint, schemas and security contracts
         run: python runtime/platform/validate_repository.py --root . --suite all
+      - name: Run platform validator unit tests
+        run: python -m pytest -q runtime/platform/tests
 
   miro-runtime-tests:
     runs-on: ubuntu-latest
@@ -71,6 +73,7 @@ jobs:
         run: |
           $log = Join-Path $env:RUNNER_TEMP "doctor-pwsh.log"
           $previousPreference = $ErrorActionPreference
+          $code = 1
           try {
             $ErrorActionPreference = "Continue"
             & ./ddda.ps1 doctor *> $log
@@ -79,7 +82,7 @@ jobs:
           finally {
             $ErrorActionPreference = $previousPreference
           }
-          Get-Content -LiteralPath $log -Tail 80
+          Get-Content -LiteralPath $log -Tail 120
           exit $code
       - name: Upload PowerShell 7 doctor diagnostics
         if: failure()
@@ -94,12 +97,13 @@ jobs:
           ./tests/powershell/Test-DDDAMiroAutomation.ps1 -PlatformPath $PWD
           ./tests/powershell/Test-DDDAProjectSteering.ps1 -PlatformPath $PWD
           ./tests/powershell/Test-DDDAFirstRun.ps1 -PlatformPath $PWD
-      - name: Security and isolation tests
+      - name: Lifecycle contract tests
         shell: pwsh
-        run: ./tests/powershell/Test-DDDAPlatformSecurity.ps1 -PlatformPath $PWD
-      - name: Deterministic packaging test
-        shell: pwsh
-        run: ./tests/powershell/Test-DDDAPlatformPackaging.ps1 -PlatformPath $PWD
+        run: |
+          ./tests/powershell/Test-DDDAPlatformSecurity.ps1 -PlatformPath $PWD
+          ./tests/powershell/Test-DDDAValidationReport.ps1 -PlatformPath $PWD
+          ./tests/powershell/Test-DDDAPromotionGuards.ps1 -PlatformPath $PWD
+          ./tests/powershell/Test-DDDAPlatformPackaging.ps1 -PlatformPath $PWD
       - name: Build and validate candidate package
         id: package
         shell: pwsh
@@ -111,13 +115,13 @@ jobs:
           "sha256=$($result.sha256)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
       - name: Package-first smoke and E2E lifecycle
         shell: pwsh
-        run: |
-          ./tests/powershell/Test-DDDAPlatformLifecycle.ps1 -PackagePath "${{ steps.package.outputs.package }}" -ExpectedCommit "${{ github.sha }}"
+        run: ./tests/powershell/Test-DDDAPlatformLifecycle.ps1 -PackagePath "${{ steps.package.outputs.package }}" -ExpectedCommit "${{ github.sha }}"
       - name: Platform test dispatcher
         shell: pwsh
         run: |
           ./ddda.ps1 test -Suite lint
           ./ddda.ps1 test -Suite schema
+          ./ddda.ps1 test -Suite unit
           ./ddda.ps1 test -Suite security -PackagePath "${{ steps.package.outputs.package }}"
 
   windows-powershell-51-compatibility:
@@ -130,6 +134,7 @@ jobs:
         run: |
           $log = Join-Path $env:RUNNER_TEMP "compatibility-ps51.log"
           $previousPreference = $ErrorActionPreference
+          $code = 1
           try {
             $ErrorActionPreference = "Continue"
             & {
@@ -139,6 +144,8 @@ jobs:
               ./tests/powershell/Test-DDDAMiroAutomation.ps1 -PlatformPath $PWD
               ./tests/powershell/Test-DDDAProjectSteering.ps1 -PlatformPath $PWD
               ./tests/powershell/Test-DDDAPlatformSecurity.ps1 -PlatformPath $PWD
+              ./tests/powershell/Test-DDDAValidationReport.ps1 -PlatformPath $PWD
+              ./tests/powershell/Test-DDDAPromotionGuards.ps1 -PlatformPath $PWD
               $workspace = Join-Path $env:RUNNER_TEMP "ddda-smoke-ps51"
               $output = ./scripts/Initialize-DDDAWorkspace.ps1 -WorkspaceRoot $workspace -WorkspaceId "ci-smoke-ps51" -WorkspaceName "CI smoke workspace" 6>&1 | Out-String
               $expected = "p$([char]0x0159)ipraven"
@@ -154,7 +161,7 @@ jobs:
           finally {
             $ErrorActionPreference = $previousPreference
           }
-          Get-Content -LiteralPath $log -Tail 120
+          Get-Content -LiteralPath $log -Tail 160
           exit $code
       - name: Upload Windows PowerShell 5.1 diagnostics
         if: failure()
