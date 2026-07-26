@@ -120,16 +120,16 @@ $markdown = @(
     "# DDDA example ingestion report",
     "",
     "- Status: **PASS**",
-    "- Example: `$($manifest.example_id)`",
-    "- Workspace: `$workspaceFull`",
-    "- Manifest: `$manifestPath`",
-    "- Project intake: `$intakeTarget`",
+    "- Example: $($manifest.example_id)",
+    "- Workspace: $workspaceFull",
+    "- Manifest: $manifestPath",
+    "- Project intake: $intakeTarget",
     "",
     "| Role | Source | Target | Status | SHA-256 |",
     "|---|---|---|---|---|"
 )
 foreach ($item in $items) {
-    $markdown += "| $($item.role) | `$($item.source)` | `$($item.target)` | $($item.status) | `$($item.sha256)` |"
+    $markdown += "| $($item.role) | $($item.source) | $($item.target) | $($item.status) | $($item.sha256) |"
 }
 Write-DDDAPlatformText -Value (($markdown -join [Environment]::NewLine) + [Environment]::NewLine) -Path $reportMarkdown
 
