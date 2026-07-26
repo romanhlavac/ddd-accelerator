@@ -3,18 +3,35 @@
 ## Začít zde
 
 1. [Clone, smoke testy, workspace a example projekt](getting-started/01-clone-smoke-example.md)
-2. [Testování řiditelnosti projektu](getting-started/02-testovani-pr8.md)
-3. [README platformy](../README.md)
-4. [Úplný chat-first provozní návod](../USAGE.md)
-5. [Katalog funkcionalit](capabilities/README.md)
-6. [Řízené založení vlastního projektu](cookbooks/16-zalozeni-rizeneho-projektu.md)
-7. [Current status, gaty a další krok](cookbooks/17-status-gates-a-dalsi-krok.md)
-8. [Referenční projekt životní pojišťovny](../examples/life-insurance-greenfield/README.md)
+2. [Validace a promotion platformního PR](user-guide/validate-and-promote-pr.md)
+3. [Testování řiditelnosti projektu](getting-started/02-testovani-pr8.md)
+4. [README platformy](../README.md)
+5. [Úplný chat-first provozní návod](../USAGE.md)
+6. [Katalog funkcionalit](capabilities/README.md)
+7. [Řízené založení vlastního projektu](cookbooks/16-zalozeni-rizeneho-projektu.md)
+8. [Current status, gaty a další krok](cookbooks/17-status-gates-a-dalsi-krok.md)
+9. [Referenční projekt životní pojišťovny](../examples/life-insurance-greenfield/README.md)
 
 ## Getting started
 
 - [01 Clone, smoke testy, workspace a example projekt](getting-started/01-clone-smoke-example.md)
 - [02 Acceptance test řiditelnosti projektu](getting-started/02-testovani-pr8.md)
+
+## Uživatelské návody
+
+- [Validace a promotion platformního PR](user-guide/validate-and-promote-pr.md)
+
+## Developer guide
+
+- [Vývojový lifecycle DDDA platformy](developer-guide/platform-development-lifecycle.md)
+- [Testovací strategie DDDA platformy](developer-guide/testing-strategy.md)
+
+## Architektonická rozhodnutí a migrace
+
+- [ADR 0001 — Reprodukovatelný lifecycle vývoje platformy](adr/0001-platform-development-lifecycle.md)
+- [ADR 0002 — Project steering a gate semantics](adr/0002-project-steering-and-gate-semantics.md)
+- [PR #8 migration note](migration/pr8-non-breaking-steering-extension.md)
+- [Changelog](../CHANGELOG.md)
 
 ## Metodika
 
@@ -68,4 +85,4 @@
 
 ## Strukturní pravidlo
 
-V kořeni `docs/` je pouze tento index. Detailní dokumentace patří do `getting-started/`, `capabilities/`, `cookbooks/`, `methodology/`, `product/` nebo `reference/`.
+V kořeni `docs/` je pouze tento index. Detailní dokumentace patří do `getting-started/`, `user-guide/`, `developer-guide/`, `adr/`, `migration/`, `capabilities/`, `cookbooks/`, `methodology/`, `product/` nebo `reference/`.
