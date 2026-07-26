@@ -1,0 +1,70 @@
+name: Patch PR8 USAGE
+
+on:
+  push:
+    branches:
+      - feat/project-steering-and-documentation
+
+permissions:
+  contents: write
+
+jobs:
+  patch-usage:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/project-steering-and-documentation
+          fetch-depth: 0
+      - name: Patch USAGE and push
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('USAGE.md')
+          text = path.read_text(encoding='utf-8-sig')
+          old = '''```powershell
+          .\\scripts\\Get-DDDAProjectStatus.ps1 -ProjectPath $ProjectRoot
+          ```
+
+          Regeneruje `current-status.yaml`, `next-actions.yaml` a `reports/project-status.yaml`.
+
+          Strojově čitelný výstup:
+
+          ```powershell
+          .\\scripts\\Get-DDDAProjectStatus.ps1 -ProjectPath $ProjectRoot -Json
+          ```'''.replace('          ', '')
+          new = '''```powershell
+          .\\scripts\\Get-DDDAProjectStatus.ps1 -ProjectPath $ProjectRoot
+          ```
+
+          Výchozí režim je read-only. Načte `reports/project-status.yaml` a nemění projektový Git working tree.
+
+          Strojově čitelný read-only výstup:
+
+          ```powershell
+          .\\scripts\\Get-DDDAProjectStatus.ps1 -ProjectPath $ProjectRoot -Json
+          ```
+
+          Po ruční změně evidence lze status explicitně přepočítat:
+
+          ```powershell
+          .\\scripts\\Get-DDDAProjectStatus.ps1 -ProjectPath $ProjectRoot -Refresh
+          ```
+
+          `-Refresh` je write operace: aktualizuje `current-status.yaml`, `next-actions.yaml` a `reports/project-status.yaml`. Změny zkontroluj a commitni před navazující Miro operací.'''.replace('          ', '')
+          if old not in text:
+              raise SystemExit('Expected USAGE status section was not found exactly once.')
+          if text.count(old) != 1:
+              raise SystemExit('Expected USAGE status section is not unique.')
+          path.write_text(text.replace(old, new), encoding='utf-8', newline='\n')
+          PY
+          git config user.name 'DDDA Documentation Bot'
+          git config user.email 'ddda-docs@example.invalid'
+          git add USAGE.md
+          git diff --cached --check
+          git commit -m 'docs: clarify read-only status and explicit refresh'
+          git push origin HEAD:feat/project-steering-and-documentation
