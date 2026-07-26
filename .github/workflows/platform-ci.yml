@@ -138,3 +138,59 @@ jobs:
           path: ${{ steps.package.outputs.package_path }}
           if-no-files-found: error
           retention-days: 7
+
+  validate-pr-command:
+    name: One-command PR validation
+    if: github.event_name == 'pull_request'
+    runs-on: windows-latest
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.SOURCE_SHA }}
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run exact validate-pr command
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $actual = (git rev-parse HEAD).Trim()
+          if ($actual -ne $env:SOURCE_SHA) {
+              throw "Checkout SHA '$actual' neodpovídá PR head '$env:SOURCE_SHA'."
+          }
+          .\ddda.ps1 validate-pr -Pr ([int]$env:PR_NUMBER) -CleanupOnFailure -NonInteractive
+
+      - name: Verify PASS report for exact SHA
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $reportRoot = Join-Path $env:LOCALAPPDATA ("DDDA\validation-reports\pr-{0}-{1}" -f $env:PR_NUMBER, $env:SOURCE_SHA)
+          $reports = @(Get-ChildItem -LiteralPath $reportRoot -Filter result.json -File -Recurse -ErrorAction Stop | Sort-Object LastWriteTimeUtc -Descending)
+          if ($reports.Count -eq 0) {
+              throw "validate-pr nevytvořil report pod $reportRoot."
+          }
+          $report = Get-Content -LiteralPath $reports[0].FullName -Raw -Encoding UTF8 | ConvertFrom-Json
+          if ($report.status -ne 'PASS' -or $report.source.commit -ne $env:SOURCE_SHA -or [int]$report.source.pr -ne [int]$env:PR_NUMBER) {
+              throw "Validation report není PASS pro exact PR head. Report: $($reports[0].FullName)"
+          }
+          Write-Host "Validated report: $($reports[0].FullName)"
+
+      - name: Upload validate-pr reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: validate-pr-${{ env.PR_NUMBER }}-${{ env.SOURCE_SHA }}
+          path: ${{ env.LOCALAPPDATA }}/DDDA/validation-reports/pr-${{ env.PR_NUMBER }}-${{ env.SOURCE_SHA }}/**
+          if-no-files-found: error
+          retention-days: 14
