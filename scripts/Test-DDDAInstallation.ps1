@@ -66,7 +66,7 @@ $requiredFiles = @(
     "templates/project/miro-map.template.yaml", "templates/project/miro-sync-state.template.yaml",
     "runtime/miro/pyproject.toml", "runtime/miro/ddda_miro/client.py", "runtime/miro/ddda_miro/sync.py",
     "runtime/steering/pyproject.toml", "runtime/steering/read_status.py", "runtime/steering/ddda_steering/engine.py", "runtime/steering/ddda_steering/cli.py",
-    "runtime/platform/validate_repository.py",
+    "runtime/platform/validate_repository.py", "runtime/platform/tests/test_validate_repository.py",
     "scripts/Initialize-DDDAWorkspace.ps1", "scripts/New-DDDAProject.ps1", "scripts/Test-DDDARepositoryScope.ps1",
     "scripts/Update-DDDAProject.ps1", "scripts/Install-DDDAMiroRuntime.ps1", "scripts/Install-DDDASteeringRuntime.ps1", "scripts/Initialize-DDDAMiroBoard.ps1",
     "scripts/Invoke-DDDAMiroSync.ps1", "scripts/Start-DDDAMiroSyncWorker.ps1", "scripts/Test-DDDAMiroConfiguration.ps1",
@@ -78,7 +78,7 @@ $requiredFiles = @(
     "scripts/platform/Invoke-DDDAExampleIngestion.ps1", "scripts/platform/New-DDDAValidationWorkspace.ps1", "scripts/platform/New-DDDAValidationReport.ps1",
     "scripts/platform/Invoke-DDDAPlatformTest.ps1", "scripts/platform/Invoke-DDDAValidatePr.ps1", "scripts/platform/Invoke-DDDAPromotePr.ps1",
     "tests/powershell/Test-DDDAMiroAutomation.ps1", "tests/powershell/Test-DDDAFirstRun.ps1", "tests/powershell/Test-DDDAProjectSteering.ps1",
-    "tests/powershell/Test-DDDAPlatformLifecycle.ps1", "tests/powershell/Test-DDDAPlatformSecurity.ps1"
+    "tests/powershell/Test-DDDAPlatformLifecycle.ps1", "tests/powershell/Test-DDDAPlatformSecurity.ps1", "tests/powershell/Test-DDDAPlatformPackaging.ps1"
 )
 
 $missingRequiredFiles = @()
