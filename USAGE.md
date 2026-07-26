@@ -231,13 +231,21 @@ Automatizace rozlišuje:
 .\scripts\Get-DDDAProjectStatus.ps1 -ProjectPath $ProjectRoot
 ```
 
-Regeneruje `current-status.yaml`, `next-actions.yaml` a `reports/project-status.yaml`.
+Výchozí režim je read-only. Načte `reports/project-status.yaml` a nemění projektový Git working tree.
 
-Strojově čitelný výstup:
+Strojově čitelný read-only výstup:
 
 ```powershell
 .\scripts\Get-DDDAProjectStatus.ps1 -ProjectPath $ProjectRoot -Json
 ```
+
+Po ruční změně evidence lze status explicitně přepočítat:
+
+```powershell
+.\scripts\Get-DDDAProjectStatus.ps1 -ProjectPath $ProjectRoot -Refresh
+```
+
+`-Refresh` je write operace: aktualizuje `current-status.yaml`, `next-actions.yaml` a `reports/project-status.yaml`. Změny zkontroluj a commitni před navazující Miro operací.
 
 Doporučený chat:
 
