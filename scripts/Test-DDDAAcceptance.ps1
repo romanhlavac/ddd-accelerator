@@ -51,6 +51,20 @@ function Write-AcceptanceReport {
     $payload | ConvertTo-Json -Depth 10 | Set-Content -Path $reportFile -Encoding UTF8
 }
 
+function Get-BoardIdFromMap {
+    param([Parameter(Mandatory = $true)][string]$MapPath)
+
+    if (-not (Test-Path -LiteralPath $MapPath)) {
+        return $null
+    }
+
+    $text = Get-Content -LiteralPath $MapPath -Raw -Encoding UTF8
+    if ($text -match '(?m)^board_id:\s*["'']?(?<id>[^\s"'']+)["'']?\s*$') {
+        return [string]$Matches["id"]
+    }
+    return $null
+}
+
 try {
     Write-Host "=== DDDA acceptance suite: $Suite ==="
     if ($WithMiro) {
@@ -138,13 +152,23 @@ intake:
         if ($NonInteractive) { $miroArgs += "-NonInteractive" }
         Invoke-DDDAChildPowerShell -ScriptPath (Join-Path $platformRoot "scripts/Initialize-DDDAProjectMiro.ps1") -Arguments $miroArgs
 
-        $mapText = Get-Content (Join-Path $projectRoot "miro/miro-map.yaml") -Raw -Encoding UTF8
-        if ($mapText -notmatch '(?m)^board_id:\s*["'']?(?<id>[^\s"'']+)["'']?\s*$') {
+        $mapPath = Join-Path $projectRoot "miro/miro-map.yaml"
+        $statePath = Join-Path $projectRoot "miro/sync-state.yaml"
+        $mapText = Get-Content -LiteralPath $mapPath -Raw -Encoding UTF8
+        $stateText = Get-Content -LiteralPath $statePath -Raw -Encoding UTF8
+        $boardId = Get-BoardIdFromMap -MapPath $mapPath
+        if ([string]::IsNullOrWhiteSpace([string]$boardId)) {
             throw "Acceptance runner nenalezl board_id v miro-map.yaml."
         }
-        $boardId = $Matches["id"]
-        if ($mapText -notmatch 'ddda\.current-status' -or $mapText -notmatch 'ddda\.next-actions') {
-            throw "Miro mapping neobsahuje status a next-actions artefakty."
+
+        foreach ($artifactId in @("ddda.current-status", "ddda.next-actions")) {
+            $escapedArtifactId = [regex]::Escape($artifactId)
+            if ($mapText -notmatch $escapedArtifactId) {
+                throw "Miro mapping neobsahuje managed artifact '$artifactId'."
+            }
+            if ($stateText -notmatch $escapedArtifactId) {
+                throw "Miro sync state neobsahuje managed artifact '$artifactId'."
+            }
         }
     }
 
@@ -155,6 +179,10 @@ intake:
     Write-Host "Report: $reportFile"
 }
 catch {
+    if ([string]::IsNullOrWhiteSpace([string]$boardId)) {
+        $candidateMapPath = Join-Path $projectRoot "miro/miro-map.yaml"
+        $boardId = Get-BoardIdFromMap -MapPath $candidateMapPath
+    }
     Write-AcceptanceReport -Status "FAIL" -ErrorMessage $_.Exception.Message
     Write-Host "Acceptance workspace zachován pro diagnostiku: $workspaceRoot"
     Write-Host "Report: $reportFile"
