@@ -5,8 +5,14 @@
 - pracuješ v čistém clone DDDA platformy;
 - `origin` ukazuje na GitHub repository;
 - je dostupný Git a Python 3.11+;
-- pro `promote-pr` je dostupný autentizovaný GitHub CLI `gh`;
+- pro `promote-pr` je dostupná GitHub autentizace alespoň jedním z podporovaných způsobů:
+  - existující Git credential helper použitý už pro clone/push;
+  - environment variable `GH_TOKEN`;
+  - environment variable `GITHUB_TOKEN`;
+  - autentizovaný GitHub CLI `gh`;
 - pro online Miro test je token uložen v DDDA secret store nebo environment variable.
+
+GitHub CLI není povinná závislost. Promotion používá GitHub REST API a automaticky preferuje `GH_TOKEN`, potom `GITHUB_TOKEN`, potom token z `gh auth token` a nakonec existující Git credential helper. Token se nevypisuje ani nepředává jako CLI argument.
 
 Stav ověř:
 
@@ -101,7 +107,8 @@ Dry-run ověří:
 - validation report je PASS pro stejný SHA;
 - candidate package hash odpovídá reportu;
 - approval policy je splněna;
-- povinné governance dokumenty existují.
+- povinné governance dokumenty existují;
+- release tag ještě neexistuje.
 
 Neprovede merge, release ani tag.
 
