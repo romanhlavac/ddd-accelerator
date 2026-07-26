@@ -1,0 +1,158 @@
+name: Patch PR8 In-Process Contracts
+
+on:
+  push:
+    branches:
+      - feat/project-steering-and-documentation
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/project-steering-and-documentation
+          fetch-depth: 0
+      - name: Harden validate and promote scripts
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: Path, old: str, new: str) -> None:
+              text = path.read_text(encoding='utf-8-sig')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected exactly one match, found {count}: {old!r}')
+              path.write_text(text.replace(old, new, 1), encoding='utf-8-sig', newline='\n')
+
+          validate = Path('scripts/platform/Invoke-DDDAValidatePr.ps1')
+          replace_once(
+              validate,
+              '''    $packageText = & (Join-Path $sourceRoot "scripts/platform/New-DDDAPlatformPackage.ps1") -PlatformPath $sourceRoot -Kind candidate -Version $candidateVersion -SourceRef $headSha -OutputPath $packagePath -Json | Out-String
+              if ($LASTEXITCODE -ne 0) {
+                  throw "Vytvoření candidate package selhalo."
+              }
+              $package = $packageText.Trim() | ConvertFrom-Json'''.replace('              ', ''),
+              '''    $packageText = & (Join-Path $sourceRoot "scripts/platform/New-DDDAPlatformPackage.ps1") -PlatformPath $sourceRoot -Kind candidate -Version $candidateVersion -SourceRef $headSha -OutputPath $packagePath -Json | Out-String
+              if ([string]::IsNullOrWhiteSpace($packageText)) {
+                  throw "Vytvoření candidate package nevrátilo JSON."
+              }
+              $package = $packageText.Trim() | ConvertFrom-Json'''.replace('              ', '')
+          )
+          replace_once(
+              validate,
+              '''    & (Join-Path $sourceRoot "scripts/platform/Test-DDDAPlatformPackage.ps1") -PackagePath $packagePath -ExpectedCommit $headSha -ExpectedKind candidate
+              if ($LASTEXITCODE -ne 0) {
+                  throw "Candidate package validation selhala."
+              }'''.replace('              ', ''),
+              '''    Invoke-DDDAPlatformChildPowerShell -ScriptPath (Join-Path $sourceRoot "scripts/platform/Test-DDDAPlatformPackage.ps1") -Arguments @(
+                  "-PackagePath", $packagePath,
+                  "-ExpectedCommit", $headSha,
+                  "-ExpectedKind", "candidate"
+              ) -SuppressOutput'''.replace('              ', '')
+          )
+          replace_once(
+              validate,
+              '''    Invoke-ValidationSuite -Name "acceptance" -Arguments @("acceptance", "-CleanupOnFailure", "-NonInteractive")
+
+              if ($WithMiro) {
+                  $miroArguments = @("acceptance", "-WithMiro", "-CleanupOnFailure")'''.replace('              ', ''),
+              '''    Invoke-ValidationSuite -Name "acceptance" -Arguments (@("acceptance") + $commonArguments + @("-CleanupOnFailure", "-NonInteractive"))
+
+              if ($WithMiro) {
+                  $miroArguments = @("acceptance") + $commonArguments + @("-WithMiro", "-CleanupOnFailure")'''.replace('              ', '')
+          )
+          replace_once(
+              validate,
+              '''        & (Join-Path $reportScriptRoot "scripts/platform/New-DDDAValidationReport.ps1") @reportArguments
+                  if ($LASTEXITCODE -ne 0) {
+                      throw "Validation report generator skončil exit code $LASTEXITCODE."
+                  }
+                  $reportCreated = $true'''.replace('              ', ''),
+              '''        & (Join-Path $reportScriptRoot "scripts/platform/New-DDDAValidationReport.ps1") @reportArguments | Out-Null
+                  $reportJson = Join-Path $reportRoot "result.json"
+                  $reportMarkdown = Join-Path $reportRoot "result.md"
+                  if (-not (Test-Path -LiteralPath $reportJson -PathType Leaf) -or -not (Test-Path -LiteralPath $reportMarkdown -PathType Leaf)) {
+                      throw "Validation report generator nevytvořil result.json a result.md."
+                  }
+                  $reportCreated = $true'''.replace('              ', '')
+          )
+
+          promote = Path('scripts/platform/Invoke-DDDAPromotePr.ps1')
+          replace_once(
+              promote,
+              '''    $releasePackageText = & (Join-Path $releaseSource "scripts/platform/New-DDDAPlatformPackage.ps1") -PlatformPath $releaseSource -Kind release -Version $Version -SourceRef $mergeCommit -OutputPath $releasePackagePath -Json | Out-String
+              if ($LASTEXITCODE -ne 0) {
+                  throw "Vytvoření release package selhalo."
+              }
+              $releasePackage = $releasePackageText.Trim() | ConvertFrom-Json'''.replace('              ', ''),
+              '''    $releasePackageText = & (Join-Path $releaseSource "scripts/platform/New-DDDAPlatformPackage.ps1") -PlatformPath $releaseSource -Kind release -Version $Version -SourceRef $mergeCommit -OutputPath $releasePackagePath -Json | Out-String
+              if ([string]::IsNullOrWhiteSpace($releasePackageText)) {
+                  throw "Vytvoření release package nevrátilo JSON."
+              }
+              $releasePackage = $releasePackageText.Trim() | ConvertFrom-Json'''.replace('              ', '')
+          )
+          replace_once(
+              promote,
+              '''    & (Join-Path $releaseSource "scripts/platform/Test-DDDAPlatformPackage.ps1") -PackagePath $releasePackagePath -ExpectedCommit $mergeCommit -ExpectedKind release
+              if ($LASTEXITCODE -ne 0) {
+                  throw "Release package validation selhala."
+              }'''.replace('              ', ''),
+              '''    Invoke-DDDAPlatformChildPowerShell -ScriptPath (Join-Path $releaseSource "scripts/platform/Test-DDDAPlatformPackage.ps1") -Arguments @(
+                  "-PackagePath", $releasePackagePath,
+                  "-ExpectedCommit", $mergeCommit,
+                  "-ExpectedKind", "release"
+              ) -SuppressOutput'''.replace('              ', '')
+          )
+          replace_once(
+              promote,
+              '''    $releaseWorkspaceText = & (Join-Path $releasePackageRoot "scripts/platform/New-DDDAValidationWorkspace.ps1") -PlatformPath $releasePackageRoot -WorkspaceRoot $releaseWorkspace -Json | Out-String
+              if ($LASTEXITCODE -ne 0) {
+                  throw "Release validation workspace selhal."
+              }
+              $releaseWorkspaceResult = $releaseWorkspaceText.Trim() | ConvertFrom-Json'''.replace('              ', ''),
+              '''    $releaseWorkspaceText = & (Join-Path $releasePackageRoot "scripts/platform/New-DDDAValidationWorkspace.ps1") -PlatformPath $releasePackageRoot -WorkspaceRoot $releaseWorkspace -Json | Out-String
+              if ([string]::IsNullOrWhiteSpace($releaseWorkspaceText)) {
+                  throw "Release validation workspace nevrátil JSON."
+              }
+              $releaseWorkspaceResult = $releaseWorkspaceText.Trim() | ConvertFrom-Json'''.replace('              ', '')
+          )
+          replace_once(
+              promote,
+              '''    Invoke-ReleaseSuite -Name "acceptance" -Arguments @("acceptance", "-CleanupOnFailure", "-NonInteractive")
+
+              if ($WithMiro) {
+                  $miroArguments = @("acceptance", "-WithMiro", "-CleanupOnFailure")'''.replace('              ', ''),
+              '''    Invoke-ReleaseSuite -Name "acceptance" -Arguments @("acceptance", "-PackagePath", $releasePackagePath, "-CleanupOnFailure", "-NonInteractive")
+
+              if ($WithMiro) {
+                  $miroArguments = @("acceptance", "-PackagePath", $releasePackagePath, "-WithMiro", "-CleanupOnFailure")'''.replace('              ', '')
+          )
+          replace_once(
+              promote,
+              '''        & (Join-Path $reportScriptRoot "scripts/platform/New-DDDAValidationReport.ps1") @releaseReportArguments
+                  if ($LASTEXITCODE -ne 0) {
+                      throw "Release report generator skončil exit code $LASTEXITCODE."
+                  }
+                  $releaseReportCreated = $true'''.replace('              ', ''),
+              '''        & (Join-Path $reportScriptRoot "scripts/platform/New-DDDAValidationReport.ps1") @releaseReportArguments | Out-Null
+                  $releaseReportJson = Join-Path $releaseReports "result.json"
+                  $releaseReportMarkdown = Join-Path $releaseReports "result.md"
+                  if (-not (Test-Path -LiteralPath $releaseReportJson -PathType Leaf) -or -not (Test-Path -LiteralPath $releaseReportMarkdown -PathType Leaf)) {
+                      throw "Release report generator nevytvořil result.json a result.md."
+                  }
+                  $releaseReportCreated = $true'''.replace('              ', '')
+          )
+          PY
+          git config user.name 'DDDA Lifecycle Bot'
+          git config user.email 'ddda-lifecycle@example.invalid'
+          git add scripts/platform/Invoke-DDDAValidatePr.ps1 scripts/platform/Invoke-DDDAPromotePr.ps1
+          git diff --cached --check
+          git commit -m 'fix: harden validate and promote in-process contracts'
+          git push origin HEAD:feat/project-steering-and-documentation
