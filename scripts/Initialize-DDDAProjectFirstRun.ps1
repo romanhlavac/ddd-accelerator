@@ -138,5 +138,5 @@ Write-Host "Další gate:    $($result.next_gate)"
 Write-Host "Status:        $(Join-Path $projectRoot 'artifacts/status/current-status.yaml')"
 Write-Host "Další kroky:   $(Join-Path $projectRoot 'artifacts/status/next-actions.yaml')"
 if ($WithMiro) {
-    Write-Host "Miro mapping zkontroluj a commituj samostatně; token se do Gitu nezapisuje."
+    Write-Host "Miro mapping, sync state a sync report zkontroluj a commituj samostatně; token se do Gitu nezapisuje."
 }
