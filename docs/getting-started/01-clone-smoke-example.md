@@ -4,17 +4,21 @@ Toto je kanonický postup pro nového uživatele. Ruční práce je omezena na c
 
 ## 1. Clone
 
-Z parent adresáře:
+Z parent adresáře spusť jednotlivé příkazy:
 
 ```powershell
-New-Item -ItemType Directory -Force .\DDDA-Workspace\platform | Out-Null
-
-git clone `
-  https://github.com/romanhlavac/ddd-accelerator.git `
-  .\DDDA-Workspace\platform\ddd-accelerator
-
-Set-Location .\DDDA-Workspace\platform\ddd-accelerator
+New-Item -ItemType Directory -Force '.\DDDA-Workspace\platform' | Out-Null
 ```
+
+```powershell
+git clone 'https://github.com/romanhlavac/ddd-accelerator.git' '.\DDDA-Workspace\platform\ddd-accelerator'
+```
+
+```powershell
+Set-Location '.\DDDA-Workspace\platform\ddd-accelerator'
+```
+
+Platformní repozitář a workspace jsou oddělené. Příkaz nespouštěj uvnitř jiného clone `ddd-accelerator`.
 
 ## 2. Jeden automatizovaný first-run
 
@@ -42,17 +46,30 @@ Board lze doplnit později přes `Initialize-DDDAProjectMiro.ps1`.
 
 ```powershell
 $WorkspaceRoot = (Resolve-Path '..\..').Path
-$ProjectRoot = Join-Path $WorkspaceRoot 'projects\life-insurance-greenfield'
+```
 
+```powershell
+$ProjectRoot = Join-Path $WorkspaceRoot 'projects\life-insurance-greenfield'
+```
+
+```powershell
 git -C $ProjectRoot status --short
 ```
 
-Po online inicializaci je očekávána změna `miro/miro-map.yaml`. Zkontroluj diff a commitni pouze mapping:
+Po online inicializaci jsou očekávané pouze řízené Miro změny v `miro/` a `reports/miro-sync/`. Zkontroluj je jedním diffem:
 
 ```powershell
-git -C $ProjectRoot diff -- miro/miro-map.yaml
-git -C $ProjectRoot add miro/miro-map.yaml
-git -C $ProjectRoot commit -m 'chore: initialize example Miro board'
+git -C $ProjectRoot diff -- miro/ reports/miro-sync/
+```
+
+Po review commitni mapping, sync state a auditní sync report:
+
+```powershell
+git -C $ProjectRoot add miro/miro-map.yaml miro/sync-state.yaml reports/miro-sync/
+```
+
+```powershell
+git -C $ProjectRoot commit -m 'chore: initialize example Miro board and managed artifacts'
 ```
 
 ## 5. Další krok v chatu
