@@ -6,13 +6,31 @@
 .\scripts\Get-DDDAProjectStatus.ps1 -ProjectPath $ProjectRoot
 ```
 
-Příkaz regeneruje:
+Výchozí režim je read-only. Načte již vytvořený `reports/project-status.yaml` a nemění projektový Git working tree.
+
+Výstup ukazuje aktuální fázi, další gate, chybějící evidence a doporučený chatový prompt.
+
+Strojově čitelný read-only výstup:
+
+```powershell
+.\scripts\Get-DDDAProjectStatus.ps1 -ProjectPath $ProjectRoot -Json
+```
+
+## Explicitní přepočet stavu
+
+Po ruční změně evidence lze status výslovně přepočítat:
+
+```powershell
+.\scripts\Get-DDDAProjectStatus.ps1 -ProjectPath $ProjectRoot -Refresh
+```
+
+Přepočet aktualizuje:
 
 - `artifacts/status/current-status.yaml`;
 - `artifacts/status/next-actions.yaml`;
 - `reports/project-status.yaml`.
 
-Výstup ukazuje aktuální fázi, další gate, chybějící evidence a doporučený chatový prompt.
+Jde o write operaci. Před navazující Miro inicializací nebo synchronizací musí být změny zkontrolované a commitnuté.
 
 ## Kontrola gatů
 
@@ -51,6 +69,12 @@ git -C $ProjectRoot diff --check
 ```
 
 Potom lze stejný příkaz spustit s `-Commit`. Vytvoří lokální commit, nikoli push nebo merge.
+
+Po commitu lze stav bezpečně číst bez dalších změn:
+
+```powershell
+.\scripts\Get-DDDAProjectStatus.ps1 -ProjectPath $ProjectRoot
+```
 
 ## Conditional gate
 
