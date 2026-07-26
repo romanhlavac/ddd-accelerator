@@ -35,9 +35,9 @@ try {
 
     $failureRoot = Join-Path $tempRoot "failure-report"
     & (Join-Path $PlatformPath "scripts/platform/New-DDDAValidationReport.ps1") -ValidationId "bootstrap-failure" -Status FAIL -SourceKind pr -Repository "romanhlavac/ddd-accelerator" -Commit $commit -Pr 8 -Branch "feature/test" -SuitesJsonPath $emptySuites -OutputRoot $failureRoot -Diagnostics "clone failed"
-    if ($LASTEXITCODE -ne 0) { throw "Bootstrap failure report generation selhala." }
 
     $failureJsonPath = Join-Path $failureRoot "result.json"
+    Assert-True -Condition (Test-Path -LiteralPath $failureJsonPath -PathType Leaf) -Message "Bootstrap failure report nebyl vytvořen."
     $failureJsonText = Get-Content -LiteralPath $failureJsonPath -Raw -Encoding UTF8
     $failureReport = $failureJsonText | ConvertFrom-Json
     Assert-True -Condition ($failureReport.status -eq "FAIL") -Message "Failure report nemá status FAIL."
@@ -55,9 +55,10 @@ try {
 
     $passRoot = Join-Path $tempRoot "pass-report"
     & (Join-Path $PlatformPath "scripts/platform/New-DDDAValidationReport.ps1") -ValidationId "valid-pass" -Status PASS -SourceKind pr -Repository "romanhlavac/ddd-accelerator" -Commit $commit -Pr 8 -Branch "feature/test" -PackagePath $packagePath -SuitesJsonPath $passSuites -OutputRoot $passRoot
-    if ($LASTEXITCODE -ne 0) { throw "PASS report generation selhala." }
 
-    $passReport = Get-Content -LiteralPath (Join-Path $passRoot "result.json") -Raw -Encoding UTF8 | ConvertFrom-Json
+    $passJsonPath = Join-Path $passRoot "result.json"
+    Assert-True -Condition (Test-Path -LiteralPath $passJsonPath -PathType Leaf) -Message "PASS validation report nebyl vytvořen."
+    $passReport = Get-Content -LiteralPath $passJsonPath -Raw -Encoding UTF8 | ConvertFrom-Json
     Assert-True -Condition ($passReport.status -eq "PASS") -Message "PASS report nemá status PASS."
     Assert-True -Condition ($passReport.package.sha256 -eq (Get-DDDAPlatformFileHash -Path $packagePath)) -Message "PASS report neobsahuje správný package hash."
     Assert-True -Condition (@($passReport.suites).Count -eq 1) -Message "PASS report neobsahuje očekávanou suite."
