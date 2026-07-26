@@ -1,0 +1,108 @@
+name: DDDA platform CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ddda-platform-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-platform:
+    name: Platform validation
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout exact source state
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Show source identity
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git status --short
+          git rev-parse HEAD
+          pwsh --version
+          python --version
+
+      - name: Platform doctor
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          .\ddda.ps1 doctor
+
+      - name: Source-level validation
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          .\ddda.ps1 test -Suite lint -NonInteractive
+          .\ddda.ps1 test -Suite schema -NonInteractive
+          .\ddda.ps1 test -Suite unit -NonInteractive
+          .\ddda.ps1 test -Suite component -NonInteractive
+          .\ddda.ps1 test -Suite regression -NonInteractive
+          .\ddda.ps1 test -Suite security -NonInteractive
+
+      - name: Build candidate package
+        id: package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $sha = (git rev-parse HEAD).Trim()
+          $version = 'ci.' + $env:GITHUB_RUN_ID + '.' + $sha.Substring(0, 12)
+          $output = Join-Path $env:RUNNER_TEMP ('ddda-candidate-' + $sha.Substring(0, 12) + '.zip')
+          $json = .\scripts\platform\New-DDDAPlatformPackage.ps1 -PlatformPath $PWD.Path -Kind candidate -Version $version -SourceRef $sha -OutputPath $output -Json | Out-String
+          $package = $json.Trim() | ConvertFrom-Json
+          if ($package.source_commit -ne $sha) {
+              throw 'Candidate package source_commit does not match checked-out SHA.'
+          }
+          if (-not (Test-Path -LiteralPath $package.path -PathType Leaf)) {
+              throw 'Candidate package was not created.'
+          }
+          "package_path=$($package.path)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "package_sha256=$($package.sha256)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Package-first validation
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $packagePath = '${{ steps.package.outputs.package_path }}'
+          .\scripts\platform\Test-DDDAPlatformPackage.ps1 -PackagePath $packagePath -ExpectedCommit $env:GITHUB_SHA -ExpectedKind candidate
+          .\ddda.ps1 test -Suite integration -PackagePath $packagePath -NonInteractive
+          .\ddda.ps1 test -Suite smoke -PackagePath $packagePath -NonInteractive
+          .\ddda.ps1 test -Suite security -PackagePath $packagePath -NonInteractive
+          .\ddda.ps1 test -Suite e2e -PackagePath $packagePath -NonInteractive
+          .\ddda.ps1 test -Suite acceptance -CleanupOnFailure -NonInteractive
+
+      - name: Verify repository remains clean
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $changes = git status --porcelain
+          if (-not [string]::IsNullOrWhiteSpace(($changes -join "`n"))) {
+              throw "CI validation modified the platform repository:`n$($changes -join "`n")"
+          }
+
+      - name: Upload candidate package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ddda-candidate-${{ github.sha }}
+          path: ${{ steps.package.outputs.package_path }}
+          if-no-files-found: error
+          retention-days: 7
