@@ -16,6 +16,10 @@ DDDA je chat-first, Miro-first a Git-verzované pracovní prostředí pro domén
 - automatizovaná inicializace po clone a online Miro smoke test;
 - automatizované vytvoření workspace a referenčního example projektu;
 - automatizovaný one-command bootstrap libovolného řízeného projektu;
+- stabilní platformní CLI `ddda.ps1`;
+- exact-SHA validace PR nad candidate package;
+- generovaný minimal example workspace a manifest-driven ingestion;
+- kontrolovaný promotion, release package, release validation report a tag až po PASS;
 - česká metodika, capability katalog, kuchařky, CLI reference a referenční projekt životní pojišťovny.
 
 ## Základní ownership
@@ -29,6 +33,53 @@ DDDA je chat-first, Miro-first a Git-verzované pracovní prostředí pro domén
 | Chat | porozumění, otázky, varianty, review a potvrzení execution kroku |
 
 Sémantický konflikt se nikdy neřeší implicitním last-write-wins. Gate se nikdy neschválí pouze proto, že automatizace našla požadované soubory.
+
+## Vývoj DDDA platformy
+
+Vývoj platformy není totéž jako práce v klientském DDDA projektu.
+
+```text
+platform repository
+→ candidate/release package
+→ generated validation workspace
+→ example project
+```
+
+Klientský workspace se nikdy nepoužívá jako platformní test fixture.
+
+Základní kontrola:
+
+```powershell
+.\ddda.ps1 doctor
+```
+
+Validace přesného PR head SHA:
+
+```powershell
+.\ddda.ps1 validate-pr -Pr 8
+```
+
+Včetně Miro:
+
+```powershell
+.\ddda.ps1 validate-pr -Pr 8 -WithMiro -Full -CleanupOnFailure
+```
+
+Promotion nejprve spusť jako dry-run:
+
+```powershell
+.\ddda.ps1 promote-pr -Pr 8 -Version 0.8.0 -DryRun
+```
+
+Skutečný merge a release vyžaduje explicitní potvrzení:
+
+```powershell
+.\ddda.ps1 promote-pr -Pr 8 -Version 0.8.0 -ConfirmMerge
+```
+
+Běžné testy nemergují, netagují ani nepushují projektové změny. `promote-pr` je samostatná fail-closed approval boundary.
+
+Detail: [Vývojový lifecycle DDDA platformy](docs/developer-guide/platform-development-lifecycle.md).
 
 ## Kanonický první start
 
@@ -101,7 +152,7 @@ Detail: [Kuchařka 16](docs/cookbooks/16-zalozeni-rizeneho-projektu.md).
 
 `Complete-DDDALifecycleStep.ps1` standardně pouze aktualizuje projektové soubory. Push ani merge neprovádí. Lokální commit vytvoří jen s explicitním `-Commit`.
 
-## Acceptance test PR #8
+## Acceptance test project steeringu
 
 Offline:
 
@@ -112,7 +163,7 @@ Offline:
 Online proti Miro:
 
 ```powershell
-.\scripts\Test-DDDAAcceptance.ps1 -Suite project-steering -WithMiro -Full
+.\scripts\Test-DDDAAcceptance.ps1 -Suite project-steering -WithMiro -Full -CleanupOnFailure
 ```
 
 Runner používá izolovaný workspace a board. Po úspěchu je odstraní a zachová report. Vizuální review lze vynutit přes `-KeepReviewBoard`.
@@ -143,8 +194,11 @@ Začni zde:
 
 1. [Getting started](docs/getting-started/01-clone-smoke-example.md)
 2. [USAGE — úplný provozní návod](USAGE.md)
-3. [Capability katalog](docs/capabilities/README.md)
-4. [Index dokumentace](docs/README.md)
-5. [Kuchařka řízeného projektu](docs/cookbooks/16-zalozeni-rizeneho-projektu.md)
-6. [Status a gaty](docs/cookbooks/17-status-gates-a-dalsi-krok.md)
-7. [Referenční greenfield example](examples/life-insurance-greenfield/README.md)
+3. [Validace a promotion PR](docs/user-guide/validate-and-promote-pr.md)
+4. [Developer guide](docs/developer-guide/platform-development-lifecycle.md)
+5. [Testovací strategie](docs/developer-guide/testing-strategy.md)
+6. [Capability katalog](docs/capabilities/README.md)
+7. [Index dokumentace](docs/README.md)
+8. [Kuchařka řízeného projektu](docs/cookbooks/16-zalozeni-rizeneho-projektu.md)
+9. [Status a gaty](docs/cookbooks/17-status-gates-a-dalsi-krok.md)
+10. [Referenční greenfield example](examples/life-insurance-greenfield/README.md)
