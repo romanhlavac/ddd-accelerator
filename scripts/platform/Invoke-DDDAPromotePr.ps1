@@ -15,6 +15,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "DDDAPlatformSupport.ps1")
+. (Join-Path $PSScriptRoot "DDDAGitHubSupport.ps1")
 
 Assert-DDDAPlatformSemanticVersion -Version $Version
 $platformRoot = Get-DDDAPlatformGitRoot -Path $PlatformPath
@@ -23,12 +24,9 @@ if ($platformRoot -ne [System.IO.Path]::GetFullPath($PlatformPath).TrimEnd('\', 
 }
 Assert-DDDAPlatformCleanGit -Repository $platformRoot
 
-if (-not (Get-Command "gh" -ErrorAction SilentlyContinue)) {
-    throw "promote-pr vyžaduje GitHub CLI 'gh' s aktivní autentizací."
-}
-
 $originUrl = Get-DDDAPlatformRepositoryUrl -Repository $platformRoot
 $repositorySlug = Get-DDDAPlatformRepositorySlug -RepositoryUrl $originUrl
+$githubAuth = Get-DDDAGitHubAuthentication
 $policyPath = Join-Path $platformRoot "config/platform/development-policy.yaml"
 if (-not (Test-Path -LiteralPath $policyPath -PathType Leaf)) {
     throw "Chybí platform development policy: $policyPath"
@@ -38,49 +36,39 @@ if ($policy.schema_version -ne 1) {
     throw "Nepodporovaná platform development policy."
 }
 
-$prText = Invoke-DDDAPlatformNative -Command "gh" -Arguments @(
-    "pr", "view", [string]$Pr,
-    "--repo", $repositorySlug,
-    "--json", "number,state,isDraft,headRefName,headRefOid,baseRefName,mergeStateStatus,reviewDecision"
-)
-$prInfo = $prText | ConvertFrom-Json
-if ($prInfo.state -ne "OPEN") {
+$prInfo = Get-DDDAGitHubPullRequest -RepositorySlug $repositorySlug -Pr $Pr -Token $githubAuth.Token
+if ([string]$prInfo.state -ne "open") {
     throw "PR #$Pr není otevřený."
 }
-if ($prInfo.isDraft) {
+if ([bool]$prInfo.draft) {
     throw "PR #$Pr je stále draft. Nejprve jej označ jako ready for review."
 }
-if ($prInfo.baseRefName -ne [string]$policy.base_branch) {
-    throw "PR #$Pr míří do '$($prInfo.baseRefName)', očekáváno '$($policy.base_branch)'."
+$baseRefName = [string]$prInfo.base.ref
+if ($baseRefName -ne [string]$policy.base_branch) {
+    throw "PR #$Pr míří do '$baseRefName', očekáváno '$($policy.base_branch)'."
 }
-if ($prInfo.mergeStateStatus -notin @("CLEAN", "HAS_HOOKS", "UNSTABLE")) {
-    throw "PR #$Pr není připraven k merge. mergeStateStatus=$($prInfo.mergeStateStatus)"
+$mergeStateStatus = ([string]$prInfo.mergeable_state).ToUpperInvariant()
+if ($mergeStateStatus -notin @("CLEAN", "HAS_HOOKS", "UNSTABLE")) {
+    throw "PR #$Pr není připraven k merge. mergeable_state=$([string]$prInfo.mergeable_state)"
 }
-$headSha = [string]$prInfo.headRefOid
+$headSha = [string]$prInfo.head.sha
+$headRefName = [string]$prInfo.head.ref
+$headRepository = if ($null -ne $prInfo.head.repo) { [string]$prInfo.head.repo.full_name } else { $null }
 if ($headSha -notmatch '^[0-9a-f]{40}$') {
     throw "GitHub nevrátil platný PR head SHA."
 }
 
 try {
-    $null = Invoke-DDDAPlatformNative -Command "gh" -Arguments @("pr", "checks", [string]$Pr, "--repo", $repositorySlug)
+    $checkSummary = Assert-DDDAGitHubChecksPassed -RepositorySlug $repositorySlug -Commit $headSha -Token $githubAuth.Token
 }
 catch {
     throw "CI kontroly PR #$Pr nejsou všechny PASS:`n$($_.Exception.Message)"
 }
 
 $minimumApprovals = [int]$policy.minimum_approvals
+$approvedUsers = @()
 if ($minimumApprovals -gt 0) {
-    $reviewsText = Invoke-DDDAPlatformNative -Command "gh" -Arguments @(
-        "api", "repos/$repositorySlug/pulls/$Pr/reviews", "--paginate", "--slurp"
-    )
-    $reviewPages = @($reviewsText | ConvertFrom-Json)
-    $reviews = @($reviewPages | ForEach-Object { @($_) })
-    $approvedUsers = @(
-        $reviews |
-            Where-Object { $_.state -eq "APPROVED" } |
-            ForEach-Object { $_.user.login } |
-            Sort-Object -Unique
-    )
+    $approvedUsers = @(Get-DDDAGitHubApprovedUsers -RepositorySlug $repositorySlug -Pr $Pr -Token $githubAuth.Token)
     if ($approvedUsers.Count -lt $minimumApprovals) {
         throw "PR #$Pr nemá požadovaný počet approvals. Požadováno: $minimumApprovals; nalezeno: $($approvedUsers.Count)."
     }
@@ -156,12 +144,13 @@ if (-not [string]::IsNullOrWhiteSpace($existingTag)) {
 Write-Host "=== DDDA promote-pr preflight ==="
 Write-Host "Repository:        $repositorySlug"
 Write-Host "PR:                $Pr"
-Write-Host "Branch:            $($prInfo.headRefName)"
+Write-Host "Branch:            $headRefName"
 Write-Host "Head SHA:          $headSha"
 Write-Host "Version:           $Version"
+Write-Host "GitHub auth:       $($githubAuth.Source)"
 Write-Host "Validation report: $validationReportPath"
 Write-Host "Candidate hash:    $actualCandidateHash"
-Write-Host "CI checks:         PASS"
+Write-Host "CI checks:         PASS ($($checkSummary.CheckRunCount) check runs)"
 Write-Host "Approvals policy:  PASS"
 Write-Host "Governance docs:   PASS"
 Write-Host "Release tag free:  PASS"
@@ -181,32 +170,27 @@ if ([bool]$policy.require_explicit_confirmation -and -not $ConfirmMerge) {
 }
 
 $mergeMethod = [string]$policy.merge_method
-$mergeArguments = @(
-    "pr", "merge", [string]$Pr,
-    "--repo", $repositorySlug,
-    "--match-head-commit", $headSha,
-    "--delete-branch"
-)
-switch ($mergeMethod) {
-    "squash" { $mergeArguments += "--squash" }
-    "merge" { $mergeArguments += "--merge" }
-    "rebase" { $mergeArguments += "--rebase" }
-    default { throw "Nepodporovaná merge_method v policy: $mergeMethod" }
+if ($mergeMethod -notin @("squash", "merge", "rebase")) {
+    throw "Nepodporovaná merge_method v policy: $mergeMethod"
 }
-$null = Invoke-DDDAPlatformNative -Command "gh" -Arguments $mergeArguments
-
-$postMergeText = Invoke-DDDAPlatformNative -Command "gh" -Arguments @(
-    "pr", "view", [string]$Pr,
-    "--repo", $repositorySlug,
-    "--json", "state,mergedAt,mergeCommit"
-)
-$postMerge = $postMergeText | ConvertFrom-Json
-if ($postMerge.state -ne "MERGED" -or $null -eq $postMerge.mergeCommit) {
-    throw "GitHub nepotvrdil merge PR #$Pr."
-}
-$mergeCommit = [string]$postMerge.mergeCommit.oid
+$mergeResult = Merge-DDDAGitHubPullRequest -RepositorySlug $repositorySlug -Pr $Pr -HeadSha $headSha -MergeMethod $mergeMethod -Token $githubAuth.Token
+$mergeCommit = [string]$mergeResult.sha
 if ($mergeCommit -notmatch '^[0-9a-f]{40}$') {
     throw "GitHub nevrátil platný merge commit SHA."
+}
+
+$postMerge = Get-DDDAGitHubPullRequest -RepositorySlug $repositorySlug -Pr $Pr -Token $githubAuth.Token
+if (-not [bool]$postMerge.merged) {
+    throw "GitHub nepotvrdil merge PR #$Pr."
+}
+
+if (-not [string]::IsNullOrWhiteSpace($headRefName) -and $headRepository -eq $repositorySlug) {
+    try {
+        $null = Invoke-DDDAPlatformNative -Command "git" -Arguments @("push", "origin", "--delete", $headRefName) -WorkingDirectory $platformRoot
+    }
+    catch {
+        Write-Warning "PR byl mergován, ale zdrojovou větev se nepodařilo odstranit: $($_.Exception.Message)"
+    }
 }
 
 $releaseSource = Join-Path $promotionRoot "release-source"
