@@ -18,7 +18,12 @@ Důležité přepínače:
 
 ## `Get-DDDAProjectStatus.ps1`
 
-Regeneruje status. `-Json` vrátí strojově čitelný výstup.
+Výchozí režim je read-only a načte `reports/project-status.yaml` bez změny Git working tree.
+
+- `-Json` — vrátí strojově čitelný výstup;
+- `-Refresh` — explicitně přepočítá a zapíše current status, next actions a status report.
+
+Po `-Refresh` zkontroluj a commitni změny před navazující Miro operací.
 
 ## `Test-DDDAGates.ps1`
 
