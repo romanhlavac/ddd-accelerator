@@ -68,7 +68,26 @@ jobs:
         uses: actions/checkout@v4
       - name: Doctor and parser validation
         shell: pwsh
-        run: ./ddda.ps1 doctor
+        run: |
+          $log = Join-Path $env:RUNNER_TEMP "doctor-pwsh.log"
+          $previousPreference = $ErrorActionPreference
+          try {
+            $ErrorActionPreference = "Continue"
+            & ./ddda.ps1 doctor *> $log
+            $code = $LASTEXITCODE
+          }
+          finally {
+            $ErrorActionPreference = $previousPreference
+          }
+          Get-Content -LiteralPath $log -Tail 80
+          exit $code
+      - name: Upload PowerShell 7 doctor diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: doctor-pwsh-${{ github.run_id }}
+          path: ${{ runner.temp }}/doctor-pwsh.log
+          if-no-files-found: error
       - name: Existing component and regression tests
         shell: pwsh
         run: |
@@ -106,12 +125,38 @@ jobs:
       - name: Validate retained Windows PowerShell 5.1 compatibility
         shell: powershell
         run: |
-          if ($PSVersionTable.PSVersion.Major -ne 5) { throw "Expected Windows PowerShell 5.1" }
-          ./scripts/Test-DDDAInstallation.ps1 -PlatformPath $PWD
-          ./tests/powershell/Test-DDDAMiroAutomation.ps1 -PlatformPath $PWD
-          ./tests/powershell/Test-DDDAProjectSteering.ps1 -PlatformPath $PWD
-          ./tests/powershell/Test-DDDAPlatformSecurity.ps1 -PlatformPath $PWD
-          $workspace = Join-Path $env:RUNNER_TEMP "ddda-smoke-ps51"
-          $output = ./scripts/Initialize-DDDAWorkspace.ps1 -WorkspaceRoot $workspace -WorkspaceId "ci-smoke-ps51" -WorkspaceName "CI smoke workspace" 6>&1 | Out-String
-          $expected = "p$([char]0x0159)ipraven"
-          if ($output -notmatch [regex]::Escape($expected)) { throw "Czech output was not decoded correctly:`n$output" }
+          $log = Join-Path $env:RUNNER_TEMP "compatibility-ps51.log"
+          $previousPreference = $ErrorActionPreference
+          try {
+            $ErrorActionPreference = "Continue"
+            & {
+              if ($PSVersionTable.PSVersion.Major -ne 5) { throw "Expected Windows PowerShell 5.1" }
+              ./scripts/Test-DDDAInstallation.ps1 -PlatformPath $PWD
+              if ($LASTEXITCODE -ne 0) { throw "Test-DDDAInstallation.ps1 failed: $LASTEXITCODE" }
+              ./tests/powershell/Test-DDDAMiroAutomation.ps1 -PlatformPath $PWD
+              ./tests/powershell/Test-DDDAProjectSteering.ps1 -PlatformPath $PWD
+              ./tests/powershell/Test-DDDAPlatformSecurity.ps1 -PlatformPath $PWD
+              $workspace = Join-Path $env:RUNNER_TEMP "ddda-smoke-ps51"
+              $output = ./scripts/Initialize-DDDAWorkspace.ps1 -WorkspaceRoot $workspace -WorkspaceId "ci-smoke-ps51" -WorkspaceName "CI smoke workspace" 6>&1 | Out-String
+              $expected = "p$([char]0x0159)ipraven"
+              if ($output -notmatch [regex]::Escape($expected)) { throw "Czech output was not decoded correctly:`n$output" }
+            } *> $log
+            $code = $LASTEXITCODE
+            if ($null -eq $code) { $code = 0 }
+          }
+          catch {
+            ($_ | Out-String) | Add-Content -LiteralPath $log -Encoding UTF8
+            $code = 1
+          }
+          finally {
+            $ErrorActionPreference = $previousPreference
+          }
+          Get-Content -LiteralPath $log -Tail 120
+          exit $code
+      - name: Upload Windows PowerShell 5.1 diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compatibility-ps51-${{ github.run_id }}
+          path: ${{ runner.temp }}/compatibility-ps51.log
+          if-no-files-found: error
