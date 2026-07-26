@@ -31,6 +31,9 @@ $sourceBranch = Invoke-DDDAPlatformGit -Repository $platformRoot -Arguments @("r
 if ($sourceBranch -eq "HEAD") {
     $sourceBranch = $null
 }
+$sourceCommitTimeText = Invoke-DDDAPlatformGit -Repository $platformRoot -Arguments @("show", "-s", "--format=%cI", $sourceCommit)
+$sourceCommitTime = [System.DateTimeOffset]::Parse($sourceCommitTimeText, [System.Globalization.CultureInfo]::InvariantCulture)
+$sourceCommitTimeUtc = $sourceCommitTime.ToUniversalTime()
 
 $shortCommit = $sourceCommit.Substring(0, 12)
 $safeVersion = $Version -replace '[^0-9A-Za-z._-]', '-'
@@ -77,7 +80,7 @@ $manifest = [ordered]@{
     version = $Version
     source_commit = $sourceCommit
     source_ref = $sourceBranch
-    created_at = Get-DDDAPlatformIsoTimestamp
+    created_at = $sourceCommitTimeUtc.ToString("o")
 }
 $manifestJson = $manifest | ConvertTo-Json -Depth 10
 
@@ -90,12 +93,13 @@ try {
             $existing.Delete()
         }
         $entry = $archive.CreateEntry("ddda-package.json", [System.IO.Compression.CompressionLevel]::Optimal)
+        $entry.LastWriteTime = $sourceCommitTimeUtc
         $entryStream = $entry.Open()
         try {
             $writer = New-Object System.IO.StreamWriter($entryStream, (New-Object System.Text.UTF8Encoding($false)))
             try {
                 $writer.Write($manifestJson)
-                $writer.Write([Environment]::NewLine)
+                $writer.Write("`n")
             }
             finally {
                 $writer.Dispose()
@@ -120,6 +124,7 @@ $result = [ordered]@{
     version = $Version
     source_commit = $sourceCommit
     source_ref = $sourceBranch
+    created_at = $sourceCommitTimeUtc.ToString("o")
     path = $packagePath
     sha256 = $hash
 }
