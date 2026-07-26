@@ -31,9 +31,17 @@ $shortSha = $headSha.Substring(0, 12)
 $branch = "pull/$Pr/head"
 
 if (Get-Command "gh" -ErrorAction SilentlyContinue) {
+    $ghMetadataAvailable = $false
     try {
         $ghText = Invoke-DDDAPlatformNative -Command "gh" -Arguments @("pr", "view", [string]$Pr, "--repo", $repositorySlug, "--json", "headRefName,headRefOid,state,isDraft")
         $ghPr = $ghText | ConvertFrom-Json
+        $ghMetadataAvailable = $true
+    }
+    catch {
+        Write-Warning "PR metadata přes GitHub CLI nebyla dostupná; exact SHA z refs/pull zůstává autoritativní pro validaci. $($_.Exception.Message)"
+    }
+
+    if ($ghMetadataAvailable) {
         if ($ghPr.state -ne "OPEN") {
             throw "PR #$Pr není otevřený."
         }
@@ -41,9 +49,6 @@ if (Get-Command "gh" -ErrorAction SilentlyContinue) {
             throw "GitHub PR head SHA neodpovídá refs/pull/$Pr/head."
         }
         $branch = [string]$ghPr.headRefName
-    }
-    catch {
-        Write-Warning "PR metadata přes GitHub CLI nebyla použita: $($_.Exception.Message)"
     }
 }
 
@@ -66,6 +71,8 @@ $diagnostics = [System.Collections.Generic.List[string]]::new()
 $miroBoardId = $null
 $validationStatus = "FAIL"
 $passed = $false
+$reportCreated = $false
+$failureMessage = $null
 
 function Invoke-ValidationSuite {
     param(
@@ -88,6 +95,7 @@ function Invoke-ValidationSuite {
 
     Write-Host "=== Validation suite: $Name ==="
     $previousPreference = $ErrorActionPreference
+    $exitCode = 1
     try {
         $ErrorActionPreference = "Continue"
         & $hostExe @hostArguments *> $logPath
@@ -190,13 +198,20 @@ try {
     $passed = $true
 }
 catch {
-    $diagnostics.Add($_.Exception.Message)
+    $failureMessage = $_.Exception.Message
+    $diagnostics.Add($failureMessage)
     Write-Host "DDDA validate-pr: FAIL" -ForegroundColor Red
-    Write-Host $_.Exception.Message -ForegroundColor Red
+    Write-Host $failureMessage -ForegroundColor Red
 }
 finally {
     Write-DDDAPlatformJson -Value @($suiteResults) -Path $suitesPath
     $completedAt = (Get-Date).ToUniversalTime()
+    $reportScriptRoot = if (Test-Path -LiteralPath (Join-Path $sourceRoot "scripts/platform/New-DDDAValidationReport.ps1")) {
+        $sourceRoot
+    }
+    else {
+        $platformRoot
+    }
     $reportArguments = @{
         ValidationId = $validationId
         Status = $validationStatus
@@ -205,19 +220,35 @@ finally {
         Commit = $headSha
         Pr = $Pr
         Branch = $branch
-        PackagePath = $packagePath
         SuitesJsonPath = $suitesPath
         OutputRoot = $reportRoot
         Diagnostics = @($diagnostics)
         StartedAt = $startedAt
         CompletedAt = $completedAt
     }
+    if (Test-Path -LiteralPath $packagePath -PathType Leaf) {
+        $reportArguments["PackagePath"] = $packagePath
+    }
     if (-not [string]::IsNullOrWhiteSpace($miroBoardId)) {
         $reportArguments["MiroBoardId"] = $miroBoardId
     }
-    & (Join-Path $sourceRoot "scripts/platform/New-DDDAValidationReport.ps1") @reportArguments
 
-    if ($passed -and -not $KeepArtifacts -and (Test-Path -LiteralPath $validationRoot)) {
+    try {
+        & (Join-Path $reportScriptRoot "scripts/platform/New-DDDAValidationReport.ps1") @reportArguments
+        if ($LASTEXITCODE -ne 0) {
+            throw "Validation report generator skončil exit code $LASTEXITCODE."
+        }
+        $reportCreated = $true
+    }
+    catch {
+        $reportCreated = $false
+        $passed = $false
+        $validationStatus = "FAIL"
+        $diagnostics.Add("Validation report generation failed: $($_.Exception.Message)")
+        Write-Warning "Validation report se nepodařilo vytvořit: $($_.Exception.Message)"
+    }
+
+    if ($passed -and $reportCreated -and -not $KeepArtifacts -and (Test-Path -LiteralPath $validationRoot)) {
         Remove-Item -LiteralPath $validationRoot -Recurse -Force -ErrorAction SilentlyContinue
     }
     elseif (Test-Path -LiteralPath $validationRoot) {
@@ -225,7 +256,7 @@ finally {
     }
 }
 
-if (-not $passed) {
+if (-not $passed -or -not $reportCreated) {
     Write-Host "Report: $reportRoot"
     exit 1
 }
