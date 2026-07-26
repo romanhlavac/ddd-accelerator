@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "base_branch": "main",
+  "merge_method": "squash",
+  "minimum_approvals": 0,
+  "require_explicit_confirmation": true,
+  "required_documents": [
+    "CHANGELOG.md",
+    "docs/adr/0001-platform-development-lifecycle.md",
+    "docs/adr/0002-project-steering-and-gate-semantics.md",
+    "docs/migration/pr8-non-breaking-steering-extension.md"
+  ]
+}
