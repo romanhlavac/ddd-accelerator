@@ -57,20 +57,45 @@ function Invoke-RepositoryValidator {
     $null = Invoke-DDDAPlatformNative -Command $python -Arguments @($validator, "--root", $platformRoot, "--suite", $ValidationSuite)
 }
 
-function Invoke-PackageSmoke {
+function Invoke-PackageWorkspaceCheck {
     if ([string]::IsNullOrWhiteSpace($PackagePath)) {
         throw "Suite '$Suite' vyžaduje -PackagePath."
     }
+
     $packageFull = (Resolve-Path -LiteralPath $PackagePath).Path
     Invoke-TestScript -RelativePath "scripts/platform/Test-DDDAPlatformPackage.ps1" -Arguments @("-PackagePath", $packageFull)
 
     $workspaceRoot = Join-Path (Get-DDDAPlatformStateRoot) ("test-workspaces/" + [Guid]::NewGuid().ToString("N"))
     try {
-        Invoke-TestScript -RelativePath "scripts/platform/New-DDDAValidationWorkspace.ps1" -Arguments @(
-            "-PlatformPath", $platformRoot,
-            "-WorkspaceRoot", $workspaceRoot,
-            "-NonInteractive"
-        )
+        $validationScript = Join-Path $platformRoot "scripts/platform/New-DDDAValidationWorkspace.ps1"
+        $validationText = & $validationScript -PlatformPath $platformRoot -WorkspaceRoot $workspaceRoot -NonInteractive -Json | Out-String
+        if ($LASTEXITCODE -ne 0) {
+            throw "Generování package validation workspace selhalo."
+        }
+        $validation = $validationText.Trim() | ConvertFrom-Json
+
+        if ($validation.status -ne "PASS") {
+            throw "Validation workspace nevrátil PASS."
+        }
+        if ($validation.current_stage -ne "align" -or $validation.next_gate -ne "G1") {
+            throw "Validation workspace očekával align/G1, získal $($validation.current_stage)/$($validation.next_gate)."
+        }
+        if (-not (Test-Path -LiteralPath $validation.ingestion_report -PathType Leaf)) {
+            throw "Validation workspace nevytvořil ingestion report: $($validation.ingestion_report)"
+        }
+
+        $ingestionReport = Get-Content -LiteralPath $validation.ingestion_report -Raw -Encoding UTF8 | ConvertFrom-Json
+        if ($ingestionReport.status -ne "PASS" -or @($ingestionReport.files).Count -lt 2) {
+            throw "Ingestion report neprokazuje úspěšný manifest-driven ingestion."
+        }
+
+        return [pscustomobject]@{
+            status = "PASS"
+            project = [string]$validation.project
+            ingestion_report = [string]$validation.ingestion_report
+            current_stage = [string]$validation.current_stage
+            next_gate = [string]$validation.next_gate
+        }
     }
     finally {
         if (Test-Path -LiteralPath $workspaceRoot) {
@@ -98,6 +123,7 @@ function Invoke-OneSuite {
             $null = Invoke-DDDAPlatformNative -Command $steeringPython -Arguments @("-m", "pip", "install", "--disable-pip-version-check", "pytest>=8,<9")
             $null = Invoke-DDDAPlatformNative -Command $miroPython -Arguments @("-m", "pip", "install", "--disable-pip-version-check", "pytest>=8,<9")
             $null = Invoke-DDDAPlatformNative -Command $steeringPython -Arguments @("-m", "pytest", "-q", (Join-Path $platformRoot "runtime/steering/tests")) -WorkingDirectory $platformRoot
+            $null = Invoke-DDDAPlatformNative -Command $steeringPython -Arguments @("-m", "pytest", "-q", (Join-Path $platformRoot "runtime/platform/tests")) -WorkingDirectory $platformRoot
             $null = Invoke-DDDAPlatformNative -Command $miroPython -Arguments @("-m", "pytest", "-q", (Join-Path $platformRoot "runtime/miro/tests")) -WorkingDirectory $platformRoot
         }
         "component" {
@@ -105,12 +131,16 @@ function Invoke-OneSuite {
             Invoke-TestScript -RelativePath "tests/powershell/Test-DDDAProjectSteering.ps1" -Arguments @("-PlatformPath", $platformRoot)
         }
         "integration" {
-            Invoke-PackageSmoke
-            $ingestionReportFound = @(Get-ChildItem -Path (Join-Path (Get-DDDAPlatformStateRoot) "test-workspaces") -Filter "ingestion-report.json" -Recurse -ErrorAction SilentlyContinue).Count -gt 0
-            $null = $ingestionReportFound
+            $integrationResult = Invoke-PackageWorkspaceCheck
+            if ($integrationResult.status -ne "PASS") {
+                throw "Package integration check nevrátil PASS."
+            }
         }
         "smoke" {
-            Invoke-PackageSmoke
+            $smokeResult = Invoke-PackageWorkspaceCheck
+            if ($smokeResult.current_stage -ne "align" -or $smokeResult.next_gate -ne "G1") {
+                throw "Package smoke check nemá očekávaný počáteční stav."
+            }
         }
         "regression" {
             Invoke-TestScript -RelativePath "tests/powershell/Test-DDDAFirstRun.ps1" -Arguments @("-PlatformPath", $platformRoot)
