@@ -28,10 +28,13 @@ New-Item -ItemType Directory -Path $workspaceFull -Force | Out-Null
 
 $ingestionScript = Join-Path $platformRoot "scripts/platform/Invoke-DDDAExampleIngestion.ps1"
 $ingestionText = & $ingestionScript -PlatformPath $platformRoot -WorkspaceRoot $workspaceFull -ExamplePath $ExamplePath -Json | Out-String
-if ($LASTEXITCODE -ne 0) {
-    throw "Manifest-driven ingestion selhal."
+if ([string]::IsNullOrWhiteSpace($ingestionText)) {
+    throw "Manifest-driven ingestion nevrátil JSON."
 }
 $ingestion = $ingestionText.Trim() | ConvertFrom-Json
+if ($ingestion.status -ne "PASS") {
+    throw "Manifest-driven ingestion nevrátil PASS."
+}
 
 $intakeText = Get-Content -LiteralPath $ingestion.project_intake -Raw -Encoding UTF8
 if ($intakeText -notmatch '(?m)^\s*project_id:\s*(?<id>[a-z0-9][a-z0-9-]{1,62})\s*$') {
@@ -86,8 +89,8 @@ foreach ($required in @(
 }
 
 $statusText = & (Join-Path $platformRoot "scripts/Get-DDDAProjectStatus.ps1") -PlatformPath $platformRoot -ProjectPath $projectRoot -Json | Out-String
-if ($LASTEXITCODE -ne 0) {
-    throw "Read-only status validation selhala."
+if ([string]::IsNullOrWhiteSpace($statusText)) {
+    throw "Read-only status validation nevrátila JSON."
 }
 $status = $statusText.Trim() | ConvertFrom-Json
 if ($status.current_stage -ne "align" -or $status.next_gate -ne "G1") {
