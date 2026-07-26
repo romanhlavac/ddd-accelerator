@@ -100,10 +100,36 @@ jobs:
       - name: Lifecycle contract tests
         shell: pwsh
         run: |
-          ./tests/powershell/Test-DDDAPlatformSecurity.ps1 -PlatformPath $PWD
-          ./tests/powershell/Test-DDDAValidationReport.ps1 -PlatformPath $PWD
-          ./tests/powershell/Test-DDDAPromotionGuards.ps1 -PlatformPath $PWD
-          ./tests/powershell/Test-DDDAPlatformPackaging.ps1 -PlatformPath $PWD
+          $log = Join-Path $env:RUNNER_TEMP "lifecycle-contracts-pwsh.log"
+          $previousPreference = $ErrorActionPreference
+          $code = 1
+          try {
+            $ErrorActionPreference = "Continue"
+            & {
+              ./tests/powershell/Test-DDDAPlatformSecurity.ps1 -PlatformPath $PWD
+              ./tests/powershell/Test-DDDAValidationReport.ps1 -PlatformPath $PWD
+              ./tests/powershell/Test-DDDAPromotionGuards.ps1 -PlatformPath $PWD
+              ./tests/powershell/Test-DDDAPlatformPackaging.ps1 -PlatformPath $PWD
+            } *> $log
+            $code = $LASTEXITCODE
+            if ($null -eq $code) { $code = 0 }
+          }
+          catch {
+            ($_ | Out-String) | Add-Content -LiteralPath $log -Encoding UTF8
+            $code = 1
+          }
+          finally {
+            $ErrorActionPreference = $previousPreference
+          }
+          Get-Content -LiteralPath $log -Tail 180
+          exit $code
+      - name: Upload lifecycle contract diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lifecycle-contracts-pwsh-${{ github.run_id }}
+          path: ${{ runner.temp }}/lifecycle-contracts-pwsh.log
+          if-no-files-found: error
       - name: Build and validate candidate package
         id: package
         shell: pwsh
