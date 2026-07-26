@@ -285,18 +285,19 @@ try {
     Assert-DDDAPlatformCleanGit -Repository $releaseSource -Label "Release source"
 
     $releasePackageText = & (Join-Path $releaseSource "scripts/platform/New-DDDAPlatformPackage.ps1") -PlatformPath $releaseSource -Kind release -Version $Version -SourceRef $mergeCommit -OutputPath $releasePackagePath -Json | Out-String
-    if ($LASTEXITCODE -ne 0) {
-        throw "Vytvoření release package selhalo."
+    if ([string]::IsNullOrWhiteSpace($releasePackageText)) {
+        throw "Vytvoření release package nevrátilo JSON."
     }
     $releasePackage = $releasePackageText.Trim() | ConvertFrom-Json
     if ($releasePackage.source_commit -ne $mergeCommit) {
         throw "Release package není svázán s merge commit SHA."
     }
 
-    & (Join-Path $releaseSource "scripts/platform/Test-DDDAPlatformPackage.ps1") -PackagePath $releasePackagePath -ExpectedCommit $mergeCommit -ExpectedKind release
-    if ($LASTEXITCODE -ne 0) {
-        throw "Release package validation selhala."
-    }
+    Invoke-DDDAPlatformChildPowerShell -ScriptPath (Join-Path $releaseSource "scripts/platform/Test-DDDAPlatformPackage.ps1") -Arguments @(
+        "-PackagePath", $releasePackagePath,
+        "-ExpectedCommit", $mergeCommit,
+        "-ExpectedKind", "release"
+    ) -SuppressOutput
 
     New-Item -ItemType Directory -Path $releasePackageRoot -Force | Out-Null
     Expand-Archive -LiteralPath $releasePackagePath -DestinationPath $releasePackageRoot -Force
@@ -308,8 +309,8 @@ try {
     Assert-DDDAPlatformCleanGit -Repository $releasePackageRoot -Label "Rozbalený release package"
 
     $releaseWorkspaceText = & (Join-Path $releasePackageRoot "scripts/platform/New-DDDAValidationWorkspace.ps1") -PlatformPath $releasePackageRoot -WorkspaceRoot $releaseWorkspace -Json | Out-String
-    if ($LASTEXITCODE -ne 0) {
-        throw "Release validation workspace selhal."
+    if ([string]::IsNullOrWhiteSpace($releaseWorkspaceText)) {
+        throw "Release validation workspace nevrátil JSON."
     }
     $releaseWorkspaceResult = $releaseWorkspaceText.Trim() | ConvertFrom-Json
     if ($releaseWorkspaceResult.status -ne "PASS") {
@@ -319,10 +320,10 @@ try {
     Invoke-ReleaseSuite -Name "security" -Arguments @("security", "-PackagePath", $releasePackagePath)
     Invoke-ReleaseSuite -Name "smoke" -Arguments @("smoke", "-PackagePath", $releasePackagePath)
     Invoke-ReleaseSuite -Name "e2e" -Arguments @("e2e", "-PackagePath", $releasePackagePath)
-    Invoke-ReleaseSuite -Name "acceptance" -Arguments @("acceptance", "-CleanupOnFailure", "-NonInteractive")
+    Invoke-ReleaseSuite -Name "acceptance" -Arguments @("acceptance", "-PackagePath", $releasePackagePath, "-CleanupOnFailure", "-NonInteractive")
 
     if ($WithMiro) {
-        $miroArguments = @("acceptance", "-WithMiro", "-CleanupOnFailure")
+        $miroArguments = @("acceptance", "-PackagePath", $releasePackagePath, "-WithMiro", "-CleanupOnFailure")
         if ($Full) { $miroArguments += "-Full" }
         if ($NonInteractive) { $miroArguments += "-NonInteractive" }
         Invoke-ReleaseSuite -Name "miro" -Arguments $miroArguments
@@ -370,9 +371,11 @@ finally {
     }
 
     try {
-        & (Join-Path $reportScriptRoot "scripts/platform/New-DDDAValidationReport.ps1") @releaseReportArguments
-        if ($LASTEXITCODE -ne 0) {
-            throw "Release report generator skončil exit code $LASTEXITCODE."
+        & (Join-Path $reportScriptRoot "scripts/platform/New-DDDAValidationReport.ps1") @releaseReportArguments | Out-Null
+        $releaseReportJson = Join-Path $releaseReports "result.json"
+        $releaseReportMarkdown = Join-Path $releaseReports "result.md"
+        if (-not (Test-Path -LiteralPath $releaseReportJson -PathType Leaf) -or -not (Test-Path -LiteralPath $releaseReportMarkdown -PathType Leaf)) {
+            throw "Release report generator nevytvořil result.json a result.md."
         }
         $releaseReportCreated = $true
     }

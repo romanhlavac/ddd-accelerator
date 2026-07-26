@@ -148,18 +148,19 @@ try {
 
     $candidateVersion = "pr.$Pr.$shortSha.$timestamp"
     $packageText = & (Join-Path $sourceRoot "scripts/platform/New-DDDAPlatformPackage.ps1") -PlatformPath $sourceRoot -Kind candidate -Version $candidateVersion -SourceRef $headSha -OutputPath $packagePath -Json | Out-String
-    if ($LASTEXITCODE -ne 0) {
-        throw "Vytvoření candidate package selhalo."
+    if ([string]::IsNullOrWhiteSpace($packageText)) {
+        throw "Vytvoření candidate package nevrátilo JSON."
     }
     $package = $packageText.Trim() | ConvertFrom-Json
     if ($package.source_commit -ne $headSha) {
         throw "Candidate package není svázán s aktuálním PR head SHA."
     }
 
-    & (Join-Path $sourceRoot "scripts/platform/Test-DDDAPlatformPackage.ps1") -PackagePath $packagePath -ExpectedCommit $headSha -ExpectedKind candidate
-    if ($LASTEXITCODE -ne 0) {
-        throw "Candidate package validation selhala."
-    }
+    Invoke-DDDAPlatformChildPowerShell -ScriptPath (Join-Path $sourceRoot "scripts/platform/Test-DDDAPlatformPackage.ps1") -Arguments @(
+        "-PackagePath", $packagePath,
+        "-ExpectedCommit", $headSha,
+        "-ExpectedKind", "candidate"
+    ) -SuppressOutput
 
     New-Item -ItemType Directory -Path $packageRoot -Force | Out-Null
     Expand-Archive -LiteralPath $packagePath -DestinationPath $packageRoot -Force
@@ -182,10 +183,10 @@ try {
     Invoke-ValidationSuite -Name "regression" -Arguments @("regression")
     Invoke-ValidationSuite -Name "security" -Arguments (@("security") + $commonArguments)
     Invoke-ValidationSuite -Name "e2e" -Arguments (@("e2e") + $commonArguments)
-    Invoke-ValidationSuite -Name "acceptance" -Arguments @("acceptance", "-CleanupOnFailure", "-NonInteractive")
+    Invoke-ValidationSuite -Name "acceptance" -Arguments (@("acceptance") + $commonArguments + @("-CleanupOnFailure", "-NonInteractive"))
 
     if ($WithMiro) {
-        $miroArguments = @("acceptance", "-WithMiro", "-CleanupOnFailure")
+        $miroArguments = @("acceptance") + $commonArguments + @("-WithMiro", "-CleanupOnFailure")
         if ($Full) { $miroArguments += "-Full" }
         if ($NonInteractive) { $miroArguments += "-NonInteractive" }
         Invoke-ValidationSuite -Name "miro" -Arguments $miroArguments
@@ -234,9 +235,11 @@ finally {
     }
 
     try {
-        & (Join-Path $reportScriptRoot "scripts/platform/New-DDDAValidationReport.ps1") @reportArguments
-        if ($LASTEXITCODE -ne 0) {
-            throw "Validation report generator skončil exit code $LASTEXITCODE."
+        & (Join-Path $reportScriptRoot "scripts/platform/New-DDDAValidationReport.ps1") @reportArguments | Out-Null
+        $reportJson = Join-Path $reportRoot "result.json"
+        $reportMarkdown = Join-Path $reportRoot "result.md"
+        if (-not (Test-Path -LiteralPath $reportJson -PathType Leaf) -or -not (Test-Path -LiteralPath $reportMarkdown -PathType Leaf)) {
+            throw "Validation report generator nevytvořil result.json a result.md."
         }
         $reportCreated = $true
     }
