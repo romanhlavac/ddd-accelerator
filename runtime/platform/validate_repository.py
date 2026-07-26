@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
-import sys
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -25,6 +25,16 @@ TEXT_EXTENSIONS = {
     ".cml",
 }
 
+LOCAL_STATE_PARTS = {".git", ".ddda"}
+FORBIDDEN_DISTRIBUTED_PARTS = {
+    ".tmp",
+    ".reports",
+    ".releases",
+    "dist",
+    "__pycache__",
+    ".pytest_cache",
+}
+
 
 def load_yaml(path: Path) -> Any:
     yaml = YAML(typ="safe")
@@ -34,6 +44,28 @@ def load_yaml(path: Path) -> Any:
 
 def load_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8-sig"))
+
+
+def tracked_or_distributed_files(root: Path) -> list[Path]:
+    git_dir = root / ".git"
+    if git_dir.exists():
+        process = subprocess.run(
+            ["git", "-C", str(root), "ls-files", "-z"],
+            check=False,
+            capture_output=True,
+        )
+        if process.returncode == 0:
+            return [
+                root / value.decode("utf-8", errors="strict")
+                for value in process.stdout.split(b"\0")
+                if value
+            ]
+
+    return [
+        path
+        for path in root.rglob("*")
+        if path.is_file() and not any(part in LOCAL_STATE_PARTS for part in path.relative_to(root).parts)
+    ]
 
 
 def validate_lint(root: Path) -> list[str]:
@@ -49,36 +81,26 @@ def validate_lint(root: Path) -> list[str]:
         if not any(name.startswith(prefix) for name in knowledge_files):
             failures.append(f"knowledge pack missing prefix {prefix}")
 
-    forbidden_generated = (
-        ".tmp",
-        ".reports",
-        ".releases",
-        "dist",
-        "__pycache__",
-        ".pytest_cache",
-    )
-    for path in root.rglob("*"):
-        try:
-            relative = path.relative_to(root)
-        except ValueError:
-            continue
-        parts = relative.parts
-        if any(part in forbidden_generated for part in parts):
-            failures.append(f"generated or local-state path is present in repository: {relative.as_posix()}")
+    files = tracked_or_distributed_files(root)
+    for path in files:
+        relative = path.relative_to(root)
+        if any(part in FORBIDDEN_DISTRIBUTED_PARTS for part in relative.parts):
+            failures.append(
+                f"generated or local-state path is tracked or distributed: {relative.as_posix()}"
+            )
 
-    for path in root.rglob("*"):
-        if not path.is_file() or path.suffix.lower() not in TEXT_EXTENSIONS:
+    for path in files:
+        if not path.exists() or path.suffix.lower() not in TEXT_EXTENSIONS:
             continue
-        if any(part == ".git" for part in path.parts):
+        relative = path.relative_to(root)
+        if any(part in LOCAL_STATE_PARTS for part in relative.parts):
             continue
         text = path.read_text(encoding="utf-8-sig", errors="replace")
         if "\t" in text:
-            failures.append(f"tab character found: {path.relative_to(root).as_posix()}")
+            failures.append(f"tab character found: {relative.as_posix()}")
         for line_number, line in enumerate(text.splitlines(), start=1):
             if line.rstrip(" \t") != line:
-                failures.append(
-                    f"trailing whitespace: {path.relative_to(root).as_posix()}:{line_number}"
-                )
+                failures.append(f"trailing whitespace: {relative.as_posix()}:{line_number}")
 
     return failures
 
@@ -113,30 +135,12 @@ def validate_schema(root: Path) -> list[str]:
             failures.append(f"invalid YAML {path.relative_to(root).as_posix()}: {exc}")
 
     validations = [
-        (
-            "examples/life-insurance-greenfield/project.yaml",
-            "project.schema.json",
-        ),
-        (
-            "scaffolds/miro/strategic-ddd-method-board.yaml",
-            "miro-scaffold.schema.json",
-        ),
-        (
-            "templates/project/project-intake.template.yaml",
-            "project-intake.schema.json",
-        ),
-        (
-            "docs/reference/capability-catalog.yaml",
-            "capability-catalog.schema.json",
-        ),
-        (
-            "examples/minimal/manifest.yaml",
-            "ingestion-manifest.schema.json",
-        ),
-        (
-            "examples/minimal/expected-invariants.yaml",
-            None,
-        ),
+        ("examples/life-insurance-greenfield/project.yaml", "project.schema.json"),
+        ("scaffolds/miro/strategic-ddd-method-board.yaml", "miro-scaffold.schema.json"),
+        ("templates/project/project-intake.template.yaml", "project-intake.schema.json"),
+        ("docs/reference/capability-catalog.yaml", "capability-catalog.schema.json"),
+        ("examples/minimal/manifest.yaml", "ingestion-manifest.schema.json"),
+        ("examples/minimal/expected-invariants.yaml", None),
     ]
 
     for document_path, schema_name in validations:
@@ -208,8 +212,11 @@ def validate_security(root: Path) -> list[str]:
         for path in checked_root.rglob("*"):
             if not path.is_file() or path.suffix.lower() not in TEXT_EXTENSIONS:
                 continue
+            relative_path = path.relative_to(root)
+            if any(part in LOCAL_STATE_PARTS for part in relative_path.parts):
+                continue
             text = path.read_text(encoding="utf-8-sig", errors="replace")
-            relative = path.relative_to(root).as_posix()
+            relative = relative_path.as_posix()
             if windows_user_path.search(text):
                 failures.append(f"user-specific Windows path found: {relative}")
             if unix_user_path.search(text):
@@ -223,8 +230,8 @@ def validate_security(root: Path) -> list[str]:
         "credentials.json",
         "secrets.json",
     }
-    for path in root.rglob("*"):
-        if path.is_file() and path.name.lower() in forbidden_names:
+    for path in tracked_or_distributed_files(root):
+        if path.name.lower() in forbidden_names:
             failures.append(f"forbidden secret-like file found: {path.relative_to(root).as_posix()}")
 
     return failures
