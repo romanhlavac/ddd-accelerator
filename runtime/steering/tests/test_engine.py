@@ -27,6 +27,15 @@ def project_fixture(tmp_path: Path) -> tuple[Path, Path]:
     return project, intake
 
 
+def assert_generated_yaml_has_no_trailing_whitespace(project: Path) -> None:
+    failures: list[str] = []
+    for path in sorted(project.rglob("*.yaml")):
+        for line_number, line in enumerate(path.read_text(encoding="utf-8-sig").splitlines(), start=1):
+            if line.endswith((" ", "\t")):
+                failures.append(f"{path.relative_to(project).as_posix()}:{line_number}")
+    assert failures == [], f"Generated YAML contains trailing whitespace: {', '.join(failures)}"
+
+
 def test_bootstrap_generates_status_and_contract(tmp_path: Path) -> None:
     platform = platform_fixture(tmp_path)
     project, intake = project_fixture(tmp_path)
@@ -37,6 +46,7 @@ def test_bootstrap_generates_status_and_contract(tmp_path: Path) -> None:
     assert (project / "artifacts/status/current-status.yaml").exists()
     assert (project / "decisions/gates/G1.yaml").exists()
     assert validate_agent_contract(project)["status"] == "ok"
+    assert_generated_yaml_has_no_trailing_whitespace(project)
 
 
 def test_gate_requires_evidence_and_updates_workflow(tmp_path: Path) -> None:
@@ -49,6 +59,7 @@ def test_gate_requires_evidence_and_updates_workflow(tmp_path: Path) -> None:
     assert "completed_gates:" in text
     assert "G1" in text
     assert "current_stage: discover" in text
+    assert_generated_yaml_has_no_trailing_whitespace(project)
 
 
 def test_status_is_idempotent_in_shape(tmp_path: Path) -> None:
@@ -60,3 +71,4 @@ def test_status_is_idempotent_in_shape(tmp_path: Path) -> None:
     assert first["current_stage"] == second["current_stage"]
     assert first["next_gate"] == second["next_gate"]
     assert [item["status"] for item in first["gates"]] == [item["status"] for item in second["gates"]]
+    assert_generated_yaml_has_no_trailing_whitespace(project)
