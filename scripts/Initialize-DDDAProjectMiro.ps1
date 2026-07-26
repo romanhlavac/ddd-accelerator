@@ -27,12 +27,20 @@ catch {
 function Invoke-ProjectMiroCli {
     param([Parameter(Mandatory = $true)][string[]]$CommandArguments)
 
-    $raw = & $script:MiroPython -m ddda_miro --project $script:ProjectRoot --platform $script:PlatformRoot @CommandArguments 2>&1
-    $exitCode = $LASTEXITCODE
-    $text = ($raw | Out-String).Trim()
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "Continue"
+        $raw = @(& $script:MiroPython -m ddda_miro --project $script:ProjectRoot --platform $script:PlatformRoot @CommandArguments 2>&1)
+        $exitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+
+    $text = ($raw | ForEach-Object { $_.ToString() } | Out-String).Trim()
 
     if ($exitCode -ne 0) {
-        throw ("DDDA Miro CLI selhalo: {0}`n{1}" -f ($CommandArguments -join " "), $text)
+        throw ("DDDA Miro CLI selhalo: {0}`nExit code: {1}`n{2}" -f ($CommandArguments -join " "), $exitCode, $text)
     }
 
     try {
@@ -40,6 +48,19 @@ function Invoke-ProjectMiroCli {
     }
     catch {
         throw ("DDDA Miro CLI nevrátilo platný JSON.`nPříkaz: {0}`nVýstup:`n{1}" -f ($CommandArguments -join " "), $text)
+    }
+}
+
+function Assert-NoMiroConflicts {
+    param(
+        [Parameter(Mandatory = $true)]$Result,
+        [Parameter(Mandatory = $true)][string]$Label
+    )
+
+    $conflictCount = [int](Get-DDDAObjectPropertyValue -InputObject $Result -Name "conflict_count" -DefaultValue 0)
+    if ($conflictCount -ne 0) {
+        $conflicts = Get-DDDAObjectPropertyValue -InputObject $Result -Name "conflicts" -DefaultValue @()
+        throw ("{0} skončil konflikty ({1}):`n{2}" -f $Label, $conflictCount, (@($conflicts) -join "`n"))
     }
 }
 
@@ -108,7 +129,7 @@ try {
     }
 
     Write-Host ""
-    Write-Host "=== Povinný dry-run ==="
+    Write-Host "=== Povinný scaffold dry-run ==="
     $preview = Invoke-ProjectMiroCli -CommandArguments ($renderArguments + "--dry-run")
     $preview | ConvertTo-Json -Depth 20 | Write-Host
 
@@ -122,7 +143,8 @@ try {
             Assert-DDDACleanGitRepository -RepositoryPath $script:ProjectRoot -Label "Projektový"
         }
         Write-Host ""
-        Write-Host "DDDA projektový Miro dry-run: PASS"
+        Write-Host "DDDA projektový Miro scaffold dry-run: PASS"
+        Write-Host "Poznámka: managed artifact push vyžaduje existující board a probíhá až bez -DryRun."
         return
     }
 
@@ -138,6 +160,17 @@ try {
     if (-not (Get-DDDAObjectPropertyValue -InputObject $onlineDoctor -Name "board")) {
         throw "Online doctor nevrátil board."
     }
+
+    Write-Host ""
+    Write-Host "=== Managed artifact push dry-run ==="
+    $syncPreview = Invoke-ProjectMiroCli -CommandArguments @("sync", "--direction", "push", "--dry-run")
+    Assert-NoMiroConflicts -Result $syncPreview -Label "Managed artifact push dry-run"
+    $syncPreview | ConvertTo-Json -Depth 20 | Write-Host
+
+    Write-Host ""
+    Write-Host "=== Managed artifact push ==="
+    $firstSync = Invoke-ProjectMiroCli -CommandArguments @("sync", "--direction", "push")
+    Assert-NoMiroConflicts -Result $firstSync -Label "Managed artifact push"
 
     $firstSnapshot = Get-DDDAMiroMapSnapshot -ProjectPath $script:ProjectRoot
     if ($firstSnapshot.BoardId -ne $boardId) {
@@ -163,10 +196,24 @@ try {
         throw "Kontrolní render se pokusil vytvořit další board."
     }
 
+    Write-Host ""
+    Write-Host "=== Idempotentní managed artifact push dry-run ==="
+    $secondSync = Invoke-ProjectMiroCli -CommandArguments @("sync", "--direction", "push", "--dry-run")
+    Assert-NoMiroConflicts -Result $secondSync -Label "Idempotentní managed artifact push"
+    $mutatingOperations = @(
+        (Get-DDDAObjectPropertyValue -InputObject $secondSync -Name "operations" -DefaultValue @()) |
+            Where-Object {
+                (Get-DDDAObjectPropertyValue -InputObject $_ -Name "action") -in @("push_create_miro", "push_update_miro")
+            }
+    ).Count
+    if ($mutatingOperations -ne 0) {
+        throw "Kontrolní managed artifact push není idempotentní; plánuje $mutatingOperations create/update operací."
+    }
+
     $secondSnapshot = Get-DDDAMiroMapSnapshot -ProjectPath $script:ProjectRoot
     $mappingDifference = Compare-Object -ReferenceObject @($firstSnapshot.ItemIds) -DifferenceObject @($secondSnapshot.ItemIds)
     if ($mappingDifference) {
-        throw "Kontrolní render změnil množinu Miro item ID; hrozí duplikace scaffoldu."
+        throw "Kontrolní render nebo sync změnil množinu Miro item ID; hrozí duplikace."
     }
 
     Assert-DDDACleanGitRepository -RepositoryPath $script:PlatformRoot -Label "Platformní"
@@ -175,14 +222,17 @@ try {
     $projectEntries = @(ConvertFrom-DDDAGitPorcelain -PorcelainText $projectChanges)
     $unexpectedChanges = @(
         $projectEntries |
-            Where-Object { -not $_.Path.StartsWith("miro/", [System.StringComparison]::OrdinalIgnoreCase) }
+            Where-Object {
+                -not $_.Path.StartsWith("miro/", [System.StringComparison]::OrdinalIgnoreCase) -and
+                -not $_.Path.StartsWith("reports/miro-sync/", [System.StringComparison]::OrdinalIgnoreCase)
+            }
     )
     if ($unexpectedChanges.Count -gt 0) {
         throw "Inicializace změnila neočekávané projektové soubory:`n$($unexpectedChanges.Line -join "`n")"
     }
 
     Write-Host ""
-    Write-Host "DDDA projektový Miro board: PASS"
+    Write-Host "DDDA projektový Miro board a managed artifacts: PASS"
     Write-Host "Board ID: $boardId"
     Write-Host "Board URL: https://miro.com/app/board/$boardId/"
     Write-Host ""
@@ -193,10 +243,10 @@ try {
     else {
         Write-Host $projectChanges
         Write-Host ""
-        Write-Host "Zkontroluj diff a commitni změnu v projektovém repozitáři, typicky:"
-        Write-Host "  git -C `"$($script:ProjectRoot)`" diff -- miro/miro-map.yaml"
-        Write-Host "  git -C `"$($script:ProjectRoot)`" add miro/miro-map.yaml"
-        Write-Host "  git -C `"$($script:ProjectRoot)`" commit -m `"chore: initialize project Miro board`""
+        Write-Host "Zkontroluj diff a commitni Miro mapping, sync state a sync report v projektovém repozitáři:"
+        Write-Host "  git -C `"$($script:ProjectRoot)`" diff -- miro/ reports/miro-sync/"
+        Write-Host "  git -C `"$($script:ProjectRoot)`" add miro/miro-map.yaml miro/sync-state.yaml reports/miro-sync/"
+        Write-Host "  git -C `"$($script:ProjectRoot)`" commit -m `"chore: initialize project Miro board and managed artifacts`""
     }
 }
 finally {
