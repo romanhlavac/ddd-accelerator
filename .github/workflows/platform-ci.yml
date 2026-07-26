@@ -20,13 +20,16 @@ jobs:
   validate-platform:
     name: Platform validation
     runs-on: windows-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
+    env:
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 
     steps:
       - name: Checkout exact source state
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ env.SOURCE_SHA }}
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
@@ -37,8 +40,12 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
+          $actual = (git rev-parse HEAD).Trim()
+          if ($actual -ne $env:SOURCE_SHA) {
+              throw "Checkout SHA '$actual' neodpovídá SOURCE_SHA '$env:SOURCE_SHA'."
+          }
           git status --short
-          git rev-parse HEAD
+          Write-Host "Source SHA: $actual"
           pwsh --version
           python --version
 
@@ -64,13 +71,12 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $sha = (git rev-parse HEAD).Trim()
-          $version = 'ci.' + $env:GITHUB_RUN_ID + '.' + $sha.Substring(0, 12)
-          $output = Join-Path $env:RUNNER_TEMP ('ddda-candidate-' + $sha.Substring(0, 12) + '.zip')
-          $json = .\scripts\platform\New-DDDAPlatformPackage.ps1 -PlatformPath $PWD.Path -Kind candidate -Version $version -SourceRef $sha -OutputPath $output -Json | Out-String
+          $version = 'ci.' + $env:GITHUB_RUN_ID + '.' + $env:SOURCE_SHA.Substring(0, 12)
+          $output = Join-Path $env:RUNNER_TEMP ('ddda-candidate-' + $env:SOURCE_SHA.Substring(0, 12) + '.zip')
+          $json = .\scripts\platform\New-DDDAPlatformPackage.ps1 -PlatformPath $PWD.Path -Kind candidate -Version $version -SourceRef $env:SOURCE_SHA -OutputPath $output -Json | Out-String
           $package = $json.Trim() | ConvertFrom-Json
-          if ($package.source_commit -ne $sha) {
-              throw 'Candidate package source_commit does not match checked-out SHA.'
+          if ($package.source_commit -ne $env:SOURCE_SHA) {
+              throw 'Candidate package source_commit does not match exact source SHA.'
           }
           if (-not (Test-Path -LiteralPath $package.path -PathType Leaf)) {
               throw 'Candidate package was not created.'
@@ -83,12 +89,12 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $packagePath = '${{ steps.package.outputs.package_path }}'
-          .\scripts\platform\Test-DDDAPlatformPackage.ps1 -PackagePath $packagePath -ExpectedCommit $env:GITHUB_SHA -ExpectedKind candidate
+          .\scripts\platform\Test-DDDAPlatformPackage.ps1 -PackagePath $packagePath -ExpectedCommit $env:SOURCE_SHA -ExpectedKind candidate
           .\ddda.ps1 test -Suite integration -PackagePath $packagePath -NonInteractive
           .\ddda.ps1 test -Suite smoke -PackagePath $packagePath -NonInteractive
           .\ddda.ps1 test -Suite security -PackagePath $packagePath -NonInteractive
           .\ddda.ps1 test -Suite e2e -PackagePath $packagePath -NonInteractive
-          .\ddda.ps1 test -Suite acceptance -CleanupOnFailure -NonInteractive
+          .\ddda.ps1 test -Suite acceptance -PackagePath $packagePath -CleanupOnFailure -NonInteractive
 
       - name: Verify repository remains clean
         shell: pwsh
@@ -102,7 +108,7 @@ jobs:
       - name: Upload candidate package
         uses: actions/upload-artifact@v4
         with:
-          name: ddda-candidate-${{ github.sha }}
+          name: ddda-candidate-${{ env.SOURCE_SHA }}
           path: ${{ steps.package.outputs.package_path }}
           if-no-files-found: error
           retention-days: 7
