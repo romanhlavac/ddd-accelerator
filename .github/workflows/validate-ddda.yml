@@ -97,6 +97,9 @@ jobs:
       - name: Security and isolation tests
         shell: pwsh
         run: ./tests/powershell/Test-DDDAPlatformSecurity.ps1 -PlatformPath $PWD
+      - name: Deterministic packaging test
+        shell: pwsh
+        run: ./tests/powershell/Test-DDDAPlatformPackaging.ps1 -PlatformPath $PWD
       - name: Build and validate candidate package
         id: package
         shell: pwsh
