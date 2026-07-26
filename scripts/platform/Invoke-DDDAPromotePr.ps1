@@ -44,8 +44,12 @@ $prText = Invoke-DDDAPlatformNative -Command "gh" -Arguments @(
     "--json", "number,state,isDraft,headRefName,headRefOid,baseRefName,mergeStateStatus,reviewDecision"
 )
 $prInfo = $prText | ConvertFrom-Json
-if ($prInfo.state -ne "OPEN") { throw "PR #$Pr není otevřený." }
-if ($prInfo.isDraft) { throw "PR #$Pr je stále draft. Nejprve jej označ jako ready for review." }
+if ($prInfo.state -ne "OPEN") {
+    throw "PR #$Pr není otevřený."
+}
+if ($prInfo.isDraft) {
+    throw "PR #$Pr je stále draft. Nejprve jej označ jako ready for review."
+}
 if ($prInfo.baseRefName -ne [string]$policy.base_branch) {
     throw "PR #$Pr míří do '$($prInfo.baseRefName)', očekáváno '$($policy.base_branch)'."
 }
@@ -57,9 +61,8 @@ if ($headSha -notmatch '^[0-9a-f]{40}$') {
     throw "GitHub nevrátil platný PR head SHA."
 }
 
-$checksOutput = $null
 try {
-    $checksOutput = Invoke-DDDAPlatformNative -Command "gh" -Arguments @("pr", "checks", [string]$Pr, "--repo", $repositorySlug)
+    $null = Invoke-DDDAPlatformNative -Command "gh" -Arguments @("pr", "checks", [string]$Pr, "--repo", $repositorySlug)
 }
 catch {
     throw "CI kontroly PR #$Pr nejsou všechny PASS:`n$($_.Exception.Message)"
@@ -67,8 +70,11 @@ catch {
 
 $minimumApprovals = [int]$policy.minimum_approvals
 if ($minimumApprovals -gt 0) {
-    $reviewsText = Invoke-DDDAPlatformNative -Command "gh" -Arguments @("api", "repos/$repositorySlug/pulls/$Pr/reviews", "--paginate")
-    $reviews = @($reviewsText | ConvertFrom-Json)
+    $reviewsText = Invoke-DDDAPlatformNative -Command "gh" -Arguments @(
+        "api", "repos/$repositorySlug/pulls/$Pr/reviews", "--paginate", "--slurp"
+    )
+    $reviewPages = @($reviewsText | ConvertFrom-Json)
+    $reviews = @($reviewPages | ForEach-Object { @($_) })
     $approvedUsers = @(
         $reviews |
             Where-Object { $_.state -eq "APPROVED" } |
@@ -91,18 +97,24 @@ if (Test-Path -LiteralPath $validationRoot) {
 if ($validationReports.Count -eq 0) {
     throw "Nenalezen PASS validate-pr report pro PR #$Pr a SHA $headSha. Spusť .\ddda.ps1 validate-pr -Pr $Pr."
 }
+
 $validationReportPath = $null
 $validationReport = $null
 foreach ($candidate in $validationReports) {
     $candidateReport = Get-Content -LiteralPath $candidate.FullName -Raw -Encoding UTF8 | ConvertFrom-Json
-    if ($candidateReport.status -eq "PASS" -and $candidateReport.source.commit -eq $headSha -and $candidateReport.source.pr -eq $Pr) {
+    if (
+        $candidateReport.status -eq "PASS" -and
+        $candidateReport.source.commit -eq $headSha -and
+        $candidateReport.source.pr -eq $Pr -and
+        $null -ne $candidateReport.package
+    ) {
         $validationReportPath = $candidate.FullName
         $validationReport = $candidateReport
         break
     }
 }
 if ($null -eq $validationReport) {
-    throw "Žádný validation report nemá PASS pro aktuální PR head SHA $headSha."
+    throw "Žádný validation report nemá PASS pro aktuální PR head SHA $headSha a existující candidate package."
 }
 if (-not (Test-Path -LiteralPath $validationReport.package.path -PathType Leaf)) {
     throw "Candidate package z validation reportu neexistuje: $($validationReport.package.path)"
@@ -117,15 +129,28 @@ $timestamp = Get-DDDAPlatformTimestamp
 $promotionId = "release-$Version-pr-$Pr-$timestamp"
 $promotionRoot = Join-Path $stateRoot ("promotion/" + $promotionId)
 $reviewRoot = Join-Path $promotionRoot "review"
-New-Item -ItemType Directory -Path $promotionRoot -Force | Out-Null
+$logRoot = Join-Path $promotionRoot "logs"
+New-Item -ItemType Directory -Path $promotionRoot, $logRoot -Force | Out-Null
 
 $null = Invoke-DDDAPlatformNative -Command "git" -Arguments @("clone", "--no-checkout", $originUrl, $reviewRoot)
 $null = Invoke-DDDAPlatformGit -Repository $reviewRoot -Arguments @("fetch", "origin", "refs/pull/$Pr/head")
 $null = Invoke-DDDAPlatformGit -Repository $reviewRoot -Arguments @("checkout", "--detach", $headSha)
+$reviewHead = Invoke-DDDAPlatformGit -Repository $reviewRoot -Arguments @("rev-parse", "HEAD")
+if ($reviewHead -ne $headSha) {
+    throw "Promotion review checkout neodpovídá exact PR head SHA."
+}
+Assert-DDDAPlatformCleanGit -Repository $reviewRoot -Label "Promotion review"
+
 foreach ($relative in @($policy.required_documents)) {
     if (-not (Test-Path -LiteralPath (Join-Path $reviewRoot ([string]$relative)) -PathType Leaf)) {
         throw "PR #$Pr neobsahuje povinný governance dokument: $relative"
     }
+}
+
+$tag = "v$Version"
+$existingTag = Invoke-DDDAPlatformNative -Command "git" -Arguments @("ls-remote", "--tags", $originUrl, "refs/tags/$tag")
+if (-not [string]::IsNullOrWhiteSpace($existingTag)) {
+    throw "Release tag již existuje: $tag"
 }
 
 Write-Host "=== DDDA promote-pr preflight ==="
@@ -138,6 +163,8 @@ Write-Host "Validation report: $validationReportPath"
 Write-Host "Candidate hash:    $actualCandidateHash"
 Write-Host "CI checks:         PASS"
 Write-Host "Approvals policy:  PASS"
+Write-Host "Governance docs:   PASS"
+Write-Host "Release tag free:  PASS"
 
 if ($DryRun) {
     Write-Host ""
@@ -154,7 +181,12 @@ if ([bool]$policy.require_explicit_confirmation -and -not $ConfirmMerge) {
 }
 
 $mergeMethod = [string]$policy.merge_method
-$mergeArguments = @("pr", "merge", [string]$Pr, "--repo", $repositorySlug, "--match-head-commit", $headSha, "--delete-branch")
+$mergeArguments = @(
+    "pr", "merge", [string]$Pr,
+    "--repo", $repositorySlug,
+    "--match-head-commit", $headSha,
+    "--delete-branch"
+)
 switch ($mergeMethod) {
     "squash" { $mergeArguments += "--squash" }
     "merge" { $mergeArguments += "--merge" }
@@ -163,12 +195,19 @@ switch ($mergeMethod) {
 }
 $null = Invoke-DDDAPlatformNative -Command "gh" -Arguments $mergeArguments
 
-$postMergeText = Invoke-DDDAPlatformNative -Command "gh" -Arguments @("pr", "view", [string]$Pr, "--repo", $repositorySlug, "--json", "state,mergedAt,mergeCommit")
+$postMergeText = Invoke-DDDAPlatformNative -Command "gh" -Arguments @(
+    "pr", "view", [string]$Pr,
+    "--repo", $repositorySlug,
+    "--json", "state,mergedAt,mergeCommit"
+)
 $postMerge = $postMergeText | ConvertFrom-Json
 if ($postMerge.state -ne "MERGED" -or $null -eq $postMerge.mergeCommit) {
     throw "GitHub nepotvrdil merge PR #$Pr."
 }
 $mergeCommit = [string]$postMerge.mergeCommit.oid
+if ($mergeCommit -notmatch '^[0-9a-f]{40}$') {
+    throw "GitHub nevrátil platný merge commit SHA."
+}
 
 $releaseSource = Join-Path $promotionRoot "release-source"
 $releasePackageRoot = Join-Path $promotionRoot "release-package"
@@ -177,10 +216,68 @@ $releaseReports = Join-Path $stateRoot ("release-reports/$Version/$timestamp")
 $releasePackagePath = Join-Path $stateRoot ("packages/ddda-release-$Version-$($mergeCommit.Substring(0,12)).zip")
 $releaseSuitesPath = Join-Path $promotionRoot "release-suites.json"
 $releaseSuites = [System.Collections.Generic.List[object]]::new()
+$releaseDiagnostics = [System.Collections.Generic.List[string]]::new()
 $releasePassed = $false
+$releaseReportCreated = $false
+$releaseFailure = $null
+$releaseStartedAt = (Get-Date).ToUniversalTime()
+
+function Invoke-ReleaseSuite {
+    param(
+        [Parameter(Mandatory = $true)][string]$Name,
+        [Parameter(Mandatory = $true)][string[]]$Arguments
+    )
+
+    $watch = [System.Diagnostics.Stopwatch]::StartNew()
+    $logPath = Join-Path $logRoot ("release-$Name.log")
+    $hostExe = (Get-Process -Id $PID).Path
+    $hostArguments = @("-NoProfile")
+    if (Test-DDDAPlatformIsWindows) {
+        $hostArguments += @("-ExecutionPolicy", "Bypass")
+    }
+    $hostArguments += @(
+        "-File", (Join-Path $releasePackageRoot "scripts/platform/Invoke-DDDAPlatformTest.ps1"),
+        "-PlatformPath", $releasePackageRoot,
+        "-Suite", $Arguments[0]
+    )
+    if ($Arguments.Count -gt 1) {
+        $hostArguments += $Arguments[1..($Arguments.Count - 1)]
+    }
+
+    $previousPreference = $ErrorActionPreference
+    $exitCode = 1
+    try {
+        $ErrorActionPreference = "Continue"
+        & $hostExe @hostArguments *> $logPath
+        $exitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $previousPreference
+        $watch.Stop()
+    }
+
+    $logTail = ""
+    if (Test-Path -LiteralPath $logPath) {
+        $logTail = ((Get-Content -LiteralPath $logPath -Tail 40 -ErrorAction SilentlyContinue) -join [Environment]::NewLine).Trim()
+    }
+    $suiteStatus = if ($exitCode -eq 0) { "PASS" } else { "FAIL" }
+    $releaseSuites.Add([ordered]@{
+        name = $Name
+        status = $suiteStatus
+        duration_ms = [int64]$watch.ElapsedMilliseconds
+        details = if ($exitCode -eq 0) { "Log: $logPath" } else { $logTail }
+    })
+    $releaseDiagnostics.Add($logPath)
+
+    if ($exitCode -ne 0) {
+        throw "Release suite '$Name' selhala. Log: $logPath`n$logTail"
+    }
+}
 
 try {
-    $null = Invoke-DDDAPlatformNative -Command "git" -Arguments @("clone", "--branch", [string]$policy.base_branch, "--single-branch", $originUrl, $releaseSource)
+    $null = Invoke-DDDAPlatformNative -Command "git" -Arguments @(
+        "clone", "--branch", [string]$policy.base_branch, "--single-branch", $originUrl, $releaseSource
+    )
     $releaseHead = Invoke-DDDAPlatformGit -Repository $releaseSource -Arguments @("rev-parse", "HEAD")
     if ($releaseHead -ne $mergeCommit) {
         throw "Aktuální main HEAD '$releaseHead' neodpovídá merge commit '$mergeCommit'."
@@ -188,10 +285,18 @@ try {
     Assert-DDDAPlatformCleanGit -Repository $releaseSource -Label "Release source"
 
     $releasePackageText = & (Join-Path $releaseSource "scripts/platform/New-DDDAPlatformPackage.ps1") -PlatformPath $releaseSource -Kind release -Version $Version -SourceRef $mergeCommit -OutputPath $releasePackagePath -Json | Out-String
-    if ($LASTEXITCODE -ne 0) { throw "Vytvoření release package selhalo." }
+    if ($LASTEXITCODE -ne 0) {
+        throw "Vytvoření release package selhalo."
+    }
     $releasePackage = $releasePackageText.Trim() | ConvertFrom-Json
+    if ($releasePackage.source_commit -ne $mergeCommit) {
+        throw "Release package není svázán s merge commit SHA."
+    }
+
     & (Join-Path $releaseSource "scripts/platform/Test-DDDAPlatformPackage.ps1") -PackagePath $releasePackagePath -ExpectedCommit $mergeCommit -ExpectedKind release
-    if ($LASTEXITCODE -ne 0) { throw "Release package validation selhala." }
+    if ($LASTEXITCODE -ne 0) {
+        throw "Release package validation selhala."
+    }
 
     New-Item -ItemType Directory -Path $releasePackageRoot -Force | Out-Null
     Expand-Archive -LiteralPath $releasePackagePath -DestinationPath $releasePackageRoot -Force
@@ -200,70 +305,92 @@ try {
     $null = Invoke-DDDAPlatformGit -Repository $releasePackageRoot -Arguments @("config", "user.email", "ddda-release@example.invalid")
     $null = Invoke-DDDAPlatformGit -Repository $releasePackageRoot -Arguments @("add", ".")
     $null = Invoke-DDDAPlatformGit -Repository $releasePackageRoot -Arguments @("commit", "-m", "chore: release package baseline")
+    Assert-DDDAPlatformCleanGit -Repository $releasePackageRoot -Label "Rozbalený release package"
 
     $releaseWorkspaceText = & (Join-Path $releasePackageRoot "scripts/platform/New-DDDAValidationWorkspace.ps1") -PlatformPath $releasePackageRoot -WorkspaceRoot $releaseWorkspace -Json | Out-String
-    if ($LASTEXITCODE -ne 0) { throw "Release validation workspace selhal." }
-    $null = $releaseWorkspaceText.Trim() | ConvertFrom-Json
-
-    foreach ($suiteName in @("security", "smoke", "e2e", "acceptance")) {
-        $watch = [System.Diagnostics.Stopwatch]::StartNew()
-        $arguments = @("-PlatformPath", $releasePackageRoot, "-Suite", $suiteName, "-PackagePath", $releasePackagePath)
-        if ($suiteName -eq "acceptance") {
-            $arguments = @("-PlatformPath", $releasePackageRoot, "-Suite", "acceptance", "-CleanupOnFailure", "-NonInteractive")
-        }
-        try {
-            Invoke-DDDAPlatformChildPowerShell -ScriptPath (Join-Path $releasePackageRoot "scripts/platform/Invoke-DDDAPlatformTest.ps1") -Arguments $arguments
-            $suiteStatus = "PASS"
-            $suiteDetails = $null
-        }
-        catch {
-            $suiteStatus = "FAIL"
-            $suiteDetails = $_.Exception.Message
-            throw
-        }
-        finally {
-            $watch.Stop()
-            $releaseSuites.Add([ordered]@{ name = $suiteName; status = $suiteStatus; duration_ms = [int64]$watch.ElapsedMilliseconds; details = $suiteDetails })
-        }
+    if ($LASTEXITCODE -ne 0) {
+        throw "Release validation workspace selhal."
+    }
+    $releaseWorkspaceResult = $releaseWorkspaceText.Trim() | ConvertFrom-Json
+    if ($releaseWorkspaceResult.status -ne "PASS") {
+        throw "Release validation workspace nevrátil PASS."
     }
 
+    Invoke-ReleaseSuite -Name "security" -Arguments @("security", "-PackagePath", $releasePackagePath)
+    Invoke-ReleaseSuite -Name "smoke" -Arguments @("smoke", "-PackagePath", $releasePackagePath)
+    Invoke-ReleaseSuite -Name "e2e" -Arguments @("e2e", "-PackagePath", $releasePackagePath)
+    Invoke-ReleaseSuite -Name "acceptance" -Arguments @("acceptance", "-CleanupOnFailure", "-NonInteractive")
+
     if ($WithMiro) {
-        $watch = [System.Diagnostics.Stopwatch]::StartNew()
-        try {
-            $miroArguments = @("-PlatformPath", $releasePackageRoot, "-Suite", "acceptance", "-WithMiro", "-CleanupOnFailure")
-            if ($Full) { $miroArguments += "-Full" }
-            if ($NonInteractive) { $miroArguments += "-NonInteractive" }
-            Invoke-DDDAPlatformChildPowerShell -ScriptPath (Join-Path $releasePackageRoot "scripts/platform/Invoke-DDDAPlatformTest.ps1") -Arguments $miroArguments
-            $suiteStatus = "PASS"
-            $suiteDetails = $null
-        }
-        catch {
-            $suiteStatus = "FAIL"
-            $suiteDetails = $_.Exception.Message
-            throw
-        }
-        finally {
-            $watch.Stop()
-            $releaseSuites.Add([ordered]@{ name = "miro"; status = $suiteStatus; duration_ms = [int64]$watch.ElapsedMilliseconds; details = $suiteDetails })
-        }
+        $miroArguments = @("acceptance", "-WithMiro", "-CleanupOnFailure")
+        if ($Full) { $miroArguments += "-Full" }
+        if ($NonInteractive) { $miroArguments += "-NonInteractive" }
+        Invoke-ReleaseSuite -Name "miro" -Arguments $miroArguments
     }
 
     $releasePassed = $true
 }
+catch {
+    $releaseFailure = $_.Exception.Message
+    $releaseDiagnostics.Add($releaseFailure)
+    Write-Host "DDDA release validation: FAIL" -ForegroundColor Red
+    Write-Host $releaseFailure -ForegroundColor Red
+}
 finally {
     Write-DDDAPlatformJson -Value @($releaseSuites) -Path $releaseSuitesPath
     $releaseStatus = if ($releasePassed) { "PASS" } else { "FAIL" }
-    & (Join-Path $releaseSource "scripts/platform/New-DDDAValidationReport.ps1") -ValidationId $promotionId -Status $releaseStatus -SourceKind release -Repository $repositorySlug -Commit $mergeCommit -Branch ([string]$policy.base_branch) -PackagePath $releasePackagePath -Workspace $releaseWorkspace -SuitesJsonPath $releaseSuitesPath -OutputRoot $releaseReports
+    $reportScriptRoot = if (Test-Path -LiteralPath (Join-Path $releaseSource "scripts/platform/New-DDDAValidationReport.ps1")) {
+        $releaseSource
+    }
+    elseif (Test-Path -LiteralPath (Join-Path $reviewRoot "scripts/platform/New-DDDAValidationReport.ps1")) {
+        $reviewRoot
+    }
+    else {
+        $platformRoot
+    }
+
+    $releaseReportArguments = @{
+        ValidationId = $promotionId
+        Status = $releaseStatus
+        SourceKind = "release"
+        Repository = $repositorySlug
+        Commit = $mergeCommit
+        Branch = [string]$policy.base_branch
+        SuitesJsonPath = $releaseSuitesPath
+        OutputRoot = $releaseReports
+        Diagnostics = @($releaseDiagnostics)
+        StartedAt = $releaseStartedAt
+        CompletedAt = (Get-Date).ToUniversalTime()
+    }
+    if (Test-Path -LiteralPath $releasePackagePath -PathType Leaf) {
+        $releaseReportArguments["PackagePath"] = $releasePackagePath
+    }
+    if (Test-Path -LiteralPath $releaseWorkspace -PathType Container) {
+        $releaseReportArguments["Workspace"] = $releaseWorkspace
+    }
+
+    try {
+        & (Join-Path $reportScriptRoot "scripts/platform/New-DDDAValidationReport.ps1") @releaseReportArguments
+        if ($LASTEXITCODE -ne 0) {
+            throw "Release report generator skončil exit code $LASTEXITCODE."
+        }
+        $releaseReportCreated = $true
+    }
+    catch {
+        $releaseReportCreated = $false
+        $releasePassed = $false
+        $releaseFailure = "Release report generation failed: $($_.Exception.Message)"
+        Write-Warning $releaseFailure
+    }
 }
 
-if (-not $releasePassed) {
-    throw "PR byl mergován, ale release validation selhala. Release tag nebyl vytvořen. Report: $releaseReports"
+if (-not $releasePassed -or -not $releaseReportCreated) {
+    throw "PR byl mergován, ale release validation selhala. Release tag nebyl vytvořen. Důvod: $releaseFailure Report: $releaseReports"
 }
 
-$tag = "v$Version"
-$existingTag = Invoke-DDDAPlatformNative -Command "git" -Arguments @("ls-remote", "--tags", $originUrl, "refs/tags/$tag")
-if (-not [string]::IsNullOrWhiteSpace($existingTag)) {
-    throw "Release tag již existuje: $tag"
+$existingTagAfterValidation = Invoke-DDDAPlatformNative -Command "git" -Arguments @("ls-remote", "--tags", $originUrl, "refs/tags/$tag")
+if (-not [string]::IsNullOrWhiteSpace($existingTagAfterValidation)) {
+    throw "Release tag vznikl souběžně během validace a nebude přepsán: $tag"
 }
 $null = Invoke-DDDAPlatformGit -Repository $releaseSource -Arguments @("tag", "-a", $tag, $mergeCommit, "-m", "DDDA $Version")
 $null = Invoke-DDDAPlatformGit -Repository $releaseSource -Arguments @("push", "origin", $tag)
