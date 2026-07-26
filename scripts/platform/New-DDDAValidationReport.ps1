@@ -7,7 +7,7 @@ param(
     [Parameter(Mandatory = $true)][string]$Commit,
     [int]$Pr,
     [string]$Branch,
-    [Parameter(Mandatory = $true)][string]$PackagePath,
+    [string]$PackagePath,
     [string]$Workspace,
     [string]$MiroBoardId,
     [Parameter(Mandatory = $true)][string]$SuitesJsonPath,
@@ -25,12 +25,30 @@ $ErrorActionPreference = "Stop"
 if ($Commit -notmatch '^[0-9a-f]{40}$') {
     throw "Validation report vyžaduje plný Git commit SHA."
 }
-$packageFull = (Resolve-Path -LiteralPath $PackagePath).Path
+
+$packageFull = $null
+$packageRecord = $null
+if (-not [string]::IsNullOrWhiteSpace($PackagePath)) {
+    $packageFull = (Resolve-Path -LiteralPath $PackagePath).Path
+    $packageRecord = [ordered]@{
+        path = $packageFull
+        sha256 = Get-DDDAPlatformFileHash -Path $packageFull
+    }
+}
+elseif ($Status -eq "PASS") {
+    throw "PASS validation report vyžaduje existující package."
+}
+
 $suitesFull = (Resolve-Path -LiteralPath $SuitesJsonPath).Path
-$suitesDocument = Get-Content -LiteralPath $suitesFull -Raw -Encoding UTF8 | ConvertFrom-Json
-$suites = @($suitesDocument)
-if ($suites.Count -eq 0) {
-    throw "Validation report vyžaduje alespoň jednu suite."
+$suitesText = Get-Content -LiteralPath $suitesFull -Raw -Encoding UTF8
+$suites = if ([string]::IsNullOrWhiteSpace($suitesText)) {
+    @()
+}
+else {
+    @($suitesText | ConvertFrom-Json)
+}
+if ($Status -eq "PASS" -and $suites.Count -eq 0) {
+    throw "PASS validation report vyžaduje alespoň jednu suite."
 }
 
 $outputFull = [System.IO.Path]::GetFullPath($OutputRoot)
@@ -53,10 +71,7 @@ $report = [ordered]@{
     started_at = $StartedAt.ToUniversalTime().ToString("o")
     completed_at = $CompletedAt.ToUniversalTime().ToString("o")
     source = $source
-    package = [ordered]@{
-        path = $packageFull
-        sha256 = Get-DDDAPlatformFileHash -Path $packageFull
-    }
+    package = $packageRecord
     workspace = if ([string]::IsNullOrWhiteSpace($Workspace)) { $null } else { [System.IO.Path]::GetFullPath($Workspace) }
     miro_board_id = if ([string]::IsNullOrWhiteSpace($MiroBoardId)) { $null } else { $MiroBoardId }
     suites = $suites
@@ -74,19 +89,29 @@ $markdown.Add("- Repository: ``$Repository``")
 if ($Pr -gt 0) { $markdown.Add("- PR: ``$Pr``") }
 if (-not [string]::IsNullOrWhiteSpace($Branch)) { $markdown.Add("- Branch: ``$Branch``") }
 $markdown.Add("- Commit: ``$Commit``")
-$markdown.Add("- Package: ``$packageFull``")
-$markdown.Add("- Package SHA-256: ``$($report.package.sha256)``")
+if ($null -ne $packageRecord) {
+    $markdown.Add("- Package: ``$packageFull``")
+    $markdown.Add("- Package SHA-256: ``$($packageRecord.sha256)``")
+}
+else {
+    $markdown.Add("- Package: not created")
+}
 if (-not [string]::IsNullOrWhiteSpace($Workspace)) { $markdown.Add("- Workspace: ``$Workspace``") }
 if (-not [string]::IsNullOrWhiteSpace($MiroBoardId)) { $markdown.Add("- Miro board ID: ``$MiroBoardId``") }
 $markdown.Add("")
 $markdown.Add("## Suites")
 $markdown.Add("")
-$markdown.Add("| Suite | Status | Duration (ms) | Details |")
-$markdown.Add("|---|---|---:|---|")
-foreach ($suite in $suites) {
-    $details = [string]$suite.details
-    $details = $details.Replace("|", "\|").Replace("`r", " ").Replace("`n", " ")
-    $markdown.Add("| $($suite.name) | $($suite.status) | $($suite.duration_ms) | $details |")
+if ($suites.Count -eq 0) {
+    $markdown.Add("No suite started before the validation failed.")
+}
+else {
+    $markdown.Add("| Suite | Status | Duration (ms) | Details |")
+    $markdown.Add("|---|---|---:|---|")
+    foreach ($suite in $suites) {
+        $details = [string]$suite.details
+        $details = $details.Replace("|", "\|").Replace("`r", " ").Replace("`n", " ")
+        $markdown.Add("| $($suite.name) | $($suite.status) | $($suite.duration_ms) | $details |")
+    }
 }
 
 if (@($Diagnostics).Count -gt 0) {
@@ -103,7 +128,7 @@ $result = [ordered]@{
     status = $Status
     json = $jsonPath
     markdown = $markdownPath
-    package_sha256 = $report.package.sha256
+    package_sha256 = if ($null -eq $packageRecord) { $null } else { $packageRecord.sha256 }
 }
 if ($Json) {
     $result | ConvertTo-Json -Depth 10
