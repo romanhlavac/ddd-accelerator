@@ -223,6 +223,7 @@ finally {
         Branch = $branch
         SuitesJsonPath = $suitesPath
         OutputRoot = $reportRoot
+        Workspace = $validationRoot
         Diagnostics = @($diagnostics)
         StartedAt = $startedAt
         CompletedAt = $completedAt
