@@ -14,7 +14,16 @@ function Add-Success { param([string]$Message) Write-Host "[ OK ] $Message" -For
 
 $platformFull = [System.IO.Path]::GetFullPath($PlatformPath)
 $packageManifestPath = Join-Path $platformFull "ddda-package.json"
-if (Test-Path -LiteralPath (Join-Path $platformFull ".git")) {
+if (Test-Path -LiteralPath $packageManifestPath -PathType Leaf) {
+    try {
+        $packageManifest = Get-Content -LiteralPath $packageManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        if ($packageManifest.schema_version -ne 1) { throw "Nepodporovaná schema_version." }
+        if ([string]::IsNullOrWhiteSpace([string]$packageManifest.source_commit)) { throw "Chybí source_commit." }
+        Add-Success "Rozbalený DDDA package: $($packageManifest.package_id)"
+    }
+    catch { Add-Failure "Neplatný DDDA package manifest: $($_.Exception.Message)" }
+}
+elseif (Test-Path -LiteralPath (Join-Path $platformFull ".git")) {
     try {
         $gitRoot = (& git -C $platformFull rev-parse --show-toplevel 2>&1 | Out-String).Trim()
         if ($LASTEXITCODE -ne 0) { throw $gitRoot }
@@ -24,15 +33,6 @@ if (Test-Path -LiteralPath (Join-Path $platformFull ".git")) {
         Add-Success "Platformní Git repozitář: $gitRoot"
     }
     catch { Add-Failure "PlatformPath není dostupný DDDA Git root: $($_.Exception.Message)" }
-}
-elif (Test-Path -LiteralPath $packageManifestPath -PathType Leaf) {
-    try {
-        $packageManifest = Get-Content -LiteralPath $packageManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
-        if ($packageManifest.schema_version -ne 1) { throw "Nepodporovaná schema_version." }
-        if ([string]::IsNullOrWhiteSpace([string]$packageManifest.source_commit)) { throw "Chybí source_commit." }
-        Add-Success "Rozbalený DDDA package: $($packageManifest.package_id)"
-    }
-    catch { Add-Failure "Neplatný DDDA package manifest: $($_.Exception.Message)" }
 }
 else {
     Add-Failure "PlatformPath není Git distribuce ani rozbalený DDDA package: $platformFull"
@@ -55,6 +55,7 @@ $requiredFiles = @(
     "knowledge/07-integration-and-data-ownership.md", "knowledge/08-modernization-and-migration.md", "knowledge/09-security-resilience-observability.md",
     "knowledge/10-team-topologies-and-governance.md", "knowledge/11-workshop-playbooks.md", "knowledge/12-output-templates.md",
     "config/steering/project-types.yaml", "config/steering/gates.yaml", "config/steering/journey-map.yaml", "config/steering/mode-policy.yaml", "config/steering/git-policy.yaml",
+    "config/platform/development-policy.yaml",
     "examples/life-insurance-greenfield/README.md", "examples/life-insurance-greenfield/project.yaml",
     "examples/minimal/manifest.yaml", "examples/minimal/input/project-intake.yaml", "examples/minimal/input/domain-notes.md", "examples/minimal/expected-invariants.yaml",
     "schemas/workspace.schema.json", "schemas/project.schema.json", "schemas/ddda-lock.schema.json", "schemas/miro-scaffold.schema.json", "schemas/managed-artifact.schema.json",
@@ -65,6 +66,7 @@ $requiredFiles = @(
     "templates/project/miro-map.template.yaml", "templates/project/miro-sync-state.template.yaml",
     "runtime/miro/pyproject.toml", "runtime/miro/ddda_miro/client.py", "runtime/miro/ddda_miro/sync.py",
     "runtime/steering/pyproject.toml", "runtime/steering/read_status.py", "runtime/steering/ddda_steering/engine.py", "runtime/steering/ddda_steering/cli.py",
+    "runtime/platform/validate_repository.py",
     "scripts/Initialize-DDDAWorkspace.ps1", "scripts/New-DDDAProject.ps1", "scripts/Test-DDDARepositoryScope.ps1",
     "scripts/Update-DDDAProject.ps1", "scripts/Install-DDDAMiroRuntime.ps1", "scripts/Install-DDDASteeringRuntime.ps1", "scripts/Initialize-DDDAMiroBoard.ps1",
     "scripts/Invoke-DDDAMiroSync.ps1", "scripts/Start-DDDAMiroSyncWorker.ps1", "scripts/Test-DDDAMiroConfiguration.ps1",
