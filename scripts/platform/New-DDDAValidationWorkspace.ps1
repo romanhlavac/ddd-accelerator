@@ -62,7 +62,13 @@ try {
     if ($NoInitialCommit) {
         $arguments += "-NoInitialCommit"
     }
-    Invoke-DDDAPlatformChildPowerShell -ScriptPath (Join-Path $platformRoot "scripts/Initialize-DDDAProjectFirstRun.ps1") -Arguments $arguments
+    $bootstrapScript = Join-Path $platformRoot "scripts/Initialize-DDDAProjectFirstRun.ps1"
+    if ($Json) {
+        Invoke-DDDAPlatformChildPowerShell -ScriptPath $bootstrapScript -Arguments $arguments -SuppressOutput
+    }
+    else {
+        Invoke-DDDAPlatformChildPowerShell -ScriptPath $bootstrapScript -Arguments $arguments
+    }
 }
 finally {
     if ($null -eq $oldAuthorName) { Remove-Item Env:\GIT_AUTHOR_NAME -ErrorAction SilentlyContinue } else { $env:GIT_AUTHOR_NAME = $oldAuthorName }
