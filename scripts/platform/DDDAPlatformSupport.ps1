@@ -159,7 +159,21 @@ function Write-DDDAPlatformJson {
         [int]$Depth = 30
     )
 
-    $json = ConvertTo-Json -InputObject $Value -Depth $Depth
+    if ($Value -is [System.Array] -and $Value.Count -eq 0) {
+        $json = "[]"
+    }
+    else {
+        $json = ConvertTo-Json -InputObject $Value -Depth $Depth
+        if ($null -eq $json) {
+            $json = "null"
+        }
+    }
+
+    $parent = Split-Path -Parent ([System.IO.Path]::GetFullPath($Path))
+    if (-not [string]::IsNullOrWhiteSpace($parent)) {
+        New-Item -ItemType Directory -Path $parent -Force | Out-Null
+    }
+
     $utf8 = New-Object System.Text.UTF8Encoding($false)
     [System.IO.File]::WriteAllText($Path, $json + [Environment]::NewLine, $utf8)
 }
