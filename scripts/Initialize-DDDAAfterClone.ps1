@@ -22,15 +22,30 @@ catch {}
 . (Join-Path $PSScriptRoot "private/DDDAMiroSupport.ps1")
 
 $platformRoot = (Resolve-Path $PlatformPath).Path
-$gitRoot = Invoke-DDDAGit -RepositoryPath $platformRoot -Arguments @("rev-parse", "--show-toplevel")
-if ([System.IO.Path]::GetFullPath($gitRoot).TrimEnd('\', '/') -ne [System.IO.Path]::GetFullPath($platformRoot).TrimEnd('\', '/')) {
-    throw "PlatformPath není Git root DDDA. Zadaná cesta: $platformRoot; Git root: $gitRoot"
+$packageManifestPath = Join-Path $platformRoot "ddda-package.json"
+$isGitDistribution = Test-Path -LiteralPath (Join-Path $platformRoot ".git")
+$isPackageDistribution = Test-Path -LiteralPath $packageManifestPath -PathType Leaf
+
+if ($isGitDistribution) {
+    $gitRoot = Invoke-DDDAGit -RepositoryPath $platformRoot -Arguments @("rev-parse", "--show-toplevel")
+    if ([System.IO.Path]::GetFullPath($gitRoot).TrimEnd('\', '/') -ne [System.IO.Path]::GetFullPath($platformRoot).TrimEnd('\', '/')) {
+        throw "PlatformPath není Git root DDDA. Zadaná cesta: $platformRoot; Git root: $gitRoot"
+    }
+    Assert-DDDACleanGitRepository -RepositoryPath $platformRoot -Label "Platformní"
+}
+elseif ($isPackageDistribution) {
+    $packageManifest = Get-Content -LiteralPath $packageManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    if ($packageManifest.schema_version -ne 1) {
+        throw "Nepodporovaná verze DDDA package manifestu."
+    }
+}
+else {
+    throw "PlatformPath není Git distribuce ani rozbalený DDDA package: $platformRoot"
 }
 
-Assert-DDDACleanGitRepository -RepositoryPath $platformRoot -Label "Platformní"
-
-Write-Host "=== DDDA inicializace po clone ==="
+Write-Host "=== DDDA inicializace distribuce ==="
 Write-Host "Platforma: $platformRoot"
+Write-Host "Typ:       $(if ($isGitDistribution) { 'git' } else { 'package' })"
 
 Invoke-DDDAChildPowerShell -ScriptPath (Join-Path $platformRoot "scripts/Test-DDDAInstallation.ps1") -Arguments @(
     "-PlatformPath", $platformRoot
@@ -64,8 +79,10 @@ Assert-DDDALastExitCode -Operation "Ověření DDDA steering CLI"
 & $miroPython -m ddda_miro --help *> $null
 Assert-DDDALastExitCode -Operation "Ověření DDDA Miro CLI"
 
-Assert-DDDACleanGitRepository -RepositoryPath $platformRoot -Label "Platformní"
-Write-Host "Offline inicializace po clone: PASS"
+if ($isGitDistribution) {
+    Assert-DDDACleanGitRepository -RepositoryPath $platformRoot -Label "Platformní"
+}
+Write-Host "Offline inicializace distribuce: PASS"
 
 if ($WithMiro) {
     $smokeArguments = @("-PlatformPath", $platformRoot, "-SkipRuntimeInstall")
@@ -78,5 +95,5 @@ if ($WithMiro) {
 }
 
 Write-Host ""
-Write-Host "DDDA inicializace po clone: PASS"
+Write-Host "DDDA inicializace distribuce: PASS"
 Write-Host "Další krok: spusť Initialize-DDDAFirstRun.ps1 pro example nebo Initialize-DDDAProjectFirstRun.ps1 pro vlastní intake."
