@@ -1,9 +1,7 @@
 name: Diagnose PR8 Status
 
 on:
-  push:
-    branches:
-      - feat/project-steering-and-documentation
+  pull_request:
 
 permissions:
   contents: read
