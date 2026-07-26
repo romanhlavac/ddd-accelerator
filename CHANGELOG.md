@@ -17,7 +17,8 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 - izolovaná validace PR nad candidate package;
 - generovaný minimal example workspace a manifest-driven ingestion;
 - machine-readable i čitelný validation report;
-- kontrolovaný promotion a release lifecycle.
+- kontrolovaný promotion a release lifecycle;
+- GitHub Actions CI, které na přesném source SHA provádí source-level i package-first validaci a publikuje krátkodobý candidate package jako build artifact.
 
 ### Changed
 
