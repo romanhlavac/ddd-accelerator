@@ -45,7 +45,7 @@ if (Test-Path -LiteralPath (Join-Path $platformRoot ".git")) {
         $platformRef = "detached"
     }
 }
-elif (Test-Path -LiteralPath $packageManifestPath -PathType Leaf) {
+elseif (Test-Path -LiteralPath $packageManifestPath -PathType Leaf) {
     $packageManifest = Get-Content -LiteralPath $packageManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
     if ($packageManifest.schema_version -ne 1) {
         throw "Nepodporovaná verze package manifestu: $($packageManifest.schema_version)"
@@ -149,7 +149,7 @@ $projectEntry = @"
 if ($workspaceText -match "(?m)^projects:\s*\[\]\s*$") {
     $workspaceText = [regex]::Replace($workspaceText, "(?m)^projects:\s*\[\]\s*$", "projects:`r`n$projectEntry")
 }
-elif ($workspaceText -match "(?m)^projects:\s*$") {
+elseif ($workspaceText -match "(?m)^projects:\s*$") {
     $workspaceText = $workspaceText.TrimEnd() + "`r`n" + $projectEntry
 }
 else {
