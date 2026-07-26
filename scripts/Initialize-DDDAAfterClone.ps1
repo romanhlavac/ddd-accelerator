@@ -23,21 +23,21 @@ catch {}
 
 $platformRoot = (Resolve-Path $PlatformPath).Path
 $packageManifestPath = Join-Path $platformRoot "ddda-package.json"
-$isGitDistribution = Test-Path -LiteralPath (Join-Path $platformRoot ".git")
 $isPackageDistribution = Test-Path -LiteralPath $packageManifestPath -PathType Leaf
+$isGitDistribution = -not $isPackageDistribution -and (Test-Path -LiteralPath (Join-Path $platformRoot ".git"))
 
-if ($isGitDistribution) {
+if ($isPackageDistribution) {
+    $packageManifest = Get-Content -LiteralPath $packageManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    if ($packageManifest.schema_version -ne 1) {
+        throw "Nepodporovaná verze DDDA package manifestu."
+    }
+}
+elseif ($isGitDistribution) {
     $gitRoot = Invoke-DDDAGit -RepositoryPath $platformRoot -Arguments @("rev-parse", "--show-toplevel")
     if ([System.IO.Path]::GetFullPath($gitRoot).TrimEnd('\', '/') -ne [System.IO.Path]::GetFullPath($platformRoot).TrimEnd('\', '/')) {
         throw "PlatformPath není Git root DDDA. Zadaná cesta: $platformRoot; Git root: $gitRoot"
     }
     Assert-DDDACleanGitRepository -RepositoryPath $platformRoot -Label "Platformní"
-}
-elseif ($isPackageDistribution) {
-    $packageManifest = Get-Content -LiteralPath $packageManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
-    if ($packageManifest.schema_version -ne 1) {
-        throw "Nepodporovaná verze DDDA package manifestu."
-    }
 }
 else {
     throw "PlatformPath není Git distribuce ani rozbalený DDDA package: $platformRoot"
@@ -45,7 +45,7 @@ else {
 
 Write-Host "=== DDDA inicializace distribuce ==="
 Write-Host "Platforma: $platformRoot"
-Write-Host "Typ:       $(if ($isGitDistribution) { 'git' } else { 'package' })"
+Write-Host "Typ:       $(if ($isPackageDistribution) { 'package' } else { 'git' })"
 
 Invoke-DDDAChildPowerShell -ScriptPath (Join-Path $platformRoot "scripts/Test-DDDAInstallation.ps1") -Arguments @(
     "-PlatformPath", $platformRoot
