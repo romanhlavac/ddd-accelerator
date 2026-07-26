@@ -33,6 +33,8 @@ function Invoke-DDDAPlatformNative {
 
     $previousPreference = $ErrorActionPreference
     $previousLocation = $null
+    $exitCode = 1
+    $output = @()
     try {
         $ErrorActionPreference = "Continue"
         if (-not [string]::IsNullOrWhiteSpace($WorkingDirectory)) {
@@ -152,12 +154,12 @@ function Get-DDDAPlatformIsoTimestamp {
 
 function Write-DDDAPlatformJson {
     param(
-        [Parameter(Mandatory = $true)][object]$Value,
+        [Parameter(Mandatory = $true)][AllowNull()][object]$Value,
         [Parameter(Mandatory = $true)][string]$Path,
         [int]$Depth = 30
     )
 
-    $json = $Value | ConvertTo-Json -Depth $Depth
+    $json = ConvertTo-Json -InputObject $Value -Depth $Depth
     $utf8 = New-Object System.Text.UTF8Encoding($false)
     [System.IO.File]::WriteAllText($Path, $json + [Environment]::NewLine, $utf8)
 }
@@ -187,6 +189,7 @@ function Invoke-DDDAPlatformChildPowerShell {
     $hostArguments += $Arguments
 
     $previousPreference = $ErrorActionPreference
+    $exitCode = 1
     try {
         $ErrorActionPreference = "Continue"
         & $hostExe @hostArguments
