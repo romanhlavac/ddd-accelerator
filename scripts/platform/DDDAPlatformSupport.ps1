@@ -191,7 +191,8 @@ function Write-DDDAPlatformText {
 function Invoke-DDDAPlatformChildPowerShell {
     param(
         [Parameter(Mandatory = $true)][string]$ScriptPath,
-        [string[]]$Arguments = @()
+        [string[]]$Arguments = @(),
+        [switch]$SuppressOutput
     )
 
     $hostExe = (Get-Process -Id $PID).Path
@@ -204,9 +205,15 @@ function Invoke-DDDAPlatformChildPowerShell {
 
     $previousPreference = $ErrorActionPreference
     $exitCode = 1
+    $output = @()
     try {
         $ErrorActionPreference = "Continue"
-        & $hostExe @hostArguments
+        if ($SuppressOutput) {
+            $output = @(& $hostExe @hostArguments 2>&1)
+        }
+        else {
+            & $hostExe @hostArguments
+        }
         $exitCode = $LASTEXITCODE
     }
     finally {
@@ -214,7 +221,11 @@ function Invoke-DDDAPlatformChildPowerShell {
     }
 
     if ($exitCode -ne 0) {
-        throw "PowerShell skript selhal: $ScriptPath. Exit code: $exitCode"
+        $text = ($output | ForEach-Object { $_.ToString() } | Out-String).Trim()
+        if ([string]::IsNullOrWhiteSpace($text)) {
+            throw "PowerShell skript selhal: $ScriptPath. Exit code: $exitCode"
+        }
+        throw "PowerShell skript selhal: $ScriptPath. Exit code: $exitCode`n$text"
     }
 }
 
