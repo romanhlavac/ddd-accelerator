@@ -56,14 +56,17 @@ Assert-Equal -Expected "miro/new-map.yaml" -Actual (Get-DDDAGitPorcelainPath -Li
 $allowedEntries = @(Assert-DDDAGitChangesWithinPath -PorcelainText "M miro/miro-map.yaml`n?? miro/report.yaml" -AllowedPrefix "miro/" -Label "Test")
 Assert-Equal -Expected 2 -Actual $allowedEntries.Count -Message "Povolené Miro změny nebyly správně rozpoznány."
 
+$controlledEntries = @(Assert-DDDAGitChangesWithinPath -PorcelainText "M miro/miro-map.yaml`n?? reports/miro-sync/sync-test.yaml" -AllowedPrefix @("miro/", "reports/miro-sync/") -Label "Test")
+Assert-Equal -Expected 2 -Actual $controlledEntries.Count -Message "Více povolených Miro sync cest nebylo správně rozpoznáno."
+
 $outsideRejected = $false
 try {
-    $null = Assert-DDDAGitChangesWithinPath -PorcelainText "M project.yaml" -AllowedPrefix "miro/" -Label "Test"
+    $null = Assert-DDDAGitChangesWithinPath -PorcelainText "M project.yaml" -AllowedPrefix @("miro/", "reports/miro-sync/") -Label "Test"
 }
 catch {
     $outsideRejected = $true
 }
-Assert-True -Condition $outsideRejected -Message "Změna mimo miro/ musí být v resume režimu odmítnuta."
+Assert-True -Condition $outsideRejected -Message "Změna mimo řízené Miro cesty musí být v resume režimu odmítnuta."
 
 $platformFull = [System.IO.Path]::GetFullPath($PlatformPath).TrimEnd('\', '/')
 $secretFull = [System.IO.Path]::GetFullPath((Get-DDDAMiroSecretPath))
@@ -114,6 +117,10 @@ $projectCommand = Get-Command (Join-Path $PlatformPath "scripts/Initialize-DDDAP
 foreach ($parameterName in @("WorkspaceRoot", "ProjectId", "CreateBoard", "DryRun", "ResetToken", "Resume")) {
     Assert-True -Condition $projectCommand.Parameters.ContainsKey($parameterName) -Message "Project Miro initializer nemá parametr $parameterName."
 }
+
+$projectInitializerText = Get-Content (Join-Path $PlatformPath "scripts/Initialize-DDDAProjectMiro.ps1") -Raw -Encoding UTF8
+Assert-True -Condition ($projectInitializerText -match '"sync",\s*"--direction",\s*"push"') -Message "Project Miro initializer neprovádí počáteční managed artifact push."
+Assert-True -Condition ($projectInitializerText -match 'reports/miro-sync/') -Message "Project Miro initializer nepovoluje auditní sync reporty."
 
 $smokeText = Get-Content (Join-Path $PlatformPath "scripts/Invoke-DDDAMiroSmokeTest.ps1") -Raw -Encoding UTF8
 Assert-True -Condition ($smokeText -notmatch "romanhlavac/ddd-accelerator") -Message "Smoke runner nesmí být svázán s konkrétním origin remote."
