@@ -117,12 +117,16 @@ intake:
     $env:GIT_COMMITTER_NAME = $oldCommitterName
     $env:GIT_COMMITTER_EMAIL = $oldCommitterEmail
 
-    $status = Invoke-DDDASteeringJson -PlatformRoot $platformRoot -Arguments @(
-        "status", "--platform-root", $platformRoot, "--project-root", $projectRoot
-    )
+    $statusText = & (Join-Path $platformRoot "scripts/Get-DDDAProjectStatus.ps1") -PlatformPath $platformRoot -ProjectPath $projectRoot -Json
+    if ($LASTEXITCODE -ne 0) {
+        throw "Read-only kontrola project statusu selhala."
+    }
+    $status = $statusText | ConvertFrom-Json
     if ($status.current_stage -ne "discover" -or $status.next_gate -ne "G2") {
         throw "Steering acceptance očekávalo discover/G2, získalo $($status.current_stage)/$($status.next_gate)."
     }
+
+    Assert-DDDACleanGitRepository -RepositoryPath $projectRoot -Label "Projektový po read-only status kontrole"
 
     if ($WithMiro) {
         $miroArgs = @(
