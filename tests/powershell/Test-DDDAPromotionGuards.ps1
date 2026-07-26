@@ -34,10 +34,14 @@ Assert-True -Condition (@($policy.required_documents).Count -ge 3) -Message "Dev
 $dryRunMatch = [regex]::Match($promotion, 'if\s*\(\$DryRun\)', [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)
 $confirmationMatch = [regex]::Match($promotion, 'if\s*\(\[bool\]\$policy\.require_explicit_confirmation\s*-and\s*-not\s*\$ConfirmMerge\)', [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)
 $mergeMatch = [regex]::Match($promotion, '\$mergeArguments\s*=\s*@\(\s*"pr"\s*,\s*"merge"', [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)
+$releaseGateMatch = [regex]::Match($promotion, 'if\s*\(\s*-not\s+\$releasePassed(?:\s*-or\s*-not\s+\$releaseReportCreated)?\s*\)', [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)
+$tagCreationMatch = [regex]::Match($promotion, 'Invoke-DDDAPlatformGit[^\r\n]+@\("tag"', [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)
 
 $dryRunIndex = if ($dryRunMatch.Success) { $dryRunMatch.Index } else { -1 }
 $confirmationIndex = if ($confirmationMatch.Success) { $confirmationMatch.Index } else { -1 }
 $mergeIndex = if ($mergeMatch.Success) { $mergeMatch.Index } else { -1 }
+$releaseGateIndex = if ($releaseGateMatch.Success) { $releaseGateMatch.Index } else { -1 }
+$tagCreationIndex = if ($tagCreationMatch.Success) { $tagCreationMatch.Index } else { -1 }
 
 Assert-True -Condition ($dryRunIndex -ge 0) -Message "Promotion nemá fail-safe DryRun větev."
 Assert-True -Condition ($confirmationIndex -ge 0) -Message "Promotion nemá explicitní confirmation guard."
@@ -47,6 +51,8 @@ Assert-True -Condition ($confirmationIndex -lt $mergeIndex) -Message "Confirmati
 Assert-True -Condition ($promotion -match '--match-head-commit') -Message "Promotion nechrání merge exact head SHA."
 Assert-True -Condition ($promotion -match 'validation-reports/pr-\$Pr-\$headSha') -Message "Promotion nehledá validation report podle PR a exact SHA."
 Assert-True -Condition ($promotion -match 'actualCandidateHash') -Message "Promotion neověřuje candidate package hash."
-Assert-True -Condition ($promotion -match 'if\s*\(-not\s+\$releasePassed\)') -Message "Promotion nemá release validation gate před tagem."
+Assert-True -Condition ($releaseGateIndex -ge 0) -Message "Promotion nemá release validation gate před tagem."
+Assert-True -Condition ($tagCreationIndex -ge 0) -Message "Promotion neobsahuje kontrolované vytvoření release tagu."
+Assert-True -Condition ($releaseGateIndex -lt $tagCreationIndex) -Message "Release validation gate musí předcházet vytvoření tagu."
 
 Write-Host "DDDA promotion guards: PASS"
