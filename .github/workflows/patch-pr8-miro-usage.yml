@@ -1,0 +1,83 @@
+name: Patch PR8 Miro Usage
+
+on:
+  push:
+    branches:
+      - feat/project-steering-and-documentation
+
+permissions:
+  contents: write
+
+jobs:
+  patch-usage:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/project-steering-and-documentation
+          fetch-depth: 0
+      - name: Patch USAGE and push
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('USAGE.md')
+          text = path.read_text(encoding='utf-8-sig')
+
+          replacements = [
+              (
+                  '''8. vytvoří projektový Miro board;
+          9. ověří idempotentní render.'''.replace('          ', ''),
+                  '''8. vytvoří projektový Miro board;
+          9. odešle aktuální managed YAML artefakty na board;
+          10. ověří idempotentní render i managed artifact push.'''.replace('          ', '')
+              ),
+              (
+                  '''Po online inicializaci zkontroluj projektový mapping:''',
+                  '''Po online inicializaci zkontroluj projektový mapping, sync state a sync report:'''
+              ),
+              (
+                  '''git -C $ProjectRoot diff -- miro/miro-map.yaml''',
+                  '''git -C $ProjectRoot diff -- miro/ reports/miro-sync/'''
+              ),
+              (
+                  '''git -C $ProjectRoot add miro/miro-map.yaml
+          git -C $ProjectRoot commit -m 'chore: initialize example Miro board' '''.replace('          ', '').rstrip(),
+                  '''git -C $ProjectRoot add miro/miro-map.yaml miro/sync-state.yaml reports/miro-sync/
+          git -C $ProjectRoot commit -m 'chore: initialize example Miro board and managed artifacts' '''.replace('          ', '').rstrip()
+              ),
+              (
+                  '''Skript vytvoří iniciační commit. Miro mapping po online bootstrapu zůstane k samostatnému review a commitu.''',
+                  '''Skript vytvoří iniciační commit. Miro mapping, sync state a sync report po online bootstrapu zůstanou k samostatnému review a commitu.'''
+              ),
+              (
+                  '''## 12. Render projektového boardu''',
+                  '''## 12. Inicializace projektového boardu a managed artefaktů'''
+              ),
+              (
+                  '''Renderer zapisuje stabilní vazby do `miro/miro-map.yaml`. Status a next-actions jsou standardní managed artifacts a zobrazí se v projektovém boardu.''',
+                  '''Inicializátor nejprve vykreslí scaffold a potom automaticky provede managed artifact push. Stabilní vazby zapisuje do `miro/miro-map.yaml`, common-base hashe do `miro/sync-state.yaml` a auditní výsledek do `reports/miro-sync/`. Status a next-actions jsou standardní managed artifacts a po úspěšném běhu jsou na projektovém boardu i v mappingu.'''
+              ),
+              (
+                  '''.\\scripts\\Test-DDDAAcceptance.ps1 -Suite project-steering -WithMiro -Full''',
+                  '''.\\scripts\\Test-DDDAAcceptance.ps1 -Suite project-steering -WithMiro -Full -CleanupOnFailure'''
+              ),
+          ]
+
+          for old, new in replacements:
+              count = text.count(old)
+              if count == 0:
+                  raise SystemExit(f'Expected text not found: {old!r}')
+              text = text.replace(old, new, 1)
+
+          path.write_text(text, encoding='utf-8', newline='\n')
+          PY
+          git config user.name 'DDDA Documentation Bot'
+          git config user.email 'ddda-docs@example.invalid'
+          git add USAGE.md
+          git diff --cached --check
+          git commit -m 'docs: describe initial managed artifact push to Miro'
+          git push origin HEAD:feat/project-steering-and-documentation
