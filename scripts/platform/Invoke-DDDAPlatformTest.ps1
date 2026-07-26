@@ -119,8 +119,8 @@ function Invoke-PackageWorkspaceCheck {
         try {
             $validationScript = Join-Path $packagePlatformRoot "scripts/platform/New-DDDAValidationWorkspace.ps1"
             $validationText = & $validationScript -PlatformPath $packagePlatformRoot -WorkspaceRoot $workspaceRoot -NonInteractive -Json | Out-String
-            if ($LASTEXITCODE -ne 0) {
-                throw "Generování package validation workspace selhalo."
+            if ([string]::IsNullOrWhiteSpace($validationText)) {
+                throw "Generování package validation workspace nevrátilo JSON."
             }
             $validation = $validationText.Trim() | ConvertFrom-Json
 
