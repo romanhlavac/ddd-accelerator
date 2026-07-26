@@ -43,10 +43,13 @@ try {
     }
 
     $workspaceText = & (Join-Path $platformRoot "scripts/platform/New-DDDAValidationWorkspace.ps1") -PlatformPath $platformRoot -WorkspaceRoot $workspaceRoot -Json | Out-String
-    if ($LASTEXITCODE -ne 0) {
-        throw "Generování validation workspace selhalo."
+    if ([string]::IsNullOrWhiteSpace($workspaceText)) {
+        throw "Generování validation workspace nevrátilo JSON."
     }
     $workspace = $workspaceText.Trim() | ConvertFrom-Json
+    if ($workspace.status -ne "PASS") {
+        throw "Generování validation workspace nevrátilo PASS."
+    }
 
     $oldAuthorName = $env:GIT_AUTHOR_NAME
     $oldAuthorEmail = $env:GIT_AUTHOR_EMAIL
@@ -75,8 +78,8 @@ try {
     }
 
     $statusText = & (Join-Path $platformRoot "scripts/Get-DDDAProjectStatus.ps1") -PlatformPath $platformRoot -ProjectPath ([string]$workspace.project) -Json | Out-String
-    if ($LASTEXITCODE -ne 0) {
-        throw "Kontrola statusu po G1 selhala."
+    if ([string]::IsNullOrWhiteSpace($statusText)) {
+        throw "Kontrola statusu po G1 nevrátila JSON."
     }
     $status = $statusText.Trim() | ConvertFrom-Json
     if ($status.current_stage -ne "discover" -or $status.next_gate -ne "G2") {
