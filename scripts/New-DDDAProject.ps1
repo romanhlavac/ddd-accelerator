@@ -38,20 +38,20 @@ $packageManifestPath = Join-Path $platformRoot "ddda-package.json"
 $platformCommit = $null
 $platformRef = $null
 
-if (Test-Path -LiteralPath (Join-Path $platformRoot ".git")) {
-    $platformCommit = Invoke-DDDAPlatformGit -Repository $platformRoot -Arguments @("rev-parse", "HEAD")
-    $platformRef = Invoke-DDDAPlatformGit -Repository $platformRoot -Arguments @("branch", "--show-current")
-    if ([string]::IsNullOrWhiteSpace($platformRef)) {
-        $platformRef = "detached"
-    }
-}
-elseif (Test-Path -LiteralPath $packageManifestPath -PathType Leaf) {
+if (Test-Path -LiteralPath $packageManifestPath -PathType Leaf) {
     $packageManifest = Get-Content -LiteralPath $packageManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
     if ($packageManifest.schema_version -ne 1) {
         throw "Nepodporovaná verze package manifestu: $($packageManifest.schema_version)"
     }
     $platformCommit = [string]$packageManifest.source_commit
     $platformRef = "package:$($packageManifest.kind)/$($packageManifest.version)"
+}
+elseif (Test-Path -LiteralPath (Join-Path $platformRoot ".git")) {
+    $platformCommit = Invoke-DDDAPlatformGit -Repository $platformRoot -Arguments @("rev-parse", "HEAD")
+    $platformRef = Invoke-DDDAPlatformGit -Repository $platformRoot -Arguments @("branch", "--show-current")
+    if ([string]::IsNullOrWhiteSpace($platformRef)) {
+        $platformRef = "detached"
+    }
 }
 else {
     throw "DDDA platforma není Git distribuce ani rozbalený package: $platformRoot"
