@@ -69,7 +69,7 @@ function New-PackagePlatformContext {
     }
 
     $packageFull = (Resolve-Path -LiteralPath $PackagePath).Path
-    Invoke-TestScript -RelativePath "scripts/platform/Test-DDDAPlatformPackage.ps1" -Arguments @("-PackagePath", $packageFull)
+    Invoke-TestScript -RelativePath "scripts/platform/Test-DDDAPlatformPackage.ps1" -Arguments @("-PackagePath", $packageFull) | Out-Null
 
     if (Test-Path -LiteralPath (Join-Path $platformRoot "ddda-package.json") -PathType Leaf) {
         return [pscustomobject]@{
