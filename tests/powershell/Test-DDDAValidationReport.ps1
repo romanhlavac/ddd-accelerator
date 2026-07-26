@@ -31,14 +31,18 @@ try {
     ) -Path $passSuites
     Write-DDDAPlatformText -Value "synthetic candidate package" -Path $packagePath
 
+    Assert-True -Condition ((Get-Content -LiteralPath $emptySuites -Raw -Encoding UTF8).Trim() -eq "[]") -Message "Prázdný suites vstup musí být zapsán jako JSON pole."
+
     $failureRoot = Join-Path $tempRoot "failure-report"
     & (Join-Path $PlatformPath "scripts/platform/New-DDDAValidationReport.ps1") -ValidationId "bootstrap-failure" -Status FAIL -SourceKind pr -Repository "romanhlavac/ddd-accelerator" -Commit $commit -Pr 8 -Branch "feature/test" -SuitesJsonPath $emptySuites -OutputRoot $failureRoot -Diagnostics "clone failed"
     if ($LASTEXITCODE -ne 0) { throw "Bootstrap failure report generation selhala." }
 
-    $failureReport = Get-Content -LiteralPath (Join-Path $failureRoot "result.json") -Raw -Encoding UTF8 | ConvertFrom-Json
+    $failureJsonPath = Join-Path $failureRoot "result.json"
+    $failureJsonText = Get-Content -LiteralPath $failureJsonPath -Raw -Encoding UTF8
+    $failureReport = $failureJsonText | ConvertFrom-Json
     Assert-True -Condition ($failureReport.status -eq "FAIL") -Message "Failure report nemá status FAIL."
     Assert-True -Condition ($null -eq $failureReport.package) -Message "Pre-package failure report musí mít package=null."
-    Assert-True -Condition (@($failureReport.suites).Count -eq 0) -Message "Pre-package failure report musí přijmout prázdné suites."
+    Assert-True -Condition ($failureJsonText -match '"suites"\s*:\s*\[\s*\]') -Message "Pre-package failure report musí obsahovat suites jako prázdné JSON pole."
 
     $passWithoutPackageRejected = $false
     try {
