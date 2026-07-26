@@ -31,9 +31,13 @@ Assert-True -Condition ([bool]$policy.require_explicit_confirmation) -Message "D
 Assert-True -Condition ($policy.merge_method -in @("squash", "merge", "rebase")) -Message "Development policy má nepodporovaný merge method."
 Assert-True -Condition (@($policy.required_documents).Count -ge 3) -Message "Development policy nemá povinné governance dokumenty."
 
-$dryRunIndex = $promotion.IndexOf('if ($DryRun)', [System.StringComparison]::Ordinal)
-$confirmationIndex = $promotion.IndexOf('if ([bool]$policy.require_explicit_confirmation -and -not $ConfirmMerge)', [System.StringComparison]::Ordinal)
-$mergeIndex = $promotion.IndexOf('$mergeArguments = @("pr", "merge"', [System.StringComparison]::Ordinal)
+$dryRunMatch = [regex]::Match($promotion, 'if\s*\(\$DryRun\)', [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)
+$confirmationMatch = [regex]::Match($promotion, 'if\s*\(\[bool\]\$policy\.require_explicit_confirmation\s*-and\s*-not\s*\$ConfirmMerge\)', [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)
+$mergeMatch = [regex]::Match($promotion, '\$mergeArguments\s*=\s*@\(\s*"pr"\s*,\s*"merge"', [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)
+
+$dryRunIndex = if ($dryRunMatch.Success) { $dryRunMatch.Index } else { -1 }
+$confirmationIndex = if ($confirmationMatch.Success) { $confirmationMatch.Index } else { -1 }
+$mergeIndex = if ($mergeMatch.Success) { $mergeMatch.Index } else { -1 }
 
 Assert-True -Condition ($dryRunIndex -ge 0) -Message "Promotion nemá fail-safe DryRun větev."
 Assert-True -Condition ($confirmationIndex -ge 0) -Message "Promotion nemá explicitní confirmation guard."
@@ -43,6 +47,6 @@ Assert-True -Condition ($confirmationIndex -lt $mergeIndex) -Message "Confirmati
 Assert-True -Condition ($promotion -match '--match-head-commit') -Message "Promotion nechrání merge exact head SHA."
 Assert-True -Condition ($promotion -match 'validation-reports/pr-\$Pr-\$headSha') -Message "Promotion nehledá validation report podle PR a exact SHA."
 Assert-True -Condition ($promotion -match 'actualCandidateHash') -Message "Promotion neověřuje candidate package hash."
-Assert-True -Condition ($promotion -match 'if \(-not \$releasePassed\)') -Message "Promotion nemá release validation gate před tagem."
+Assert-True -Condition ($promotion -match 'if\s*\(-not\s+\$releasePassed\)') -Message "Promotion nemá release validation gate před tagem."
 
 Write-Host "DDDA promotion guards: PASS"
