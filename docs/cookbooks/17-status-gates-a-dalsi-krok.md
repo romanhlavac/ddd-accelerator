@@ -46,16 +46,44 @@ Konkrétní gate:
 
 `ready_for_review` neznamená schváleno. Znamená pouze, že konfigurace našla požadované evidence paths.
 
-## Explicitní gate review
+## Povinný human decision contract
+
+Stavy `passed`, `conditional` a `rejected` jsou lidská rozhodnutí. Produkční příkaz vyžaduje:
+
+- `-HumanDecision` jako explicitní approval boundary;
+- decision ownera, který odpovídá roli nebo konkrétní identitě v `project.yaml owners`;
+- konkrétní lidskou identitu reviewera a approvera;
+- explicitně posuzovaný scope;
+- čistý projektový Git working tree a platný HEAD commit.
+
+Příkaz automaticky zaznamená commit, hash scope/ownership a SHA-256 relevantních evidence artefaktů. Změna relevantních podkladů dřívější rozhodnutí zneplatní.
+
+Automatizační identity jako `CI`, `bot`, `pipeline`, `automation` nebo `Acceptance runner` nejsou přijatelné jako reviewer ani approver.
+
+## Explicitní gate review — passed
+
+Nejprve ověř čistý projekt:
+
+```powershell
+git -C $ProjectRoot status --short
+```
+
+Potom zaznamenej lidské rozhodnutí:
 
 ```powershell
 .\scripts\Complete-DDDALifecycleStep.ps1 `
   -ProjectPath $ProjectRoot `
   -Gate G1 `
   -Outcome passed `
-  -Reviewer 'Business owner' `
+  -DecisionOwner 'business_owner' `
+  -Reviewer 'Jana Nováková' `
+  -Approver 'Jana Nováková' `
+  -Scope 'Project purpose, scope, out-of-scope a decision ownership' `
+  -HumanDecision `
   -Note 'Scope a decision owner potvrzeny'
 ```
+
+`DecisionOwner` může být role z `project.yaml owners`, například `business_owner`, nebo konkrétní identita uvedená u této role. Automatizace kontroluje konzistenci, ale neurčuje, kdo má oprávnění rozhodnout.
 
 Skript aktualizuje gate record, `project.yaml`, current status a next actions. Commit standardně nevytvoří.
 
@@ -78,13 +106,33 @@ Po commitu lze stav bezpečně číst bez dalších změn:
 
 ## Conditional gate
 
+`conditional` není completed gate a neposune standardní workflow jako `passed`. Vyžaduje podmínky, jejich ownera a termín:
+
 ```powershell
 .\scripts\Complete-DDDALifecycleStep.ps1 `
   -ProjectPath $ProjectRoot `
   -Gate G5 `
   -Outcome conditional `
-  -Reviewer 'Architecture owner' `
-  -Condition 'Potvrdit source of truth pro party identity'
+  -DecisionOwner 'architecture_owner' `
+  -Reviewer 'Petr Svoboda' `
+  -Approver 'Petr Svoboda' `
+  -Scope 'Context map a source of truth pro party identity' `
+  -HumanDecision `
+  -Condition 'Potvrdit source of truth pro party identity' `
+  -ConditionOwner 'Identity domain owner' `
+  -ConditionDueAt '2026-08-31'
 ```
 
-Conditional gate neposune workflow jako `passed`.
+## Rejected gate
+
+`rejected` je explicitní lidské rozhodnutí, ale není completed gate. Zůstává auditovatelně zaznamenáno a workflow nepokračuje.
+
+## Test-only simulation
+
+`-TestSimulation` není zkratka pro produkční schválení. Funguje pouze při současném splnění všech guardů:
+
+- projekt je pod systémovým temp adresářem;
+- existuje marker `.ddda/test-fixture`;
+- proces má `DDDA_GATE_TEST_SIMULATION=1`.
+
+Takový záznam má `provenance: test_simulation` a bez testovacího runtime guardu není považován za platný.

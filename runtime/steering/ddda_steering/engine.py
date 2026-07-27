@@ -6,8 +6,12 @@ from pathlib import Path
 from typing import Any, Iterable
 import copy
 import fnmatch
+import hashlib
 import json
+import os
 import re
+import subprocess
+import tempfile
 
 try:
     from ruamel.yaml import YAML
@@ -17,11 +21,16 @@ except ImportError as exc:  # pragma: no cover - explicit runtime diagnostic
 YAML_RT = YAML()
 YAML_RT.preserve_quotes = True
 YAML_RT.default_flow_style = False
+YAML_RT.width = 4096
 YAML_SAFE = YAML(typ="safe")
 
 STAGES = ["align", "discover", "decompose", "strategize", "connect", "organize", "define", "code"]
 GATES = [f"G{i}" for i in range(1, 9)]
 NEXT_STAGE = {gate: STAGES[index + 1] if index + 1 < len(STAGES) else "code" for index, gate in enumerate(GATES)}
+HUMAN_DECISION_OUTCOMES = {"passed", "conditional", "rejected"}
+AUTOMATION_IDENTITY = re.compile(
+    r"(?i)(^|[\s._-])(acceptance\s*runner|ci|bot|automation|automated|pipeline|github\s*actions?)([\s._-]|$)"
+)
 
 
 class SteeringError(ValueError):
@@ -34,6 +43,12 @@ class EvidenceResult:
     status: str
     present: list[str]
     missing: list[str]
+
+
+@dataclass(frozen=True)
+class DecisionValidation:
+    valid: bool
+    reasons: list[str]
 
 
 def now_utc() -> str:
@@ -71,6 +86,122 @@ def _string_list(value: Any, path: str, *, required: bool = False) -> list[str]:
     if required and not result:
         raise SteeringError(f"Povinný seznam je prázdný: {path}")
     return result
+
+
+def _git(project_root: Path, *arguments: str, check: bool = True) -> str:
+    process = subprocess.run(
+        ["git", "-C", str(project_root), *arguments],
+        check=False,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+    if check and process.returncode != 0:
+        detail = (process.stderr or process.stdout).strip()
+        raise SteeringError(f"Git příkaz selhal v projektu: git {' '.join(arguments)}\n{detail}")
+    return process.stdout.strip()
+
+
+def _git_head(project_root: Path) -> str:
+    commit = _git(project_root, "rev-parse", "HEAD")
+    if not re.fullmatch(r"[0-9a-f]{40}", commit):
+        raise SteeringError("Gate review vyžaduje projekt s platným Git HEAD commitem.")
+    return commit
+
+
+def _assert_clean_project(project_root: Path) -> None:
+    status = _git(project_root, "status", "--porcelain")
+    if status:
+        raise SteeringError(
+            "Gate review vyžaduje čistý projektový Git working tree. "
+            "Nejprve zkontroluj a commitni nebo odlož změny."
+        )
+
+
+def _file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _canonical_sha256(value: Any) -> str:
+    payload = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
+def _project_manifest(project_root: Path) -> dict[str, Any]:
+    manifest = load_yaml(project_root / "project.yaml")
+    if not isinstance(manifest, dict):
+        raise SteeringError("project.yaml musí obsahovat objekt.")
+    return manifest
+
+
+def _project_id(project_root: Path) -> str:
+    manifest = _project_manifest(project_root)
+    return _required_text((manifest.get("project") or {}).get("id"), "project.id")
+
+
+def _project_scope_hash(project_root: Path) -> str:
+    manifest = _project_manifest(project_root)
+    return _canonical_sha256(
+        {
+            "project_id": (manifest.get("project") or {}).get("id"),
+            "scope": manifest.get("scope") or {},
+            "owners": manifest.get("owners") or {},
+        }
+    )
+
+
+def _artifact_hashes(project_root: Path, relative_paths: Iterable[str]) -> dict[str, str]:
+    result: dict[str, str] = {}
+    for relative in sorted(set(relative_paths)):
+        path = project_root / relative
+        if not path.is_file():
+            raise SteeringError(f"Evidence soubor pro gate neexistuje: {relative}")
+        result[relative] = _file_sha256(path)
+    return result
+
+
+def _human_identity(value: Any, path: str) -> str:
+    text = _required_text(value, path)
+    if AUTOMATION_IDENTITY.search(text):
+        raise SteeringError(f"{path} musí být konkrétní lidská identita; automatizační identita '{text}' není povolena.")
+    return text
+
+
+def _decision_owner(project_root: Path, value: Any) -> str:
+    owner = _required_text(value, "gate_decision.decision_owner")
+    manifest = _project_manifest(project_root)
+    owners = manifest.get("owners") or {}
+    if not isinstance(owners, dict):
+        raise SteeringError("project.yaml owners musí být objekt.")
+    allowed: set[str] = set()
+    for role, identity in owners.items():
+        identity_text = str(identity or "").strip()
+        if identity_text:
+            allowed.add(str(role).strip().casefold())
+            allowed.add(identity_text.casefold())
+    if not allowed:
+        raise SteeringError("Gate nelze rozhodnout; project.yaml neobsahuje konkrétního decision ownera.")
+    if owner.casefold() not in allowed:
+        raise SteeringError(
+            "gate_decision.decision_owner musí odpovídat explicitní roli nebo identitě v project.yaml owners."
+        )
+    return owner
+
+
+def _is_test_fixture(project_root: Path) -> bool:
+    marker = project_root / ".ddda" / "test-fixture"
+    if os.environ.get("DDDA_GATE_TEST_SIMULATION") != "1" or not marker.is_file():
+        return False
+    try:
+        project_root.resolve().relative_to(Path(tempfile.gettempdir()).resolve())
+        return True
+    except ValueError:
+        return False
 
 
 def normalize_intake(raw: dict[str, Any], project_types: dict[str, Any]) -> dict[str, Any]:
@@ -190,6 +321,7 @@ def _gate_record(gate: str, gate_cfg: dict[str, Any]) -> dict[str, Any]:
             "evidence": {"present": [], "missing": list(gate_cfg.get("evidence") or []), "disputed": []},
             "approvals": {"business_owner": "pending", "architecture_owner": "pending"},
             "conditions": [],
+            "decision": None,
             "reviewed_at": None,
             "reviewed_by": None,
             "note": None,
@@ -343,20 +475,106 @@ def _read_workflow(project_root: Path) -> dict[str, Any]:
     return copy.deepcopy(manifest.get("workflow") or {})
 
 
+def validate_gate_decision(project_root: Path, gate: str, gate_data: dict[str, Any], evidence: EvidenceResult) -> DecisionValidation:
+    status = str(gate_data.get("status") or "")
+    if status not in HUMAN_DECISION_OUTCOMES:
+        return DecisionValidation(valid=False, reasons=["gate nemá lidské rozhodnutí"])
+
+    decision = gate_data.get("decision")
+    if not isinstance(decision, dict):
+        return DecisionValidation(valid=False, reasons=["chybí strukturovaný gate_decision record"])
+
+    reasons: list[str] = []
+    provenance = str(decision.get("provenance") or "")
+    if provenance == "test_simulation":
+        if not _is_test_fixture(project_root):
+            reasons.append("test_simulation není povolena pro běžný projekt")
+    elif provenance != "human":
+        reasons.append("provenance není human")
+
+    for field in ("project_id", "scope", "decision_owner", "reviewer", "approver", "decided_at"):
+        if not str(decision.get(field) or "").strip():
+            reasons.append(f"chybí decision.{field}")
+
+    if str(decision.get("project_id") or "") != _project_id(project_root):
+        reasons.append("decision project_id neodpovídá projektu")
+
+    if provenance == "human":
+        for field in ("reviewer", "approver"):
+            value = str(decision.get(field) or "")
+            if value and AUTOMATION_IDENTITY.search(value):
+                reasons.append(f"decision.{field} používá automatizační identitu")
+        try:
+            _decision_owner(project_root, decision.get("decision_owner"))
+        except SteeringError as exc:
+            reasons.append(str(exc))
+
+    evidence_record = decision.get("evidence") or {}
+    project_commit = str(evidence_record.get("project_commit") or "")
+    if not re.fullmatch(r"[0-9a-f]{40}", project_commit):
+        reasons.append("decision.evidence.project_commit není platný SHA")
+    else:
+        current_head = _git_head(project_root)
+        ancestor = subprocess.run(
+            ["git", "-C", str(project_root), "merge-base", "--is-ancestor", project_commit, current_head],
+            check=False,
+            capture_output=True,
+        )
+        if ancestor.returncode != 0:
+            reasons.append("reviewed project commit není předkem aktuálního HEAD")
+
+    if str(evidence_record.get("scope_sha256") or "") != _project_scope_hash(project_root):
+        reasons.append("scope nebo decision ownership se od review změnily")
+
+    recorded_hashes = evidence_record.get("artifact_hashes") or {}
+    if not isinstance(recorded_hashes, dict):
+        reasons.append("evidence artifact_hashes musí být objekt")
+    elif evidence.present and not recorded_hashes:
+        reasons.append("chybí evidence artifact hashes")
+    else:
+        for relative, expected in recorded_hashes.items():
+            path = project_root / str(relative)
+            if not path.is_file():
+                reasons.append(f"evidence byla odstraněna: {relative}")
+            elif _file_sha256(path) != str(expected):
+                reasons.append(f"evidence se od review změnila: {relative}")
+
+    if evidence.missing:
+        reasons.append("aktuálně chybí povinná evidence")
+
+    if status == "conditional":
+        condition = decision.get("condition") or {}
+        items = condition.get("items") or [] if isinstance(condition, dict) else []
+        if not items:
+            reasons.append("conditional rozhodnutí nemá podmínky")
+        if not isinstance(condition, dict) or not str(condition.get("owner") or "").strip():
+            reasons.append("conditional rozhodnutí nemá ownera podmínky")
+        if not isinstance(condition, dict) or not str(condition.get("due_at") or "").strip():
+            reasons.append("conditional rozhodnutí nemá termín")
+
+    return DecisionValidation(valid=not reasons, reasons=reasons)
+
+
 def generate_status(project_root: Path, platform_root: Path) -> dict[str, Any]:
     _, gates_cfg, journey = load_config(platform_root)
     workflow = _read_workflow(project_root)
     gate_states: list[dict[str, Any]] = []
-    completed = set(workflow.get("completed_gates") or [])
     next_gate = None
     for gate in GATES:
         cfg = gates_cfg.get(gate) or {}
         evidence = evaluate_gate(project_root, gate, cfg)
         record = _load_gate_record(project_root, gate, cfg)
-        decision = (record.get("gate") or {}).get("status")
-        effective = "passed" if gate in completed or decision == "passed" else evidence.status
-        if decision in {"conditional", "rejected"}:
+        gate_data = record.get("gate") or {}
+        decision = str(gate_data.get("status") or "")
+        validation = validate_gate_decision(project_root, gate, gate_data, evidence) if decision in HUMAN_DECISION_OUTCOMES else DecisionValidation(False, [])
+
+        if decision == "passed" and validation.valid:
+            effective = "passed"
+        elif decision in {"conditional", "rejected"} and validation.valid:
             effective = decision
+        else:
+            effective = evidence.status
+
         if next_gate is None and effective != "passed":
             next_gate = gate
         gate_states.append(
@@ -367,11 +585,13 @@ def generate_status(project_root: Path, platform_root: Path) -> dict[str, Any]:
                 "present": evidence.present,
                 "missing": evidence.missing,
                 "question": cfg.get("question", ""),
+                "decision_valid": validation.valid if decision in HUMAN_DECISION_OUTCOMES else None,
+                "decision_invalid_reasons": validation.reasons,
             }
         )
     if next_gate is None:
         next_gate = "G8"
-    current_stage = workflow.get("current_stage") or STAGES[int(next_gate[1:]) - 1]
+    current_stage = STAGES[int(next_gate[1:]) - 1]
     recommendations = (journey.get("journey") or {}).get("actions") or {}
     action_cfg = recommendations.get(next_gate) or {}
     next_actions = action_cfg.get("actions") or ["Zkontroluj gate evidence a otevřené otázky."]
@@ -424,24 +644,87 @@ def review_gate(
     reviewer: str,
     note: str | None,
     conditions: Iterable[str],
+    *,
+    decision_owner: str,
+    approver: str,
+    scope: str,
+    provenance: str = "human",
+    condition_owner: str | None = None,
+    condition_due_at: str | None = None,
+    test_simulation: bool = False,
 ) -> dict[str, Any]:
     if gate not in GATES:
         raise SteeringError(f"Neznámá gate: {gate}")
-    if outcome not in {"passed", "conditional", "rejected"}:
+    if outcome not in HUMAN_DECISION_OUTCOMES:
         raise SteeringError(f"Nepodporovaný outcome: {outcome}")
+
+    _assert_clean_project(project_root)
+    project_commit = _git_head(project_root)
+    if test_simulation:
+        if not _is_test_fixture(project_root):
+            raise SteeringError("Testovací gate simulation je povolena pouze v označeném dočasném test fixture projektu.")
+        provenance = "test_simulation"
+    elif provenance != "human":
+        raise SteeringError("Produkční gate rozhodnutí musí mít provenance=human.")
+
+    reviewer_value = reviewer if provenance == "test_simulation" else _human_identity(reviewer, "gate_decision.reviewer")
+    approver_value = approver if provenance == "test_simulation" else _human_identity(approver, "gate_decision.approver")
+    owner_value = decision_owner if provenance == "test_simulation" else _decision_owner(project_root, decision_owner)
+    scope_value = _required_text(scope, "gate_decision.scope")
+
+    condition_items = [str(item).strip() for item in conditions if str(item).strip()]
+    if outcome == "passed" and condition_items:
+        raise SteeringError("passed rozhodnutí nesmí obsahovat neuzavřené podmínky.")
+    if outcome == "conditional":
+        if not condition_items:
+            raise SteeringError("conditional rozhodnutí vyžaduje alespoň jednu podmínku.")
+        _required_text(condition_owner, "gate_decision.condition.owner")
+        _required_text(condition_due_at, "gate_decision.condition.due_at")
+
     _, gates_cfg, _ = load_config(platform_root)
     cfg = gates_cfg.get(gate) or {}
     evidence = evaluate_gate(project_root, gate, cfg)
     if outcome == "passed" and evidence.missing:
         raise SteeringError(f"Gate {gate} nelze schválit; chybí evidence: {', '.join(evidence.missing)}")
+
+    decision = {
+        "gate": gate,
+        "outcome": outcome,
+        "project_id": _project_id(project_root),
+        "scope": scope_value,
+        "evidence": {
+            "project_commit": project_commit,
+            "scope_sha256": _project_scope_hash(project_root),
+            "artifact_hashes": _artifact_hashes(project_root, evidence.present),
+        },
+        "decision_owner": owner_value,
+        "reviewer": reviewer_value,
+        "approver": approver_value,
+        "decided_at": now_utc(),
+        "provenance": provenance,
+        "condition": {
+            "items": condition_items,
+            "owner": condition_owner,
+            "due_at": condition_due_at,
+        } if outcome == "conditional" else None,
+    }
+
     path = project_root / "decisions" / "gates" / f"{gate}.yaml"
     record = _load_gate_record(project_root, gate, cfg)
     gate_data = record.setdefault("gate", {})
+    history = list(gate_data.get("decision_history") or [])
+    previous = gate_data.get("decision")
+    if isinstance(previous, dict):
+        archived = copy.deepcopy(previous)
+        archived["superseded_at"] = now_utc()
+        history.append(archived)
     gate_data["status"] = outcome
     gate_data["evidence"] = {"present": evidence.present, "missing": evidence.missing, "disputed": gate_data.get("evidence", {}).get("disputed", [])}
-    gate_data["conditions"] = list(conditions)
-    gate_data["reviewed_at"] = now_utc()
-    gate_data["reviewed_by"] = reviewer
+    gate_data["conditions"] = condition_items
+    gate_data["decision"] = decision
+    gate_data["decision_history"] = history
+    gate_data["reviewed_at"] = decision["decided_at"]
+    gate_data["reviewed_by"] = reviewer_value
     gate_data["note"] = note
     dump_yaml(record, path)
 
@@ -449,15 +732,12 @@ def review_gate(
     with manifest_path.open("r", encoding="utf-8-sig") as handle:
         manifest = YAML_RT.load(handle)
     workflow = manifest.setdefault("workflow", {})
-    completed = list(workflow.get("completed_gates") or [])
-    if outcome == "passed" and gate not in completed:
+    completed = [item for item in list(workflow.get("completed_gates") or []) if item != gate]
+    if outcome == "passed":
         completed.append(gate)
         completed.sort(key=lambda item: int(item[1:]))
-    if outcome != "passed" and gate in completed:
-        completed.remove(gate)
-    workflow["completed_gates"] = completed
-    if outcome == "passed":
         workflow["current_stage"] = NEXT_STAGE[gate]
+    workflow["completed_gates"] = completed
     with manifest_path.open("w", encoding="utf-8", newline="\n") as handle:
         YAML_RT.dump(manifest, handle)
     return generate_status(project_root, platform_root)

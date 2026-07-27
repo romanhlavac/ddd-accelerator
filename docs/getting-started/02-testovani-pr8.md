@@ -8,7 +8,11 @@ PR #8 přidává jednotný acceptance runner.
 .\scripts\Test-DDDAAcceptance.ps1 -Suite project-steering
 ```
 
-Ověří instalaci, vytvoření dočasného workspace a projektu, intake, tailoring, current status, agent contract a posun G1 → G2. Dočasné prostředky po úspěchu odstraní.
+Ověří instalaci, vytvoření dočasného workspace a projektu, intake, tailoring, current status a agent contract.
+
+Automatizace připraví G1 pouze jako `ready_for_review`. Nevytvoří `passed`, nezapíše G1 do `completed_gates` a nevydává se za lidského reviewera. Přechod G1 → G2 je výhradně výsledkem explicitního lidského gate decision a není součástí automatického acceptance běhu.
+
+Dočasné prostředky po úspěchu odstraní.
 
 ## Online test proti Miro
 
@@ -25,7 +29,8 @@ Runner automaticky:
 5. odešle `ddda.current-status` a `ddda.next-actions` spolu s ostatními managed artefakty;
 6. ověří jejich záznam v `miro/miro-map.yaml` a `miro/sync-state.yaml`;
 7. provede kontrolní render a idempotentní kontrolní push dry-run;
-8. po úspěchu odstraní board i dočasný workspace.
+8. ověří, že Miro operace nevytvořila ani nepřepsala lidské gate decision;
+9. po úspěchu odstraní board i dočasný workspace.
 
 `-CleanupOnFailure` odstraní i board neúspěšného aktuálního běhu, pokud už jeho ID bylo zapsáno do mappingu. Diagnostický workspace a report zůstanou zachovány.
 
@@ -35,4 +40,6 @@ Runner automaticky:
 .\scripts\Test-DDDAAcceptance.ps1 -Suite project-steering -WithMiro -Full -KeepReviewBoard
 ```
 
-Tento režim board a dočasný workspace zachová. Produkční projektový board se nikdy nepoužívá.
+Tento režim board a dočasný workspace zachová a vypíše board ID, URL a workspace cestu. Produkční projektový board se nikdy nepoužívá.
+
+Technický PASS acceptance neznamená lidské schválení gate ani human visual acceptance boardu.

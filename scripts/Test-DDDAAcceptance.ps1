@@ -36,7 +36,7 @@ $passed = $false
 New-Item -ItemType Directory -Force -Path $workspaceRoot, $reportRoot | Out-Null
 
 function Write-AcceptanceReport {
-    param([string]$Status, [string]$ErrorMessage)
+    param([string]$Status, [string]$ErrorMessage, [string]$GateStatus)
     $payload = [ordered]@{
         suite = $Suite
         run_id = $runId
@@ -45,6 +45,12 @@ function Write-AcceptanceReport {
         workspace = $workspaceRoot
         project = $projectRoot
         miro_board_id = $boardId
+        gate_assertion = [ordered]@{
+            gate = "G1"
+            expected = "ready_for_review"
+            actual = $GateStatus
+            human_decision_created = $false
+        }
         report_created_at = (Get-Date).ToUniversalTime().ToString("o")
         error = $ErrorMessage
     }
@@ -65,6 +71,7 @@ function Get-BoardIdFromMap {
     return $null
 }
 
+$g1Status = $null
 try {
     Write-Host "=== DDDA acceptance suite: $Suite ==="
     if ($WithMiro) {
@@ -108,36 +115,42 @@ intake:
     $env:GIT_AUTHOR_EMAIL = "ddda-acceptance@example.invalid"
     $env:GIT_COMMITTER_NAME = "DDDA Acceptance"
     $env:GIT_COMMITTER_EMAIL = "ddda-acceptance@example.invalid"
-
-    Invoke-DDDAChildPowerShell -ScriptPath (Join-Path $platformRoot "scripts/Initialize-DDDAProjectFirstRun.ps1") -Arguments @(
-        "-PlatformPath", $platformRoot,
-        "-WorkspaceRoot", $workspaceRoot,
-        "-IntakeFile", $intakeFile,
-        "-NonInteractive"
-    )
-
-    Invoke-DDDAChildPowerShell -ScriptPath (Join-Path $platformRoot "scripts/Complete-DDDALifecycleStep.ps1") -Arguments @(
-        "-PlatformPath", $platformRoot,
-        "-ProjectPath", $projectRoot,
-        "-Gate", "G1",
-        "-Outcome", "passed",
-        "-Reviewer", "Acceptance runner",
-        "-Note", "Automated evidence review",
-        "-Commit"
-    )
-
-    $env:GIT_AUTHOR_NAME = $oldAuthorName
-    $env:GIT_AUTHOR_EMAIL = $oldAuthorEmail
-    $env:GIT_COMMITTER_NAME = $oldCommitterName
-    $env:GIT_COMMITTER_EMAIL = $oldCommitterEmail
+    try {
+        Invoke-DDDAChildPowerShell -ScriptPath (Join-Path $platformRoot "scripts/Initialize-DDDAProjectFirstRun.ps1") -Arguments @(
+            "-PlatformPath", $platformRoot,
+            "-WorkspaceRoot", $workspaceRoot,
+            "-IntakeFile", $intakeFile,
+            "-NonInteractive"
+        )
+    }
+    finally {
+        $env:GIT_AUTHOR_NAME = $oldAuthorName
+        $env:GIT_AUTHOR_EMAIL = $oldAuthorEmail
+        $env:GIT_COMMITTER_NAME = $oldCommitterName
+        $env:GIT_COMMITTER_EMAIL = $oldCommitterEmail
+    }
 
     $statusText = & (Join-Path $platformRoot "scripts/Get-DDDAProjectStatus.ps1") -PlatformPath $platformRoot -ProjectPath $projectRoot -Json
     if ($LASTEXITCODE -ne 0) {
         throw "Read-only kontrola project statusu selhala."
     }
     $status = $statusText | ConvertFrom-Json
-    if ($status.current_stage -ne "discover" -or $status.next_gate -ne "G2") {
-        throw "Steering acceptance očekávalo discover/G2, získalo $($status.current_stage)/$($status.next_gate)."
+    if ($status.current_stage -ne "align" -or $status.next_gate -ne "G1") {
+        throw "Steering acceptance očekával align/G1 bez lidského schválení, získal $($status.current_stage)/$($status.next_gate)."
+    }
+    $g1 = @($status.gates | Where-Object { $_.gate -eq "G1" }) | Select-Object -First 1
+    $g1Status = if ($null -eq $g1) { $null } else { [string]$g1.status }
+    if ($g1Status -ne "ready_for_review") {
+        throw "Automatizace musí připravit G1 jako ready_for_review, získáno '$g1Status'."
+    }
+
+    $projectManifest = Get-Content -LiteralPath (Join-Path $projectRoot "project.yaml") -Raw -Encoding UTF8
+    if ($projectManifest -match '(?ms)completed_gates:\s*\n\s*-\s*G1') {
+        throw "Acceptance runner nesmí automaticky zapsat G1 do completed_gates."
+    }
+    $g1Record = Get-Content -LiteralPath (Join-Path $projectRoot "decisions/gates/G1.yaml") -Raw -Encoding UTF8
+    if ($g1Record -match '(?m)^\s*status:\s*passed\s*$' -or $g1Record -match '(?m)^\s*provenance:\s*human\s*$') {
+        throw "Acceptance runner nesmí vytvářet produkční lidské G1 rozhodnutí."
     }
 
     Assert-DDDACleanGitRepository -RepositoryPath $projectRoot -Label "Projektový po read-only status kontrole"
@@ -173,9 +186,10 @@ intake:
     }
 
     $passed = $true
-    Write-AcceptanceReport -Status "PASS" -ErrorMessage $null
+    Write-AcceptanceReport -Status "PASS" -ErrorMessage $null -GateStatus $g1Status
     Write-Host ""
     Write-Host "DDDA acceptance ${Suite}: PASS"
+    Write-Host "Gate assertion: G1 ready_for_review; human decision not created"
     Write-Host "Report: $reportFile"
 }
 catch {
@@ -183,7 +197,7 @@ catch {
         $candidateMapPath = Join-Path $projectRoot "miro/miro-map.yaml"
         $boardId = Get-BoardIdFromMap -MapPath $candidateMapPath
     }
-    Write-AcceptanceReport -Status "FAIL" -ErrorMessage $_.Exception.Message
+    Write-AcceptanceReport -Status "FAIL" -ErrorMessage $_.Exception.Message -GateStatus $g1Status
     Write-Host "Acceptance workspace zachován pro diagnostiku: $workspaceRoot"
     Write-Host "Report: $reportFile"
     throw
@@ -206,6 +220,7 @@ finally {
     }
     elseif ($KeepReviewBoard -and $WithMiro) {
         Write-Host "Review board byl zachován. Board ID: $boardId"
+        Write-Host "Board URL: https://miro.com/app/board/$boardId/"
         Write-Host "Workspace: $workspaceRoot"
     }
 }

@@ -80,22 +80,73 @@ intake:
         Assert-True -Condition (Test-Path (Join-Path $projectRoot $relative)) -Message "Chybí steering výstup: $relative"
     }
 
+    & git -C $projectRoot config user.name "DDDA Steering Test"
+    & git -C $projectRoot config user.email "ddda-steering-test@example.invalid"
+    & git -C $projectRoot add .
+    & git -C $projectRoot commit -m "test: steering baseline"
+    if ($LASTEXITCODE -ne 0) { throw "Vytvoření testovacího baseline commitu selhalo." }
+
     $beforeStatusRead = Get-StatusFilesHash -ProjectRoot $projectRoot
     $status = & (Join-Path $platformRoot "scripts/Get-DDDAProjectStatus.ps1") -PlatformPath $platformRoot -ProjectPath $projectRoot -Json | ConvertFrom-Json
     $afterStatusRead = Get-StatusFilesHash -ProjectRoot $projectRoot
     Assert-True -Condition ($beforeStatusRead -eq $afterStatusRead) -Message "Read-only status query změnila generované status soubory."
     Assert-True -Condition ($status.next_gate -eq "G1") -Message "Před gate review musí být další gate G1."
+    $g1Before = @($status.gates | Where-Object { $_.gate -eq "G1" }) | Select-Object -First 1
+    Assert-True -Condition ($g1Before.status -eq "ready_for_review") -Message "Automatizace smí připravit pouze ready_for_review."
 
-    & (Join-Path $platformRoot "scripts/Complete-DDDALifecycleStep.ps1") -PlatformPath $platformRoot -ProjectPath $projectRoot -Gate G1 -Outcome passed -Reviewer "CI reviewer" -Note "Evidence reviewed"
-    if ($LASTEXITCODE -ne 0) { throw "Gate G1 review selhal." }
+    $spoofBlocked = $false
+    try {
+        & (Join-Path $platformRoot "scripts/Complete-DDDALifecycleStep.ps1") `
+            -PlatformPath $platformRoot `
+            -ProjectPath $projectRoot `
+            -Gate G1 `
+            -Outcome passed `
+            -Reviewer "Acceptance runner" `
+            -Approver "CI bot" `
+            -DecisionOwner business_owner `
+            -Scope "G1 test scope" `
+            -HumanDecision
+    }
+    catch {
+        $spoofBlocked = $_.Exception.Message -match "automatizační identita"
+    }
+    Assert-True -Condition $spoofBlocked -Message "Automatizační identita obešla human provenance guard."
+
+    & (Join-Path $platformRoot "scripts/Complete-DDDALifecycleStep.ps1") `
+        -PlatformPath $platformRoot `
+        -ProjectPath $projectRoot `
+        -Gate G1 `
+        -Outcome passed `
+        -Reviewer "Roman Reviewer" `
+        -Approver "Roman Reviewer" `
+        -DecisionOwner business_owner `
+        -Scope "G1 project purpose, scope and decision ownership" `
+        -HumanDecision `
+        -Note "Evidence reviewed" `
+        -Commit
+    if ($LASTEXITCODE -ne 0) { throw "Gate G1 human review selhal." }
 
     $beforeStatusRead = Get-StatusFilesHash -ProjectRoot $projectRoot
     $statusAfter = & (Join-Path $platformRoot "scripts/Get-DDDAProjectStatus.ps1") -PlatformPath $platformRoot -ProjectPath $projectRoot -Json | ConvertFrom-Json
     $afterStatusRead = Get-StatusFilesHash -ProjectRoot $projectRoot
     Assert-True -Condition ($beforeStatusRead -eq $afterStatusRead) -Message "Read-only status query po gate review změnila generované status soubory."
-    Assert-True -Condition ($statusAfter.next_gate -eq "G2") -Message "Po G1 musí být další gate G2."
-    Assert-True -Condition ($statusAfter.current_stage -eq "discover") -Message "Po G1 musí být aktuální fáze discover."
+    Assert-True -Condition ($statusAfter.next_gate -eq "G2") -Message "Po platném lidském G1 musí být další gate G2."
+    Assert-True -Condition ($statusAfter.current_stage -eq "discover") -Message "Po platném lidském G1 musí být aktuální fáze discover."
 
+    $g1Record = Get-Content -LiteralPath (Join-Path $projectRoot "decisions/gates/G1.yaml") -Raw -Encoding UTF8
+    foreach ($requiredText in @(
+        "provenance: human",
+        "decision_owner: business_owner",
+        "reviewer: Roman Reviewer",
+        "approver: Roman Reviewer",
+        "project_commit:",
+        "artifact_hashes:"
+    )) {
+        Assert-True -Condition ($g1Record.Contains($requiredText)) -Message "G1 decision record neobsahuje '$requiredText'."
+    }
+
+    $projectStatus = (& git -C $projectRoot status --short | Out-String).Trim()
+    Assert-True -Condition ([string]::IsNullOrWhiteSpace($projectStatus)) -Message "Projektový repozitář po gate commitu není čistý:`n$projectStatus"
     $platformStatus = (& git -C $platformRoot status --short | Out-String).Trim()
     Assert-True -Condition ([string]::IsNullOrWhiteSpace($platformStatus)) -Message "Platformní repozitář po steering testu není čistý:`n$platformStatus"
     Write-Host "DDDA project steering test: PASS"

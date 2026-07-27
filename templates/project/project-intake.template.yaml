@@ -26,8 +26,8 @@ intake:
   teams: []
   sources: []
   owners:
-    business_owner: null
-    architecture_owner: null
+    business_owner: DOPLŇ KONKRÉTNÍ OSOBU NEBO AUDITOVATELNOU ROLI
+    architecture_owner: DOPLŇ KONKRÉTNÍ OSOBU NEBO AUDITOVATELNOU ROLI
   classification:
     data_sensitivity: internal
     contains_health_data: false

@@ -45,8 +45,15 @@ def parser() -> argparse.ArgumentParser:
     gate.add_argument("--gate", required=True)
     gate.add_argument("--outcome", required=True, choices=["passed", "conditional", "rejected"])
     gate.add_argument("--reviewer", required=True)
+    gate.add_argument("--approver", required=True)
+    gate.add_argument("--decision-owner", required=True)
+    gate.add_argument("--scope", required=True)
+    gate.add_argument("--provenance", choices=["human"], default="human")
     gate.add_argument("--note", default=None)
     gate.add_argument("--condition", action="append", default=[])
+    gate.add_argument("--condition-owner", default=None)
+    gate.add_argument("--condition-due-at", default=None)
+    gate.add_argument("--test-simulation", action="store_true")
 
     contract = sub.add_parser("validate-agent-contract", help="Validate the project agent contract")
     contract.add_argument("--project-root", required=True)
@@ -72,6 +79,13 @@ def main(argv: list[str] | None = None) -> int:
                 args.reviewer,
                 args.note,
                 args.condition,
+                decision_owner=args.decision_owner,
+                approver=args.approver,
+                scope=args.scope,
+                provenance=args.provenance,
+                condition_owner=args.condition_owner,
+                condition_due_at=args.condition_due_at,
+                test_simulation=args.test_simulation,
             )
         elif args.command == "validate-agent-contract":
             result = validate_agent_contract(Path(args.project_root).resolve())
