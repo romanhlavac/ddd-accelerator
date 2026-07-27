@@ -51,44 +51,27 @@ try {
         throw "Generování validation workspace nevrátilo PASS."
     }
 
-    $oldAuthorName = $env:GIT_AUTHOR_NAME
-    $oldAuthorEmail = $env:GIT_AUTHOR_EMAIL
-    $oldCommitterName = $env:GIT_COMMITTER_NAME
-    $oldCommitterEmail = $env:GIT_COMMITTER_EMAIL
-    $env:GIT_AUTHOR_NAME = "DDDA Lifecycle Test"
-    $env:GIT_AUTHOR_EMAIL = "ddda-lifecycle@example.invalid"
-    $env:GIT_COMMITTER_NAME = "DDDA Lifecycle Test"
-    $env:GIT_COMMITTER_EMAIL = "ddda-lifecycle@example.invalid"
-    try {
-        Invoke-DDDAPlatformChildPowerShell -ScriptPath (Join-Path $platformRoot "scripts/Complete-DDDALifecycleStep.ps1") -Arguments @(
-            "-PlatformPath", $platformRoot,
-            "-ProjectPath", [string]$workspace.project,
-            "-Gate", "G1",
-            "-Outcome", "passed",
-            "-Reviewer", "DDDA platform lifecycle test",
-            "-Note", "Synthetic package-first validation",
-            "-Commit"
-        )
-    }
-    finally {
-        if ($null -eq $oldAuthorName) { Remove-Item Env:\GIT_AUTHOR_NAME -ErrorAction SilentlyContinue } else { $env:GIT_AUTHOR_NAME = $oldAuthorName }
-        if ($null -eq $oldAuthorEmail) { Remove-Item Env:\GIT_AUTHOR_EMAIL -ErrorAction SilentlyContinue } else { $env:GIT_AUTHOR_EMAIL = $oldAuthorEmail }
-        if ($null -eq $oldCommitterName) { Remove-Item Env:\GIT_COMMITTER_NAME -ErrorAction SilentlyContinue } else { $env:GIT_COMMITTER_NAME = $oldCommitterName }
-        if ($null -eq $oldCommitterEmail) { Remove-Item Env:\GIT_COMMITTER_EMAIL -ErrorAction SilentlyContinue } else { $env:GIT_COMMITTER_EMAIL = $oldCommitterEmail }
-    }
-
     $statusText = & (Join-Path $platformRoot "scripts/Get-DDDAProjectStatus.ps1") -PlatformPath $platformRoot -ProjectPath ([string]$workspace.project) -Json | Out-String
     if ([string]::IsNullOrWhiteSpace($statusText)) {
-        throw "Kontrola statusu po G1 nevrátila JSON."
+        throw "Kontrola statusu package-first workspace nevrátila JSON."
     }
     $status = $statusText.Trim() | ConvertFrom-Json
-    if ($status.current_stage -ne "discover" -or $status.next_gate -ne "G2") {
-        throw "Package lifecycle očekával discover/G2, získal $($status.current_stage)/$($status.next_gate)."
+    if ($status.current_stage -ne "align" -or $status.next_gate -ne "G1") {
+        throw "Package lifecycle očekával align/G1 bez lidského rozhodnutí, získal $($status.current_stage)/$($status.next_gate)."
+    }
+    $g1 = @($status.gates | Where-Object { $_.gate -eq "G1" }) | Select-Object -First 1
+    if ($null -eq $g1 -or [string]$g1.status -ne "ready_for_review") {
+        throw "Package lifecycle očekával G1 ready_for_review."
+    }
+
+    $g1Record = Get-Content -LiteralPath (Join-Path ([string]$workspace.project) "decisions/gates/G1.yaml") -Raw -Encoding UTF8
+    if ($g1Record -match '(?m)^\s*status:\s*passed\s*$' -or $g1Record -match '(?m)^\s*provenance:\s*human\s*$') {
+        throw "Package lifecycle nesmí automaticky vytvořit lidské G1 rozhodnutí."
     }
 
     $projectStatus = Invoke-DDDAPlatformGit -Repository ([string]$workspace.project) -Arguments @("status", "--porcelain")
     if (-not [string]::IsNullOrWhiteSpace($projectStatus)) {
-        throw "Projektový repozitář po lifecycle testu není čistý:`n$projectStatus"
+        throw "Projektový repozitář po package lifecycle testu není čistý:`n$projectStatus"
     }
 
     $passed = $true
@@ -101,6 +84,8 @@ try {
         project = [string]$workspace.project
         current_stage = [string]$status.current_stage
         next_gate = [string]$status.next_gate
+        gate_status = [string]$g1.status
+        human_decision_created = $false
     }
 
     if ($Json) {
@@ -111,6 +96,7 @@ try {
         Write-Host "Commit:    $($result.source_commit)"
         Write-Host "Stage:     $($result.current_stage)"
         Write-Host "Next gate: $($result.next_gate)"
+        Write-Host "Gate:      G1 $($result.gate_status); human decision not created"
     }
 }
 finally {

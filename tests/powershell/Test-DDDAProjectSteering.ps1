@@ -16,6 +16,26 @@ function Assert-True {
     if (-not $Condition) { throw $Message }
 }
 
+function Invoke-TestGit {
+    param(
+        [Parameter(Mandatory = $true)][string]$Repository,
+        [Parameter(Mandatory = $true)][string[]]$Arguments
+    )
+    $previousPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "Continue"
+        $output = @(& git -C $Repository @Arguments 2>&1)
+        $exitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $previousPreference
+    }
+    if ($exitCode -ne 0) {
+        throw "Git příkaz selhal: git -C $Repository $($Arguments -join ' ')`n$($output -join '`n')"
+    }
+    return (($output | ForEach-Object { $_.ToString() }) -join "`n").Trim()
+}
+
 function Get-StatusFilesHash {
     param([Parameter(Mandatory = $true)][string]$ProjectRoot)
 
@@ -80,11 +100,11 @@ intake:
         Assert-True -Condition (Test-Path (Join-Path $projectRoot $relative)) -Message "Chybí steering výstup: $relative"
     }
 
-    & git -C $projectRoot config user.name "DDDA Steering Test"
-    & git -C $projectRoot config user.email "ddda-steering-test@example.invalid"
-    & git -C $projectRoot add .
-    & git -C $projectRoot commit -m "test: steering baseline"
-    if ($LASTEXITCODE -ne 0) { throw "Vytvoření testovacího baseline commitu selhalo." }
+    $null = Invoke-TestGit -Repository $projectRoot -Arguments @("config", "core.autocrlf", "false")
+    $null = Invoke-TestGit -Repository $projectRoot -Arguments @("config", "user.name", "DDDA Steering Test")
+    $null = Invoke-TestGit -Repository $projectRoot -Arguments @("config", "user.email", "ddda-steering-test@example.invalid")
+    $null = Invoke-TestGit -Repository $projectRoot -Arguments @("add", ".")
+    $null = Invoke-TestGit -Repository $projectRoot -Arguments @("commit", "-m", "test: steering baseline")
 
     $beforeStatusRead = Get-StatusFilesHash -ProjectRoot $projectRoot
     $status = & (Join-Path $platformRoot "scripts/Get-DDDAProjectStatus.ps1") -PlatformPath $platformRoot -ProjectPath $projectRoot -Json | ConvertFrom-Json
@@ -145,9 +165,9 @@ intake:
         Assert-True -Condition ($g1Record.Contains($requiredText)) -Message "G1 decision record neobsahuje '$requiredText'."
     }
 
-    $projectStatus = (& git -C $projectRoot status --short | Out-String).Trim()
+    $projectStatus = Invoke-TestGit -Repository $projectRoot -Arguments @("status", "--short")
     Assert-True -Condition ([string]::IsNullOrWhiteSpace($projectStatus)) -Message "Projektový repozitář po gate commitu není čistý:`n$projectStatus"
-    $platformStatus = (& git -C $platformRoot status --short | Out-String).Trim()
+    $platformStatus = Invoke-TestGit -Repository $platformRoot -Arguments @("status", "--short")
     Assert-True -Condition ([string]::IsNullOrWhiteSpace($platformStatus)) -Message "Platformní repozitář po steering testu není čistý:`n$platformStatus"
     Write-Host "DDDA project steering test: PASS"
 }
