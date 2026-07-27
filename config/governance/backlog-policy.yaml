@@ -1,0 +1,199 @@
+schema_version: 1
+policy_id: ddda-platform-backlog-governance
+status: proposed
+
+scope:
+  product: DDDA platform
+  excludes:
+    - client workspace delivery backlog
+    - client project gates G1-G8
+
+principles:
+  git_is_source_of_truth: true
+  pr_is_unit_of_change: true
+  main_direct_changes_forbidden: true
+  planned_prs_as_backlog_forbidden: true
+  automated_human_approval_forbidden: true
+
+work_item_hierarchy:
+  - level: gap
+    authority: github_issue
+    id_pattern: null
+  - level: work_package
+    authority: github_parent_issue
+    id_pattern: '^WP-[0-9]{2}$'
+  - level: change_request
+    authority: github_child_issue
+    id_pattern: null
+  - level: implementation
+    authority: branch_and_draft_pr
+    starts_when: implementation_begins
+
+artifact_authority:
+  idea_or_gap: github_issue
+  roadmap_block: github_parent_issue_work_package
+  implementation_requirement: github_child_issue
+  priority_and_order: github_project
+  target_version: github_milestone
+  current_implementation: branch_and_draft_pr
+  architecture_decision: repository_adr
+  implemented_change: pr_and_changelog
+  breaking_impact: migration_note
+  test_evidence: ci_and_validation_report
+  human_release_decision: hrdr_and_review_evidence
+  long_term_product_vision: versioned_roadmap_document
+
+project:
+  name: DDDA Platform Backlog
+  fields:
+    status:
+      type: single_select
+      values:
+        - Backlog
+        - Discovery
+        - Triaged
+        - Ready
+        - In progress
+        - In review
+        - Blocked
+        - Done
+        - Cancelled
+    priority:
+      type: single_select
+      values: [P0, P1, P2, P3]
+    work_package:
+      type: single_select
+      values:
+        - WP-08
+        - WP-09
+        - WP-10
+        - WP-11
+        - Other
+    item_type:
+      type: single_select
+      values:
+        - GAP
+        - Work Package
+        - Change Request
+        - Defect
+        - Risk
+        - Enabler
+    platform_area:
+      type: single_select
+      values:
+        - DOC
+        - METHODOLOGY
+        - TEMPLATE
+        - SCHEMA
+        - ORCHESTRATION
+        - INGESTION
+        - CLI
+        - WORKSPACE-GENERATOR
+        - EXAMPLE
+        - TESTING
+        - RELEASE
+        - SECURITY-GOVERNANCE
+    impact:
+      type: single_select
+      values: [LOW, MEDIUM, HIGH, BREAKING]
+    target_release:
+      type: text_or_iteration
+      default: TBD
+    owner:
+      type: person
+    blocked:
+      type: boolean
+      default: false
+    human_review:
+      type: single_select
+      values:
+        - Not required
+        - Pending
+        - PASS
+        - FAIL
+        - Accepted risks
+    dependency:
+      type: text
+  views:
+    - Delivery board
+    - Roadmap by Work Package
+    - Release scope
+    - Blocked and P0
+    - Human review queue
+    - Ready without owner
+    - Recently completed
+
+priority_semantics:
+  P0: release_safety_or_data_integrity_blocker
+  P1: highest_active_product_priority
+  P2: important_planned_increment
+  P3: long_term_or_opportunistic
+
+branch_naming:
+  feature: 'feature/<issue>-<short-name>'
+  fix: 'fix/<issue>-<short-name>'
+  docs: 'docs/<issue>-<short-name>'
+  release: 'release/<version>'
+
+pr_linking:
+  partial_delivery: 'Implements #<issue>'
+  complete_delivery: 'Closes #<issue>'
+
+milestones:
+  naming: 'DDDA <semver>'
+  initial:
+    - name: DDDA 0.1.0
+      scope: PR8 and approved release blockers
+  unplanned_work_packages_target_release: TBD
+
+ready_entry_criteria:
+  - goal_defined
+  - problem_defined
+  - in_scope_defined
+  - out_of_scope_defined
+  - acceptance_criteria_testable
+  - classification_defined
+  - impact_defined
+  - migration_impact_defined
+  - dependencies_known
+  - owner_or_ownership_plan_known
+
+in_progress_entry_criteria:
+  - issue_ready_or_exception_documented
+  - branch_exists
+  - draft_pr_created_after_first_coherent_commit
+  - no_direct_main_work
+
+done_exit_criteria:
+  - acceptance_evidence_complete
+  - implementation_pr_merged
+  - required_ci_pass
+  - required_validation_report_pass
+  - docs_adr_changelog_migration_updated_as_required
+  - human_review_completed_if_required
+  - parent_work_package_updated
+  - roadmap_updated
+
+scope_review_statuses:
+  - covered
+  - partial
+  - missing
+  - scope_creep
+
+work_packages:
+  WP-08:
+    title: Platform lifecycle and project steering
+    state: active_blocked
+    target_release: 0.1.0
+  WP-09:
+    title: Strategy, portfolio and program lifecycle
+    state: backlog
+    target_release: TBD
+  WP-10:
+    title: Enterprise ingestion
+    state: backlog
+    target_release: TBD
+  WP-11:
+    title: EventStorming and multi-agent orchestration
+    state: backlog
+    target_release: TBD
