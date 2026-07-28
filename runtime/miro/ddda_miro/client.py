@@ -12,6 +12,25 @@ from typing import Any
 from .coordinates import frame_center_to_parent_position
 
 
+# Miro REST API v2 accepts font sizes from the board toolbar scale rather than
+# arbitrary integers. Keep the normalization at the API boundary so every
+# renderer and sync path uses a value accepted by both text and shape endpoints.
+MIRO_REST_FONT_SIZES: tuple[int, ...] = (10, 12, 14, 18, 24, 36, 48, 64, 80, 144, 288)
+
+
+def normalize_miro_font_size(value: Any) -> int:
+    try:
+        requested = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"Miro font size must be numeric, got {value!r}") from exc
+    if requested <= 0:
+        raise ValueError(f"Miro font size must be positive, got {value!r}")
+    for supported in MIRO_REST_FONT_SIZES:
+        if requested <= supported:
+            return supported
+    return MIRO_REST_FONT_SIZES[-1]
+
+
 class MiroApiError(RuntimeError):
     def __init__(self, status: int, method: str, url: str, body: str):
         super().__init__(f"Miro API {method} {url} failed with HTTP {status}: {body}")
@@ -99,6 +118,9 @@ class MiroClient:
         prepared = deepcopy(payload)
         if item_type == "frame":
             return prepared
+        style = prepared.get("style")
+        if item_type in {"text", "shape"} and isinstance(style, dict) and "fontSize" in style:
+            style["fontSize"] = normalize_miro_font_size(style["fontSize"])
         parent_id = str((prepared.get("parent") or {}).get("id") or "")
         position = prepared.get("position")
         if parent_id and position:

@@ -1,4 +1,4 @@
-from ddda_miro.client import MiroClient
+from ddda_miro.client import MiroClient, normalize_miro_font_size
 
 
 def test_client_converts_child_position_using_cached_parent_geometry(monkeypatch):
@@ -62,3 +62,32 @@ def test_client_fetches_parent_geometry_when_cache_is_empty(monkeypatch):
     assert calls[0][1].endswith("/frames/frame-existing")
     patched = calls[-1][2]
     assert patched["position"] == {"x": 600.0, "y": 2800.0, "origin": "center"}
+
+
+def test_font_size_normalization_uses_supported_rest_scale():
+    assert normalize_miro_font_size(20) == 24
+    assert normalize_miro_font_size(24) == 24
+    assert normalize_miro_font_size(26) == 36
+    assert normalize_miro_font_size(34) == 36
+    assert normalize_miro_font_size(500) == 288
+
+
+def test_client_normalizes_text_font_size_before_api_call(monkeypatch):
+    calls = []
+
+    def fake_request(self, method, path, *, query=None, body=None):
+        calls.append((method, path, body))
+        return {"id": "text-1", **(body or {})}
+
+    monkeypatch.setattr(MiroClient, "_request", fake_request)
+    client = MiroClient("token")
+    authored = {
+        "data": {"content": "Readable heading"},
+        "style": {"fontSize": 34, "fontFamily": "arial"},
+        "position": {"x": 0, "y": 0, "origin": "center"},
+        "geometry": {"width": 1200},
+    }
+    client.create_item("board-1", "text", authored)
+
+    assert calls[-1][2]["style"]["fontSize"] == 36
+    assert authored["style"]["fontSize"] == 34

@@ -1,4 +1,4 @@
-# Changelog
+﻿# Changelog
 
 Všechny významné změny DDDA platformy jsou evidovány v tomto souboru.
 
@@ -51,6 +51,7 @@ Změny pro další verzi se během vývoje zapisují sem. Před promotion se vš
 - po renderu se validuje skutečná Miro geometrie, fonty, počty stage/example prvků a remote frame overlaps;
 - Miro board ID a auditní metadata se po automatickém cleanupu již neztrácejí a reporty odmítají secret-like evidence;
 - Miro child položky převádějí frame-center souřadnice na top-left parent souřadnice REST API a před API voláním validují hranice parent frame;
+- Miro REST payloady normalizují velikosti písma na podporovanou diskrétní škálu a částečný render uchová board ID pro audit, diagnostiku a cleanup;
 - syntetická legacy workspace compatibility regrese dokazuje non-breaking/aditivní kontrakt bez klientských dat;
 - ADR odstranil zastaralý požadavek na GitHub CLI jako povinnou závislost promotion.
 
