@@ -38,6 +38,9 @@ $gateCommand = Get-Content -LiteralPath $gateCommandPath -Raw -Encoding UTF8
 $engine = Get-Content -LiteralPath $enginePath -Raw -Encoding UTF8
 $gateSchema = Get-Content -LiteralPath $gateSchemaPath -Raw -Encoding UTF8
 
+. $platformSupportPath
+. $githubSupportPath
+
 Assert-True -Condition ($entry -match 'ValidateSet\("doctor",\s*"test",\s*"validate-pr",\s*"promote-pr"\)') -Message "Root CLI nepublikuje promote-pr."
 Assert-True -Condition ($entry -match '\[switch\]\$ConfirmMerge') -Message "Root CLI nemá explicitní ConfirmMerge."
 Assert-True -Condition ($entry -match '\[switch\]\$DryRun') -Message "Root CLI nemá promotion DryRun."
@@ -109,8 +112,6 @@ Assert-True -Condition ($gateSchema -match 'decision_owner') -Message "Gate sche
 Assert-True -Condition ($gateSchema -match 'project_commit') -Message "Gate schema nemá project commit vazbu."
 Assert-True -Condition ($gateSchema -match 'test_simulation') -Message "Gate schema nerozlišuje test-only simulation."
 
-. $platformSupportPath
-. $githubSupportPath
 $credential = ConvertFrom-DDDAGitCredential -Text "protocol=https`nhost=github.com`nusername=test-user`npassword=test-token`n"
 Assert-True -Condition ($credential.Username -eq "test-user") -Message "Git credential parser nevrátil username."
 Assert-True -Condition ($credential.Password -eq "test-token") -Message "Git credential parser nevrátil token."
