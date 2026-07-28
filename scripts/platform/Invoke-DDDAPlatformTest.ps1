@@ -8,6 +8,8 @@ param(
     [switch]$WithMiro,
     [switch]$Full,
     [switch]$CleanupOnFailure,
+    [switch]$KeepReviewBoard,
+    [string]$MiroEvidenceOutputPath,
     [switch]$NonInteractive,
     [switch]$Json
 )
@@ -174,6 +176,10 @@ function Invoke-AcceptanceSuite {
         if ($WithMiro) { $arguments += "-WithMiro" }
         if ($Full) { $arguments += "-Full" }
         if ($CleanupOnFailure) { $arguments += "-CleanupOnFailure" }
+        if ($KeepReviewBoard) { $arguments += "-KeepReviewBoard" }
+        if (-not [string]::IsNullOrWhiteSpace($MiroEvidenceOutputPath)) {
+            $arguments += @("-EvidenceOutputPath", [System.IO.Path]::GetFullPath($MiroEvidenceOutputPath))
+        }
         if ($NonInteractive) { $arguments += "-NonInteractive" }
         Invoke-TestScript -RelativePath "scripts/Test-DDDAAcceptance.ps1" -Arguments $arguments -Root $acceptanceRoot
     }
@@ -206,6 +212,7 @@ function Invoke-OneSuite {
         }
         "component" {
             Invoke-TestScript -RelativePath "tests/powershell/Test-DDDAMiroAutomation.ps1" -Arguments @("-PlatformPath", $platformRoot)
+            Invoke-TestScript -RelativePath "tests/powershell/Test-DDDAMiroEvidence.ps1" -Arguments @("-PlatformPath", $platformRoot)
             Invoke-TestScript -RelativePath "tests/powershell/Test-DDDAProjectSteering.ps1" -Arguments @("-PlatformPath", $platformRoot)
         }
         "integration" {
@@ -224,6 +231,7 @@ function Invoke-OneSuite {
             Invoke-TestScript -RelativePath "tests/powershell/Test-DDDAFirstRun.ps1" -Arguments @("-PlatformPath", $platformRoot)
             Invoke-TestScript -RelativePath "tests/powershell/Test-DDDAProjectSteering.ps1" -Arguments @("-PlatformPath", $platformRoot)
             Invoke-TestScript -RelativePath "tests/powershell/Test-DDDAMiroAutomation.ps1" -Arguments @("-PlatformPath", $platformRoot)
+            Invoke-TestScript -RelativePath "tests/powershell/Test-DDDAMiroEvidence.ps1" -Arguments @("-PlatformPath", $platformRoot)
         }
         "security" {
             Invoke-RepositoryValidator -ValidationSuite "security"

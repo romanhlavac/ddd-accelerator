@@ -18,6 +18,7 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 - izolovaná validace PR nad candidate package;
 - generovaný minimal example workspace a manifest-driven ingestion;
 - machine-readable i čitelný validation report;
+- jednotný strukturovaný Miro acceptance evidence kontrakt pro candidate i release report včetně board identity, managed artifacts, mappingu, sync state, idempotence a cleanup auditu;
 - kontrolovaný promotion a release lifecycle;
 - GitHub Actions CI, které na přesném source SHA provádí source-level i package-first validaci a publikuje krátkodobý candidate package jako build artifact;
 - GitHub REST promotion klient s autentizací přes `GH_TOKEN`, `GITHUB_TOKEN`, `gh auth token` nebo existující Git credential helper, bez povinné instalace GitHub CLI.
@@ -38,7 +39,8 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 - změna relevantního scope, ownership nebo evidence hashů zneplatní dřívější gate decision;
 - test-only gate simulation je omezena na explicitně označený dočasný fixture projekt;
 - Miro renderer odmítá mojibake a blocking watermark/overlay nad pracovními frames;
-- current-gate highlight se aktualizuje nad stabilními journey item ID bez recreation boardu.
+- current-gate highlight se aktualizuje nad stabilními journey item ID bez recreation boardu;
+- Miro board ID a auditní metadata se po automatickém cleanupu již neztrácejí a reporty odmítají secret-like evidence.
 
 ### Compatibility
 

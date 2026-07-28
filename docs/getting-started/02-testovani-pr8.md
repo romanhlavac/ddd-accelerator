@@ -58,3 +58,22 @@ overall_status: PENDING_HUMAN_REVIEW
 ```
 
 Board lze použít jako finální release evidence až po jednorázovém human visual review. Automatizace nikdy nesmí převést `PENDING` na lidský `PASS`.
+
+## Auditní Miro evidence
+
+Acceptance report, `validate-pr` report i release report používají stejný strukturovaný objekt `miro`. Zachovává `board_id` i po automatickém DELETE a obsahuje:
+
+- ověřené managed artifact ID;
+- výsledek mappingu a sync state;
+- idempotence invarianty a počty druhého běhu;
+- cleanup state `preserved`, `deleted`, `cleanup_failed` nebo `not_created`;
+- cleanup timestamp, redigovanou chybu a diagnostické cesty;
+- workspace a board URL pro režim `-KeepReviewBoard`.
+
+Finální review board se vytváří pouze jednou nad zmrazeným SHA:
+
+```powershell
+.\ddda.ps1 validate-pr -Pr 8 -WithMiro -Full -KeepReviewBoard
+```
+
+Token ani jiné credentials nejsou součástí evidence. `miro_board_id` zůstává pouze compatibility aliasem; autoritativní je objekt `miro`.

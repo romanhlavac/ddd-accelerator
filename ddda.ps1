@@ -14,6 +14,7 @@ param(
     [switch]$Full,
     [switch]$CleanupOnFailure,
     [switch]$KeepArtifacts,
+    [switch]$KeepReviewBoard,
     [switch]$NonInteractive,
     [switch]$ConfirmMerge,
     [switch]$DryRun
@@ -71,6 +72,7 @@ switch ($Command) {
         if ($WithMiro) { $arguments += "-WithMiro" }
         if ($Full) { $arguments += "-Full" }
         if ($CleanupOnFailure) { $arguments += "-CleanupOnFailure" }
+        if ($KeepReviewBoard) { $arguments += "-KeepReviewBoard" }
         if ($NonInteractive) { $arguments += "-NonInteractive" }
         Invoke-DDDACommandScript -RelativePath "scripts/platform/Invoke-DDDAPlatformTest.ps1" -Arguments $arguments
     }
@@ -83,6 +85,7 @@ switch ($Command) {
         if ($Full) { $arguments += "-Full" }
         if ($CleanupOnFailure) { $arguments += "-CleanupOnFailure" }
         if ($KeepArtifacts) { $arguments += "-KeepArtifacts" }
+        if ($KeepReviewBoard) { $arguments += "-KeepReviewBoard" }
         if ($NonInteractive) { $arguments += "-NonInteractive" }
         Invoke-DDDACommandScript -RelativePath "scripts/platform/Invoke-DDDAValidatePr.ps1" -Arguments $arguments
     }
@@ -99,6 +102,7 @@ switch ($Command) {
         if ($Full) { $arguments += "-Full" }
         if ($CleanupOnFailure) { $arguments += "-CleanupOnFailure" }
         if ($KeepArtifacts) { $arguments += "-KeepArtifacts" }
+        if ($KeepReviewBoard) { $arguments += "-KeepReviewBoard" }
         if ($NonInteractive) { $arguments += "-NonInteractive" }
         if ($DryRun) { $arguments += "-DryRun" }
         Invoke-DDDACommandScript -RelativePath "scripts/platform/Invoke-DDDAPromotePr.ps1" -Arguments $arguments

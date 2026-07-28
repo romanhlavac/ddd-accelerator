@@ -7,7 +7,9 @@ param(
     [switch]$ResetToken,
     [switch]$KeepReviewBoard,
     [switch]$CleanupOnFailure,
-    [switch]$NonInteractive
+    [switch]$NonInteractive,
+    [string]$EvidenceOutputPath,
+    [switch]$EvidenceWrapperChild
 )
 
 Set-StrictMode -Version Latest
@@ -22,6 +24,24 @@ catch {}
 . (Join-Path $PSScriptRoot "private/DDDASteeringSupport.ps1")
 
 $platformRoot = (Resolve-Path $PlatformPath).Path
+
+if ($WithMiro -and -not $EvidenceWrapperChild) {
+    $wrapperArguments = @{
+        PlatformPath = $platformRoot
+        Suite = $Suite
+        Full = $Full
+        ResetToken = $ResetToken
+        KeepReviewBoard = $KeepReviewBoard
+        CleanupOnFailure = $CleanupOnFailure
+        NonInteractive = $NonInteractive
+    }
+    if (-not [string]::IsNullOrWhiteSpace($EvidenceOutputPath)) {
+        $wrapperArguments["EvidenceOutputPath"] = $EvidenceOutputPath
+    }
+    & (Join-Path $platformRoot "scripts/platform/Invoke-DDDAMiroAcceptanceEvidence.ps1") @wrapperArguments
+    exit $LASTEXITCODE
+}
+
 $runId = (Get-Date).ToUniversalTime().ToString("yyyyMMdd-HHmmss") + "-" + [Guid]::NewGuid().ToString("N").Substring(0, 8)
 $workspaceRoot = Join-Path (Get-DDDAStateRoot) ("acceptance/" + $runId)
 $projectRoot = Join-Path $workspaceRoot "projects/acceptance-claims-modernization"

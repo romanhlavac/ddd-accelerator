@@ -6,6 +6,7 @@ param(
     [switch]$Full,
     [switch]$CleanupOnFailure,
     [switch]$KeepArtifacts,
+    [switch]$KeepReviewBoard,
     [switch]$NonInteractive
 )
 
@@ -64,11 +65,14 @@ $reportRoot = Join-Path $stateRoot ("validation-reports/pr-$Pr-$headSha/$timesta
 $packageStore = Join-Path $stateRoot "packages"
 $packagePath = Join-Path $packageStore ("ddda-candidate-pr-$Pr-$shortSha-$timestamp.zip")
 $suitesPath = Join-Path $validationRoot "suites.json"
+$miroEvidencePath = Join-Path $validationRoot "miro-acceptance-evidence.json"
 
 New-Item -ItemType Directory -Path $validationRoot, $logRoot, $reportRoot, $packageStore -Force | Out-Null
 $suiteResults = [System.Collections.Generic.List[object]]::new()
 $diagnostics = [System.Collections.Generic.List[string]]::new()
 $miroBoardId = $null
+$reviewBoardUrl = $null
+$reviewWorkspace = $null
 $validationStatus = "FAIL"
 $passed = $false
 $reportCreated = $false
@@ -186,10 +190,26 @@ try {
     Invoke-ValidationSuite -Name "acceptance" -Arguments (@("acceptance") + $commonArguments + @("-CleanupOnFailure", "-NonInteractive"))
 
     if ($WithMiro) {
-        $miroArguments = @("acceptance") + $commonArguments + @("-WithMiro", "-CleanupOnFailure")
+        $miroArguments = @("acceptance") + $commonArguments + @(
+            "-WithMiro",
+            "-CleanupOnFailure",
+            "-MiroEvidenceOutputPath", $miroEvidencePath
+        )
         if ($Full) { $miroArguments += "-Full" }
+        if ($KeepReviewBoard) { $miroArguments += "-KeepReviewBoard" }
         if ($NonInteractive) { $miroArguments += "-NonInteractive" }
         Invoke-ValidationSuite -Name "miro" -Arguments $miroArguments
+
+        if (-not (Test-Path -LiteralPath $miroEvidencePath -PathType Leaf)) {
+            throw "Miro acceptance nevytvořila strukturovanou evidence: $miroEvidencePath"
+        }
+        $miroAcceptance = Get-Content -LiteralPath $miroEvidencePath -Raw -Encoding UTF8 | ConvertFrom-Json
+        if ($null -eq $miroAcceptance.miro -or [string]$miroAcceptance.miro.status -ne "PASS") {
+            throw "Miro acceptance evidence nemá PASS status."
+        }
+        $miroBoardId = [string]$miroAcceptance.miro.board_id
+        $reviewBoardUrl = [string]$miroAcceptance.miro.board_url
+        $reviewWorkspace = [string]$miroAcceptance.miro.workspace
     }
 
     Assert-DDDAPlatformCleanGit -Repository $platformRoot -Label "Aktivní platformní"
@@ -231,7 +251,10 @@ finally {
     if (Test-Path -LiteralPath $packagePath -PathType Leaf) {
         $reportArguments["PackagePath"] = $packagePath
     }
-    if (-not [string]::IsNullOrWhiteSpace($miroBoardId)) {
+    if (Test-Path -LiteralPath $miroEvidencePath -PathType Leaf) {
+        $reportArguments["MiroEvidencePath"] = $miroEvidencePath
+    }
+    elseif (-not [string]::IsNullOrWhiteSpace($miroBoardId)) {
         $reportArguments["MiroBoardId"] = $miroBoardId
     }
 
@@ -273,6 +296,11 @@ Write-Host "Branch:   $branch"
 Write-Host "Commit:   $headSha"
 Write-Host "Package:  $packagePath"
 Write-Host "Report:   $reportRoot"
+if ($KeepReviewBoard -and -not [string]::IsNullOrWhiteSpace($miroBoardId)) {
+    Write-Host "Review board ID:  $miroBoardId"
+    Write-Host "Review board URL: $reviewBoardUrl"
+    Write-Host "Review workspace: $reviewWorkspace"
+}
 Write-Host "Next:     .\ddda.ps1 promote-pr -Pr $Pr -Version <X.Y.Z> -ConfirmMerge"
 Write-Host "========================================"
 exit 0

@@ -10,6 +10,7 @@ param(
     [string]$PackagePath,
     [string]$Workspace,
     [string]$MiroBoardId,
+    [string]$MiroEvidencePath,
     [Parameter(Mandatory = $true)][string]$SuitesJsonPath,
     [Parameter(Mandatory = $true)][string]$OutputRoot,
     [string[]]$Diagnostics = @(),
@@ -21,6 +22,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "DDDAPlatformSupport.ps1")
+. (Join-Path $PSScriptRoot "DDDAMiroEvidenceSupport.ps1")
 
 if ($Commit -notmatch '^[0-9a-f]{40}$') {
     throw "Validation report vyžaduje plný Git commit SHA."
@@ -56,6 +58,20 @@ if ($Status -eq "PASS" -and $suites.Count -eq 0) {
     throw "PASS validation report vyžaduje alespoň jednu suite."
 }
 
+if (-not [string]::IsNullOrWhiteSpace($MiroEvidencePath)) {
+    $miroEvidence = Import-DDDAMiroEvidence -Path $MiroEvidencePath
+}
+elseif (-not [string]::IsNullOrWhiteSpace($MiroBoardId)) {
+    $miroEvidence = New-DDDALegacyMiroEvidence -BoardId $MiroBoardId -Workspace $Workspace
+}
+else {
+    $miroEvidence = New-DDDANotRunMiroEvidence -Workspace $Workspace
+}
+$null = Assert-DDDAMiroEvidenceContract -Evidence $miroEvidence
+if ($Status -eq "PASS" -and [string]$miroEvidence.status -eq "FAIL") {
+    throw "PASS validation report nesmí obsahovat FAIL Miro evidence."
+}
+
 $outputFull = [System.IO.Path]::GetFullPath($OutputRoot)
 New-Item -ItemType Directory -Path $outputFull -Force | Out-Null
 $jsonPath = Join-Path $outputFull "result.json"
@@ -78,7 +94,8 @@ $report = [pscustomobject][ordered]@{
     source = $source
     package = $packageRecord
     workspace = if ([string]::IsNullOrWhiteSpace($Workspace)) { $null } else { [System.IO.Path]::GetFullPath($Workspace) }
-    miro_board_id = if ([string]::IsNullOrWhiteSpace($MiroBoardId)) { $null } else { $MiroBoardId }
+    miro_board_id = $miroEvidence.board_id
+    miro = $miroEvidence
     suites = $suites
     diagnostics = [string[]]@($Diagnostics)
 }
@@ -106,8 +123,38 @@ if ($null -ne $packageRecord) {
 else {
     $markdown.Add("- Package: not created")
 }
-if (-not [string]::IsNullOrWhiteSpace($Workspace)) { $markdown.Add("- Workspace: ``$Workspace``") }
-if (-not [string]::IsNullOrWhiteSpace($MiroBoardId)) { $markdown.Add("- Miro board ID: ``$MiroBoardId``") }
+if (-not [string]::IsNullOrWhiteSpace($Workspace)) {
+    $markdown.Add("- Workspace: ``$Workspace``")
+}
+
+$markdown.Add("")
+$markdown.Add("## Miro evidence")
+$markdown.Add("")
+$markdown.Add("- Status: **$($miroEvidence.status)**")
+if (-not [string]::IsNullOrWhiteSpace([string]$miroEvidence.board_id)) {
+    $markdown.Add("- Board ID: ``$($miroEvidence.board_id)``")
+    $markdown.Add("- Board URL: $($miroEvidence.board_url)")
+}
+else {
+    $markdown.Add("- Board: not created")
+}
+if (-not [string]::IsNullOrWhiteSpace([string]$miroEvidence.workspace)) {
+    $markdown.Add("- Acceptance workspace: ``$($miroEvidence.workspace)``")
+}
+$markdown.Add("- Mapping: **$($miroEvidence.mapping.status)**; verified artifacts: $($miroEvidence.mapping.verified_count)")
+$markdown.Add("- Sync state: **$($miroEvidence.sync_state.status)**; verified artifacts: $($miroEvidence.sync_state.verified_count)")
+$markdown.Add("- Idempotence: **$($miroEvidence.idempotence.status)**; second-run create-board operations: $($miroEvidence.idempotence.second_run_create_board_operations); mutating operations: $($miroEvidence.idempotence.second_run_mutating_operations)")
+$markdown.Add("- Cleanup: **$($miroEvidence.cleanup.state)**")
+if (-not [string]::IsNullOrWhiteSpace([string]$miroEvidence.cleanup.completed_at)) {
+    $markdown.Add("- Cleanup completed at: ``$($miroEvidence.cleanup.completed_at)``")
+}
+if (@($miroEvidence.managed_artifacts).Count -gt 0) {
+    $markdown.Add("- Managed artifacts: ``$(@($miroEvidence.managed_artifacts) -join '`, `')``")
+}
+if (-not [string]::IsNullOrWhiteSpace([string]$miroEvidence.cleanup.error)) {
+    $markdown.Add("- Cleanup error: $($miroEvidence.cleanup.error)")
+}
+
 $markdown.Add("")
 $markdown.Add("## Suites")
 $markdown.Add("")
@@ -139,6 +186,8 @@ $result = [ordered]@{
     json = $jsonPath
     markdown = $markdownPath
     package_sha256 = if ($null -eq $packageRecord) { $null } else { $packageRecord.sha256 }
+    miro_status = [string]$miroEvidence.status
+    miro_cleanup_state = [string]$miroEvidence.cleanup.state
 }
 if ($Json) {
     $result | ConvertTo-Json -Depth 10

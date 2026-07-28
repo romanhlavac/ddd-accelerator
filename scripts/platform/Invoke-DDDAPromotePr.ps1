@@ -8,6 +8,7 @@ param(
     [switch]$Full,
     [switch]$CleanupOnFailure,
     [switch]$KeepArtifacts,
+    [switch]$KeepReviewBoard,
     [switch]$NonInteractive,
     [switch]$DryRun
 )
@@ -104,6 +105,12 @@ foreach ($candidate in $validationReports) {
 if ($null -eq $validationReport) {
     throw "Žádný validation report nemá PASS pro aktuální PR head SHA $headSha a existující candidate package."
 }
+if ($WithMiro) {
+    $miroProperty = $validationReport.PSObject.Properties["miro"]
+    if ($null -eq $miroProperty -or [string]$miroProperty.Value.status -ne "PASS") {
+        throw "Promotion s -WithMiro vyžaduje PASS strukturovanou Miro evidence ve validate-pr reportu pro exact SHA."
+    }
+}
 if (-not (Test-Path -LiteralPath $validationReport.package.path -PathType Leaf)) {
     throw "Candidate package z validation reportu neexistuje: $($validationReport.package.path)"
 }
@@ -199,6 +206,7 @@ $releaseWorkspace = Join-Path $promotionRoot "release-workspace"
 $releaseReports = Join-Path $stateRoot ("release-reports/$Version/$timestamp")
 $releasePackagePath = Join-Path $stateRoot ("packages/ddda-release-$Version-$($mergeCommit.Substring(0,12)).zip")
 $releaseSuitesPath = Join-Path $promotionRoot "release-suites.json"
+$releaseMiroEvidencePath = Join-Path $promotionRoot "release-miro-acceptance-evidence.json"
 $releaseSuites = [System.Collections.Generic.List[object]]::new()
 $releaseDiagnostics = [System.Collections.Generic.List[string]]::new()
 $releasePassed = $false
@@ -307,10 +315,20 @@ try {
     Invoke-ReleaseSuite -Name "acceptance" -Arguments @("acceptance", "-PackagePath", $releasePackagePath, "-CleanupOnFailure", "-NonInteractive")
 
     if ($WithMiro) {
-        $miroArguments = @("acceptance", "-PackagePath", $releasePackagePath, "-WithMiro", "-CleanupOnFailure")
+        $miroArguments = @(
+            "acceptance",
+            "-PackagePath", $releasePackagePath,
+            "-WithMiro",
+            "-CleanupOnFailure",
+            "-MiroEvidenceOutputPath", $releaseMiroEvidencePath
+        )
         if ($Full) { $miroArguments += "-Full" }
+        if ($KeepReviewBoard) { $miroArguments += "-KeepReviewBoard" }
         if ($NonInteractive) { $miroArguments += "-NonInteractive" }
         Invoke-ReleaseSuite -Name "miro" -Arguments $miroArguments
+        if (-not (Test-Path -LiteralPath $releaseMiroEvidencePath -PathType Leaf)) {
+            throw "Release Miro acceptance nevytvořila strukturovanou evidence."
+        }
     }
 
     $releasePassed = $true
@@ -353,6 +371,9 @@ finally {
     if (Test-Path -LiteralPath $releaseWorkspace -PathType Container) {
         $releaseReportArguments["Workspace"] = $releaseWorkspace
     }
+    if (Test-Path -LiteralPath $releaseMiroEvidencePath -PathType Leaf) {
+        $releaseReportArguments["MiroEvidencePath"] = $releaseMiroEvidencePath
+    }
 
     try {
         & (Join-Path $reportScriptRoot "scripts/platform/New-DDDAValidationReport.ps1") @releaseReportArguments | Out-Null
@@ -382,7 +403,7 @@ if (-not [string]::IsNullOrWhiteSpace($existingTagAfterValidation)) {
 $null = Invoke-DDDAPlatformGit -Repository $releaseSource -Arguments @("tag", "-a", $tag, $mergeCommit, "-m", "DDDA $Version")
 $null = Invoke-DDDAPlatformGit -Repository $releaseSource -Arguments @("push", "origin", $tag)
 
-if (-not $KeepArtifacts -and (Test-Path -LiteralPath $promotionRoot)) {
+if (-not $KeepArtifacts -and -not $KeepReviewBoard -and (Test-Path -LiteralPath $promotionRoot)) {
     Remove-Item -LiteralPath $promotionRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
 
