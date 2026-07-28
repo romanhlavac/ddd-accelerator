@@ -4,7 +4,11 @@ Všechny významné změny DDDA platformy jsou evidovány v tomto souboru.
 
 Formát vychází z principu Keep a Changelog. Verze používají Semantic Versioning.
 
-## Unreleased
+## [Unreleased]
+
+Změny pro další verzi se během vývoje zapisují sem. Před promotion se všechny položky přesunou do jediné verze `X.Y.Z` s ISO datem a tato sekce zůstane bez release položek.
+
+## [0.1.0] - 2026-07-28
 
 ### Added
 
@@ -21,7 +25,8 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 - jednotný strukturovaný Miro acceptance evidence kontrakt pro candidate i release report včetně board identity, managed artifacts, mappingu, sync state, idempotence a cleanup auditu;
 - kontrolovaný promotion a release lifecycle;
 - GitHub Actions CI, které na přesném source SHA provádí source-level i package-first validaci a publikuje krátkodobý candidate package jako build artifact;
-- GitHub REST promotion klient s autentizací přes `GH_TOKEN`, `GITHUB_TOKEN`, `gh auth token` nebo existující Git credential helper, bez povinné instalace GitHub CLI.
+- GitHub REST promotion klient s autentizací přes `GH_TOKEN`, `GITHUB_TOKEN`, `gh auth token` nebo existující Git credential helper, bez povinné instalace GitHub CLI;
+- deterministický changelog release cut a promotion preflight ověřující shodu `-Version`, changelog verze a tagu `vX.Y.Z`.
 
 ### Changed
 
@@ -32,7 +37,8 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 - automatický steering acceptance končí na `ready_for_review`; přechod G1 → G2 vyžaduje explicitní lidské rozhodnutí;
 - Miro acceptance odděluje technical sync, layout contract, UTF-8 a human visual acceptance; technický PASS zůstává `PENDING_HUMAN_REVIEW`;
 - povinné managed steering artefakty mají explicitní `control-center` placement a stabilní souřadnice;
-- `conditional` a `rejected` nejsou completed gates; `conditional` vyžaduje ownera a termín podmínek.
+- `conditional` a `rejected` nejsou completed gates; `conditional` vyžaduje ownera a termín podmínek;
+- veškerá release dokumentace používá stejný GitHub auth kontrakt a stejné pořadí providerů jako implementace.
 
 ### Fixed
 
@@ -42,7 +48,8 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 - Miro renderer odmítá mojibake a blocking watermark/overlay nad pracovními frames;
 - current-gate highlight se aktualizuje nad stabilními journey item ID bez recreation boardu;
 - Miro board ID a auditní metadata se po automatickém cleanupu již neztrácejí a reporty odmítají secret-like evidence;
-- syntetická legacy workspace compatibility regrese dokazuje non-breaking/aditivní kontrakt bez klientských dat.
+- syntetická legacy workspace compatibility regrese dokazuje non-breaking/aditivní kontrakt bez klientských dat;
+- ADR odstranil zastaralý požadavek na GitHub CLI jako povinnou závislost promotion.
 
 ### Compatibility
 

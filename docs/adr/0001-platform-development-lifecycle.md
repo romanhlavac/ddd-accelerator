@@ -84,7 +84,7 @@ Cons:
 
 - delší validation běh;
 - potřeba správy dočasných clone, package a reportů;
-- promotion vyžaduje GitHub CLI a autentizaci.
+- promotion vyžaduje dostupnou GitHub autentizaci; GitHub CLI je pouze volitelný provider a není povinnou závislostí.
 
 ## Consequences
 

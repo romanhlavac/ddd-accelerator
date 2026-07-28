@@ -141,7 +141,22 @@ PASS automaticky uklidí pracovní clone a workspaces, pokud není použito `-Ke
 
 Syntax, schémata, cesty, packaging, idempotence a absence secrets kontroluje automatizace.
 
-## 7. Promotion
+## 7. GitHub autentizace a release dokumentace
+
+`promote-pr` používá GitHub REST API. GitHub CLI není povinná závislost. Implementace i dokumentace používají stejné pořadí providerů:
+
+1. `GH_TOKEN`;
+2. `GITHUB_TOKEN`;
+3. `gh auth token`;
+4. Git credential helper.
+
+Token se nikdy nepředává jako CLI argument a nesmí se objevit v logu, reportu ani shell history.
+
+Během vývoje se změny zapisují pod `## [Unreleased]`. Před promotion se všechny release položky přesunou pod právě jednu sekci `## [X.Y.Z] - YYYY-MM-DD`, `Unreleased` zůstane bez release položek a stejná verze se předá jako `-Version X.Y.Z`. Tag je deterministicky `vX.Y.Z`.
+
+Promotion preflight kontroluje syntaxi changelogu, platné ISO datum, neprázdnou release sekci, prázdnou `Unreleased` sekci a shodu verze s parametrem promotion.
+
+## 8. Promotion
 
 Nejdřív bezpečný preflight:
 
@@ -164,11 +179,13 @@ Promotion je fail-closed. Ověřuje:
 - candidate package hash odpovídá reportu;
 - approvals odpovídají repository policy;
 - povinné ADR, changelog a migration note existují;
+- changelog release verze odpovídá `-Version` a budoucímu tagu `vX.Y.Z`;
+- `Unreleased` neobsahuje nepřiřazené release položky;
 - `-ConfirmMerge` je explicitně zadáno.
 
 Po merge vznikne release package. Tag se vytvoří až po package validation, generated release workspace, ingestion, smoke a acceptance.
 
-## 8. Selhání a diagnostika
+## 9. Selhání a diagnostika
 
 Lokální stav je pod uživatelským DDDA state rootem:
 
@@ -182,7 +199,7 @@ release-reports/
 
 Při FAIL zůstávají logy a diagnostický workspace. Miro board lze při testu odstranit přes `-CleanupOnFailure`.
 
-## 9. Definition of Done
+## 10. Definition of Done
 
 PR je hotový, když:
 

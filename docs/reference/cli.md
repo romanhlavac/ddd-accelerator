@@ -82,6 +82,10 @@ Volitelné parametry:
 
 `-ConfirmMerge` je povinná explicitní approval boundary. Bez něj se merge neprovede.
 
+GitHub autentizace se načítá v pořadí `GH_TOKEN` → `GITHUB_TOKEN` → `gh auth token` → Git credential helper. GitHub CLI není povinný. Token nemá veřejný CLI parametr.
+
+Preflight vyžaduje release sekci `## [X.Y.Z] - YYYY-MM-DD` odpovídající `-Version X.Y.Z`, prázdnou `## [Unreleased]` sekci a volný tag `vX.Y.Z`.
+
 ## Interní platform lifecycle skripty
 
 ### `New-DDDAPlatformPackage.ps1`

@@ -142,7 +142,8 @@ foreach ($relative in @($policy.required_documents)) {
     }
 }
 
-$tag = "v$Version"
+$changelogRelease = Assert-DDDAPlatformChangelogRelease -Path (Join-Path $reviewRoot "CHANGELOG.md") -Version $Version
+$tag = [string]$changelogRelease.Tag
 $existingTag = Invoke-DDDAPlatformNative -Command "git" -Arguments @("ls-remote", "--tags", $originUrl, "refs/tags/$tag")
 if (-not [string]::IsNullOrWhiteSpace($existingTag)) {
     throw "Release tag již existuje: $tag"
@@ -160,7 +161,8 @@ Write-Host "Candidate hash:    $actualCandidateHash"
 Write-Host "CI checks:         PASS ($($checkSummary.CheckRunCount) check runs)"
 Write-Host "Approvals policy:  PASS"
 Write-Host "Governance docs:   PASS"
-Write-Host "Release tag free:  PASS"
+Write-Host "Changelog release: PASS ($($changelogRelease.Version), $($changelogRelease.Date))"
+Write-Host "Release tag free:  PASS ($tag)"
 
 if ($DryRun) {
     Write-Host ""

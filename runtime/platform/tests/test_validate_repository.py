@@ -253,3 +253,104 @@ def test_miro_acceptance_schema_accepts_preserved_review_board() -> None:
     }
 
     jsonschema.validate(report, schema)
+
+
+def write_release_contract_fixture(root: Path) -> None:
+    (root / "docs/user-guide").mkdir(parents=True, exist_ok=True)
+    (root / "docs/developer-guide").mkdir(parents=True, exist_ok=True)
+    (root / "docs/reference").mkdir(parents=True, exist_ok=True)
+    (root / "scripts/platform").mkdir(parents=True, exist_ok=True)
+
+    canonical = "GH_TOKEN -> GITHUB_TOKEN -> gh auth token -> Git credential helper\n"
+    (root / "README.md").write_text("GitHub CLI není povinný.\n", encoding="utf-8")
+    (root / "USAGE.md").write_text("Token není CLI argument.\n", encoding="utf-8")
+    for relative in (
+        "docs/user-guide/validate-and-promote-pr.md",
+        "docs/developer-guide/platform-development-lifecycle.md",
+        "docs/reference/cli.md",
+    ):
+        (root / relative).write_text(canonical, encoding="utf-8")
+
+    (root / "CHANGELOG.md").write_text(
+        "# Changelog\n\n"
+        "Auth: GH_TOKEN -> GITHUB_TOKEN -> gh auth token -> Git credential helper\n\n"
+        "## [Unreleased]\n\n"
+        "Development notes belong here without release bullets.\n\n"
+        "## [1.2.3] - 2026-07-28\n\n"
+        "### Added\n\n"
+        "- deterministic release contract.\n",
+        encoding="utf-8",
+    )
+    (root / "scripts/platform/DDDAGitHubSupport.ps1").write_text(
+        'Name = "GH_TOKEN"\n'
+        'Name = "GITHUB_TOKEN"\n'
+        'Source = "gh auth token"\n'
+        'Source = "git credential helper"\n',
+        encoding="utf-8",
+    )
+    (root / "scripts/platform/DDDAPlatformSupport.ps1").write_text(
+        "function Assert-DDDAPlatformChangelogRelease {}\n",
+        encoding="utf-8",
+    )
+    (root / "scripts/platform/Invoke-DDDAPromotePr.ps1").write_text(
+        "Assert-DDDAPlatformChangelogRelease -Path CHANGELOG.md -Version $Version\n",
+        encoding="utf-8",
+    )
+
+
+def test_release_contracts_accept_canonical_auth_and_changelog(tmp_path: Path) -> None:
+    write_release_contract_fixture(tmp_path)
+
+    failures = MODULE.validate_release_contracts(tmp_path)
+
+    assert failures == []
+
+
+def test_release_contracts_detect_stale_required_github_cli_claim(tmp_path: Path) -> None:
+    write_release_contract_fixture(tmp_path)
+    (tmp_path / "docs/adr").mkdir(parents=True)
+    (tmp_path / "docs/adr/0001.md").write_text(
+        "promotion vyžaduje GitHub CLI a autentizaci.\n",
+        encoding="utf-8",
+    )
+
+    failures = MODULE.validate_release_contracts(tmp_path)
+
+    assert any("GitHub CLI is required" in failure for failure in failures)
+
+
+def test_release_contracts_detect_auth_provider_order_drift(tmp_path: Path) -> None:
+    write_release_contract_fixture(tmp_path)
+    (tmp_path / "docs/reference/cli.md").write_text(
+        "Git credential helper -> GH_TOKEN -> GITHUB_TOKEN -> gh auth token\n",
+        encoding="utf-8",
+    )
+
+    failures = MODULE.validate_release_contracts(tmp_path)
+
+    assert any("inconsistent GitHub auth provider order" in failure for failure in failures)
+
+
+def test_release_contracts_detect_unreleased_release_items(tmp_path: Path) -> None:
+    write_release_contract_fixture(tmp_path)
+    changelog = (tmp_path / "CHANGELOG.md").read_text(encoding="utf-8")
+    changelog = changelog.replace(
+        "Development notes belong here without release bullets.\n",
+        "- not assigned to a release.\n",
+    )
+    (tmp_path / "CHANGELOG.md").write_text(changelog, encoding="utf-8")
+
+    failures = MODULE.validate_release_contracts(tmp_path)
+
+    assert any("[Unreleased] contains release items" in failure for failure in failures)
+
+
+def test_release_contracts_detect_invalid_release_date(tmp_path: Path) -> None:
+    write_release_contract_fixture(tmp_path)
+    changelog = (tmp_path / "CHANGELOG.md").read_text(encoding="utf-8")
+    changelog = changelog.replace("2026-07-28", "2026-02-30")
+    (tmp_path / "CHANGELOG.md").write_text(changelog, encoding="utf-8")
+
+    failures = MODULE.validate_release_contracts(tmp_path)
+
+    assert any("invalid ISO date" in failure for failure in failures)

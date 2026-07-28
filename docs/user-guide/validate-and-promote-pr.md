@@ -5,11 +5,11 @@
 - pracuješ v čistém clone DDDA platformy;
 - `origin` ukazuje na GitHub repository;
 - je dostupný Git a Python 3.11+;
-- pro `promote-pr` je dostupná GitHub autentizace alespoň jedním z podporovaných způsobů:
-  - existující Git credential helper použitý už pro clone/push;
-  - environment variable `GH_TOKEN`;
-  - environment variable `GITHUB_TOKEN`;
-  - autentizovaný GitHub CLI `gh`;
+- pro `promote-pr` je dostupná GitHub autentizace alespoň jedním z podporovaných způsobů, v tomto pořadí preference:
+  1. environment variable `GH_TOKEN`;
+  2. environment variable `GITHUB_TOKEN`;
+  3. token z autentizovaného GitHub CLI přes `gh auth token`;
+  4. existující Git credential helper použitý už pro clone/push;
 - pro online Miro test je token uložen v DDDA secret store nebo environment variable.
 
 GitHub CLI není povinná závislost. Promotion používá GitHub REST API a automaticky preferuje `GH_TOKEN`, potom `GITHUB_TOKEN`, potom token z `gh auth token` a nakonec existující Git credential helper. Token se nevypisuje ani nepředává jako CLI argument.
@@ -92,6 +92,18 @@ Před promotion zkontroluj:
 
 Mechanické kontroly neopakuj ručně.
 
+## Release cut v changelogu
+
+Během vývoje zapisuj změny pouze pod `## [Unreleased]`. Před finálním promotion dry-runem proveď deterministický release cut:
+
+1. zvol jedinou Semantic Version `X.Y.Z`;
+2. přesuň všechny release položky z `Unreleased` pod `## [X.Y.Z] - YYYY-MM-DD`;
+3. ponech `## [Unreleased]` bez release položek;
+4. použij stejnou hodnotu `X.Y.Z` v parametru `-Version`;
+5. promotion odvodí tag výhradně jako `vX.Y.Z`.
+
+Promotion preflight odmítne chybějící nebo duplicitní release heading, neplatné ISO datum, neprázdnou `Unreleased` sekci nebo neshodu mezi `-Version` a changelogem. Datum nemusí být datum spuštění preflightu, musí však být platné a explicitně schválené jako release datum.
+
 ## Promotion dry-run
 
 ```powershell
@@ -108,7 +120,9 @@ Dry-run ověří:
 - candidate package hash odpovídá reportu;
 - approval policy je splněna;
 - povinné governance dokumenty existují;
-- release tag ještě neexistuje.
+- changelog obsahuje právě jednu release sekci pro zadané `-Version` s platným ISO datem;
+- `Unreleased` neobsahuje nepřiřazené release položky;
+- release tag `vX.Y.Z` ještě neexistuje.
 
 Neprovede merge, release ani tag.
 

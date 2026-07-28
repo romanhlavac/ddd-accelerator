@@ -251,3 +251,72 @@ function Assert-DDDAPlatformSemanticVersion {
         throw "Neplatná Semantic Version: $Version"
     }
 }
+
+function Assert-DDDAPlatformChangelogRelease {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][string]$Version
+    )
+
+    Assert-DDDAPlatformSemanticVersion -Version $Version
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        throw "Changelog neexistuje: $Path"
+    }
+
+    $text = Get-Content -LiteralPath $Path -Raw -Encoding UTF8
+    $unreleasedPattern = '(?m)^## \[Unreleased\]\s*$'
+    $unreleasedMatches = [regex]::Matches($text, $unreleasedPattern, [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)
+    if ($unreleasedMatches.Count -ne 1) {
+        throw "Changelog musí obsahovat právě jednu sekci '## [Unreleased]'. Nalezeno: $($unreleasedMatches.Count)."
+    }
+
+    $escapedVersion = [regex]::Escape($Version)
+    $releasePattern = "(?m)^## \[$escapedVersion\] - (?<date>[0-9]{4}-[0-9]{2}-[0-9]{2})\s*$"
+    $releaseMatches = [regex]::Matches($text, $releasePattern, [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)
+    if ($releaseMatches.Count -ne 1) {
+        throw "Changelog musí obsahovat právě jednu release sekci '## [$Version] - YYYY-MM-DD'. Nalezeno: $($releaseMatches.Count)."
+    }
+
+    $dateText = [string]$releaseMatches[0].Groups["date"].Value
+    $parsedDate = [datetime]::MinValue
+    $dateValid = [datetime]::TryParseExact(
+        $dateText,
+        "yyyy-MM-dd",
+        [System.Globalization.CultureInfo]::InvariantCulture,
+        [System.Globalization.DateTimeStyles]::None,
+        [ref]$parsedDate
+    )
+    if (-not $dateValid -or $parsedDate.ToString("yyyy-MM-dd") -ne $dateText) {
+        throw "Changelog release datum není platné ISO datum: $dateText"
+    }
+
+    $unreleasedStart = $unreleasedMatches[0].Index + $unreleasedMatches[0].Length
+    $nextHeading = [regex]::Match(
+        $text.Substring($unreleasedStart),
+        '(?m)^##\s+',
+        [System.Text.RegularExpressions.RegexOptions]::CultureInvariant
+    )
+    $unreleasedEnd = if ($nextHeading.Success) { $unreleasedStart + $nextHeading.Index } else { $text.Length }
+    $unreleasedBody = $text.Substring($unreleasedStart, $unreleasedEnd - $unreleasedStart)
+    if ($unreleasedBody -match '(?m)^\s*(?:[-*+]\s+|[0-9]+\.\s+)') {
+        throw "Changelog sekce [Unreleased] obsahuje nepřiřazené release položky. Před promotion je přesuň do [$Version]."
+    }
+
+    $releaseStart = $releaseMatches[0].Index + $releaseMatches[0].Length
+    $nextReleaseHeading = [regex]::Match(
+        $text.Substring($releaseStart),
+        '(?m)^##\s+',
+        [System.Text.RegularExpressions.RegexOptions]::CultureInvariant
+    )
+    $releaseEnd = if ($nextReleaseHeading.Success) { $releaseStart + $nextReleaseHeading.Index } else { $text.Length }
+    $releaseBody = $text.Substring($releaseStart, $releaseEnd - $releaseStart)
+    if ($releaseBody -notmatch '(?m)^\s*(?:[-*+]\s+|[0-9]+\.\s+)') {
+        throw "Changelog release sekce [$Version] neobsahuje žádnou release položku."
+    }
+
+    return [pscustomobject]@{
+        Version = $Version
+        Date = $dateText
+        Tag = "v$Version"
+    }
+}
