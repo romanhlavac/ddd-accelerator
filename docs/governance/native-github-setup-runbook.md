@@ -2,208 +2,330 @@
 
 ## Purpose
 
-This runbook creates the live GitHub structures that cannot be produced by repository files alone:
+This runbook creates the live GitHub structures that repository files alone cannot activate:
 
 - native Parent/Sub-issue relationships;
-- native issue dependencies;
-- GitHub Project fields and views;
-- Project item metadata;
+- native `Blocked by` / `Blocking` dependencies;
+- GitHub Project, custom fields, items and initial metadata;
+- Project views;
 - Milestone and release-scope assignments.
 
-The authoritative execution/evidence Issue is #42. The machine-readable target state is `config/governance/backlog-policy.yaml`.
+The authoritative execution/evidence Issue is #42.
 
-## 1. Native Sub-issues
+## Automation-first rule
 
-Create these parent/child relationships:
+Do not perform the setup item-by-item in the GitHub UI unless the automation reports a specific unsupported or failed operation.
 
-```text
-#17 → #9,#10,#11,#12,#13,#14,#15
-#18 → #21,#22,#23,#24,#25,#26
-#19 → #27,#28,#29,#30,#31,#32,#33
-#20 → #34,#35,#36,#37,#38,#39,#40,#41
-```
-
-GitHub CLI:
-
-```powershell
-gh issue edit 17 -R romanhlavac/ddd-accelerator --add-sub-issue 9,10,11,12,13,14,15
-gh issue edit 18 -R romanhlavac/ddd-accelerator --add-sub-issue 21,22,23,24,25,26
-gh issue edit 19 -R romanhlavac/ddd-accelerator --add-sub-issue 27,28,29,30,31,32,33
-gh issue edit 20 -R romanhlavac/ddd-accelerator --add-sub-issue 34,35,36,37,38,39,40,41
-```
-
-PR #8 and Draft PR #43 are linked implementations, not Sub-issues.
-
-## 2. Native dependencies
-
-### WP-08
-
-```powershell
-gh issue edit 14 -R romanhlavac/ddd-accelerator --add-blocked-by 13
-gh issue edit 12 -R romanhlavac/ddd-accelerator --add-blocked-by 14
-gh issue edit 11 -R romanhlavac/ddd-accelerator --add-blocked-by 12
-gh issue edit 10 -R romanhlavac/ddd-accelerator --add-blocked-by 11
-gh issue edit 9  -R romanhlavac/ddd-accelerator --add-blocked-by 10
-```
-
-### WP-09
-
-```powershell
-gh issue edit 23 -R romanhlavac/ddd-accelerator --add-blocked-by 21,22
-gh issue edit 24 -R romanhlavac/ddd-accelerator --add-blocked-by 22,23
-gh issue edit 25 -R romanhlavac/ddd-accelerator --add-blocked-by 21,24
-gh issue edit 26 -R romanhlavac/ddd-accelerator --add-blocked-by 25
-```
-
-### WP-10
-
-```powershell
-gh issue edit 28 -R romanhlavac/ddd-accelerator --add-blocked-by 27,31
-gh issue edit 29 -R romanhlavac/ddd-accelerator --add-blocked-by 27,31
-gh issue edit 30 -R romanhlavac/ddd-accelerator --add-blocked-by 27,31
-gh issue edit 32 -R romanhlavac/ddd-accelerator --add-blocked-by 27
-gh issue edit 33 -R romanhlavac/ddd-accelerator --add-blocked-by 28,29,30,31,32
-```
-
-### WP-11
-
-```powershell
-gh issue edit 35 -R romanhlavac/ddd-accelerator --add-blocked-by 34
-gh issue edit 37 -R romanhlavac/ddd-accelerator --add-blocked-by 36
-gh issue edit 38 -R romanhlavac/ddd-accelerator --add-blocked-by 37
-gh issue edit 39 -R romanhlavac/ddd-accelerator --add-blocked-by 36,37,38
-gh issue edit 40 -R romanhlavac/ddd-accelerator --add-blocked-by 37,38,39
-gh issue edit 41 -R romanhlavac/ddd-accelerator --add-blocked-by 35,40
-```
-
-Dependencies express logical prerequisites. They do not assign dates, priorities or approvals.
-
-## 3. GitHub Project
-
-Create a user Project:
+Authoritative automation:
 
 ```text
-Name: DDDA Platform Backlog
-Layout: Table
+scripts/platform/Initialize-DDDAGitHubGovernance.ps1
+config/governance/github-bootstrap.json
+```
+
+The script is idempotent: it reads the current GitHub state and adds only missing relationships, fields, items, views and milestone assignments.
+
+## Prerequisites
+
+Use a current GitHub CLI version that supports:
+
+- `gh issue edit --add-sub-issue`;
+- `gh issue edit --add-blocked-by`;
+- `gh project` commands.
+
+Verify authentication:
+
+```powershell
+gh --version
+gh auth status
+```
+
+If Project access is missing, authorize it once:
+
+```powershell
+gh auth refresh -s project
+```
+
+This browser authorization is the only potentially unavoidable pre-run interaction.
+
+## Recommended execution
+
+Run from the repository root after checking out Draft PR #43 or its branch:
+
+```powershell
+git fetch origin
+git switch feature/github-native-backlog-governance
+git pull --ff-only
+```
+
+First inspect the plan:
+
+```powershell
+.\scripts\platform\Initialize-DDDAGitHubGovernance.ps1
+```
+
+Apply the setup and open the resulting Project:
+
+```powershell
+.\scripts\platform\Initialize-DDDAGitHubGovernance.ps1 -Apply -OpenProject
+```
+
+The script writes a local evidence report:
+
+```text
+ddda-github-governance-setup-YYYYMMDD-HHMMSS.md
+```
+
+Do not commit this local report automatically. Attach or summarize it in Issue #42 after review.
+
+## What the script performs
+
+### Native hierarchy
+
+```text
+WP-08 #17 → #9–#15
+WP-09 #18 → #21–#26
+WP-10 #19 → #27–#33
+WP-11 #20 → #34–#41
+```
+
+PR #8 and Draft PR #43 remain implementation links, not Sub-issues.
+
+### Native dependencies
+
+The complete dependency graph is read from:
+
+```text
+config/governance/github-bootstrap.json
+```
+
+It includes the WP-08 remediation critical path and the planned dependency graphs for WP-09 through WP-11.
+
+### GitHub Project
+
+The script creates or reuses:
+
+```text
 Owner: romanhlavac
+Project: DDDA Platform Backlog
+Visibility: PUBLIC
+Repository link: romanhlavac/ddd-accelerator
 ```
 
-Add:
+It adds:
 
 - PR #8;
 - Issues #9–#42;
 - Draft PR #43;
 - Issue #44.
 
-Do not bulk-import unrelated historical items.
+### Fields
 
-## 4. Fields
+The script creates or normalizes:
 
-Custom fields:
+- `Status`;
+- `Priority`;
+- `Work Package`;
+- `Item Type`;
+- `Platform Area`;
+- `Impact`;
+- `Target Release`;
+- `Start date`;
+- `Target date`;
+- `Outcome summary`;
+- `Blocked`;
+- `Human Review`;
+- `Dependency`.
 
-- Status: Backlog, Discovery, Triaged, Ready, In progress, In review, Blocked, Done, Cancelled;
-- Priority: P0, P1, P2, P3;
-- Work Package: WP-08, WP-09, WP-10, WP-11, Other;
-- Item Type: GAP, Work Package, Change Request, Defect, Risk, Enabler;
-- Platform Area: DDDA platform taxonomy;
-- Impact: LOW, MEDIUM, HIGH, BREAKING;
-- Target Release: text;
-- Start date: date;
-- Target date: date;
-- Outcome summary: text;
-- Owner: person;
-- Blocked: boolean;
-- Human Review: Not required, Pending, PASS, FAIL, Accepted risks;
-- Dependency: text projection/rationale.
+GitHub Projects does not provide a custom Boolean field in the required CLI/API contract, so `Blocked` is a single-select field with `No` and `Yes`.
 
-Enable system fields:
+Ownership uses the native `Assignees` system field rather than a duplicate custom Person field.
 
-- Parent issue;
-- Sub-issue progress;
-- Milestone;
-- Linked pull requests;
-- Assignees.
+The script intentionally leaves Priority, Start date and Target date empty unless explicitly configured later.
 
-Do not invent dates or future target releases.
+### Initial metadata
 
-## 5. Views
+The script sets:
 
-Create and save:
+- WP-08 as Blocked with Target Release `0.1.0` and Human Review Pending;
+- WP-09 through WP-11 as Backlog with Target Release `TBD`;
+- children under the matching Work Package;
+- PR #8 under WP-08;
+- Draft PR #43 and governance items under `Other`;
+- completed/closed items to `Done` when their current GitHub state is closed or merged.
 
-1. `Work Packages` — Table, filter `Item Type = Work Package`, show outcome and Sub-issue progress.
-2. `WP hierarchy` — Table grouped by Parent issue.
-3. `Delivery board` — Board by Status.
-4. `Roadmap by Work Package` — Roadmap using Start date and Target date, grouped by WP, milestone markers enabled.
-5. `Release scope` — Table grouped by Milestone.
-6. `Blocked and P0` — filter Blocked/P0.
-7. `Human review queue` — filter In review or Human Review Pending.
-8. `Ready without owner` — filter Ready and empty Owner.
-9. `Recently completed` — filter Done.
+### Views
 
-Unscheduled roadmap items remain visible. Dates remain blank until explicitly decided.
+The script attempts to create:
 
-## 6. Initial metadata
+1. `Work Packages`;
+2. `WP hierarchy`;
+3. `Delivery board`;
+4. `Roadmap by Work Package`;
+5. `Release scope`;
+6. `Blocked and P0`;
+7. `Human review queue`;
+8. `Ready without owner`;
+9. `Recently completed`.
 
-Parent Work Packages:
+The current GitHub API can create views and basic filters. Some advanced UI settings still require a short manual finalization; see below.
 
-```text
-#17 WP-08: Blocked, Target Release 0.1.0, Human Review Pending
-#18 WP-09: Backlog, Target Release TBD
-#19 WP-10: Backlog, Target Release TBD
-#20 WP-11: Backlog, Target Release TBD
-```
+### Milestone
 
-Children inherit the matching Work Package field. WP-09 through WP-11 priorities remain unset until prioritization.
-
-PR #8: WP-08, Blocked, Target Release 0.1.0, Human Review Pending.
-
-Draft PR #43: blocked by PR #8 resolution; target release remains undecided.
-
-## 7. Milestone
-
-Create:
+The script creates or reuses:
 
 ```text
 DDDA 0.1.0
 ```
 
-Assign:
+and assigns:
 
 - PR #8;
 - Issues #9–#15.
 
-Do not assign Parent WP #17 because it would duplicate release-progress counting. Do not assign WP-09 through WP-11 or Draft PR #43 without a separate release decision.
+It deliberately does not assign Parent WP #17, WP-09 through WP-11 or Draft PR #43.
 
-Leave the due date empty until an approved date exists.
+## Remaining manual steps after a successful run
 
-## 8. Safe workflows
+These are the only expected manual Project actions.
 
-Allowed examples:
+### 1. Finish view configuration
+
+Open `DDDA Platform Backlog` and configure the created views:
+
+#### Work Packages
+
+```text
+Layout: Table
+Filter: Item Type = Work Package
+Visible fields:
+  Title
+  Outcome summary
+  Status
+  Priority
+  Sub-issue progress
+  Start date
+  Target date
+  Target Release
+  Human Review
+```
+
+#### WP hierarchy
+
+```text
+Layout: Table
+Group by: Parent issue
+Visible fields:
+  Title
+  Parent issue
+  Status
+  Priority
+  Blocked
+  Dependency
+  Target Release
+  Linked pull requests
+```
+
+#### Delivery board
+
+```text
+Layout: Board
+Column field: Status
+Visible fields:
+  Priority
+  Work Package
+  Assignees
+  Target Release
+  Blocked
+```
+
+#### Roadmap by Work Package
+
+```text
+Layout: Roadmap
+Start field: Start date
+Target field: Target date
+Group by: Work Package
+Milestone markers: enabled
+Unscheduled items: visible
+```
+
+#### Release scope
+
+```text
+Layout: Table
+Group by: Milestone
+Visible fields:
+  Title
+  Milestone
+  Status
+  Priority
+  Work Package
+  Human Review
+  Blocked
+  Linked pull requests
+```
+
+For the remaining views, verify the generated filter and select useful visible fields. Save every changed view.
+
+### 2. Configure safe built-in workflows
+
+In Project settings, enable only mechanical workflows such as:
 
 - item added → Backlog;
 - closed Issue → Done;
 - reopened Issue → Triaged;
-- merged PR → PR item Done.
+- merged PR → Done.
 
 Never automate:
 
 - Priority;
 - Target Release or Milestone;
-- dates;
+- Start/Target dates;
 - Human Review PASS;
 - gate `passed`;
 - HRDR or GO/NO-GO;
 - closing a Parent WP after one PR merge.
 
-## 9. Verification
+### 3. Verify release scope
 
-Before closing #42 verify:
+Confirm that Milestone `DDDA 0.1.0` contains exactly the intended release candidates:
+
+- PR #8;
+- Issues #9–#15.
+
+It must not contain Parent WP #17, WP-09 through WP-11 or PR #43 unless a later explicit release decision changes the scope.
+
+### 4. Record evidence
+
+Attach or summarize the generated setup report in Issue #42 and record:
+
+- Project URL;
+- any warnings or failed automated actions;
+- confirmation of hierarchy and dependencies;
+- confirmation of Milestone scope;
+- screenshots only where they add useful evidence;
+- any deliberate deviation from the versioned configuration.
+
+## Verification commands
+
+```powershell
+gh issue view 17 -R romanhlavac/ddd-accelerator --json subIssues,subIssuesSummary
+gh issue view 18 -R romanhlavac/ddd-accelerator --json subIssues,subIssuesSummary
+gh issue view 23 -R romanhlavac/ddd-accelerator --json parent,blockedBy,blocking
+gh issue view 33 -R romanhlavac/ddd-accelerator --json parent,blockedBy,blocking
+gh issue view 41 -R romanhlavac/ddd-accelerator --json parent,blockedBy,blocking
+gh project list --owner romanhlavac
+gh project field-list <PROJECT_NUMBER> --owner romanhlavac
+gh project item-list <PROJECT_NUMBER> --owner romanhlavac --limit 100
+```
+
+Before closing #42, verify that:
 
 - every child has the expected native parent;
-- every specified dependency is visible;
-- Project fields and all nine views exist;
-- parent progress is visible;
-- roadmap does not contain fabricated dates;
-- Milestone contains only PR #8 and #9–#15;
-- no human approval is automated;
-- evidence/screenshots and deviations are recorded in #42.
+- every configured dependency is visible;
+- all fields and nine views exist;
+- Parent WP progress is visible;
+- the Roadmap contains no fabricated dates;
+- the Milestone scope is correct;
+- no human approval is automated.
