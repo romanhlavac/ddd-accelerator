@@ -46,14 +46,35 @@ if ($bytes.Length -eq 0) {
 
 [System.IO.File]::WriteAllBytes($bootstrapPath, $bytes)
 
-# Compatibility repair for the original bootstrap revision. These replacements
-# are harmless when the source has already been corrected.
+# Compatibility repairs for earlier bootstrap revisions. These replacements are
+# harmless when the source has already been corrected.
 $bootstrapText = [System.IO.File]::ReadAllText($bootstrapPath, $utf8NoBom)
 $bootstrapText = $bootstrapText.Replace(
     '$endpoint = "repos/$repository/contents/$RepositoryPath?ref=$encodedRef"',
     '$endpoint = "repos/{0}/contents/{1}?ref={2}" -f $repository, $RepositoryPath, $encodedRef'
 )
 $bootstrapText = $bootstrapText.Replace('$exitCode:', '${exitCode}:')
+
+$unsafeNativeInvocation = @'
+    $output = & $Executable @Arguments 2>&1
+    $exitCode = $LASTEXITCODE
+    $text = ($output | ForEach-Object { "$_" }) -join "`n"
+'@
+
+$safeNativeInvocation = @'
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "Continue"
+        $output = & $Executable @Arguments 2>&1
+        $exitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+    $text = ($output | ForEach-Object { "$_" }) -join "`n"
+'@
+
+$bootstrapText = $bootstrapText.Replace($unsafeNativeInvocation, $safeNativeInvocation)
 [System.IO.File]::WriteAllText($bootstrapPath, $bootstrapText, $utf8NoBom)
 
 if ((Get-Item -LiteralPath $bootstrapPath).Length -eq 0) {
