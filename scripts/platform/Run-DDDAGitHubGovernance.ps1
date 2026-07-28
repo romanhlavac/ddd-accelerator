@@ -75,6 +75,41 @@ $safeNativeInvocation = @'
 '@
 
 $bootstrapText = $bootstrapText.Replace($unsafeNativeInvocation, $safeNativeInvocation)
+
+$capturedLogin = @'
+    Invoke-NativeChecked -Executable $ghPath -Arguments @(
+        "auth", "login",
+        "--hostname", "github.com",
+        "--git-protocol", "https",
+        "--web"
+    ) | Out-Null
+'@
+
+$interactiveLogin = @'
+    & $ghPath auth login --hostname github.com --git-protocol https --web
+    if ($LASTEXITCODE -ne 0) {
+        throw "GitHub authentication failed with exit code $LASTEXITCODE."
+    }
+'@
+
+$bootstrapText = $bootstrapText.Replace($capturedLogin, $interactiveLogin)
+
+$capturedRefresh = @'
+    Invoke-NativeChecked -Executable $ghPath -Arguments @(
+        "auth", "refresh",
+        "--hostname", "github.com",
+        "-s", "project"
+    ) | Out-Null
+'@
+
+$interactiveRefresh = @'
+    & $ghPath auth refresh --hostname github.com -s project
+    if ($LASTEXITCODE -ne 0) {
+        throw "GitHub Projects authorization failed with exit code $LASTEXITCODE."
+    }
+'@
+
+$bootstrapText = $bootstrapText.Replace($capturedRefresh, $interactiveRefresh)
 [System.IO.File]::WriteAllText($bootstrapPath, $bootstrapText, $utf8NoBom)
 
 if ((Get-Item -LiteralPath $bootstrapPath).Length -eq 0) {
