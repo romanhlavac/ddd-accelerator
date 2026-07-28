@@ -48,7 +48,7 @@ Změny pro další verzi se během vývoje zapisují sem. Před promotion se vš
 - Miro renderer odmítá mojibake a blocking watermark/overlay nad pracovními frames;
 - current-gate highlight se aktualizuje nad stabilními journey item ID bez recreation boardu;
 - Miro board ID a auditní metadata se po automatickém cleanupu již neztrácejí a reporty odmítají secret-like evidence;
-- Miro child položky převádějí frame-center souřadnice na top-left parent souřadnice REST API a částečný render zachová board ID pro diagnostiku a cleanup;
+- Miro child položky převádějí frame-center souřadnice na top-left parent souřadnice REST API a před API voláním validují hranice parent frame;
 - syntetická legacy workspace compatibility regrese dokazuje non-breaking/aditivní kontrakt bez klientských dat;
 - ADR odstranil zastaralý požadavek na GitHub CLI jako povinnou závislost promotion.
 
