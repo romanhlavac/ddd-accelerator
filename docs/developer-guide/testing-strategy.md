@@ -86,6 +86,12 @@ Generovaný architektonický text se nesrovnává celý po znacích, pokud není
 - gate se neposunula bez explicitního rozhodnutí;
 - Miro mapping zůstává stabilní.
 
+## Legacy workspace compatibility
+
+`Test-DDDALegacyWorkspaceCompatibility.ps1` vytváří výhradně syntetický pre-steering workspace podle versioned manifestu `tests/fixtures/legacy-workspace/baseline.json`. Ověřuje read-only načtení bez změn, povinný explicitní `-Resume`, pouze aditivní steering metadata, zachování project/lock/workspace/Miro mappingu a nulový počet automaticky schválených gates.
+
+Test běží v component, integration i regression suite, aby byl kontrakt viditelný v CI a validation reportu.
+
 ## Package-first validace
 
 Smoke, integration, E2E a acceptance během `validate-pr` běží z nově rozbaleného candidate package. Lokální Git baseline vytvořená uvnitř rozbaleného package slouží jen k ověření Git guardrails a není součástí distribuovaného ZIP.

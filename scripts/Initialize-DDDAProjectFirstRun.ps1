@@ -51,6 +51,34 @@ $projectRoot = Join-Path (Join-Path $workspaceFull "projects") $projectId
 $workspaceFile = Join-Path $workspaceFull "workspace.yaml"
 $projectExists = Test-Path $projectRoot
 
+function Get-DDDAFirstRunFileHash {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
+}
+
+function Get-DDDAFirstRunOptionalOrigin {
+    param([Parameter(Mandatory = $true)][string]$RepositoryPath)
+
+    $previousPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "Continue"
+        $output = @(& git -C $RepositoryPath remote get-url origin 2>&1)
+        $exitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $previousPreference
+    }
+
+    if ($exitCode -ne 0) {
+        return $null
+    }
+
+    return (($output | ForEach-Object { $_.ToString() }) -join "`n").Trim()
+}
+
+$legacyProtectedState = $null
+
 Write-Host "=== DDDA řízený první start projektu ==="
 Write-Host "Platforma: $platformRoot"
 Write-Host "Workspace: $workspaceFull"
@@ -91,14 +119,58 @@ if ($projectExists -and $Resume) {
             throw "Resume odmítnut: projekt obsahuje změny mimo řízené DDDA cesty:`n$($allowed -join "`n")"
         }
     }
+
+    $protectedPaths = @("project.yaml", "ddda.lock.yaml")
+    $miroMapPath = Join-Path $projectRoot "miro/miro-map.yaml"
+    if (Test-Path -LiteralPath $miroMapPath -PathType Leaf) {
+        $protectedPaths += "miro/miro-map.yaml"
+    }
+
+    $protectedHashes = @{}
+    foreach ($relativePath in $protectedPaths) {
+        $fullPath = Join-Path $projectRoot $relativePath
+        if (-not (Test-Path -LiteralPath $fullPath -PathType Leaf)) {
+            throw "Legacy resume vyžaduje preserved file: $relativePath"
+        }
+        $protectedHashes[$relativePath] = Get-DDDAFirstRunFileHash -Path $fullPath
+    }
+
+    $legacyProtectedState = [pscustomobject]@{
+        hashes = $protectedHashes
+        workspace_hash = Get-DDDAFirstRunFileHash -Path $workspaceFile
+        origin = Get-DDDAFirstRunOptionalOrigin -RepositoryPath $projectRoot
+    }
 }
 
-$result = Invoke-DDDASteeringJson -PlatformRoot $platformRoot -Arguments @(
+$bootstrapArguments = @(
     "bootstrap",
     "--platform-root", $platformRoot,
     "--project-root", $projectRoot,
     "--intake", $intakeFull
 )
+if ($projectExists -and $Resume) {
+    $bootstrapArguments += "--preserve-project-manifest"
+}
+$result = Invoke-DDDASteeringJson -PlatformRoot $platformRoot -Arguments $bootstrapArguments
+
+if ($null -ne $legacyProtectedState) {
+    foreach ($relativePath in @($legacyProtectedState.hashes.Keys)) {
+        $actualHash = Get-DDDAFirstRunFileHash -Path (Join-Path $projectRoot $relativePath)
+        if ($actualHash -ne [string]$legacyProtectedState.hashes[$relativePath]) {
+            throw "Legacy resume změnil preserved file '$relativePath'."
+        }
+    }
+
+    $actualWorkspaceHash = Get-DDDAFirstRunFileHash -Path $workspaceFile
+    if ($actualWorkspaceHash -ne [string]$legacyProtectedState.workspace_hash) {
+        throw "Legacy resume změnil workspace.yaml."
+    }
+
+    $actualOrigin = Get-DDDAFirstRunOptionalOrigin -RepositoryPath $projectRoot
+    if ($actualOrigin -ne [string]$legacyProtectedState.origin) {
+        throw "Legacy resume změnil repository ownership/origin."
+    }
+}
 
 if (-not $NoInitialCommit) {
     & git -C $projectRoot add .

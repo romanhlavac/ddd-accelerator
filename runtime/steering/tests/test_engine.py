@@ -204,6 +204,27 @@ def test_test_simulation_requires_temp_marker_and_is_auditable(tmp_path: Path, m
     assert "provenance: test_simulation" in record
 
 
+def test_bootstrap_can_preserve_legacy_project_manifest(tmp_path: Path) -> None:
+    platform = platform_fixture(tmp_path)
+    project, intake = project_fixture(tmp_path)
+    original = (project / "project.yaml").read_bytes()
+
+    report = bootstrap(
+        project,
+        intake,
+        platform,
+        preserve_project_manifest=True,
+    )
+
+    assert report["next_gate"] == "G1"
+    assert (project / "project.yaml").read_bytes() == original
+    assert (project / ".ddda/adoption.yaml").exists()
+    adoption = (project / ".ddda/adoption.yaml").read_text(encoding="utf-8")
+    assert "mode: legacy-resume" in adoption
+    assert "preserved_project_manifest: true" in adoption
+    assert all(item["status"] != "passed" for item in report["gates"])
+
+
 def test_status_is_idempotent_in_shape(tmp_path: Path) -> None:
     platform = platform_fixture(tmp_path)
     project, intake = project_fixture(tmp_path)

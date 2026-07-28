@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "baseline_id": "pre-steering-workspace-v1",
+  "description": "Synthetic pre-steering workspace used only for compatibility regression.",
+  "workspace": {
+    "id": "legacy-workspace",
+    "project_id": "legacy-claims",
+    "project_path": "projects/legacy-claims"
+  },
+  "preserved_paths": [
+    "project.yaml",
+    "ddda.lock.yaml",
+    "miro/miro-map.yaml",
+    "artifacts/legacy/claims-model.yaml",
+    "ingestion/legacy-notes.md"
+  ],
+  "expected_additive_paths": [
+    ".ddda/adoption.yaml",
+    ".ddda/agent-contract.yaml",
+    ".ddda/journey-map.yaml",
+    ".ddda/session-context.yaml",
+    "artifacts/align/project-charter.yaml",
+    "artifacts/status/current-status.yaml",
+    "artifacts/status/next-actions.yaml",
+    "decisions/gates/G1.yaml",
+    "decisions/gates/G2.yaml",
+    "decisions/gates/G3.yaml",
+    "decisions/gates/G4.yaml",
+    "decisions/gates/G5.yaml",
+    "decisions/gates/G6.yaml",
+    "decisions/gates/G7.yaml",
+    "decisions/gates/G8.yaml",
+    "lifecycle-tailoring.yaml",
+    "project-intake.yaml",
+    "project-profile.yaml",
+    "reports/project-status.yaml"
+  ],
+  "forbidden_implicit_paths": [
+    "project-intake.yaml",
+    "project-profile.yaml",
+    "lifecycle-tailoring.yaml",
+    ".ddda/session-context.yaml",
+    ".ddda/agent-contract.yaml",
+    ".ddda/journey-map.yaml",
+    ".ddda/adoption.yaml",
+    "decisions/gates",
+    "artifacts/status",
+    "reports/project-status.yaml"
+  ],
+  "synthetic_markers": [
+    "Synthetic Legacy Claims",
+    "example.invalid",
+    "legacy-board-synthetic"
+  ]
+}

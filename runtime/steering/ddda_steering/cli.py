@@ -34,6 +34,11 @@ def parser() -> argparse.ArgumentParser:
     boot.add_argument("--platform-root", required=True)
     boot.add_argument("--project-root", required=True)
     boot.add_argument("--intake", required=True)
+    boot.add_argument(
+        "--preserve-project-manifest",
+        action="store_true",
+        help="Adopt steering metadata additively without rewriting an existing project.yaml.",
+    )
 
     status = sub.add_parser("status", help="Regenerate current status and next actions")
     status.add_argument("--platform-root", required=True)
@@ -67,7 +72,12 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "intake-summary":
             result = intake_summary(Path(args.intake).resolve(), Path(args.platform_root).resolve())
         elif args.command == "bootstrap":
-            result = bootstrap(Path(args.project_root).resolve(), Path(args.intake).resolve(), Path(args.platform_root).resolve())
+            result = bootstrap(
+                Path(args.project_root).resolve(),
+                Path(args.intake).resolve(),
+                Path(args.platform_root).resolve(),
+                preserve_project_manifest=args.preserve_project_manifest,
+            )
         elif args.command == "status":
             result = generate_status(Path(args.project_root).resolve(), Path(args.platform_root).resolve())
         elif args.command == "review-gate":

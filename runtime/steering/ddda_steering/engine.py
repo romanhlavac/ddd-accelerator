@@ -348,7 +348,13 @@ def update_project_manifest(project_root: Path, intake: dict[str, Any], tailorin
         YAML_RT.dump(manifest, handle)
 
 
-def bootstrap(project_root: Path, intake_path: Path, platform_root: Path) -> dict[str, Any]:
+def bootstrap(
+    project_root: Path,
+    intake_path: Path,
+    platform_root: Path,
+    *,
+    preserve_project_manifest: bool = False,
+) -> dict[str, Any]:
     project_types, gates_cfg, journey = load_config(platform_root)
     normalized = normalize_intake(load_yaml(intake_path), project_types)
     intake = normalized["intake"]
@@ -376,7 +382,22 @@ def bootstrap(project_root: Path, intake_path: Path, platform_root: Path) -> dic
         project_root / "project-profile.yaml",
     )
     dump_yaml(tailoring, project_root / "lifecycle-tailoring.yaml")
-    update_project_manifest(project_root, intake, tailoring)
+    if preserve_project_manifest:
+        dump_yaml(
+            {
+                "adoption": {
+                    "schema_version": 1,
+                    "mode": "legacy-resume",
+                    "project_id": intake["project_id"],
+                    "baseline": "pre-steering-workspace-v1",
+                    "preserved_project_manifest": True,
+                    "adopted_at": now_utc(),
+                }
+            },
+            project_root / ".ddda" / "adoption.yaml",
+        )
+    else:
+        update_project_manifest(project_root, intake, tailoring)
 
     charter = _managed_artifact(
         f"{intake['project_id']}.project-charter",

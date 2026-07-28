@@ -78,6 +78,7 @@ $requiredFiles = @(
     "scripts/platform/Invoke-DDDAExampleIngestion.ps1", "scripts/platform/New-DDDAValidationWorkspace.ps1", "scripts/platform/New-DDDAValidationReport.ps1",
     "scripts/platform/Invoke-DDDAPlatformTest.ps1", "scripts/platform/Invoke-DDDAValidatePr.ps1", "scripts/platform/Invoke-DDDAPromotePr.ps1",
     "tests/powershell/Test-DDDAMiroAutomation.ps1", "tests/powershell/Test-DDDAFirstRun.ps1", "tests/powershell/Test-DDDAProjectSteering.ps1",
+    "tests/powershell/Test-DDDALegacyWorkspaceCompatibility.ps1", "tests/fixtures/legacy-workspace/baseline.json",
     "tests/powershell/Test-DDDAPlatformLifecycle.ps1", "tests/powershell/Test-DDDAPlatformSecurity.ps1", "tests/powershell/Test-DDDAPlatformPackaging.ps1"
 )
 

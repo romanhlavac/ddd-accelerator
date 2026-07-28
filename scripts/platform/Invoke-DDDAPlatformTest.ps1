@@ -214,12 +214,14 @@ function Invoke-OneSuite {
             Invoke-TestScript -RelativePath "tests/powershell/Test-DDDAMiroAutomation.ps1" -Arguments @("-PlatformPath", $platformRoot)
             Invoke-TestScript -RelativePath "tests/powershell/Test-DDDAMiroEvidence.ps1" -Arguments @("-PlatformPath", $platformRoot)
             Invoke-TestScript -RelativePath "tests/powershell/Test-DDDAProjectSteering.ps1" -Arguments @("-PlatformPath", $platformRoot)
+            Invoke-TestScript -RelativePath "tests/powershell/Test-DDDALegacyWorkspaceCompatibility.ps1" -Arguments @("-PlatformPath", $platformRoot)
         }
         "integration" {
             $integrationResult = Invoke-PackageWorkspaceCheck
             if ($integrationResult.status -ne "PASS") {
                 throw "Package integration check nevrátil PASS."
             }
+            Invoke-TestScript -RelativePath "tests/powershell/Test-DDDALegacyWorkspaceCompatibility.ps1" -Arguments @("-PlatformPath", $platformRoot)
         }
         "smoke" {
             $smokeResult = Invoke-PackageWorkspaceCheck
@@ -232,6 +234,7 @@ function Invoke-OneSuite {
             Invoke-TestScript -RelativePath "tests/powershell/Test-DDDAProjectSteering.ps1" -Arguments @("-PlatformPath", $platformRoot)
             Invoke-TestScript -RelativePath "tests/powershell/Test-DDDAMiroAutomation.ps1" -Arguments @("-PlatformPath", $platformRoot)
             Invoke-TestScript -RelativePath "tests/powershell/Test-DDDAMiroEvidence.ps1" -Arguments @("-PlatformPath", $platformRoot)
+            Invoke-TestScript -RelativePath "tests/powershell/Test-DDDALegacyWorkspaceCompatibility.ps1" -Arguments @("-PlatformPath", $platformRoot)
         }
         "security" {
             Invoke-RepositoryValidator -ValidationSuite "security"

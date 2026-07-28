@@ -47,11 +47,20 @@ Pro zavedení steering metadat do existujícího projektu:
 
 1. připrav intake soubor;
 2. spusť `Initialize-DDDAProjectFirstRun.ps1 -Resume`;
-3. zkontroluj vytvořené a změněné soubory;
+3. zkontroluj vytvořené aditivní soubory;
 4. commitni je v projektovém repozitáři;
 5. Miro bootstrap spusť až nad čistým projektovým repozitářem.
 
-Žádná existující gate nebude automaticky označena jako `passed`.
+Resume adopce zachovává beze změny existující `project.yaml`, `ddda.lock.yaml`, `workspace.yaml`, repository origin a existující `miro/miro-map.yaml`. Stav adopce je zaznamenán v `.ddda/adoption.yaml`. Bez explicitního `-Resume` existující projekt nevytvoří steering metadata.
+
+Kontrakt je automaticky dokazován syntetickým invariant-based testem:
+
+```text
+tests/powershell/Test-DDDALegacyWorkspaceCompatibility.ps1
+tests/fixtures/legacy-workspace/baseline.json
+```
+
+Test je součástí component, integration a regression suite. Nepoužívá klientská data a ověřuje také, že žádná gate není automaticky označena jako `passed`.
 
 Starší `passed` bez strukturované human provenance se po novém status přepočtu nepovažuje za platné schválení; evidence zůstává zachována a dotčená gate vyžaduje nové lidské review.
 

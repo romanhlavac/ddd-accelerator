@@ -28,6 +28,7 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 - dokumentace je organizována do getting-started, methodology, capabilities, cookbooks, product, reference, developer-guide, user-guide, ADR a migration sekcí;
 - projektový Miro bootstrap publikuje vedle scaffoldu také aktuální managed YAML artefakty;
 - JSON reporty a jejich testy zachovávají prázdné kolekce jako skutečná pole v PowerShellu 7 i Windows PowerShellu 5.1;
+- explicitní `-Resume` adopce pre-steering projektu vytváří pouze aditivní steering metadata a zachovává původní project/lock/workspace/repository/Miro ownership;
 - automatický steering acceptance končí na `ready_for_review`; přechod G1 → G2 vyžaduje explicitní lidské rozhodnutí;
 - Miro acceptance odděluje technical sync, layout contract, UTF-8 a human visual acceptance; technický PASS zůstává `PENDING_HUMAN_REVIEW`;
 - povinné managed steering artefakty mají explicitní `control-center` placement a stabilní souřadnice;
@@ -40,7 +41,8 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 - test-only gate simulation je omezena na explicitně označený dočasný fixture projekt;
 - Miro renderer odmítá mojibake a blocking watermark/overlay nad pracovními frames;
 - current-gate highlight se aktualizuje nad stabilními journey item ID bez recreation boardu;
-- Miro board ID a auditní metadata se po automatickém cleanupu již neztrácejí a reporty odmítají secret-like evidence.
+- Miro board ID a auditní metadata se po automatickém cleanupu již neztrácejí a reporty odmítají secret-like evidence;
+- syntetická legacy workspace compatibility regrese dokazuje non-breaking/aditivní kontrakt bez klientských dat.
 
 ### Compatibility
 
