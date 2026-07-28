@@ -1,0 +1,64 @@
+from ddda_miro.client import MiroClient
+
+
+def test_client_converts_child_position_using_cached_parent_geometry(monkeypatch):
+    calls = []
+
+    def fake_request(self, method, path, *, query=None, body=None):
+        calls.append((method, path, body))
+        if path.endswith("/frames"):
+            return {"id": "frame-1", "geometry": {"width": 5000, "height": 3200}}
+        return {"id": "text-1", **(body or {})}
+
+    monkeypatch.setattr(MiroClient, "_request", fake_request)
+    client = MiroClient("token")
+    client.create_item(
+        "board-1",
+        "frame",
+        {
+            "data": {"title": "Control Center"},
+            "position": {"x": -17500, "y": 0, "origin": "center"},
+            "geometry": {"width": 5000, "height": 3200},
+        },
+    )
+    authored = {
+        "data": {"content": "Instructions"},
+        "position": {"x": 0, "y": -250, "origin": "center"},
+        "geometry": {"width": 4650},
+        "parent": {"id": "frame-1"},
+    }
+    client.create_item("board-1", "text", authored)
+
+    posted = calls[-1][2]
+    assert posted["position"] == {"x": 2500.0, "y": 1350.0, "origin": "center"}
+    assert authored["position"] == {"x": 0, "y": -250, "origin": "center"}
+    assert not any(method == "GET" for method, _, _ in calls)
+
+
+def test_client_fetches_parent_geometry_when_cache_is_empty(monkeypatch):
+    calls = []
+
+    def fake_request(self, method, path, *, query=None, body=None):
+        calls.append((method, path, body))
+        if method == "GET":
+            return {"id": "frame-existing", "geometry": {"width": 5000, "height": 3200}}
+        return {"id": "shape-1", **(body or {})}
+
+    monkeypatch.setattr(MiroClient, "_request", fake_request)
+    client = MiroClient("token")
+    client.update_item(
+        "board-1",
+        "shape",
+        "shape-1",
+        {
+            "data": {"content": "Legend"},
+            "position": {"x": -1900, "y": 1200, "origin": "center"},
+            "geometry": {"width": 850, "height": 550},
+            "parent": {"id": "frame-existing"},
+        },
+    )
+
+    assert calls[0][0] == "GET"
+    assert calls[0][1].endswith("/frames/frame-existing")
+    patched = calls[-1][2]
+    assert patched["position"] == {"x": 600.0, "y": 2800.0, "origin": "center"}
