@@ -149,3 +149,36 @@ Definition of Done:
 ## Navazující krok
 
 Po inicializaci spusť první projektový workshop a používej dry-run synchronizace podle kuchařky [07 Miro ↔ YAML ↔ Git](07-synchronizace-miro-yaml-git.md).
+
+## Human visual acceptance boundary
+
+Úspěšný online initializer hlásí pouze:
+
+```text
+DDDA projektový Miro technical validation: PASS
+Layout contract: PASS
+UTF-8: PASS
+Human visual acceptance: PENDING
+Overall: PENDING_HUMAN_REVIEW
+```
+
+To není release approval. Pro zachování boardu k jednorázovému finálnímu review použij acceptance runner:
+
+```powershell
+.\scripts\Test-DDDAAcceptance.ps1 `
+  -Suite project-steering `
+  -WithMiro `
+  -Full `
+  -KeepReviewBoard
+```
+
+Runner vypíše:
+
+- board ID;
+- board URL;
+- review workspace;
+- acceptance report.
+
+Finální lidský reviewer ověřuje Control Center, journey G1–G8, aktuální gate, status legendu, workshop templates, nepřekrývání, UTF-8 a zachování ruční workshopové práce. Human review se neopakuje po každé automatické opravě; proběhne jednou po zmrazení všech relevantních online změn.
+
+Traceability je popsána v [Miro DDD Starter traceability](../reference/miro-ddd-starter-traceability.md).

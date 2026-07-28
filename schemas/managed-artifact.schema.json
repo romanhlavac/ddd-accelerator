@@ -3,32 +3,151 @@
   "$id": "https://ddda.local/schemas/managed-artifact.schema.json",
   "title": "DDDA Miro-managed artifact",
   "type": "object",
-  "required": ["artifact"],
+  "required": [
+    "artifact"
+  ],
   "additionalProperties": true,
   "properties": {
     "artifact": {
       "type": "object",
-      "required": ["id", "type", "name", "status", "stage"],
+      "required": [
+        "id",
+        "type",
+        "name",
+        "status",
+        "stage"
+      ],
       "additionalProperties": true,
       "properties": {
-        "id": {"type": "string", "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{1,127}$"},
-        "type": {"type": "string", "minLength": 1},
-        "name": {"type": "string", "minLength": 1},
-        "description": {"type": "string"},
-        "status": {"enum": ["observed", "candidate", "validated", "accepted", "superseded", "deleted_pending"]},
-        "stage": {"enum": ["align", "discover", "decompose", "strategize", "connect", "organize", "define", "code"]},
+        "id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]{1,127}$"
+        },
+        "type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "observed",
+            "candidate",
+            "validated",
+            "accepted",
+            "superseded",
+            "deleted_pending"
+          ]
+        },
+        "stage": {
+          "enum": [
+            "align",
+            "discover",
+            "decompose",
+            "strategize",
+            "connect",
+            "organize",
+            "define",
+            "code"
+          ]
+        },
         "miro": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "item_type": {"enum": ["sticky_note", "shape", "text", "frame"]},
-            "frame_id": {"type": ["string", "null"]},
-            "position": {"type": "object"},
-            "geometry": {"type": "object"},
-            "style": {"type": "object"}
+            "item_type": {
+              "enum": [
+                "sticky_note",
+                "shape",
+                "text",
+                "frame"
+              ]
+            },
+            "frame_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "position": {
+              "type": "object"
+            },
+            "geometry": {
+              "type": "object"
+            },
+            "style": {
+              "type": "object"
+            }
           }
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "project-charter",
+                  "project-status",
+                  "next-actions"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "miro"
+            ],
+            "properties": {
+              "miro": {
+                "required": [
+                  "item_type",
+                  "frame_id",
+                  "position",
+                  "geometry"
+                ],
+                "properties": {
+                  "frame_id": {
+                    "const": "control-center"
+                  },
+                  "position": {
+                    "type": "object",
+                    "required": [
+                      "x",
+                      "y"
+                    ],
+                    "properties": {
+                      "x": {
+                        "type": "number"
+                      },
+                      "y": {
+                        "type": "number"
+                      }
+                    }
+                  },
+                  "geometry": {
+                    "type": "object",
+                    "required": [
+                      "width"
+                    ],
+                    "properties": {
+                      "width": {
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
     }
   }
 }

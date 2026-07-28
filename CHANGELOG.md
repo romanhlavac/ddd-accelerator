@@ -12,7 +12,7 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 - evidence-driven gate records G1–G8 s explicitním lidským rozhodnutím;
 - strukturovaný human gate decision contract vázaný na project ID, scope, Git commit, decision ownera a SHA-256 relevantních evidence artefaktů;
 - read-only status query a explicitní status refresh;
-- project-owned Miro bootstrap s managed artifact push, mappingem, sync state a idempotencí;
+- project-owned Miro bootstrap s dominantním Control Centerem, persistentní journey G1–G8, strukturovanými workshop templates, managed artifact push, mappingem, sync state a idempotencí;
 - přenositelný knowledge pack a capability catalog;
 - stabilní platformní entry point `ddda.ps1`;
 - izolovaná validace PR nad candidate package;
@@ -28,13 +28,17 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 - projektový Miro bootstrap publikuje vedle scaffoldu také aktuální managed YAML artefakty;
 - JSON reporty a jejich testy zachovávají prázdné kolekce jako skutečná pole v PowerShellu 7 i Windows PowerShellu 5.1;
 - automatický steering acceptance končí na `ready_for_review`; přechod G1 → G2 vyžaduje explicitní lidské rozhodnutí;
+- Miro acceptance odděluje technical sync, layout contract, UTF-8 a human visual acceptance; technický PASS zůstává `PENDING_HUMAN_REVIEW`;
+- povinné managed steering artefakty mají explicitní `control-center` placement a stabilní souřadnice;
 - `conditional` a `rejected` nejsou completed gates; `conditional` vyžaduje ownera a termín podmínek.
 
 ### Fixed
 
 - automatizace, CI, bot ani obecný reviewer text již nemohou vytvořit produkční `passed`;
 - změna relevantního scope, ownership nebo evidence hashů zneplatní dřívější gate decision;
-- test-only gate simulation je omezena na explicitně označený dočasný fixture projekt.
+- test-only gate simulation je omezena na explicitně označený dočasný fixture projekt;
+- Miro renderer odmítá mojibake a blocking watermark/overlay nad pracovními frames;
+- current-gate highlight se aktualizuje nad stabilními journey item ID bez recreation boardu.
 
 ### Compatibility
 

@@ -8,7 +8,12 @@
     "id",
     "name_cs",
     "method_flow",
-    "frames"
+    "frames",
+    "gate_states",
+    "managed_placements",
+    "zones",
+    "traceability",
+    "section_catalog"
   ],
   "properties": {
     "schema_version": {
@@ -89,6 +94,12 @@
               },
               "gate_after": {
                 "type": "string"
+              },
+              "y": {
+                "type": "number"
+              },
+              "work_frame": {
+                "type": "string"
               }
             }
           }
@@ -119,7 +130,8 @@
           "y",
           "width",
           "height",
-          "scaffold"
+          "scaffold",
+          "purpose_cs"
         ],
         "properties": {
           "id": {
@@ -156,6 +168,10 @@
             "items": {
               "type": "string"
             }
+          },
+          "purpose_cs": {
+            "type": "string",
+            "minLength": 1
           }
         }
       }
@@ -173,6 +189,177 @@
     },
     "rendering": {
       "type": "object"
+    },
+    "gate_states": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "label_cs",
+          "symbol",
+          "meaning_cs",
+          "fill_color"
+        ],
+        "additionalProperties": true
+      }
+    },
+    "managed_placements": {
+      "type": "object",
+      "required": [
+        "project-charter",
+        "ddda.current-status",
+        "ddda.next-actions"
+      ],
+      "properties": {
+        "project-charter": {
+          "type": "object",
+          "required": [
+            "frame_id",
+            "position",
+            "width"
+          ],
+          "properties": {
+            "frame_id": {
+              "const": "control-center"
+            },
+            "position": {
+              "type": "object",
+              "required": [
+                "x",
+                "y"
+              ],
+              "properties": {
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                }
+              }
+            },
+            "width": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          }
+        },
+        "ddda.current-status": {
+          "type": "object",
+          "required": [
+            "frame_id",
+            "position",
+            "width"
+          ],
+          "properties": {
+            "frame_id": {
+              "const": "control-center"
+            },
+            "position": {
+              "type": "object",
+              "required": [
+                "x",
+                "y"
+              ],
+              "properties": {
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                }
+              }
+            },
+            "width": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          }
+        },
+        "ddda.next-actions": {
+          "type": "object",
+          "required": [
+            "frame_id",
+            "position",
+            "width"
+          ],
+          "properties": {
+            "frame_id": {
+              "const": "control-center"
+            },
+            "position": {
+              "type": "object",
+              "required": [
+                "x",
+                "y"
+              ],
+              "properties": {
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                }
+              }
+            },
+            "width": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "zones": {
+      "type": "array",
+      "minItems": 4,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "title_cs",
+          "stages",
+          "x",
+          "y",
+          "width"
+        ]
+      }
+    },
+    "traceability": {
+      "type": "array",
+      "minItems": 8,
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "required": [
+          "starter_step",
+          "stage",
+          "gate",
+          "frame",
+          "managed_artifacts",
+          "human_acceptance"
+        ]
+      }
+    },
+    "section_catalog": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "label_cs",
+          "guidance_cs"
+        ]
+      }
+    },
+    "overlays": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
     }
   },
   "additionalProperties": true

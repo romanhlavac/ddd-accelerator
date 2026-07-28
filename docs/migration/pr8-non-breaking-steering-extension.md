@@ -53,6 +53,21 @@ Pro zavedení steering metadat do existujícího projektu:
 
 Žádná existující gate nebude automaticky označena jako `passed`.
 
+Starší `passed` bez strukturované human provenance se po novém status přepočtu nepovažuje za platné schválení; evidence zůstává zachována a dotčená gate vyžaduje nové lidské review.
+
+## Existing Miro boards
+
+Při explicitním opakovaném Miro initializeru se existující project-owned board aktualizuje idempotentně:
+
+- frames a systémové journey/legend items používají stabilní mapping;
+- Control Center, journey G1–G8 a vyšší zóny se aktualizují podle nového layout contractu;
+- unmanaged workshopový obsah se nemaže;
+- layout existujícího managed doménového artefaktu se bez explicitního `--include-layout` nepřepisuje;
+- project charter, current status a next actions se přesunou do `control-center` pouze jako řízené managed artefakty;
+- technická aktualizace boardu končí `PENDING_HUMAN_REVIEW`, nikoli automatickým vizuálním PASS.
+
+Před aktualizací produkčně používaného boardu zkontroluj dry-run a projektový Git diff. Pro validační a release testy používej izolovaný review board, nikoli klientský board.
+
 ## Git and generated outputs
 
 Platformní validation a release outputs se ukládají mimo Git nebo do ignorovaných adresářů:

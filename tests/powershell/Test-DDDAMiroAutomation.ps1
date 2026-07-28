@@ -126,4 +126,39 @@ $smokeText = Get-Content (Join-Path $PlatformPath "scripts/Invoke-DDDAMiroSmokeT
 Assert-True -Condition ($smokeText -notmatch "romanhlavac/ddd-accelerator") -Message "Smoke runner nesmí být svázán s konkrétním origin remote."
 Assert-True -Condition ($smokeText -match 'DDDA:\$\{projectId\}:evt-smoke-policy-issued') -Message "Smoke runner nepoužívá bezpečnou interpolaci markeru."
 
+
+$scaffoldPath = Join-Path $PlatformPath "scaffolds/miro/strategic-ddd-method-board.yaml"
+$renderPath = Join-Path $PlatformPath "runtime/miro/ddda_miro/render.py"
+$syncPath = Join-Path $PlatformPath "runtime/miro/ddda_miro/sync.py"
+$acceptancePath = Join-Path $PlatformPath "scripts/Test-DDDAAcceptance.ps1"
+foreach ($path in @($scaffoldPath, $renderPath, $syncPath, $acceptancePath)) {
+    Assert-True -Condition (Test-Path -LiteralPath $path -PathType Leaf) -Message "Chybí Miro layout contract soubor: $path"
+}
+$scaffoldText = Get-Content -LiteralPath $scaffoldPath -Raw -Encoding UTF8
+$renderText = Get-Content -LiteralPath $renderPath -Raw -Encoding UTF8
+$syncText = Get-Content -LiteralPath $syncPath -Raw -Encoding UTF8
+$acceptanceText = Get-Content -LiteralPath $acceptancePath -Raw -Encoding UTF8
+
+foreach ($gate in 1..8) {
+    Assert-True -Condition ($scaffoldText -match "(?m)^    gate: G$gate\s*$") -Message "Traceability nepokrývá G$gate."
+    Assert-True -Condition ($scaffoldText -match "(?m)^  - id: G$gate\s*$") -Message "Journey/gate contract neobsahuje G$gate."
+}
+foreach ($statusId in @("not_ready", "ready_for_review", "conditional", "rejected", "passed")) {
+    Assert-True -Condition ($scaffoldText -match "(?m)^  - id: $statusId\s*$") -Message "Miro scaffold neobsahuje gate state $statusId."
+}
+foreach ($artifactId in @("project-charter", "ddda.current-status", "ddda.next-actions")) {
+    Assert-True -Condition ($scaffoldText -match "(?m)^  $([regex]::Escape($artifactId)):\s*$") -Message "Miro scaffold nemá placement pro $artifactId."
+}
+Assert-True -Condition ($scaffoldText -match '(?m)^  - id: control-center\s*$') -Message "Miro scaffold nemá dominantní control-center frame."
+Assert-True -Condition ($renderText -match 'PENDING_HUMAN_REVIEW') -Message "Renderer nesmí převést technical PASS na celkový PASS bez human review."
+Assert-True -Condition ($renderText -match 'journey:\{gate_id\}') -Message "Renderer nevytváří persistentní journey položky."
+Assert-True -Condition ($renderText -match 'MOJIBAKE_MARKERS') -Message "Renderer nemá UTF-8/mojibake regression guard."
+Assert-True -Condition ($renderText -match 'overlaps work frame') -Message "Renderer nemá overlay guard."
+Assert-True -Condition ($syncText -match '_validate_required_placements') -Message "Sync nevynucuje control-center placement povinných artefaktů."
+foreach ($field in @("technical_sync_status", "layout_contract_status", "utf8_status", "human_visual_acceptance_status", "overall_status")) {
+    Assert-True -Condition ($acceptanceText -match [regex]::Escape($field)) -Message "Acceptance report nemá pole $field."
+}
+Assert-True -Condition ($acceptanceText -match 'overall_status = \$overallStatus') -Message "Acceptance report nemá explicitní overall status."
+Assert-True -Condition ($acceptanceText -match 'PENDING_HUMAN_REVIEW') -Message "Acceptance report nerozlišuje pending human review."
+
 Write-Host "DDDA Miro automation tests: PASS"

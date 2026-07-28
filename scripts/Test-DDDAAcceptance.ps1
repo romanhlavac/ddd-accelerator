@@ -37,14 +37,23 @@ New-Item -ItemType Directory -Force -Path $workspaceRoot, $reportRoot | Out-Null
 
 function Write-AcceptanceReport {
     param([string]$Status, [string]$ErrorMessage, [string]$GateStatus)
+    $technicalSyncStatus = if ($Status -ne "PASS") { "FAIL" } elseif ($WithMiro) { "PASS" } else { "NOT_RUN" }
+    $humanVisualStatus = if ($WithMiro) { "PENDING" } else { "NOT_APPLICABLE" }
+    $overallStatus = if ($Status -ne "PASS") { "FAIL" } elseif ($WithMiro) { "PENDING_HUMAN_REVIEW" } else { "PASS_OFFLINE" }
     $payload = [ordered]@{
         suite = $Suite
         run_id = $runId
         status = $Status
+        technical_sync_status = $technicalSyncStatus
+        layout_contract_status = if ($Status -eq "PASS") { "PASS" } else { "FAIL" }
+        utf8_status = if ($Status -eq "PASS") { "PASS" } else { "FAIL" }
+        human_visual_acceptance_status = $humanVisualStatus
+        overall_status = $overallStatus
         platform = $platformRoot
         workspace = $workspaceRoot
         project = $projectRoot
         miro_board_id = $boardId
+        miro_board_url = if ([string]::IsNullOrWhiteSpace([string]$boardId)) { $null } else { "https://miro.com/app/board/$boardId/" }
         gate_assertion = [ordered]@{
             gate = "G1"
             expected = "ready_for_review"
@@ -174,7 +183,7 @@ intake:
             throw "Acceptance runner nenalezl board_id v miro-map.yaml."
         }
 
-        foreach ($artifactId in @("ddda.current-status", "ddda.next-actions")) {
+        foreach ($artifactId in @("ddda.current-status", "ddda.next-actions", "acceptance-claims-modernization.project-charter")) {
             $escapedArtifactId = [regex]::Escape($artifactId)
             if ($mapText -notmatch $escapedArtifactId) {
                 throw "Miro mapping neobsahuje managed artifact '$artifactId'."
@@ -182,14 +191,48 @@ intake:
             if ($stateText -notmatch $escapedArtifactId) {
                 throw "Miro sync state neobsahuje managed artifact '$artifactId'."
             }
+            $entryPattern = "(?ms)^  $escapedArtifactId`:\s*\r?\n(?<body>(?:    .*?(?:\r?\n|$))*)(?=^  [^ ]|\z)"
+            $entryMatch = [regex]::Match($mapText, $entryPattern)
+            if (-not $entryMatch.Success) {
+                throw "Miro mapping entry '$artifactId' nelze auditovat."
+            }
+            $entryBody = $entryMatch.Groups["body"].Value
+            if ($entryBody -notmatch '(?m)^    frame_id:\s*control-center\s*$') {
+                throw "Managed steering artifact '$artifactId' není v control-center."
+            }
+            if ($entryBody -notmatch '(?ms)^    position:\s*\r?\n(?:      .*\r?\n)*?      x:\s*-?\d+' -or $entryBody -notmatch '(?m)^      y:\s*-?\d+') {
+                throw "Managed steering artifact '$artifactId' nemá deterministické x/y."
+            }
+        }
+
+        foreach ($contract in @{ layout_contract_status = "PASS"; utf8_status = "PASS"; human_visual_acceptance_status = "PENDING"; overall_status = "PENDING_HUMAN_REVIEW" }.GetEnumerator()) {
+            $pattern = "(?m)^$([regex]::Escape([string]$contract.Key)):\s*$([regex]::Escape([string]$contract.Value))\s*$"
+            if ($mapText -notmatch $pattern) {
+                throw "Miro mapping contract '$($contract.Key)' nemá očekávanou hodnotu '$($contract.Value)'."
+            }
+        }
+        $tracedGates = @([regex]::Matches($mapText, '(?m)^  - starter_step:.*\r?\n    stage:.*\r?\n    gate:\s*G[1-8]\s*$'))
+        if ($tracedGates.Count -ne 8) { throw "Miro traceability nepokrývá přesně G1–G8." }
+        $journeyItems = @([regex]::Matches($mapText, '(?m)^  journey:G[1-8]:\s*$'))
+        if ($journeyItems.Count -ne 8) { throw "Miro mapping neobsahuje persistentní journey G1–G8." }
+        foreach ($marker in @('â€“', 'â€”', 'Ă', 'Ĺ', 'Ä', '�')) {
+            if ($mapText.Contains($marker) -or $stateText.Contains($marker)) {
+                throw "UTF-8 regression: mapping nebo sync state obsahuje mojibake marker '$marker'."
+            }
         }
     }
 
     $passed = $true
     Write-AcceptanceReport -Status "PASS" -ErrorMessage $null -GateStatus $g1Status
     Write-Host ""
-    Write-Host "DDDA acceptance ${Suite}: PASS"
+    Write-Host "DDDA acceptance ${Suite}: TECHNICAL PASS"
     Write-Host "Gate assertion: G1 ready_for_review; human decision not created"
+    if ($WithMiro) {
+        Write-Host "Layout contract: PASS"
+        Write-Host "UTF-8: PASS"
+        Write-Host "Human visual acceptance: PENDING"
+        Write-Host "Overall: PENDING_HUMAN_REVIEW"
+    }
     Write-Host "Report: $reportFile"
 }
 catch {

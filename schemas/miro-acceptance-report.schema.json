@@ -1,0 +1,141 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ddda.local/schemas/miro-acceptance-report.schema.json",
+  "title": "DDDA Miro acceptance report",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "suite",
+    "run_id",
+    "status",
+    "technical_sync_status",
+    "layout_contract_status",
+    "utf8_status",
+    "human_visual_acceptance_status",
+    "overall_status",
+    "gate_assertion",
+    "report_created_at"
+  ],
+  "properties": {
+    "suite": {
+      "const": "project-steering"
+    },
+    "status": {
+      "enum": [
+        "PASS",
+        "FAIL"
+      ]
+    },
+    "technical_sync_status": {
+      "enum": [
+        "PASS",
+        "FAIL",
+        "NOT_RUN"
+      ]
+    },
+    "layout_contract_status": {
+      "enum": [
+        "PASS",
+        "FAIL"
+      ]
+    },
+    "utf8_status": {
+      "enum": [
+        "PASS",
+        "FAIL"
+      ]
+    },
+    "human_visual_acceptance_status": {
+      "enum": [
+        "PENDING",
+        "PASS",
+        "FAIL",
+        "NOT_APPLICABLE"
+      ]
+    },
+    "overall_status": {
+      "enum": [
+        "PENDING_HUMAN_REVIEW",
+        "PASS",
+        "PASS_OFFLINE",
+        "FAIL"
+      ]
+    },
+    "miro_board_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "miro_board_url": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "gate_assertion": {
+      "type": "object",
+      "required": [
+        "gate",
+        "expected",
+        "actual",
+        "human_decision_created"
+      ],
+      "properties": {
+        "gate": {
+          "pattern": "^G[1-8]$"
+        },
+        "expected": {
+          "type": "string"
+        },
+        "actual": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "human_decision_created": {
+          "const": false
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "technical_sync_status": {
+            "const": "PASS"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "human_visual_acceptance_status": {
+            "enum": [
+              "PENDING",
+              "PASS",
+              "FAIL"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "human_visual_acceptance_status": {
+            "const": "PENDING"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "overall_status": {
+            "const": "PENDING_HUMAN_REVIEW"
+          }
+        }
+      }
+    }
+  ]
+}

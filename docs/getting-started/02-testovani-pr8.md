@@ -43,3 +43,18 @@ Runner automaticky:
 Tento režim board a dočasný workspace zachová a vypíše board ID, URL a workspace cestu. Produkční projektový board se nikdy nepoužívá.
 
 Technický PASS acceptance neznamená lidské schválení gate ani human visual acceptance boardu.
+
+
+## Význam online Miro výsledku
+
+Online runner po technickém PASS zapisuje oddělené výsledky:
+
+```text
+technical_sync_status: PASS
+layout_contract_status: PASS
+utf8_status: PASS
+human_visual_acceptance_status: PENDING
+overall_status: PENDING_HUMAN_REVIEW
+```
+
+Board lze použít jako finální release evidence až po jednorázovém human visual review. Automatizace nikdy nesmí převést `PENDING` na lidský `PASS`.

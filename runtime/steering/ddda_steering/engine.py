@@ -275,6 +275,8 @@ def _managed_artifact(
     status: str = "candidate",
     **extra: Any,
 ) -> dict[str, Any]:
+    miro = copy.deepcopy(extra.pop("miro", None) or {"item_type": "sticky_note"})
+    miro.setdefault("item_type", "sticky_note")
     artifact = {
         "id": artifact_id,
         "type": artifact_type,
@@ -282,7 +284,7 @@ def _managed_artifact(
         "description": description,
         "status": status,
         "stage": stage,
-        "miro": {"item_type": "sticky_note"},
+        "miro": miro,
     }
     artifact.update(extra)
     return {"artifact": artifact}
@@ -392,6 +394,13 @@ def bootstrap(project_root: Path, intake_path: Path, platform_root: Path) -> dic
         assumptions=intake["assumptions"],
         owners=intake["owners"],
         sources=intake["sources"],
+        miro={
+            "item_type": "sticky_note",
+            "frame_id": "control-center",
+            "position": {"x": -1200, "y": 450, "origin": "center"},
+            "geometry": {"width": 1050},
+            "style": {"fillColor": "light_yellow"},
+        },
     )
     dump_yaml(charter, project_root / "artifacts" / "align" / "project-charter.yaml")
 
@@ -577,6 +586,7 @@ def generate_status(project_root: Path, platform_root: Path) -> dict[str, Any]:
 
         if next_gate is None and effective != "passed":
             next_gate = gate
+        decision_record = gate_data.get("decision") if isinstance(gate_data.get("decision"), dict) else {}
         gate_states.append(
             {
                 "gate": gate,
@@ -585,6 +595,11 @@ def generate_status(project_root: Path, platform_root: Path) -> dict[str, Any]:
                 "present": evidence.present,
                 "missing": evidence.missing,
                 "question": cfg.get("question", ""),
+                "decision_owner": decision_record.get("decision_owner"),
+                "reviewer": decision_record.get("reviewer"),
+                "approver": decision_record.get("approver"),
+                "reviewed_at": decision_record.get("decided_at"),
+                "conditions": list(gate_data.get("conditions") or []),
                 "decision_valid": validation.valid if decision in HUMAN_DECISION_OUTCOMES else None,
                 "decision_invalid_reasons": validation.reasons,
             }
@@ -597,17 +612,56 @@ def generate_status(project_root: Path, platform_root: Path) -> dict[str, Any]:
     next_actions = action_cfg.get("actions") or ["Zkontroluj gate evidence a otevřené otázky."]
     prompt = action_cfg.get("prompt") or "Zobraz current status, chybějící evidence a navrhni nejmenší další krok."
 
+    manifest = _project_manifest(project_root)
+    owners = manifest.get("owners") or {}
+    current_gate_state = next((item for item in gate_states if item["gate"] == next_gate), gate_states[0])
+    blocker_lines = list(current_gate_state.get("missing") or [])
+    decision_owner = str(owners.get("business_owner") or owners.get("architecture_owner") or "NEURČENO")
+    project_commit = subprocess.run(
+        ["git", "-C", str(project_root), "rev-parse", "HEAD"],
+        check=False, capture_output=True, text=True, encoding="utf-8", errors="replace",
+    ).stdout.strip() or "UNCOMMITTED"
+    status_description = "\n".join([
+        f"Aktuální fáze: {current_stage}",
+        f"Aktuální gate: {next_gate}",
+        f"Gate status: {current_gate_state.get('status')}",
+        f"Decision question: {current_gate_state.get('question')}",
+        f"Decision owner: {current_gate_state.get('decision_owner') or decision_owner}",
+        f"Reviewer: {current_gate_state.get('reviewer') or 'PENDING'}",
+        f"Approver: {current_gate_state.get('approver') or 'PENDING'}",
+        "Blocking evidence: " + (", ".join(blocker_lines) if blocker_lines else "žádné mechanické blokery"),
+        "Open questions: " + (", ".join(current_gate_state.get('decision_invalid_reasons') or []) or "žádné evidované"),
+        f"Project commit: {project_commit}",
+        "Miro je projekce; gate schvaluje pouze člověk v Git decision recordu.",
+    ])
+
     status_doc = _managed_artifact(
         "ddda.current-status",
         "project-status",
         "Current status",
-        f"Aktuální fáze {current_stage}; další gate {next_gate}.",
+        status_description,
         current_stage if current_stage in STAGES else "align",
         status="candidate",
         generated_at=now_utc(),
         current_stage=current_stage,
         next_gate=next_gate,
+        current_gate_status=current_gate_state.get("status"),
+        decision_question=current_gate_state.get("question"),
+        decision_owner=current_gate_state.get("decision_owner") or decision_owner,
+        reviewer=current_gate_state.get("reviewer"),
+        approver=current_gate_state.get("approver"),
+        reviewed_at=current_gate_state.get("reviewed_at"),
+        open_questions=current_gate_state.get("decision_invalid_reasons") or [],
+        blocking_evidence=blocker_lines,
+        project_commit=project_commit,
         gates=gate_states,
+        miro={
+            "item_type": "sticky_note",
+            "frame_id": "control-center",
+            "position": {"x": 0, "y": 450, "origin": "center"},
+            "geometry": {"width": 1200},
+            "style": {"fillColor": "light_blue"},
+        },
     )
     next_doc = _managed_artifact(
         "ddda.next-actions",
@@ -621,6 +675,13 @@ def generate_status(project_root: Path, platform_root: Path) -> dict[str, Any]:
         actions=next_actions,
         chat_prompt=prompt,
         mode_guidance=action_cfg.get("mode_guidance") or {"consult": "Plan", "execute": "Agent"},
+        miro={
+            "item_type": "sticky_note",
+            "frame_id": "control-center",
+            "position": {"x": 1300, "y": 450, "origin": "center"},
+            "geometry": {"width": 1200},
+            "style": {"fillColor": "light_green"},
+        },
     )
     dump_yaml(status_doc, project_root / "artifacts" / "status" / "current-status.yaml")
     dump_yaml(next_doc, project_root / "artifacts" / "status" / "next-actions.yaml")
