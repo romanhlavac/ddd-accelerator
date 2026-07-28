@@ -65,12 +65,20 @@ function Invoke-NativeChecked {
         [switch]$AllowFailure
     )
 
-    $output = & $Executable @Arguments 2>&1
-    $exitCode = $LASTEXITCODE
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "Continue"
+        $output = & $Executable @Arguments 2>&1
+        $exitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+
     $text = ($output | ForEach-Object { "$_" }) -join "`n"
 
     if (($exitCode -ne 0) -and (-not $AllowFailure)) {
-        throw "Command failed with exit code $exitCode:`n$Executable $($Arguments -join ' ')`n$text"
+        throw "Command failed with exit code ${exitCode}:`n$Executable $($Arguments -join ' ')`n$text"
     }
 
     return [pscustomobject]@{
@@ -144,7 +152,7 @@ function Save-RepositoryFile {
     )
 
     $encodedRef = [Uri]::EscapeDataString($ref)
-    $endpoint = "repos/$repository/contents/$RepositoryPath?ref=$encodedRef"
+    $endpoint = "repos/{0}/contents/{1}?ref={2}" -f $repository, $RepositoryPath, $encodedRef
     $result = Invoke-NativeChecked -Executable $GhPath -Arguments @("api", $endpoint)
     $payload = $result.Text | ConvertFrom-Json
 
@@ -163,6 +171,60 @@ function Save-RepositoryFile {
     [System.IO.File]::WriteAllBytes($DestinationPath, $bytes)
 }
 
+function Repair-DownloadedInitializer {
+    param([Parameter(Mandatory = $true)][string]$InitializerPath)
+
+    $text = [System.IO.File]::ReadAllText($InitializerPath, $utf8NoBom)
+    $pattern = '(?ms)^function Get-IssueRelationshipNumbers \{.*?^\}\r?\n\r?\n(?=function Ensure-Hierarchy)'
+
+    $replacement = @'
+function Get-IssueRelationshipNumbers {
+    param(
+        [int]$Issue,
+        [ValidateSet("subIssues", "blockedBy", "blocking")][string]$Relationship
+    )
+
+    $suffix = switch ($Relationship) {
+        "subIssues" { "sub_issues" }
+        "blockedBy" { "dependencies/blocked_by" }
+        "blocking"  { "dependencies/blocking" }
+    }
+
+    $endpoint = "repos/{0}/issues/{1}/{2}?per_page=100" -f $Config.repository, $Issue, $suffix
+    $items = Invoke-GhJson -Arguments @(
+        "api",
+        "-H", "Accept: application/vnd.github+json",
+        "-H", "X-GitHub-Api-Version: $($Config.api_version)",
+        $endpoint
+    )
+
+    if ($null -eq $items) {
+        return @()
+    }
+
+    $numbers = New-Object 'System.Collections.Generic.List[int]'
+    foreach ($item in @($items)) {
+        $numberProperty = $item.PSObject.Properties["number"]
+        if ($null -eq $numberProperty) {
+            $json = $item | ConvertTo-Json -Depth 10 -Compress
+            throw "GitHub REST response for relationship '$Relationship' on issue #$Issue does not contain property 'number'. Response: $json"
+        }
+        $numbers.Add([int]$numberProperty.Value)
+    }
+
+    return @($numbers)
+}
+
+'@
+
+    $updated = [regex]::Replace($text, $pattern, $replacement, 1)
+    if ($updated -eq $text) {
+        throw "Cannot patch relationship discovery in downloaded initializer: $InitializerPath"
+    }
+
+    [System.IO.File]::WriteAllText($InitializerPath, $updated, $utf8NoBom)
+}
+
 $runtimeRoot = Resolve-UserWritableRoot
 $workRoot = Join-Path $runtimeRoot "governance-runs\ddd-accelerator-governance-run-$timestamp"
 $ghPath = Install-PortableGitHubCli -ToolRoot $runtimeRoot
@@ -173,12 +235,10 @@ Write-Host (Invoke-NativeChecked -Executable $ghPath -Arguments @("--version")).
 $auth = Invoke-NativeChecked -Executable $ghPath -Arguments @("auth", "status", "--hostname", "github.com") -AllowFailure
 if ($auth.ExitCode -ne 0) {
     Write-Host "GitHub authentication is required. A browser login will start now." -ForegroundColor Yellow
-    Invoke-NativeChecked -Executable $ghPath -Arguments @(
-        "auth", "login",
-        "--hostname", "github.com",
-        "--git-protocol", "https",
-        "--web"
-    ) | Out-Null
+    & $ghPath auth login --hostname github.com --git-protocol https --web
+    if ($LASTEXITCODE -ne 0) {
+        throw "GitHub authentication failed with exit code $LASTEXITCODE."
+    }
 }
 
 Invoke-NativeChecked -Executable $ghPath -Arguments @("auth", "status", "--hostname", "github.com") | Out-Null
@@ -192,11 +252,10 @@ $projectProbe = Invoke-NativeChecked -Executable $ghPath -Arguments @(
 
 if ($projectProbe.ExitCode -ne 0) {
     Write-Host "GitHub Projects authorization is missing or expired. A one-time browser authorization will start now." -ForegroundColor Yellow
-    Invoke-NativeChecked -Executable $ghPath -Arguments @(
-        "auth", "refresh",
-        "--hostname", "github.com",
-        "-s", "project"
-    ) | Out-Null
+    & $ghPath auth refresh --hostname github.com -s project
+    if ($LASTEXITCODE -ne 0) {
+        throw "GitHub Projects authorization failed with exit code $LASTEXITCODE."
+    }
 
     Invoke-NativeChecked -Executable $ghPath -Arguments @(
         "project", "list",
@@ -219,6 +278,9 @@ foreach ($repositoryPath in $files) {
     Save-RepositoryFile -GhPath $ghPath -RepositoryPath $repositoryPath -DestinationPath $destinationPath
 }
 
+$initializerPath = Join-Path $workRoot "scripts\platform\Initialize-DDDAGitHubGovernance.ps1"
+Repair-DownloadedInitializer -InitializerPath $initializerPath
+
 Get-ChildItem -LiteralPath $workRoot -Recurse -File | Unblock-File -ErrorAction SilentlyContinue
 
 $applyScript = Join-Path $workRoot "scripts\platform\Apply-DDDAGitHubGovernance.ps1"
@@ -235,12 +297,12 @@ Write-Host "The current repository checkout remains untouched." -ForegroundColor
 
 Push-Location $workRoot
 try {
-    $arguments = @()
-    if ($SkipViews) { $arguments += "-SkipViews" }
-    if ($DoNotOpenProject) { $arguments += "-DoNotOpenProject" }
-    if ($DoNotPublishReport) { $arguments += "-DoNotPublishReport" }
+    $applyParameters = @{}
+    if ($SkipViews) { $applyParameters["SkipViews"] = $true }
+    if ($DoNotOpenProject) { $applyParameters["DoNotOpenProject"] = $true }
+    if ($DoNotPublishReport) { $applyParameters["DoNotPublishReport"] = $true }
 
-    & $applyScript @arguments
+    & $applyScript @applyParameters
     if (-not $?) {
         throw "DDDA GitHub governance setup failed."
     }
