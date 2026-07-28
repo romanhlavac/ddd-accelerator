@@ -4,7 +4,7 @@ import shutil
 import pytest
 
 from ddda_miro.config import ProjectConfig
-from ddda_miro.render import assert_utf8_contract, render_board, validate_layout_contract
+from ddda_miro.render import assert_utf8_contract, render_board, validate_layout_contract, validate_remote_layout
 from ddda_miro.yamlio import load_yaml, save_yaml
 
 
@@ -31,6 +31,15 @@ class FakeClient:
         self.items[item_id] = item
         self.updated.append((item_type, item_id))
         return item
+
+    def list_items(self, board_id, item_type=None):
+        items = list(self.items.values())
+        if item_type is None:
+            return items
+        return [item for item in items if item.get("type") == item_type]
+
+    def delete_item(self, board_id, item_id):
+        self.items.pop(item_id, None)
 
 
 def _status_document(next_gate: str = "G1") -> dict:
@@ -97,6 +106,12 @@ def test_render_creates_control_center_journey_legends_and_is_idempotent(tmp_pat
 
     first = render_board(config, client, create_board=False, dry_run=False)
     assert first["layout_contract_status"] == "PASS"
+    assert first["remote_layout_status"] == "PASS"
+    assert first["remote_layout_evidence"]["journey_card_count"] == 8
+    assert first["remote_layout_evidence"]["stage_visual_count"] >= 32
+    assert first["remote_layout_evidence"]["workshop_example_count"] >= 45
+    assert first["remote_layout_evidence"]["zone_header_count"] == 4
+    assert first["remote_layout_evidence"]["transition_count"] >= 9
     assert first["utf8_status"] == "PASS"
     assert first["human_visual_acceptance_status"] == "PENDING"
     assert first["overall_status"] == "PENDING_HUMAN_REVIEW"
@@ -106,6 +121,10 @@ def test_render_creates_control_center_journey_legends_and_is_idempotent(tmp_pat
     assert mapping["items"]["control-center:summary"]["system_item"] is True
     assert len([key for key in mapping["items"] if key.startswith("journey:G")]) == 8
     assert len([key for key in mapping["items"] if key.startswith("legend:")]) == 5
+    assert len([key for key in mapping["items"] if key.startswith("stage-visual:G")]) >= 32
+    assert len([key for key in mapping["items"] if key.startswith("example:")]) >= 45
+    assert len([key for key in mapping["items"] if key.startswith("transition:")]) >= 9
+    assert mapping["remote_layout_status"] == "PASS"
     assert len(mapping["traceability"]) == 8
 
     created_count = len(client.created)
@@ -167,7 +186,39 @@ def test_overlay_guard_rejects_watermark_over_work_frame(tmp_path):
     scaffold = load_yaml(config.scaffold_path)
     scaffold["overlays"] = [{
         "id": "developer-team", "role": "watermark",
-        "x": -12500, "y": 0, "width": 4000, "height": 2000,
+        "x": -15000, "y": 5500, "width": 4000, "height": 2000,
     }]
     with pytest.raises(ValueError, match="overlaps work frame"):
         validate_layout_contract(scaffold)
+
+
+def test_remote_layout_rejects_unreadable_journey_font(tmp_path):
+    config = build_config(tmp_path)
+    client = FakeClient()
+    render_board(config, client, create_board=False, dry_run=False)
+    scaffold = load_yaml(config.scaffold_path)
+    mapping = load_yaml(config.root / "miro" / "miro-map.yaml")
+    remote_id = mapping["items"]["journey:G1"]["miro_item_id"]
+    client.items[remote_id]["style"]["fontSize"] = 10
+
+    with pytest.raises(ValueError, match="below readable minimum"):
+        validate_remote_layout(scaffold, mapping, client.list_items("board-1"))
+
+
+def test_workshop_guides_have_links_and_examples(tmp_path):
+    config = build_config(tmp_path)
+    client = FakeClient()
+    render_board(config, client, create_board=False, dry_run=False)
+    mapping = load_yaml(config.root / "miro" / "miro-map.yaml")
+    guide_entries = {key: value for key, value in mapping["items"].items() if value.get("role") == "workshop_guide"}
+    assert len(guide_entries) == 16
+    for entry in guide_entries.values():
+        remote = client.items[entry["miro_item_id"]]
+        content = remote["data"]["content"]
+        assert "DDDA kuchařka" in content
+        assert "Metodika DDDA" in content
+        assert "DDD Starter" in content
+        assert float(remote["style"]["fontSize"]) >= 26
+
+    example_entries = [value for value in mapping["items"].values() if value.get("role") == "workshop_example"]
+    assert len(example_entries) >= 45

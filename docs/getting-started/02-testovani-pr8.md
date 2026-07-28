@@ -37,10 +37,17 @@ Runner automaticky:
 ## Vizuální kontrola boardu
 
 ```powershell
-.\scripts\Test-DDDAAcceptance.ps1 -Suite project-steering -WithMiro -Full -KeepReviewBoard
+.\scripts\Test-DDDAAcceptance.ps1 `
+  -Suite project-steering `
+  -WithMiro `
+  -Full `
+  -KeepReviewBoard `
+  -MiroTeamId <STANDARD_TEAM_ID>
 ```
 
 Tento režim board a dočasný workspace zachová a vypíše board ID, URL a workspace cestu. Produkční projektový board se nikdy nepoužívá.
+
+`-MiroTeamId` vybírá standardní Miro team pro finální visual review. Board vytvořený v Miro Developer teamu může obsahovat externí watermark `Developer team`, který DDDA nevytváří ani nemůže odstranit. Finální evidence proto musí potvrdit `review_team_selection_status: EXPLICIT_TEAM`.
 
 Technický PASS acceptance neznamená lidské schválení gate ani human visual acceptance boardu.
 
@@ -52,6 +59,8 @@ Online runner po technickém PASS zapisuje oddělené výsledky:
 ```text
 technical_sync_status: PASS
 layout_contract_status: PASS
+remote_layout_status: PASS
+review_team_selection_status: EXPLICIT_TEAM
 utf8_status: PASS
 human_visual_acceptance_status: PENDING
 overall_status: PENDING_HUMAN_REVIEW
@@ -73,7 +82,7 @@ Acceptance report, `validate-pr` report i release report používají stejný st
 Finální review board se vytváří pouze jednou nad zmrazeným SHA:
 
 ```powershell
-.\ddda.ps1 validate-pr -Pr 8 -WithMiro -Full -KeepReviewBoard
+.\ddda.ps1 validate-pr -Pr 8 -WithMiro -Full -KeepReviewBoard -MiroTeamId <STANDARD_TEAM_ID>
 ```
 
 Token ani jiné credentials nejsou součástí evidence. `miro_board_id` zůstává pouze compatibility aliasem; autoritativní je objekt `miro`.

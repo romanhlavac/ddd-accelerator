@@ -13,7 +13,11 @@
     "managed_placements",
     "zones",
     "traceability",
-    "section_catalog"
+    "section_catalog",
+    "visual_contract",
+    "method_transitions",
+    "stage_visual_templates",
+    "example_templates"
   ],
   "properties": {
     "schema_version": {
@@ -31,7 +35,56 @@
       "type": "string"
     },
     "coordinate_system": {
-      "type": "object"
+      "type": "object",
+      "properties": {
+        "origin": {
+          "type": "string"
+        },
+        "unit": {
+          "type": "string"
+        },
+        "stage_card": {
+          "type": "object",
+          "required": [
+            "width",
+            "height"
+          ],
+          "properties": {
+            "width": {
+              "type": "number",
+              "minimum": 3000
+            },
+            "height": {
+              "type": "number",
+              "minimum": 1800
+            }
+          }
+        },
+        "work_frame": {
+          "type": "object"
+        },
+        "horizontal_gap": {
+          "type": "number"
+        },
+        "vertical_gap": {
+          "type": "number"
+        },
+        "minimum_font_size": {
+          "type": "object",
+          "required": [
+            "journey",
+            "stage_example",
+            "gate_legend",
+            "workshop_guide",
+            "workshop_example",
+            "zone_header"
+          ],
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 18
+          }
+        }
+      }
     },
     "localization": {
       "type": "object"
@@ -74,7 +127,14 @@
               "id",
               "order",
               "title_cs",
-              "x"
+              "x",
+              "gate_after",
+              "y",
+              "work_frame",
+              "visual_template",
+              "cookbook_url",
+              "method_url",
+              "starter_reference_url"
             ],
             "properties": {
               "id": {
@@ -100,6 +160,22 @@
               },
               "work_frame": {
                 "type": "string"
+              },
+              "visual_template": {
+                "type": "string",
+                "minLength": 1
+              },
+              "cookbook_url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "method_url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "starter_reference_url": {
+                "type": "string",
+                "format": "uri"
               }
             }
           }
@@ -172,6 +248,48 @@
           "purpose_cs": {
             "type": "string",
             "minLength": 1
+          },
+          "role": {
+            "enum": [
+              "work",
+              "overview"
+            ]
+          },
+          "example_template": {
+            "type": "string",
+            "minLength": 1
+          },
+          "guide": {
+            "type": "object",
+            "required": [
+              "start_cs",
+              "outputs_cs",
+              "cookbook_url",
+              "method_url",
+              "starter_reference_url"
+            ],
+            "properties": {
+              "start_cs": {
+                "type": "string",
+                "minLength": 1
+              },
+              "outputs_cs": {
+                "type": "string",
+                "minLength": 1
+              },
+              "cookbook_url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "method_url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "starter_reference_url": {
+                "type": "string",
+                "format": "uri"
+              }
+            }
           }
         }
       }
@@ -324,7 +442,8 @@
           "stages",
           "x",
           "y",
-          "width"
+          "width",
+          "height"
         ]
       }
     },
@@ -340,7 +459,10 @@
           "gate",
           "frame",
           "managed_artifacts",
-          "human_acceptance"
+          "human_acceptance",
+          "reference_visual",
+          "cookbook_url",
+          "method_url"
         ]
       }
     },
@@ -359,6 +481,194 @@
       "type": "array",
       "items": {
         "type": "object"
+      }
+    },
+    "visual_contract": {
+      "type": "object",
+      "required": [
+        "overview_frame",
+        "minimum_stage_card_width",
+        "minimum_stage_card_height",
+        "minimum_work_frame_width",
+        "minimum_work_frame_height",
+        "minimum_frame_gap",
+        "minimum_example_items",
+        "guide_anchor",
+        "require_cookbook_links",
+        "require_method_links",
+        "require_iteration_transitions",
+        "developer_team_watermark",
+        "minimum_stage_visual_items"
+      ],
+      "properties": {
+        "overview_frame": {
+          "type": "string",
+          "minLength": 1
+        },
+        "minimum_stage_card_width": {
+          "type": "number",
+          "minimum": 3000
+        },
+        "minimum_stage_card_height": {
+          "type": "number",
+          "minimum": 1800
+        },
+        "minimum_work_frame_width": {
+          "type": "number",
+          "minimum": 3000
+        },
+        "minimum_work_frame_height": {
+          "type": "number",
+          "minimum": 2800
+        },
+        "minimum_frame_gap": {
+          "type": "number",
+          "minimum": 300
+        },
+        "minimum_example_items": {
+          "type": "integer",
+          "minimum": 3
+        },
+        "guide_anchor": {
+          "const": "top_left"
+        },
+        "require_cookbook_links": {
+          "const": true
+        },
+        "require_method_links": {
+          "const": true
+        },
+        "require_iteration_transitions": {
+          "type": "integer",
+          "minimum": 2
+        },
+        "developer_team_watermark": {
+          "const": "external_environment_not_rendered_by_ddda"
+        },
+        "minimum_stage_visual_items": {
+          "type": "integer",
+          "minimum": 4
+        }
+      }
+    },
+    "method_transitions": {
+      "type": "array",
+      "minItems": 9,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "from",
+          "to",
+          "x",
+          "y",
+          "symbol",
+          "label_cs",
+          "kind"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "forward",
+              "feedback"
+            ]
+          }
+        }
+      }
+    },
+    "stage_visual_templates": {
+      "type": "object",
+      "minProperties": 8,
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "minItems": 3,
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "label_cs",
+                "item_type",
+                "shape",
+                "x",
+                "y",
+                "width",
+                "height",
+                "fill_color",
+                "font_size"
+              ],
+              "properties": {
+                "font_size": {
+                  "type": "number",
+                  "minimum": 18
+                },
+                "width": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "height": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "example_templates": {
+      "type": "object",
+      "minProperties": 8,
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "title_cs",
+          "items"
+        ],
+        "properties": {
+          "title_cs": {
+            "type": "string",
+            "minLength": 1
+          },
+          "items": {
+            "type": "array",
+            "minItems": 3,
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "label_cs",
+                "item_type",
+                "shape",
+                "x",
+                "y",
+                "width",
+                "height",
+                "fill_color",
+                "font_size"
+              ],
+              "properties": {
+                "font_size": {
+                  "type": "number",
+                  "minimum": 18
+                },
+                "width": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "height": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                }
+              }
+            }
+          }
+        }
       }
     }
   },

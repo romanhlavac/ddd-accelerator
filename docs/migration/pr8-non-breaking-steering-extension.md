@@ -69,7 +69,7 @@ Starší `passed` bez strukturované human provenance se po novém status přepo
 Při explicitním opakovaném Miro initializeru se existující project-owned board aktualizuje idempotentně:
 
 - frames a systémové journey/legend items používají stabilní mapping;
-- Control Center, journey G1–G8 a vyšší zóny se aktualizují podle nového layout contractu;
+- `00 – Navigace, legenda a stav artefaktů`, DDD Starter journey G1–G8 a vyšší zóny se aktualizují podle nového layout contractu;
 - unmanaged workshopový obsah se nemaže;
 - layout existujícího managed doménového artefaktu se bez explicitního `--include-layout` nepřepisuje;
 - project charter, current status a next actions se přesunou do `control-center` pouze jako řízené managed artefakty;

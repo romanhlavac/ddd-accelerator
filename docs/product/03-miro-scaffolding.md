@@ -2,68 +2,63 @@
 
 ## Účel
 
-Scaffold není hotový model ani dekorativní prezentace. Je to deterministická navigační, facilitační a auditní projekce DDDA projektu. Ukazuje metodickou cestu, aktuální gate, pracovní otázky, očekávané evidence a vazbu na Git/YAML.
+Scaffold není hotový doménový model ani dekorativní prezentace. Je to deterministická navigační, facilitační a auditní projekce DDDA projektu. Ukazuje metodickou cestu, aktuální gate, pracovní otázky, očekávané evidence a vazbu na Git/YAML.
 
 Miro není autoritou pro gate approval. Stav `passed`, `conditional` nebo `rejected` vzniká pouze explicitním human decision recordem v projektovém Gitu.
 
-## Cílová struktura boardu
+## Viditelná struktura boardu
 
-Renderer načte `scaffolds/miro/strategic-ddd-method-board.yaml` a vytvoří nebo aktualizuje:
+Renderer vytváří:
 
-1. dominantní **Control Center**;
-2. persistentní journey mapu `G1–G8`;
-3. pět explicitních gate stavů s textem a symbolem;
-4. pracovní frames podle DDD Starter Modelling Process;
-5. vyšší zóny:
+1. frame **`00 – Navigace, legenda a stav artefaktů`**;
+2. samostatný přehled **`01 – DDD Starter journey, gates a iterace`**;
+3. osm velkých situačních karet `G1–G8` s čitelným stavem, účelem, pracovním frame a metodickými odkazy;
+4. čtyři metodické zóny:
    - Align & Understand,
    - Strategic Architecture,
    - Strategy & Org Design,
    - Tactical Architecture;
-6. stabilní traceability `starter step → stage → gate → work frame → evidence → human acceptance`;
-7. strukturované workshop templates uvnitř každého frame.
+5. dopředné přechody a explicitní návratové smyčky;
+6. zarovnané pracovní frames s návodem vlevo nahoře;
+7. v každém pracovním frame malý vyplněný vektorový vzor očekávaných artefaktů;
+8. odkazy na DDDA kuchařku, metodiku a DDD Starter Modelling Process.
 
-## Control Center
+Interní ID `control-center` označuje frame **`00 – Navigace, legenda a stav artefaktů`**. V uživatelské komunikaci se používá jeho viditelný název.
 
-Control Center musí na první pohled ukázat:
+## `00 – Navigace, legenda a stav artefaktů`
+
+Frame musí na první pohled ukázat:
 
 - project name a project ID;
 - current stage a current gate;
 - gate status;
-- decision question;
-- decision owner;
+- decision question a decision ownera;
 - chybějící nebo sporné evidence;
 - doporučené next actions;
-- project/source commit;
-- last render/sync;
-- pravidlo, že Git/YAML a human gate decision jsou autorita.
+- project/source commit a poslední sync;
+- pravidlo, že Git/YAML a human gate decision jsou autorita;
+- legendu všech pěti gate stavů.
 
-Povinné managed artefakty mají explicitní placement:
+Povinné managed artefakty mají stabilní placement v tomto frame:
 
 ```text
 project-charter       → control-center
-DDDA current status   → control-center
-DDDA next actions     → control-center
+ddda.current-status   → control-center
+ddda.next-actions     → control-center
 ```
 
-Každý placement má stabilní `frame_id`, `x`, `y` a `width`. `frame_id: null` je u těchto artefaktů contract violation.
+## `01 – DDD Starter journey, gates a iterace`
 
-## Journey G1–G8
+Přehled není dlouhý pás drobných položek. Používá čtyřsloupcové metodické seskupení a velké stage/gate karty. Každá karta obsahuje:
 
-Journey je persistentní a aktualizuje se bez vytvoření nového boardu nebo nových journey items:
+- gate ID, stage a celý textový stav;
+- symbol stavu a počet blockerů;
+- účel rozhodnutí;
+- viditelný název pracovního frame;
+- odkaz na kuchařku a metodiku;
+- minimálně čtyři situační vektorové prvky odvozené z referenčního DDD Starter boardu.
 
-```text
-G1 Align → G2 Discover → G3 Decompose → G4 Strategize
-→ G5 Connect → G6 Organize → G7 Define → G8 Code
-```
-
-Každý krok zobrazuje:
-
-- gate ID a stage;
-- status text a symbol;
-- `AKTUÁLNÍ`, `DOKONČENO` nebo `NÁSLEDUJÍCÍ`;
-- počet otevřených blockerů;
-- rozhodovací význam;
-- ID pracovního frame.
+Přehled zobrazuje sedm dopředných přechodů a nejméně dvě explicitní návratové smyčky. Nesmí působit jako rigidní waterfall.
 
 ## Gate states
 
@@ -75,18 +70,34 @@ Každý krok zobrazuje:
 | `rejected` | ✕ | lidské rozhodnutí gate odmítlo |
 | `passed` | ✓ | explicitní lidské schválení |
 
-Barva je pouze podpůrná. Board musí být čitelný i bez rozlišení barev.
+Rozlišení je založeno na symbolu, plném textovém labelu, významu a barvě. Barva je pouze podpůrná. Minimální velikost fontu legendy je součástí layout contractu.
 
-## Workshop templates
+## Workshop frames
 
-Každý frame obsahuje:
+Každý pracovní frame obsahuje dva oddělené bloky:
 
-- účel frame;
-- pojmenované pracovní oblasti;
-- stručné facilitační instrukce;
-- pravidlo oddělit fakta, hypotézy, rozhodnutí, ownery a otevřené otázky.
+### Návod vlevo nahoře
 
-Big Picture EventStorming je v Discover, Process Modeling tvoří most Discover → Decompose, Design-Level EventStorming je v Define a tactical model je v Code.
+- účel;
+- jak začít;
+- očekávané výstupy;
+- povinné pracovní oblasti;
+- odkaz na DDDA kuchařku;
+- odkaz na metodiku DDDA;
+- odkaz na DDD Starter reference.
+
+### Mini-vzor v pracovní části
+
+Mini-vzor není klientský model ani hotové řešení. Ukazuje formu a typy artefaktů, se kterými se pracuje, například:
+
+- Align: problém, rozhodnutí, scope a owner;
+- Discover: event, command, policy a hotspot;
+- Decompose: subdomény, kandidátní hranice a alternativy;
+- Strategize: core/supporting/generic a build/buy/SaaS;
+- Connect: upstream/downstream, kontrakt a data owner;
+- Organize: tým, ownership a interaction mode;
+- Define: Bounded Context Canvas, lifecycle, invariant a quality scenario;
+- Code: aggregate, event, ADR, C4 a operability.
 
 ## Idempotence a zachování ruční práce
 
@@ -96,28 +107,52 @@ Opakovaný render:
 - aktualizuje existující frames a system items;
 - nevytváří nový board;
 - nemění množinu journey item ID;
-- nesmí překrýt pracovní plochu watermarkem nebo jiným blocking overlay;
+- odstraní pouze zastaralé systémové instrukční prvky původního scaffoldu;
 - nemaže unmanaged workshopový obsah;
-- při běžném syncu nepřepisuje ručně upravený layout existujícího managed artefaktu, pokud není explicitně požadován `--include-layout`.
+- při běžném syncu nepřepisuje ručně upravený layout managed artefaktu bez explicitního `--include-layout`.
+
+## Dvojí layout validace
+
+### Deklarativní kontrakt
+
+Před zápisem ověřuje YAML:
+
+- minimální rozměry stage karet a pracovních frames;
+- minimální fonty;
+- zarovnání a mezery mezi frames;
+- G1–G8, čtyři metodické zóny a návratové smyčky;
+- guide, metodické odkazy a mini-vzor v každém pracovním frame;
+- explicitní placement managed artefaktů;
+- zákaz blocking overlay definovaného DDDA.
+
+### Remote Miro kontrakt
+
+Po renderu renderer načte skutečné Miro objekty a ověří:
+
+- skutečnou geometrii a pozice frames;
+- nepřekrývání pracovních frames;
+- osm journey karet a jejich minimální font;
+- situační prvky pro všech osm gates;
+- pět čitelných gate-state karet;
+- top-left umístění workshop guides;
+- minimální počet mini-vzorů;
+- čtyři zone headers a iterativní přechody.
+
+Výsledek se ukládá jako `remote_layout_status` a `remote_layout_evidence`.
+
+## Developer-team watermark
+
+Velký nápis `Developer team` není prvek renderovaný DDDA a není dostupný jako Miro board item. Je vlastností Miro Developer team prostředí. Pro finální vizuální review se board vytváří v explicitně zvoleném standardním teamu pomocí `-MiroTeamId`; report pak musí uvést `review_team_selection_status: EXPLICIT_TEAM`.
 
 ## Acceptance contract
-
-Online automatizace smí vyhodnotit pouze technickou část:
 
 ```text
 technical_sync_status: PASS
 layout_contract_status: PASS
+remote_layout_status: PASS
 utf8_status: PASS
 human_visual_acceptance_status: PENDING
 overall_status: PENDING_HUMAN_REVIEW
 ```
 
-Technický PASS není vizuální ani metodický human PASS. Finální lidské review se provádí jednou nad zmrazeným boardem po dokončení všech online automatických oprav.
-
-## UTF-8 a overlay guard
-
-Renderer a sync failnou, pokud scaffold, managed artefakty nebo mapping obsahují známé mojibake sekvence. Layout validator failne, pokud watermark nebo branding overlay překrývá pracovní frame.
-
-## Dry-run
-
-Dry-run ověří layout contract, UTF-8, journey, legendu, zóny a plánované create/update operace bez write endpointů a bez změny projektového repozitáře.
+Technický PASS není vizuální ani metodický human PASS. Finální lidské review se provádí nad novým izolovaným boardem a exact SHA.

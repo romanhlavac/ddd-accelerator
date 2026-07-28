@@ -152,7 +152,7 @@ try {
     Write-Host ""
     Write-Host "=== Render cílového boardu ==="
     $firstRender = Invoke-ProjectMiroCli -CommandArguments $renderArguments
-    foreach ($contract in @{ layout_contract_status = "PASS"; utf8_status = "PASS"; overall_status = "PENDING_HUMAN_REVIEW" }.GetEnumerator()) {
+    foreach ($contract in @{ layout_contract_status = "PASS"; remote_layout_status = "PASS"; utf8_status = "PASS"; overall_status = "PENDING_HUMAN_REVIEW" }.GetEnumerator()) {
         $actual = [string](Get-DDDAObjectPropertyValue -InputObject $firstRender -Name $contract.Key)
         if ($actual -ne [string]$contract.Value) {
             throw "Miro render contract '$($contract.Key)' očekával '$($contract.Value)', získal '$actual'."
@@ -178,7 +178,7 @@ try {
     Write-Host "=== Managed artifact push ==="
     $firstSync = Invoke-ProjectMiroCli -CommandArguments @("sync", "--direction", "push")
     Assert-NoMiroConflicts -Result $firstSync -Label "Managed artifact push"
-    foreach ($contract in @{ technical_sync_status = "PASS"; layout_contract_status = "PASS"; utf8_status = "PASS"; overall_status = "PENDING_HUMAN_REVIEW" }.GetEnumerator()) {
+    foreach ($contract in @{ technical_sync_status = "PASS"; layout_contract_status = "PASS"; remote_layout_status = "PASS"; utf8_status = "PASS"; overall_status = "PENDING_HUMAN_REVIEW" }.GetEnumerator()) {
         $actual = [string](Get-DDDAObjectPropertyValue -InputObject $firstSync -Name $contract.Key)
         if ($actual -ne [string]$contract.Value) {
             throw "Miro sync contract '$($contract.Key)' očekával '$($contract.Value)', získal '$actual'."

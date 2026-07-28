@@ -10,6 +10,8 @@
     "status",
     "technical_sync_status",
     "layout_contract_status",
+    "remote_layout_status",
+    "review_team_selection_status",
     "utf8_status",
     "human_visual_acceptance_status",
     "overall_status",
@@ -402,6 +404,20 @@
           "const": false
         }
       }
+    },
+    "remote_layout_status": {
+      "enum": [
+        "PASS",
+        "FAIL",
+        "NOT_RUN"
+      ]
+    },
+    "review_team_selection_status": {
+      "enum": [
+        "EXPLICIT_TEAM",
+        "DEFAULT_TOKEN_TEAM",
+        "NOT_APPLICABLE"
+      ]
     }
   },
   "allOf": [

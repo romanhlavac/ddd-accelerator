@@ -8,6 +8,7 @@ param(
     [switch]$KeepReviewBoard,
     [switch]$CleanupOnFailure,
     [switch]$NonInteractive,
+    [string]$MiroTeamId,
     [string]$EvidenceOutputPath,
     [switch]$EvidenceWrapperChild
 )
@@ -35,6 +36,9 @@ if ($WithMiro -and -not $EvidenceWrapperChild) {
         CleanupOnFailure = $CleanupOnFailure
         NonInteractive = $NonInteractive
     }
+    if (-not [string]::IsNullOrWhiteSpace($MiroTeamId)) {
+        $wrapperArguments["MiroTeamId"] = $MiroTeamId
+    }
     if (-not [string]::IsNullOrWhiteSpace($EvidenceOutputPath)) {
         $wrapperArguments["EvidenceOutputPath"] = $EvidenceOutputPath
     }
@@ -51,6 +55,10 @@ $reportFile = Join-Path $reportRoot "result.json"
 $boardId = $null
 $accessToken = $null
 $oldMiroToken = $env:MIRO_ACCESS_TOKEN
+$oldMiroTeamIdExists = Test-Path Env:\MIRO_TEAM_ID
+$oldMiroTeamId = if ($oldMiroTeamIdExists) { [string]$env:MIRO_TEAM_ID } else { $null }
+$remoteLayoutStatus = if ($WithMiro) { "FAIL" } else { "NOT_RUN" }
+$reviewTeamSelectionStatus = if (-not $WithMiro) { "NOT_APPLICABLE" } elseif (-not [string]::IsNullOrWhiteSpace($MiroTeamId)) { "EXPLICIT_TEAM" } else { "DEFAULT_TOKEN_TEAM" }
 $passed = $false
 
 New-Item -ItemType Directory -Force -Path $workspaceRoot, $reportRoot | Out-Null
@@ -66,6 +74,8 @@ function Write-AcceptanceReport {
         status = $Status
         technical_sync_status = $technicalSyncStatus
         layout_contract_status = if ($Status -eq "PASS") { "PASS" } else { "FAIL" }
+        remote_layout_status = if ($Status -eq "PASS") { $remoteLayoutStatus } else { "FAIL" }
+        review_team_selection_status = $reviewTeamSelectionStatus
         utf8_status = if ($Status -eq "PASS") { "PASS" } else { "FAIL" }
         human_visual_acceptance_status = $humanVisualStatus
         overall_status = $overallStatus
@@ -106,6 +116,9 @@ try {
     if ($WithMiro) {
         $accessToken = Get-DDDAMiroAccessToken -ResetToken:$ResetToken -NonInteractive:$NonInteractive
         $env:MIRO_ACCESS_TOKEN = $accessToken
+        if (-not [string]::IsNullOrWhiteSpace($MiroTeamId)) {
+            $env:MIRO_TEAM_ID = $MiroTeamId
+        }
     }
     Invoke-DDDAChildPowerShell -ScriptPath (Join-Path $platformRoot "scripts/Initialize-DDDAAfterClone.ps1") -Arguments @("-PlatformPath", $platformRoot, "-NonInteractive")
     if ($WithMiro -and $Full) {
@@ -225,11 +238,20 @@ intake:
             }
         }
 
-        foreach ($contract in @{ layout_contract_status = "PASS"; utf8_status = "PASS"; human_visual_acceptance_status = "PENDING"; overall_status = "PENDING_HUMAN_REVIEW" }.GetEnumerator()) {
+        foreach ($contract in @{ layout_contract_status = "PASS"; remote_layout_status = "PASS"; utf8_status = "PASS"; human_visual_acceptance_status = "PENDING"; overall_status = "PENDING_HUMAN_REVIEW" }.GetEnumerator()) {
             $pattern = "(?m)^$([regex]::Escape([string]$contract.Key)):\s*$([regex]::Escape([string]$contract.Value))\s*$"
             if ($mapText -notmatch $pattern) {
                 throw "Miro mapping contract '$($contract.Key)' nemá očekávanou hodnotu '$($contract.Value)'."
             }
+        }
+        $remoteLayoutStatus = "PASS"
+        $teamPattern = "(?m)^review_team_selection_status:\s*(?<status>EXPLICIT_TEAM|DEFAULT_TOKEN_TEAM)\s*$"
+        if ($mapText -notmatch $teamPattern) {
+            throw "Miro mapping neobsahuje review_team_selection_status."
+        }
+        $reviewTeamSelectionStatus = [string]$Matches["status"]
+        if (-not [string]::IsNullOrWhiteSpace($MiroTeamId) -and $reviewTeamSelectionStatus -ne "EXPLICIT_TEAM") {
+            throw "Explicitní Miro team nebyl použit pro review board."
         }
         $tracedGates = @([regex]::Matches($mapText, '(?m)^  - starter_step:.*\r?\n    stage:.*\r?\n    gate:\s*G[1-8]\s*$'))
         if ($tracedGates.Count -ne 8) { throw "Miro traceability nepokrývá přesně G1–G8." }
@@ -249,6 +271,8 @@ intake:
     Write-Host "Gate assertion: G1 ready_for_review; human decision not created"
     if ($WithMiro) {
         Write-Host "Layout contract: PASS"
+        Write-Host "Remote Miro layout: PASS"
+        Write-Host "Review team selection: $reviewTeamSelectionStatus"
         Write-Host "UTF-8: PASS"
         Write-Host "Human visual acceptance: PENDING"
         Write-Host "Overall: PENDING_HUMAN_REVIEW"
@@ -278,6 +302,8 @@ finally {
     }
     if ($null -eq $oldMiroToken) { Remove-Item Env:\MIRO_ACCESS_TOKEN -ErrorAction SilentlyContinue }
     else { $env:MIRO_ACCESS_TOKEN = $oldMiroToken }
+    if ($oldMiroTeamIdExists) { $env:MIRO_TEAM_ID = $oldMiroTeamId }
+    else { Remove-Item Env:\MIRO_TEAM_ID -ErrorAction SilentlyContinue }
     if ($passed -and -not $KeepReviewBoard -and (Test-Path $workspaceRoot)) {
         Remove-Item -Path $workspaceRoot -Recurse -Force -ErrorAction SilentlyContinue
     }

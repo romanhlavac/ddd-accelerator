@@ -7,6 +7,7 @@ param(
     [switch]$CleanupOnFailure,
     [switch]$KeepArtifacts,
     [switch]$KeepReviewBoard,
+    [string]$MiroTeamId,
     [switch]$NonInteractive
 )
 
@@ -197,6 +198,7 @@ try {
         )
         if ($Full) { $miroArguments += "-Full" }
         if ($KeepReviewBoard) { $miroArguments += "-KeepReviewBoard" }
+        if (-not [string]::IsNullOrWhiteSpace($MiroTeamId)) { $miroArguments += @("-MiroTeamId", $MiroTeamId) }
         if ($NonInteractive) { $miroArguments += "-NonInteractive" }
         Invoke-ValidationSuite -Name "miro" -Arguments $miroArguments
 
@@ -204,6 +206,9 @@ try {
             throw "Miro acceptance nevytvořila strukturovanou evidence: $miroEvidencePath"
         }
         $miroAcceptance = Get-Content -LiteralPath $miroEvidencePath -Raw -Encoding UTF8 | ConvertFrom-Json
+        if ([string]$miroAcceptance.remote_layout_status -ne "PASS") {
+            throw "Miro acceptance evidence nemá PASS remote layout status."
+        }
         if ($null -eq $miroAcceptance.miro -or [string]$miroAcceptance.miro.status -ne "PASS") {
             throw "Miro acceptance evidence nemá PASS status."
         }

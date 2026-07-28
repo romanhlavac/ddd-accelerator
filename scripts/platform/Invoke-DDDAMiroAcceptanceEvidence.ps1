@@ -7,6 +7,7 @@ param(
     [switch]$KeepReviewBoard,
     [switch]$CleanupOnFailure,
     [switch]$NonInteractive,
+    [string]$MiroTeamId,
     [string]$EvidenceOutputPath
 )
 
@@ -88,6 +89,8 @@ function New-DDDAFallbackAcceptanceReport {
         status = "FAIL"
         technical_sync_status = "FAIL"
         layout_contract_status = "FAIL"
+        remote_layout_status = "FAIL"
+        review_team_selection_status = if ([string]::IsNullOrWhiteSpace($MiroTeamId)) { "DEFAULT_TOKEN_TEAM" } else { "EXPLICIT_TEAM" }
         utf8_status = "FAIL"
         human_visual_acceptance_status = "NOT_APPLICABLE"
         overall_status = "FAIL"
@@ -127,6 +130,7 @@ try {
             "-EvidenceWrapperChild"
         )
         if ($Full) { $hostArguments += "-Full" }
+        if (-not [string]::IsNullOrWhiteSpace($MiroTeamId)) { $hostArguments += @("-MiroTeamId", $MiroTeamId) }
         if ($NonInteractive) { $hostArguments += "-NonInteractive" }
 
         $previousPreference = $ErrorActionPreference
@@ -157,6 +161,13 @@ try {
         $boardId = [string]$report.miro_board_id
         if (-not [string]::IsNullOrWhiteSpace($boardId)) {
             $boardUrl = "https://miro.com/app/board/$boardId/"
+        }
+
+        if ($childExitCode -eq 0 -and [string]$report.remote_layout_status -ne "PASS") {
+            throw "Acceptance report nemá PASS remote Miro layout status."
+        }
+        if ($childExitCode -eq 0 -and -not [string]::IsNullOrWhiteSpace($MiroTeamId) -and [string]$report.review_team_selection_status -ne "EXPLICIT_TEAM") {
+            throw "Acceptance report nepotvrdil explicitní Miro team."
         }
 
         if ([string]::IsNullOrWhiteSpace($boardId)) {

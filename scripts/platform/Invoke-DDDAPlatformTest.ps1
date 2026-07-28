@@ -9,6 +9,7 @@ param(
     [switch]$Full,
     [switch]$CleanupOnFailure,
     [switch]$KeepReviewBoard,
+    [string]$MiroTeamId,
     [string]$MiroEvidenceOutputPath,
     [switch]$NonInteractive,
     [switch]$Json
@@ -177,6 +178,7 @@ function Invoke-AcceptanceSuite {
         if ($Full) { $arguments += "-Full" }
         if ($CleanupOnFailure) { $arguments += "-CleanupOnFailure" }
         if ($KeepReviewBoard) { $arguments += "-KeepReviewBoard" }
+        if (-not [string]::IsNullOrWhiteSpace($MiroTeamId)) { $arguments += @("-MiroTeamId", $MiroTeamId) }
         if (-not [string]::IsNullOrWhiteSpace($MiroEvidenceOutputPath)) {
             $arguments += @("-EvidenceOutputPath", [System.IO.Path]::GetFullPath($MiroEvidenceOutputPath))
         }

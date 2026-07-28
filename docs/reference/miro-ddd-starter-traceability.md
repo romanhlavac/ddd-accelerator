@@ -2,61 +2,68 @@
 
 ## Účel
 
-Tento dokument dokládá, jak scaffold `strategic-ddd-method-board.yaml` převádí metodický tok DDDA do auditovatelné Miro projekce.
+Tento dokument dokládá, jak `strategic-ddd-method-board.yaml` převádí DDD Starter Modelling Process do auditovatelné Miro projekce.
 
-Jde o deterministický vektorový ekvivalent vhodný pro verzování a automatizované testy. Binární Miro backup není součástí release package ani source of truth.
+Uživatelem dodaný referenční board a jeho situační obrázky jsou návrhovým vstupem. Release package používá deterministický vektorový ekvivalent, protože musí být verzovatelný, testovatelný a editovatelný. Nejde pouze o osm prázdných frames: každá fáze má situační kartu, mini-vzor artefaktů, návod a metodické odkazy.
 
 ## Traceability matrix
 
-| DDD Starter krok | DDDA stage | Gate | Primární frame | Typické managed evidence | Human acceptance |
+| DDD Starter krok | DDDA stage | Gate | Viditelný pracovní frame | Vektorová situace a vzor | Human acceptance |
 |---|---|---|---|---|---|
-| Align / Understand | `align` | G1 | `align-intake` | project charter, current status, next actions | problém, cíl, scope a decision owner jsou pochopeny |
-| Discover | `discover` | G2 | `discover-big-picture-es` | Big Picture, glossary, hotspots | vznikl sdílený obraz dění a nejasností |
-| Decompose | `decompose` | G3 | `decompose-domain` | kandidátní subdomény, BC a lifecycle | hranice mají explicitní rationale |
-| Strategize | `strategize` | G4 | `strategize-classification` | core/supporting/generic, investment rationale | investiční fokus je vědomé rozhodnutí |
-| Connect | `connect` | G5 | `connect-context-map` | context map, ownership, contracts | vztahy a source of truth jsou explicitní |
-| Organise | `organize` | G6 | `organize-teams` | team topology, interaction modes | ownership je organizačně proveditelný |
-| Define | `define` | G7 | `define-bounded-context` | BC canvas, design-level ES, lifecycle, QA scenarios | BC je připraven pro detailní návrh |
-| Code | `code` | G8 | `code-tactical-model` | aggregates, invariants, events, ADR, C4 | implementace chrání model a quality attributes |
+| Align / Understand | `align` | G1 | `10 – Align / Intake` | problém, cíl, owner, evidence; problem/decision/scope mini-vzor | problém, cíl, scope a decision owner jsou pochopeny |
+| Discover | `discover` | G2 | `20 – EventStorming: Big Picture` | event, command, hotspot, otázka; Big Picture mini-vzor | vznikl sdílený obraz dění a nejasností |
+| Decompose | `decompose` | G3 | `30 – Rozklad domény` | doména, subdoména, hranice, alternativa | hranice mají explicitní rationale |
+| Strategize | `strategize` | G4 | `40 – Strategická klasifikace` | core/supporting/generic/build-buy-SaaS | investiční fokus je vědomé rozhodnutí |
+| Connect | `connect` | G5 | `50 – Context Map a data ownership` | upstream, kontrakt, downstream, data owner | vztahy a source of truth jsou explicitní |
+| Organise | `organize` | G6 | `60 – Team Topologies` | stream-aligned, platform, enabling, interaction | ownership je organizačně proveditelný |
+| Define | `define` | G7 | `70 – Bounded Context Canvas` | purpose, language, lifecycle, invariant | BC je připraven pro detailní návrh |
+| Code | `code` | G8 | `80 – Taktický DDD a architektura` | aggregate, event, ADR/C4, operability | implementace chrání model a quality attributes |
 
-## Reference elements represented by the scaffold
+Každý řádek je ve scaffoldu dohledatelný přes:
 
-Scaffold zachovává tyto referenční DDD Starter prvky jako editovatelné Miro objects:
+```text
+reference_visual
+→ stage
+→ gate
+→ work_frame
+→ example_template
+→ cookbook_url / method_url / starter_reference_url
+→ human_acceptance
+```
 
-- souvislou cestu od Align po Code;
-- discovery přes Big Picture EventStorming;
-- dekompozici podle jazyka, pravidel, lifecycle a změnového couplingu;
-- strategickou klasifikaci core/supporting/generic;
-- Context Map a data ownership;
-- Team Topologies a interaction modes;
-- Bounded Context Canvas;
-- Design-Level EventStorming;
-- tactical DDD a architektonická rozhodnutí.
+## Iterativnost
 
-Reference je použita pro metodickou orientaci a layout inspiraci. Autoritativní kontrakt je verzovaný YAML scaffold, JSON Schema, renderer, mapping a acceptance report.
+Přehled obsahuje celý dopředný tok a explicitní návraty, minimálně:
+
+- Discover → Align, pokud nová evidence mění problém nebo scope;
+- Define → Decompose, pokud detail odhalí chybnou boundary hypothesis.
+
+Tím se zamezuje dojmu rigidního waterfall procesu.
 
 ## Automatizovaná evidence
 
-Automatizované testy ověřují:
+Testy ověřují:
 
-- přesně osm stage/gate kroků;
-- všech pět gate stavů;
-- Control Center;
-- explicitní placement povinných artefaktů;
-- stable journey item IDs;
-- změnu current-gate highlight bez recreation;
-- overlay guard;
-- UTF-8 guard;
-- technický PASS oddělený od `PENDING_HUMAN_REVIEW`.
+- osm stage/gate karet a čtyři metodické zóny;
+- minimální fonty journey, legendy, guides a mini-vzorů;
+- nejméně čtyři situační prvky na gate;
+- top-left guide a metodické odkazy v každém pracovním frame;
+- neprázdné mini-vzory;
+- zarovnání, minimální rozestupy a nepřekrývání frames;
+- actual remote geometry po renderu do Miro;
+- stable item IDs a změnu current-gate highlight bez recreation;
+- UTF-8;
+- oddělení technical PASS od human visual acceptance.
 
 ## Lidská evidence
 
-Finální reviewer ověřuje:
+Reviewer používá viditelné názvy boardu a ověřuje:
 
-- čitelnost bez znalosti interní implementace;
-- orientaci od Control Center k aktuálnímu frame;
-- srozumitelnost statusu, decision question, ownera a blockerů;
-- použitelnost workshop templates;
-- nepřekrývání a čitelnost při fit-to-content;
+- `00 – Navigace, legenda a stav artefaktů`;
+- `01 – DDD Starter journey, gates a iterace`;
+- čitelnost stage/gate karet bez extrémního zoomu;
+- metodické seskupení a návratové smyčky;
+- použitelnost guides, mini-vzorů a odkazů;
+- nepřekrývání a přiměřenou hustotu;
 - české znaky;
 - že board nevytváří dojem automatického gate approval.

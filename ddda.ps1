@@ -15,6 +15,7 @@ param(
     [switch]$CleanupOnFailure,
     [switch]$KeepArtifacts,
     [switch]$KeepReviewBoard,
+    [string]$MiroTeamId,
     [switch]$NonInteractive,
     [switch]$ConfirmMerge,
     [switch]$DryRun
@@ -73,6 +74,7 @@ switch ($Command) {
         if ($Full) { $arguments += "-Full" }
         if ($CleanupOnFailure) { $arguments += "-CleanupOnFailure" }
         if ($KeepReviewBoard) { $arguments += "-KeepReviewBoard" }
+        if (-not [string]::IsNullOrWhiteSpace($MiroTeamId)) { $arguments += @("-MiroTeamId", $MiroTeamId) }
         if ($NonInteractive) { $arguments += "-NonInteractive" }
         Invoke-DDDACommandScript -RelativePath "scripts/platform/Invoke-DDDAPlatformTest.ps1" -Arguments $arguments
     }
@@ -86,6 +88,7 @@ switch ($Command) {
         if ($CleanupOnFailure) { $arguments += "-CleanupOnFailure" }
         if ($KeepArtifacts) { $arguments += "-KeepArtifacts" }
         if ($KeepReviewBoard) { $arguments += "-KeepReviewBoard" }
+        if (-not [string]::IsNullOrWhiteSpace($MiroTeamId)) { $arguments += @("-MiroTeamId", $MiroTeamId) }
         if ($NonInteractive) { $arguments += "-NonInteractive" }
         Invoke-DDDACommandScript -RelativePath "scripts/platform/Invoke-DDDAValidatePr.ps1" -Arguments $arguments
     }
@@ -103,6 +106,7 @@ switch ($Command) {
         if ($CleanupOnFailure) { $arguments += "-CleanupOnFailure" }
         if ($KeepArtifacts) { $arguments += "-KeepArtifacts" }
         if ($KeepReviewBoard) { $arguments += "-KeepReviewBoard" }
+        if (-not [string]::IsNullOrWhiteSpace($MiroTeamId)) { $arguments += @("-MiroTeamId", $MiroTeamId) }
         if ($NonInteractive) { $arguments += "-NonInteractive" }
         if ($DryRun) { $arguments += "-DryRun" }
         Invoke-DDDACommandScript -RelativePath "scripts/platform/Invoke-DDDAPromotePr.ps1" -Arguments $arguments

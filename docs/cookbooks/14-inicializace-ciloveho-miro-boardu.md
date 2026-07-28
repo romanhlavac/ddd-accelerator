@@ -169,7 +169,8 @@ To není release approval. Pro zachování boardu k jednorázovému finálnímu 
   -Suite project-steering `
   -WithMiro `
   -Full `
-  -KeepReviewBoard
+  -KeepReviewBoard `
+  -MiroTeamId <STANDARD_TEAM_ID>
 ```
 
 Runner vypíše:
@@ -179,6 +180,6 @@ Runner vypíše:
 - review workspace;
 - acceptance report.
 
-Finální lidský reviewer ověřuje Control Center, journey G1–G8, aktuální gate, status legendu, workshop templates, nepřekrývání, UTF-8 a zachování ruční workshopové práce. Human review se neopakuje po každé automatické opravě; proběhne jednou po zmrazení všech relevantních online změn.
+Finální lidský reviewer ověřuje `00 – Navigace, legenda a stav artefaktů`, `01 – DDD Starter journey, gates a iterace`, aktuální gate, čitelnost fontů, status legendu, mini-vzory, metodické odkazy, nepřekrývání, UTF-8 a zachování ruční workshopové práce. Human review se neopakuje po každé automatické opravě; proběhne jednou po zmrazení všech relevantních online změn.
 
 Traceability je popsána v [Miro DDD Starter traceability](../reference/miro-ddd-starter-traceability.md).

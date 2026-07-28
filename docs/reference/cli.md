@@ -146,5 +146,5 @@ Zaznamená explicitní outcome `passed`, `conditional` nebo `rejected`. `-Commit
 ### `Test-DDDAAcceptance.ps1`
 
 ```powershell
-.\scripts\Test-DDDAAcceptance.ps1 -Suite project-steering [-WithMiro] [-Full] [-KeepReviewBoard] [-CleanupOnFailure]
+.\scripts\Test-DDDAAcceptance.ps1 -Suite project-steering [-WithMiro] [-Full] [-KeepReviewBoard] [-MiroTeamId <team-id>] [-CleanupOnFailure]
 ```

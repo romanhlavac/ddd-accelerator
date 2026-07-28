@@ -9,6 +9,7 @@ param(
     [switch]$CleanupOnFailure,
     [switch]$KeepArtifacts,
     [switch]$KeepReviewBoard,
+    [string]$MiroTeamId,
     [switch]$NonInteractive,
     [switch]$DryRun
 )
@@ -326,6 +327,7 @@ try {
         )
         if ($Full) { $miroArguments += "-Full" }
         if ($KeepReviewBoard) { $miroArguments += "-KeepReviewBoard" }
+        if (-not [string]::IsNullOrWhiteSpace($MiroTeamId)) { $miroArguments += @("-MiroTeamId", $MiroTeamId) }
         if ($NonInteractive) { $miroArguments += "-NonInteractive" }
         Invoke-ReleaseSuite -Name "miro" -Arguments $miroArguments
         if (-not (Test-Path -LiteralPath $releaseMiroEvidencePath -PathType Leaf)) {

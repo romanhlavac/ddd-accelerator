@@ -33,7 +33,7 @@ $dddaCommand = Get-Command (Join-Path $PlatformPath "ddda.ps1")
 Assert-True -Condition $dddaCommand.Parameters.ContainsKey("KeepReviewBoard") -Message "ddda.ps1 nemá KeepReviewBoard."
 
 $platformTestCommand = Get-Command (Join-Path $PlatformPath "scripts/platform/Invoke-DDDAPlatformTest.ps1")
-foreach ($parameterName in @("KeepReviewBoard", "MiroEvidenceOutputPath")) {
+foreach ($parameterName in @("KeepReviewBoard", "MiroTeamId", "MiroEvidenceOutputPath")) {
     Assert-True -Condition $platformTestCommand.Parameters.ContainsKey($parameterName) -Message "Platform test runner nemá parametr $parameterName."
 }
 
@@ -46,7 +46,7 @@ foreach ($commandPath in @(
 }
 
 $wrapperCommand = Get-Command (Join-Path $PlatformPath "scripts/platform/Invoke-DDDAMiroAcceptanceEvidence.ps1")
-foreach ($parameterName in @("KeepReviewBoard", "EvidenceOutputPath", "CleanupOnFailure")) {
+foreach ($parameterName in @("KeepReviewBoard", "MiroTeamId", "EvidenceOutputPath", "CleanupOnFailure")) {
     Assert-True -Condition $wrapperCommand.Parameters.ContainsKey($parameterName) -Message "Miro evidence wrapper nemá parametr $parameterName."
 }
 

@@ -237,6 +237,8 @@ def test_miro_acceptance_schema_accepts_preserved_review_board() -> None:
         "status": "PASS",
         "technical_sync_status": "PASS",
         "layout_contract_status": "PASS",
+        "remote_layout_status": "PASS",
+        "review_team_selection_status": "EXPLICIT_TEAM",
         "utf8_status": "PASS",
         "human_visual_acceptance_status": "PENDING",
         "overall_status": "PENDING_HUMAN_REVIEW",

@@ -140,25 +140,36 @@ $syncText = Get-Content -LiteralPath $syncPath -Raw -Encoding UTF8
 $acceptanceText = Get-Content -LiteralPath $acceptancePath -Raw -Encoding UTF8
 
 foreach ($gate in 1..8) {
-    Assert-True -Condition ($scaffoldText -match "(?m)^    gate: G$gate\s*$") -Message "Traceability nepokrývá G$gate."
-    Assert-True -Condition ($scaffoldText -match "(?m)^  - id: G$gate\s*$") -Message "Journey/gate contract neobsahuje G$gate."
+    Assert-True -Condition ($scaffoldText -match "(?m)^\s+gate:\s*G$gate\s*$") -Message "Traceability nepokrývá G$gate."
+    Assert-True -Condition ($scaffoldText -match "(?m)^\s*-\s+id:\s*G$gate\s*$") -Message "Journey/gate contract neobsahuje G$gate."
 }
 foreach ($statusId in @("not_ready", "ready_for_review", "conditional", "rejected", "passed")) {
-    Assert-True -Condition ($scaffoldText -match "(?m)^  - id: $statusId\s*$") -Message "Miro scaffold neobsahuje gate state $statusId."
+    Assert-True -Condition ($scaffoldText -match "(?m)^\s*-\s+id:\s*$statusId\s*$") -Message "Miro scaffold neobsahuje gate state $statusId."
 }
 foreach ($artifactId in @("project-charter", "ddda.current-status", "ddda.next-actions")) {
     Assert-True -Condition ($scaffoldText -match "(?m)^  $([regex]::Escape($artifactId)):\s*$") -Message "Miro scaffold nemá placement pro $artifactId."
 }
-Assert-True -Condition ($scaffoldText -match '(?m)^  - id: control-center\s*$') -Message "Miro scaffold nemá dominantní control-center frame."
+Assert-True -Condition ($scaffoldText -match '(?m)^\s*-\s+id:\s*control-center\s*$') -Message "Miro scaffold nemá frame 00 – Navigace, legenda a stav artefaktů."
+Assert-True -Condition ($scaffoldText -match '(?m)^\s*-\s+id:\s*method-overview\s*$') -Message "Miro scaffold nemá samostatný DDD Starter journey overview."
+Assert-True -Condition ($scaffoldText -match '(?m)^stage_visual_templates:\s*$') -Message "Miro scaffold nemá situační stage visual templates."
+Assert-True -Condition ($scaffoldText -match '(?m)^example_templates:\s*$') -Message "Miro scaffold nemá vyplněné workshop mini-vzory."
+Assert-True -Condition ($scaffoldText -match '(?m)^method_transitions:\s*$') -Message "Miro scaffold nemá metodické přechody a feedback loops."
+Assert-True -Condition ($scaffoldText -match '(?m)^    journey: 34\s*$') -Message "Journey font nemá čitelnou minimální velikost."
+Assert-True -Condition ($scaffoldText -match 'DDDA kuchařka|cookbook_url') -Message "Miro scaffold nemá odkazy na kuchařky."
+Assert-True -Condition ($renderText -match 'validate_remote_layout') -Message "Renderer neověřuje skutečnou remote Miro geometrii."
+Assert-True -Condition ($renderText -match 'workshop_guide') -Message "Renderer nevytváří top-left workshop guides."
+Assert-True -Condition ($renderText -match 'workshop_example') -Message "Renderer nevytváří workshop mini-vzory."
 Assert-True -Condition ($renderText -match 'PENDING_HUMAN_REVIEW') -Message "Renderer nesmí převést technical PASS na celkový PASS bez human review."
 Assert-True -Condition ($renderText -match 'journey:\{gate_id\}') -Message "Renderer nevytváří persistentní journey položky."
 Assert-True -Condition ($renderText -match 'MOJIBAKE_MARKERS') -Message "Renderer nemá UTF-8/mojibake regression guard."
 Assert-True -Condition ($renderText -match 'overlaps work frame') -Message "Renderer nemá overlay guard."
 Assert-True -Condition ($syncText -match '_validate_required_placements') -Message "Sync nevynucuje control-center placement povinných artefaktů."
-foreach ($field in @("technical_sync_status", "layout_contract_status", "utf8_status", "human_visual_acceptance_status", "overall_status")) {
+foreach ($field in @("technical_sync_status", "layout_contract_status", "remote_layout_status", "review_team_selection_status", "utf8_status", "human_visual_acceptance_status", "overall_status")) {
     Assert-True -Condition ($acceptanceText -match [regex]::Escape($field)) -Message "Acceptance report nemá pole $field."
 }
 Assert-True -Condition ($acceptanceText -match 'overall_status = \$overallStatus') -Message "Acceptance report nemá explicitní overall status."
 Assert-True -Condition ($acceptanceText -match 'PENDING_HUMAN_REVIEW') -Message "Acceptance report nerozlišuje pending human review."
+$acceptanceCommand = Get-Command $acceptancePath
+Assert-True -Condition $acceptanceCommand.Parameters.ContainsKey("MiroTeamId") -Message "Acceptance runner neumí explicitně vybrat standardní Miro team."
 
 Write-Host "DDDA Miro automation tests: PASS"
