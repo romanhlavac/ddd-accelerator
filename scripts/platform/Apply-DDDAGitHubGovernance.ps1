@@ -19,11 +19,20 @@ if (-not (Test-Path -LiteralPath $initializer -PathType Leaf)) {
 
 Push-Location $repoRoot
 try {
-    $arguments = @("-Apply")
-    if (-not $DoNotOpenProject) { $arguments += "-OpenProject" }
-    if ($SkipViews) { $arguments += "-SkipViews" }
+    # Use hashtable splatting for PowerShell script parameters. Array splatting
+    # passes values positionally and would treat '-OpenProject' as an argument
+    # value instead of a named switch.
+    $initializerParameters = @{
+        Apply = $true
+    }
+    if (-not $DoNotOpenProject) {
+        $initializerParameters["OpenProject"] = $true
+    }
+    if ($SkipViews) {
+        $initializerParameters["SkipViews"] = $true
+    }
 
-    & $initializer @arguments
+    & $initializer @initializerParameters
     if (-not $?) {
         throw "GitHub governance initialization failed."
     }
