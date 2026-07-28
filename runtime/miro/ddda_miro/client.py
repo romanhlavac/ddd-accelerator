@@ -5,8 +5,11 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from dataclasses import dataclass
+from copy import deepcopy
+from dataclasses import dataclass, field
 from typing import Any
+
+from .coordinates import frame_center_to_parent_position
 
 
 class MiroApiError(RuntimeError):
@@ -24,6 +27,11 @@ class MiroClient:
     base_url: str = "https://api.miro.com/v2"
     timeout_seconds: int = 45
     max_retries: int = 4
+    _frame_geometry_cache: dict[tuple[str, str], dict[str, Any]] = field(
+        default_factory=dict,
+        init=False,
+        repr=False,
+    )
 
     def _request(self, method: str, path: str, *, query: dict[str, Any] | None = None, body: Any | None = None) -> Any:
         url = f"{self.base_url.rstrip('/')}/{path.lstrip('/')}"
@@ -58,6 +66,50 @@ class MiroClient:
                 raise RuntimeError(f"Miro API {method} {url} failed: {exc}") from exc
         raise AssertionError("unreachable")
 
+    def _remember_frame_geometry(
+        self,
+        board_id: str,
+        frame_id: str,
+        remote: dict[str, Any],
+        payload: dict[str, Any],
+    ) -> None:
+        geometry = dict(remote.get("geometry") or payload.get("geometry") or {})
+        if "width" in geometry and "height" in geometry:
+            self._frame_geometry_cache[(board_id, frame_id)] = geometry
+
+    def _frame_geometry(self, board_id: str, frame_id: str) -> dict[str, Any]:
+        key = (board_id, frame_id)
+        cached = self._frame_geometry_cache.get(key)
+        if cached:
+            return dict(cached)
+        frame_segment = urllib.parse.quote(frame_id, safe="")
+        remote = self._request("GET", f"boards/{board_id}/frames/{frame_segment}")
+        geometry = dict((remote or {}).get("geometry") or {})
+        if "width" not in geometry or "height" not in geometry:
+            raise ValueError(f"Miro parent frame {frame_id} has no usable geometry")
+        self._frame_geometry_cache[key] = geometry
+        return dict(geometry)
+
+    def _prepare_item_payload(
+        self,
+        board_id: str,
+        item_type: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        prepared = deepcopy(payload)
+        if item_type == "frame":
+            return prepared
+        parent_id = str((prepared.get("parent") or {}).get("id") or "")
+        position = prepared.get("position")
+        if parent_id and position:
+            prepared["position"] = frame_center_to_parent_position(
+                dict(position),
+                self._frame_geometry(board_id, parent_id),
+                child_geometry=dict(prepared.get("geometry") or {}),
+                label=f"{item_type} child of {parent_id}",
+            )
+        return prepared
+
     def get_board(self, board_id: str) -> dict[str, Any]:
         return self._request("GET", f"boards/{board_id}")
 
@@ -89,10 +141,18 @@ class MiroClient:
                 return result
 
     def create_item(self, board_id: str, item_type: str, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._request("POST", f"boards/{board_id}/{_endpoint(item_type)}", body=payload)
+        prepared = self._prepare_item_payload(board_id, item_type, payload)
+        remote = self._request("POST", f"boards/{board_id}/{_endpoint(item_type)}", body=prepared)
+        if item_type == "frame":
+            self._remember_frame_geometry(board_id, str(remote["id"]), remote, prepared)
+        return remote
 
     def update_item(self, board_id: str, item_type: str, item_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._request("PATCH", f"boards/{board_id}/{_endpoint(item_type)}/{item_id}", body=payload)
+        prepared = self._prepare_item_payload(board_id, item_type, payload)
+        remote = self._request("PATCH", f"boards/{board_id}/{_endpoint(item_type)}/{item_id}", body=prepared)
+        if item_type == "frame":
+            self._remember_frame_geometry(board_id, item_id, remote, prepared)
+        return remote
 
     def delete_item(self, board_id: str, item_id: str) -> None:
         self._request("DELETE", f"boards/{board_id}/items/{item_id}")
