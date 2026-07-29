@@ -8,6 +8,14 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 Změny pro další verzi se během vývoje zapisují sem. Před promotion se všechny položky přesunou do jediné verze `X.Y.Z` s ISO datem a tato sekce zůstane bez release položek.
 
+### Added
+
+- kanonický `knowledge/ddda-platform-development-skill.md` s povinnými pravidly pro platformní vývoj, transakční remediation workflow, exact-SHA validaci a oddělení technického a lidského rozhodování.
+
+### Changed
+
+- knowledge index a developer lifecycle nyní vyžadují explicitní runtime registraci platform-development skillu v knowledge routingu nebo Project/Agent Instructions; samotná existence souboru v Gitu není považována za aktivaci instrukcí.
+
 ## [0.1.0] - 2026-07-28
 
 ### Added
