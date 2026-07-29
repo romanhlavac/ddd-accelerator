@@ -8,14 +8,6 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 Změny pro další verzi se během vývoje zapisují sem. Před promotion se všechny položky přesunou do jediné verze `X.Y.Z` s ISO datem a tato sekce zůstane bez release položek.
 
-### Added
-
-- kanonický `knowledge/ddda-platform-development-skill.md` s povinnými pravidly pro platformní vývoj, transakční remediation workflow, exact-SHA validaci a oddělení technického a lidského rozhodování.
-
-### Changed
-
-- knowledge index a developer lifecycle nyní vyžadují explicitní runtime registraci platform-development skillu v knowledge routingu nebo Project/Agent Instructions; samotná existence souboru v Gitu není považována za aktivaci instrukcí.
-
 ## [0.1.0] - 2026-07-28
 
 ### Added
@@ -34,7 +26,8 @@ Změny pro další verzi se během vývoje zapisují sem. Před promotion se vš
 - kontrolovaný promotion a release lifecycle;
 - GitHub Actions CI, které na přesném source SHA provádí source-level i package-first validaci a publikuje krátkodobý candidate package jako build artifact;
 - GitHub REST promotion klient s autentizací přes `GH_TOKEN`, `GITHUB_TOKEN`, `gh auth token` nebo existující Git credential helper, bez povinné instalace GitHub CLI;
-- deterministický changelog release cut a promotion preflight ověřující shodu `-Version`, changelog verze a tagu `vX.Y.Z`.
+- deterministický changelog release cut a promotion preflight ověřující shodu `-Version`, changelog verze a tagu `vX.Y.Z`;
+- kanonický `knowledge/ddda-platform-development-skill.md` s povinnými pravidly pro platformní vývoj, transakční remediation workflow, exact-SHA validaci a oddělení technického a lidského rozhodování.
 
 ### Changed
 
@@ -46,7 +39,8 @@ Změny pro další verzi se během vývoje zapisují sem. Před promotion se vš
 - Miro acceptance odděluje technical sync, deklarativní layout contract, remote Miro geometry contract, UTF-8 a human visual acceptance; technický PASS zůstává `PENDING_HUMAN_REVIEW`;
 - povinné managed steering artefakty mají explicitní `control-center` placement a stabilní souřadnice;
 - `conditional` a `rejected` nejsou completed gates; `conditional` vyžaduje ownera a termín podmínek;
-- veškerá release dokumentace používá stejný GitHub auth kontrakt a stejné pořadí providerů jako implementace.
+- veškerá release dokumentace používá stejný GitHub auth kontrakt a stejné pořadí providerů jako implementace;
+- knowledge index a developer lifecycle vyžadují explicitní runtime registraci platform-development skillu v knowledge routingu nebo Project/Agent Instructions; samotná existence souboru v Gitu není považována za aktivaci instrukcí.
 
 ### Fixed
 
