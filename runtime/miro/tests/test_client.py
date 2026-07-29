@@ -1,4 +1,4 @@
-from ddda_miro.client import MiroClient, normalize_miro_font_size
+from ddda_miro.client import MiroClient, normalize_miro_font_size, normalize_miro_percentage
 
 
 def test_client_converts_child_position_using_cached_parent_geometry(monkeypatch):
@@ -72,6 +72,14 @@ def test_font_size_normalization_uses_supported_rest_scale():
     assert normalize_miro_font_size(500) == 288
 
 
+
+def test_connector_caption_percentage_normalization_uses_rest_wire_format():
+    assert normalize_miro_percentage(0) == "0%"
+    assert normalize_miro_percentage(0.5) == "50%"
+    assert normalize_miro_percentage(1) == "100%"
+    assert normalize_miro_percentage("50.0%") == "50%"
+
+
 def test_client_normalizes_text_font_size_before_api_call(monkeypatch):
     calls = []
 
@@ -116,8 +124,10 @@ def test_connector_api_uses_dedicated_endpoints_and_does_not_mutate_payload(monk
     client.delete_connector("board-1", "connector-1")
 
     assert calls[0][0:2] == ("POST", "boards/board-1/connectors")
+    assert calls[0][3]["captions"][0]["position"] == "50%"
     assert calls[1][0:2] == ("PATCH", "boards/board-1/connectors/connector-1")
+    assert calls[1][3]["captions"][0]["position"] == "50%"
     assert calls[2][0:2] == ("GET", "boards/board-1/connectors")
     assert calls[3][0:2] == ("DELETE", "boards/board-1/connectors/connector-1")
     assert listed == [{"id": "connector-existing"}]
-    assert authored["captions"][0]["content"] == "evidence → boundary"
+    assert authored["captions"][0] == {"content": "evidence → boundary", "position": 0.5}

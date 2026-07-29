@@ -31,6 +31,40 @@ def normalize_miro_font_size(value: Any) -> int:
     return MIRO_REST_FONT_SIZES[-1]
 
 
+def normalize_miro_percentage(value: Any) -> str:
+    """Normalize connector caption positions to Miro REST's percentage wire format.
+
+    The public REST documentation describes caption positions as fractions in the
+    inclusive range 0.0..1.0, while the live API validates the field as a
+    Percentage and returns values such as ``50.0%``. Accept either form at the
+    client boundary and always send an explicit percentage string.
+    """
+    if isinstance(value, str):
+        stripped = value.strip()
+        if stripped.endswith("%"):
+            numeric_text = stripped[:-1].strip()
+            try:
+                percentage = float(numeric_text)
+            except ValueError as exc:
+                raise ValueError(f"Miro percentage must be numeric, got {value!r}") from exc
+        else:
+            try:
+                fraction = float(stripped)
+            except ValueError as exc:
+                raise ValueError(f"Miro percentage must be numeric, got {value!r}") from exc
+            percentage = fraction * 100 if 0 <= fraction <= 1 else fraction
+    else:
+        try:
+            fraction = float(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"Miro percentage must be numeric, got {value!r}") from exc
+        percentage = fraction * 100 if 0 <= fraction <= 1 else fraction
+
+    if not 0 <= percentage <= 100:
+        raise ValueError(f"Miro percentage must be between 0% and 100%, got {value!r}")
+    return f"{percentage:g}%"
+
+
 class MiroApiError(RuntimeError):
     def __init__(self, status: int, method: str, url: str, body: str):
         super().__init__(f"Miro API {method} {url} failed with HTTP {status}: {body}")
@@ -191,8 +225,16 @@ class MiroClient:
             if not cursor:
                 return result
 
+    def _prepare_connector_payload(self, payload: dict[str, Any]) -> dict[str, Any]:
+        prepared = deepcopy(payload)
+        for caption in prepared.get("captions") or []:
+            if isinstance(caption, dict) and "position" in caption:
+                caption["position"] = normalize_miro_percentage(caption["position"])
+        return prepared
+
     def create_connector(self, board_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._request("POST", f"boards/{board_id}/connectors", body=deepcopy(payload))
+        prepared = self._prepare_connector_payload(payload)
+        return self._request("POST", f"boards/{board_id}/connectors", body=prepared)
 
     def update_connector(
         self,
@@ -200,10 +242,11 @@ class MiroClient:
         connector_id: str,
         payload: dict[str, Any],
     ) -> dict[str, Any]:
+        prepared = self._prepare_connector_payload(payload)
         return self._request(
             "PATCH",
             f"boards/{board_id}/connectors/{connector_id}",
-            body=deepcopy(payload),
+            body=prepared,
         )
 
     def delete_connector(self, board_id: str, connector_id: str) -> None:
