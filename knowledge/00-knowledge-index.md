@@ -4,6 +4,7 @@ Tento adresář je stručný metodický kontrakt pro chat a agenty. Uživatelsk�
 
 | Úloha | Načíst |
 |---|---|
+| **vývoj DDDA platformy** | **`ddda-platform-development-skill.md` — povinně před návrhem nebo provedením změny platformy** |
 | operating model a způsob práce | `01-operating-model.md` |
 | doména, subdomény, bounded contexts | `02-ddd-strategic-design.md` |
 | agregáty, invarianty, domain events | `03-ddd-tactical-design.md` |
@@ -16,5 +17,9 @@ Tento adresář je stručný metodický kontrakt pro chat a agenty. Uživatelsk�
 | Team Topologies a governance | `10-team-topologies-and-governance.md` |
 | workshopy | `11-workshop-playbooks.md` |
 | formát výstupu | `12-output-templates.md` |
+
+## Povinná registrace platformního skillu
+
+Při vývoji DDDA platformy musí chat, agent nebo jiný runtime načíst `ddda-platform-development-skill.md` ještě před klasifikací, návrhem nebo aplikací změny. Registrace může být provedena tímto indexem nebo explicitními Project/Agent Instructions, ale runtime musí používat aktuální verzovanou repository variantu. Samotná existence souboru v Gitu nezaručuje jeho automatické načtení.
 
 Vždy nejprve načti `project.yaml`, `project-intake.yaml`, `lifecycle-tailoring.yaml` a `artifacts/status/current-status.yaml`. Fakta zachovej se source path; hypotézy označ `candidate`; rozhodnutí vyžadují ownera a review boundary v Gitu.
