@@ -1,23 +1,19 @@
-schema_version: "2.1"
+schema_version: '2.2'
 id: strategic-ddd-method-board
-name_cs: "DDDA DDD Starter – project steering board"
-description_cs: >-
-  Deterministický project steering a workshop board podle DDD Starter Modelling Process.
-  Miro je projekce; Git/YAML a explicitní
-  lidské gate decision jsou autorita.
-
+name_cs: DDDA DDD Starter – project steering board
+description_cs: Deterministický onboarding, project steering a metodicky věrný workshop board podle DDD
+  Starter Modelling Process. Miro je projekce; Git/YAML a explicitní lidské gate decision jsou autorita.
 coordinate_system:
   origin: board_center
   unit: miro_canvas_unit
   stage_card:
-    width: 4800
-    height: 2400
+    width: 3400
+    height: 2000
   work_frame:
     width: 6000
     height: 4800
-  horizontal_gap: 1000
-  vertical_gap: 700
-
+  horizontal_gap: 900
+  vertical_gap: 800
   minimum_font_size:
     journey: 34
     stage_example: 24
@@ -39,249 +35,230 @@ localization:
   - Core Domain
   - Supporting Subdomain
   - Generic Subdomain
-
 palette:
-  method_primary: "#2F7E95"
-  method_secondary: "#365A8C"
-  frame_background: "#F8FAFC"
-  frame_border: "#64748B"
-  event: "#F6A04D"
-  temporal_event: "#F6A04D"
-  pivot_event_marker: "#F9E27D"
-  command_action: "#86C5E8"
-  policy_procedure: "#C49ACD"
-  read_model: "#C8E986"
-  external_system: "#F3B4C4"
-  actor: "#F4DC67"
-  hotspot: "#E84C3D"
-  invariant: "#F8E58C"
-  context_boundary: "#DDEFA9"
-  team: "#B7D7F0"
-  accepted: "#88C999"
-  superseded: "#B8BEC7"
-
+  method_primary: '#2F7E95'
+  method_secondary: '#365A8C'
+  frame_background: '#F8FAFC'
+  frame_border: '#64748B'
+  event: '#F6A04D'
+  temporal_event: '#F6A04D'
+  pivot_event_marker: '#F9E27D'
+  command_action: '#86C5E8'
+  policy_procedure: '#C49ACD'
+  read_model: '#C8E986'
+  external_system: '#F3B4C4'
+  actor: '#F4DC67'
+  hotspot: '#E84C3D'
+  invariant: '#F8E58C'
+  context_boundary: '#DDEFA9'
+  team: '#B7D7F0'
+  accepted: '#88C999'
+  superseded: '#B8BEC7'
 artifact_statuses:
 - id: empty
-  label_cs: "Připravený scaffold"
+  label_cs: Připravený scaffold
   border_style: dashed
 - id: generated
-  label_cs: "Vygenerováno z YAML"
+  label_cs: Vygenerováno z YAML
   border_style: solid
 - id: workshop
-  label_cs: "Rozpracováno ve workshopu"
+  label_cs: Rozpracováno ve workshopu
   border_style: solid
 - id: validated
-  label_cs: "Validováno doménovými experty"
+  label_cs: Validováno doménovými experty
   border_style: double
 - id: accepted
-  label_cs: "Přijato"
+  label_cs: Přijato
   border_style: double
 - id: superseded
-  label_cs: "Nahrazeno"
+  label_cs: Nahrazeno
   border_style: dotted
-
 metadata_contract:
   widget_metadata:
-    dd_d_a_id: "stabilní UUID artefaktu nebo prvku"
-    dd_d_a_artifact_type: "typ YAML artefaktu"
-    dd_d_a_source_path: "relativní cesta YAML souboru"
-    dd_d_a_revision: "Git commit nebo lokální revize"
-    dd_d_a_stage: "metodická fáze"
-    dd_d_a_status: "stav artefaktu"
-    dd_d_a_managed: "true | false"
+    dd_d_a_id: stabilní UUID artefaktu nebo prvku
+    dd_d_a_artifact_type: typ YAML artefaktu
+    dd_d_a_source_path: relativní cesta YAML souboru
+    dd_d_a_revision: Git commit nebo lokální revize
+    dd_d_a_stage: metodická fáze
+    dd_d_a_status: stav artefaktu
+    dd_d_a_managed: true | false
+    dd_d_a_role: project_artifact | example | legend | navigation
+    dd_d_a_sync: managed | ignore
+    dd_d_a_exclude_from_ingestion: true | false
   merge_ownership:
     semantic_content: yaml
     visual_position_and_size: miro
     workshop_notes_and_hotspots: miro
     identifiers_and_traceability: yaml
     conflict_policy: explicit-review
-
 method_flow:
   direction: left_to_right
   overview_y: -4400
   stages:
   - id: align
     order: 10
-    title_cs: "Align"
-    subtitle_cs: "Business model, cíle a potřeby uživatelů"
-    x: -10500
+    title_cs: Align
+    subtitle_cs: Business model, cíle a potřeby uživatelů
+    x: -15750
     gate_after: G1
-    y: -8000
+    y: -6200
     work_frame: align-intake
     visual_template: align
-    cookbook_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/16-zalozeni-rizeneho-projektu.md
-    method_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/01-metodicky-tok-a-gates.md
-    starter_reference_url:
-      https://ddd-crew.github.io/ddd-starter-modelling-process/
+    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/16-zalozeni-rizeneho-projektu.md
+    method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/01-metodicky-tok-a-gates.md
+    starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
+    shape: hexagon
   - id: discover
     order: 20
-    title_cs: "Discover"
-    subtitle_cs: "Vizuální a kolaborativní porozumění doméně"
-    x: -10500
+    title_cs: Discover
+    subtitle_cs: Vizuální a kolaborativní porozumění doméně
+    x: -11250
     gate_after: G2
-    y: -4500
+    y: -6200
     work_frame: discover-big-picture-es
     visual_template: discover
-    cookbook_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/03-big-picture-eventstorming.md
-    method_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/03-eventstorming-facilitace.md
-    starter_reference_url:
-      https://ddd-crew.github.io/ddd-starter-modelling-process/
+    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/03-big-picture-eventstorming.md
+    method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/03-eventstorming-facilitace.md
+    starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
+    shape: hexagon
   - id: decompose
     order: 30
-    title_cs: "Decompose"
-    subtitle_cs: "Rozklad domény, procesů a životních cyklů"
-    x: -3500
+    title_cs: Decompose
+    subtitle_cs: Rozklad domény, procesů a životních cyklů
+    x: -6750
     gate_after: G3
-    y: -8000
+    y: -6200
     work_frame: decompose-domain
     visual_template: decompose
-    cookbook_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/06-stavove-modely.md
-    method_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/02-ddd-strategic-design.md
-    starter_reference_url:
-      https://ddd-crew.github.io/ddd-starter-modelling-process/
+    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/06-stavove-modely.md
+    method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/02-ddd-strategic-design.md
+    starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
+    shape: hexagon
   - id: strategize
     order: 40
-    title_cs: "Strategize"
-    subtitle_cs: "Core/supporting/generic a investiční fokus"
-    x: -3500
+    title_cs: Strategize
+    subtitle_cs: Core/supporting/generic a investiční fokus
+    x: -2250
     gate_after: G4
-    y: -4500
+    y: -6200
     work_frame: strategize-classification
     visual_template: strategize
-    cookbook_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/01-metodicky-tok-a-gates.md
-    method_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/02-ddd-strategic-design.md
-    starter_reference_url:
-      https://ddd-crew.github.io/ddd-starter-modelling-process/
+    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/01-metodicky-tok-a-gates.md
+    method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/02-ddd-strategic-design.md
+    starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
+    shape: hexagon
   - id: connect
     order: 50
-    title_cs: "Connect"
-    subtitle_cs: "Context Map, data ownership a kontrakty"
-    x: -3500
+    title_cs: Connect
+    subtitle_cs: Context Map, data ownership a kontrakty
+    x: 2250
     gate_after: G5
-    y: -1000
+    y: -6200
     work_frame: connect-context-map
     visual_template: connect
-    cookbook_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/product/04-synchronizace.md
-    method_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/07-integration-and-data-ownership.md
-    starter_reference_url:
-      https://ddd-crew.github.io/ddd-starter-modelling-process/
+    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/product/04-synchronizace.md
+    method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/07-integration-and-data-ownership.md
+    starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
+    shape: hexagon
   - id: organize
     order: 60
-    title_cs: "Organize"
-    subtitle_cs: "Týmy, ownership a interakční režimy"
-    x: 3500
+    title_cs: Organize
+    subtitle_cs: Týmy, ownership a interakční režimy
+    x: 6750
     gate_after: G6
-    y: -4500
+    y: -6200
     work_frame: organize-teams
     visual_template: organize
-    cookbook_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/01-metodicky-tok-a-gates.md
-    method_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/10-team-topologies-and-governance.md
-    starter_reference_url:
-      https://ddd-crew.github.io/ddd-starter-modelling-process/
+    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/01-metodicky-tok-a-gates.md
+    method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/10-team-topologies-and-governance.md
+    starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
+    shape: hexagon
   - id: define
     order: 70
-    title_cs: "Define"
-    subtitle_cs: "Role a odpovědnosti bounded contexts"
-    x: 10500
+    title_cs: Define
+    subtitle_cs: Role a odpovědnosti bounded contexts
+    x: 11250
     gate_after: G7
-    y: -8000
+    y: -6200
     work_frame: define-bounded-context
     visual_template: define
-    cookbook_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/05-design-level-eventstorming.md
-    method_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/03-ddd-tactical-design.md
-    starter_reference_url:
-      https://ddd-crew.github.io/ddd-starter-modelling-process/
+    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/05-design-level-eventstorming.md
+    method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/03-ddd-tactical-design.md
+    starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
+    shape: hexagon
   - id: code
     order: 80
-    title_cs: "Code"
-    subtitle_cs: "Taktický model a implementační architektura"
-    x: 10500
+    title_cs: Code
+    subtitle_cs: Taktický model a implementační architektura
+    x: 15750
     gate_after: G8
-
-    y: -4500
+    y: -6200
     work_frame: code-tactical-model
     visual_template: code
-    cookbook_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/product/01-architektura-ddda.md
-    method_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/03-ddd-tactical-design.md
-    starter_reference_url:
-      https://ddd-crew.github.io/ddd-starter-modelling-process/
+    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/product/01-architektura-ddda.md
+    method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/03-ddd-tactical-design.md
+    starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
+    shape: hexagon
 gates:
 - id: G1
-  label_cs: "Cíl a scope jsou připraveny"
+  label_cs: Cíl a scope jsou připraveny
   required_evidence:
   - business_goals
   - stakeholders
   - scope
   - assumptions
 - id: G2
-  label_cs: "Doménový tok je dostatečně objeven"
+  label_cs: Doménový tok je dostatečně objeven
   required_evidence:
   - event_storming_big_picture
   - glossary
   - hotspots
   - lifecycle_observations
 - id: G3
-  label_cs: "Existují validovatelné hypotézy rozkladu"
+  label_cs: Existují validovatelné hypotézy rozkladu
   required_evidence:
   - process_slices
   - candidate_subdomains
   - candidate_lifecycles
 - id: G4
-  label_cs: "Strategický fokus je přijat"
+  label_cs: Strategický fokus je přijat
   required_evidence:
   - subdomain_classification
   - investment_rationale
 - id: G5
-  label_cs: "Vztahy a vlastnictví jsou explicitní"
+  label_cs: Vztahy a vlastnictví jsou explicitní
   required_evidence:
   - context_map
   - data_ownership
   - integration_contract_hypotheses
 - id: G6
-  label_cs: "Týmové ownership je proveditelné"
+  label_cs: Týmové ownership je proveditelné
   required_evidence:
   - team_topology
   - interaction_modes
   - cognitive_load_risks
 - id: G7
-  label_cs: "Bounded contexts jsou připraveny pro detailní návrh"
+  label_cs: Bounded contexts jsou připraveny pro detailní návrh
   required_evidence:
   - bounded_context_canvases
   - design_level_event_storming
   - validated_lifecycle_models
   - quality_attribute_scenarios
 - id: G8
-  label_cs: "Taktický návrh je implementovatelný"
+  label_cs: Taktický návrh je implementovatelný
   required_evidence:
   - aggregates_and_invariants
   - domain_events
   - architecture_decisions
   - implementation_views
-
 frames:
 - id: control-center
   stage: control
-  title_cs: "00 – Navigace, legenda a stav artefaktů"
-  x: -10500
-  y: 5000
-  width: 6000
-  height: 4800
+  title_cs: 00 – Navigace, legenda a stav artefaktů (Control Center)
+  x: -11000
+  y: 4500
+  width: 7000
+  height: 6000
   scaffold:
   - board_index
   - method_flow_legend
@@ -289,36 +266,30 @@ frames:
   - event_storming_legend
   - open_questions
   - sync_status
-
-  purpose_cs: Orientace, stav, rozhodovací otázka, blokery a nejmenší další
-    krok.
+  purpose_cs: Orientace, stav, rozhodovací otázka, blokery a nejmenší další krok.
   example_template: navigation
   guide:
     start_cs: Najdi aktuální gate, rozhodovací otázku a nejmenší další krok.
     outputs_cs: Aktuální stav, gate legenda, blokery a next actions.
-    cookbook_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/17-status-gates-a-dalsi-krok.md
-    method_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/01-metodicky-tok-a-gates.md
-    starter_reference_url:
-      https://ddd-crew.github.io/ddd-starter-modelling-process/
+    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/17-status-gates-a-dalsi-krok.md
+    method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/01-metodicky-tok-a-gates.md
+    starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/
 - id: method-overview
   role: overview
   stage: overview
   title_cs: 01 – DDD Starter journey, gates a iterace
   x: 0
   y: -5000
-  width: 30000
+  width: 40000
   height: 13000
   scaffold:
   - method_flow_legend
-  purpose_cs: Čitelná navigační mapa metodiky s gate stavy, situačními
-    mini-vzory a povolenými návraty.
+  purpose_cs: Čitelná navigační mapa metodiky s gate stavy, situačními mini-vzory a povolenými návraty.
 - id: align-intake
   stage: align
-  title_cs: "10 – Align / Intake"
-  x: -10500
-  y: 10500
+  title_cs: 10 – Align / Intake
+  x: -11000
+  y: 11500
   width: 6000
   height: 4800
   scaffold:
@@ -329,25 +300,19 @@ frames:
   - scope_and_out_of_scope
   - assumptions_and_constraints
   - success_metrics
-
-  purpose_cs: Vyjasnit business problém, cíl, scope, aktéry a oprávnění
-    rozhodnout.
+  purpose_cs: Vyjasnit business problém, cíl, scope, aktéry a oprávnění rozhodnout.
   example_template: align
   guide:
     start_cs: Začni business problémem a rozhodnutím, které má projekt umožnit.
-    outputs_cs: Project charter, scope, success metrics a konkrétní decision
-      owner.
-    cookbook_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/16-zalozeni-rizeneho-projektu.md
-    method_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/01-metodicky-tok-a-gates.md
-    starter_reference_url:
-      https://ddd-crew.github.io/ddd-starter-modelling-process/
+    outputs_cs: Project charter, scope, success metrics a konkrétní decision owner.
+    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/16-zalozeni-rizeneho-projektu.md
+    method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/01-metodicky-tok-a-gates.md
+    starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
 - id: discover-big-picture-es
   stage: discover
-  title_cs: "20 – EventStorming: Big Picture"
-  x: -10500
-  y: 16000
+  title_cs: '20 – EventStorming: Big Picture'
+  x: -11000
+  y: 17000
   width: 6500
   height: 4800
   mandatory: true
@@ -365,25 +330,19 @@ frames:
   - hotspots
   - questions
   - value_up_down_markers
-
-  purpose_cs: Vytvořit sdílený obraz doménového dění, jazyka, pravidel a
-    hotspotů.
+  purpose_cs: Vytvořit sdílený obraz doménového dění, jazyka, pravidel a hotspotů.
   example_template: big_picture
   guide:
     start_cs: S doménovými experty rozlož dění v čase od událostí a hotspotů.
-    outputs_cs: Big Picture, pivoty, hotspoty, otázky a první ubiquitous
-      language.
-    cookbook_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/03-big-picture-eventstorming.md
-    method_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/03-eventstorming-facilitace.md
-    starter_reference_url:
-      https://ddd-crew.github.io/ddd-starter-modelling-process/
+    outputs_cs: Big Picture, pivoty, hotspoty, otázky a první ubiquitous language.
+    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/03-big-picture-eventstorming.md
+    method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/03-eventstorming-facilitace.md
+    starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
 - id: discover-evidence
   stage: discover
-  title_cs: "21 – Zdroje, slovník a pozorované stavy"
-  x: -12600
-  y: 21000
+  title_cs: 21 – Zdroje, slovník a pozorované stavy
+  x: -14000
+  y: 22500
   width: 5000
   height: 3800
   scaffold:
@@ -393,25 +352,19 @@ frames:
   - observed_lifecycle_snapshots
   - contradictions
   - unanswered_questions
-
-  purpose_cs: Vytvořit sdílený obraz doménového dění, jazyka, pravidel a
-    hotspotů.
+  purpose_cs: Vytvořit sdílený obraz doménového dění, jazyka, pravidel a hotspotů.
   example_template: evidence
   guide:
     start_cs: Sesbírej zdroje, rozpory, termíny a pozorované stavy.
-    outputs_cs: Source inventory, glossary, contradictions a unanswered
-      questions.
-    cookbook_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/03-big-picture-eventstorming.md
-    method_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/02-ddd-strategic-design.md
-    starter_reference_url:
-      https://ddd-crew.github.io/ddd-starter-modelling-process/
+    outputs_cs: Source inventory, glossary, contradictions a unanswered questions.
+    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/03-big-picture-eventstorming.md
+    method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/02-ddd-strategic-design.md
+    starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
 - id: discover-process-modeling
   stage: discover
-  title_cs: "22 – EventStorming: Process Modeling"
-  x: -6900
-  y: 21000
+  title_cs: '22 – EventStorming: Process Modeling'
+  x: -8000
+  y: 22500
   width: 5000
   height: 3800
   mandatory: false
@@ -419,7 +372,7 @@ frames:
   - selected_business_flow
   - big_picture_segment
   visual_rules:
-    sequence: "actor → command/action → policy/procedure → system → event → read model"
+    sequence: actor → command/action → policy/procedure → system → event → read model
     legend_position: left
     process_rows: true
   scaffold:
@@ -430,24 +383,19 @@ frames:
   - external_systems
   - events
   - hotspots
-
-  purpose_cs: Vytvořit sdílený obraz doménového dění, jazyka, pravidel a
-    hotspotů.
+  purpose_cs: Vytvořit sdílený obraz doménového dění, jazyka, pravidel a hotspotů.
   example_template: process
   guide:
     start_cs: Vyber hodnotný nebo problematický procesní slice.
     outputs_cs: Actor-command-policy-event-read model tok a hotspoty.
-    cookbook_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/04-process-modeling.md
-    method_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/03-eventstorming-facilitace.md
-    starter_reference_url:
-      https://ddd-crew.github.io/ddd-starter-modelling-process/
+    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/04-process-modeling.md
+    method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/03-eventstorming-facilitace.md
+    starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
 - id: decompose-domain
   stage: decompose
-  title_cs: "30 – Rozklad domény"
-  x: -3500
-  y: 5000
+  title_cs: 30 – Rozklad domény
+  x: -2500
+  y: 4500
   width: 6000
   height: 4800
   scaffold:
@@ -457,23 +405,19 @@ frames:
   - change_coupling_clusters
   - candidate_bounded_contexts
   - decomposition_rationale
-
   purpose_cs: Formulovat a porovnat hypotézy doménových hranic.
   example_template: decompose
   guide:
     start_cs: Clusteruj jazyk, pravidla, lifecycle a změnový coupling.
     outputs_cs: Kandidátní subdomény, BC hranice, alternativy a rationale.
-    cookbook_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/06-stavove-modely.md
-    method_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/02-ddd-strategic-design.md
-    starter_reference_url:
-      https://ddd-crew.github.io/ddd-starter-modelling-process/
+    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/06-stavove-modely.md
+    method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/02-ddd-strategic-design.md
+    starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
 - id: decompose-lifecycles
   stage: decompose
-  title_cs: "31 – Kandidátní životní cykly a stavové modely"
-  x: -3500
-  y: 10500
+  title_cs: 31 – Kandidátní životní cykly a stavové modely
+  x: -2500
+  y: 10000
   width: 5000
   height: 3800
   mandatory: true
@@ -489,22 +433,18 @@ frames:
   - forbidden_transitions
   - lifecycle_owners
   - lifecycle_questions
-
   purpose_cs: Formulovat a porovnat hypotézy doménových hranic.
   example_template: lifecycle
   guide:
     start_cs: Vyber klíčové doménové objekty s netriviálním lifecycle.
     outputs_cs: Stavy, přechody, zakázané přechody, invarianty a owners.
-    cookbook_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/06-stavove-modely.md
-    method_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/03-ddd-tactical-design.md
-    starter_reference_url:
-      https://ddd-crew.github.io/ddd-starter-modelling-process/
+    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/06-stavove-modely.md
+    method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/03-ddd-tactical-design.md
+    starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
 - id: strategize-classification
   stage: strategize
-  title_cs: "40 – Strategická klasifikace"
-  x: -3500
+  title_cs: 40 – Strategická klasifikace
+  x: -2500
   y: 15500
   width: 6000
   height: 4800
@@ -514,23 +454,19 @@ frames:
   - build_buy_partner_retire
   - investment_rationale
   - optional_wardley_map
-
   purpose_cs: Určit diferenciaci, investiční fokus a build/buy/SaaS přístup.
   example_template: strategize
   guide:
     start_cs: Porovnej diferenciaci, komplexitu a evoluční fázi capability.
     outputs_cs: Core/supporting/generic, investiční rationale a build/buy/SaaS.
-    cookbook_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/01-metodicky-tok-a-gates.md
-    method_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/02-ddd-strategic-design.md
-    starter_reference_url:
-      https://ddd-crew.github.io/ddd-starter-modelling-process/
+    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/01-metodicky-tok-a-gates.md
+    method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/02-ddd-strategic-design.md
+    starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
 - id: connect-context-map
   stage: connect
-  title_cs: "50 – Context Map a data ownership"
-  x: -3500
-  y: 26000
+  title_cs: 50 – Context Map a data ownership
+  x: -2500
+  y: 27500
   width: 6000
   height: 4800
   scaffold:
@@ -541,23 +477,19 @@ frames:
   - integration_contracts
   - acl_and_translation
   - integration_risks
-
   purpose_cs: Zviditelnit vztahy bounded contexts, data ownership a kontrakty.
   example_template: context_map
   guide:
     start_cs: Nakresli explicitní vztahy mezi bounded contexts.
     outputs_cs: Upstream/downstream, data ownership, kontrakty, ACL a rizika.
-    cookbook_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/product/04-synchronizace.md
-    method_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/07-integration-and-data-ownership.md
-    starter_reference_url:
-      https://ddd-crew.github.io/ddd-starter-modelling-process/
+    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/product/04-synchronizace.md
+    method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/07-integration-and-data-ownership.md
+    starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
 - id: organize-teams
   stage: organize
-  title_cs: "60 – Team Topologies"
-  x: 3500
-  y: 5000
+  title_cs: 60 – Team Topologies
+  x: 5000
+  y: 4500
   width: 6000
   height: 4800
   scaffold:
@@ -567,23 +499,19 @@ frames:
   - interaction_modes
   - cognitive_load
   - governance_guardrails
-
   purpose_cs: Sladit ownership se strukturou týmů a cognitive load.
   example_template: teams
   guide:
     start_cs: Přiřaď ownership reálným týmům a ověř cognitive load.
     outputs_cs: Team Topologies typ, ownership a interaction mode.
-    cookbook_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/01-metodicky-tok-a-gates.md
-    method_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/10-team-topologies-and-governance.md
-    starter_reference_url:
-      https://ddd-crew.github.io/ddd-starter-modelling-process/
+    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/01-metodicky-tok-a-gates.md
+    method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/10-team-topologies-and-governance.md
+    starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
 - id: define-bounded-context
   stage: define
-  title_cs: "70 – Bounded Context Canvases"
-  x: 10500
-  y: 5000
+  title_cs: 70 – Bounded Context Canvases
+  x: 13000
+  y: 4500
   width: 6000
   height: 4800
   repeat_for: bounded_context
@@ -598,23 +526,19 @@ frames:
   - assumptions
   - verification_metrics
   - open_questions
-
   purpose_cs: Vymezit bounded context pro detailní návrh a validaci.
   example_template: bc_canvas
   guide:
     start_cs: Vyplň canvas pro vybraný bounded context.
     outputs_cs: Purpose, jazyk, business decisions, komunikace a assumptions.
-    cookbook_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/05-design-level-eventstorming.md
-    method_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/02-ddd-strategic-design.md
-    starter_reference_url:
-      https://ddd-crew.github.io/ddd-starter-modelling-process/
+    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/05-design-level-eventstorming.md
+    method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/02-ddd-strategic-design.md
+    starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
 - id: define-design-level-es
   stage: define
-  title_cs: "71 – EventStorming: Design Level"
-  x: 10500
-  y: 10500
+  title_cs: '71 – EventStorming: Design Level'
+  x: 13000
+  y: 10000
   width: 6000
   height: 4800
   repeat_for: selected_bounded_context
@@ -622,8 +546,7 @@ frames:
   - core
   - complex_supporting
   visual_rules:
-    sequence: "actor → command/action → policy/procedure → aggregate/system → event
-      → projection"
+    sequence: actor → command/action → policy/procedure → aggregate/system → event → projection
     invariants_visible: true
     aggregate_candidates_visible: true
     no_cross_context_transaction: true
@@ -636,23 +559,19 @@ frames:
   - read_models
   - external_dependencies
   - hotspots
-
   purpose_cs: Vymezit bounded context pro detailní návrh a validaci.
   example_template: design_es
   guide:
     start_cs: Modeluj detail pouze uvnitř jednoho BC.
     outputs_cs: Commands, policies, aggregate candidates, invariants a events.
-    cookbook_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/05-design-level-eventstorming.md
-    method_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/03-eventstorming-facilitace.md
-    starter_reference_url:
-      https://ddd-crew.github.io/ddd-starter-modelling-process/
+    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/05-design-level-eventstorming.md
+    method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/03-eventstorming-facilitace.md
+    starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
 - id: define-lifecycle
   stage: define
-  title_cs: "72 – Validovaný stavový model"
-  x: 7500
-  y: 16000
+  title_cs: 72 – Validovaný stavový model
+  x: 10000
+  y: 15500
   width: 5000
   height: 3800
   repeat_for: key_domain_object
@@ -667,23 +586,19 @@ frames:
   - invariants_and_authorization
   - timeout_and_compensation
   - lifecycle_acceptance_tests
-
   purpose_cs: Vymezit bounded context pro detailní návrh a validaci.
   example_template: lifecycle
   guide:
     start_cs: Validuj lifecycle s business ownerem a pravidly autorizace.
     outputs_cs: State diagram, transition table, guards a acceptance tests.
-    cookbook_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/06-stavove-modely.md
-    method_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/03-ddd-tactical-design.md
-    starter_reference_url:
-      https://ddd-crew.github.io/ddd-starter-modelling-process/
+    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/06-stavove-modely.md
+    method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/03-ddd-tactical-design.md
+    starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
 - id: define-quality
   stage: define
-  title_cs: "73 – Quality attributes a integrační scénáře"
-  x: 13500
-  y: 16000
+  title_cs: 73 – Quality attributes a integrační scénáře
+  x: 16000
+  y: 15500
   width: 5000
   height: 3800
   scaffold:
@@ -692,22 +607,18 @@ frames:
   - consistency_decisions
   - security_and_audit
   - observability_signals
-
   purpose_cs: Vymezit bounded context pro detailní návrh a validaci.
   example_template: quality
   guide:
     start_cs: Zapiš měřitelné quality-attribute scénáře a failure modes.
     outputs_cs: Scénáře, consistency decisions, security, audit a observability.
-    cookbook_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/01-metodicky-tok-a-gates.md
-    method_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/05-quality-attributes.md
-    starter_reference_url:
-      https://ddd-crew.github.io/ddd-starter-modelling-process/
+    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/01-metodicky-tok-a-gates.md
+    method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/05-quality-attributes.md
+    starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
 - id: code-tactical-model
   stage: code
-  title_cs: "80 – Taktický DDD a architektura"
-  x: 10500
+  title_cs: 80 – Taktický DDD a architektura
+  x: 13000
   y: 21000
   width: 6000
   height: 4800
@@ -722,23 +633,19 @@ frames:
   - repositories
   - domain_events
   - cqrs_or_event_sourcing_justification
-
   purpose_cs: Převést model do implementovatelné architektury, kontraktů a ADR.
   example_template: tactical
   guide:
     start_cs: Navrhni agregáty podle invariantů, ne podle databázových tabulek.
     outputs_cs: Aggregate roots, value objects, services, repositories a events.
-    cookbook_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/product/01-architektura-ddda.md
-    method_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/03-ddd-tactical-design.md
-    starter_reference_url:
-      https://ddd-crew.github.io/ddd-starter-modelling-process/
+    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/product/01-architektura-ddda.md
+    method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/03-ddd-tactical-design.md
+    starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
 - id: code-state-machine
   stage: code
-  title_cs: "81 – Implementační state machine (volitelné)"
-  x: 7500
-  y: 26000
+  title_cs: 81 – Implementační state machine (volitelné)
+  x: 10000
+  y: 26500
   width: 5000
   height: 3800
   mandatory: false
@@ -751,23 +658,19 @@ frames:
   - persistence_mapping
   - concurrency_and_idempotency
   - test_cases
-
   purpose_cs: Převést model do implementovatelné architektury, kontraktů a ADR.
   example_template: state_machine
   guide:
     start_cs: Použij explicitní state machine pouze s doloženou hodnotou.
     outputs_cs: State chart, guards, persistence, concurrency a test cases.
-    cookbook_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/06-stavove-modely.md
-    method_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/03-ddd-tactical-design.md
-    starter_reference_url:
-      https://ddd-crew.github.io/ddd-starter-modelling-process/
+    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/06-stavove-modely.md
+    method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/03-ddd-tactical-design.md
+    starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
 - id: code-views-and-decisions
   stage: code
-  title_cs: "82 – C4, kontrakty a ADR"
-  x: 13500
-  y: 26000
+  title_cs: 82 – C4, kontrakty a ADR
+  x: 16000
+  y: 26500
   width: 5000
   height: 3800
   scaffold:
@@ -777,44 +680,39 @@ frames:
   - api_and_event_contracts
   - architecture_decisions
   - rollout_and_migration
-
   purpose_cs: Převést model do implementovatelné architektury, kontraktů a ADR.
   example_template: architecture
   guide:
     start_cs: Propoj doménový model s implementační a provozní architekturou.
     outputs_cs: C4, API/event kontrakty, ADR, rollout a migration.
-    cookbook_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/product/01-architektura-ddda.md
-    method_url:
-      https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/04-architecture-decision-making.md
-    starter_reference_url:
-      https://ddd-crew.github.io/ddd-starter-modelling-process/
+    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/product/01-architektura-ddda.md
+    method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/04-architecture-decision-making.md
+    starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
 cross_frame_links:
 - from: discover-big-picture-es
   to: discover-process-modeling
-  label_cs: "Vybraný problematický nebo hodnotný úsek"
+  label_cs: Vybraný problematický nebo hodnotný úsek
 - from: discover-process-modeling
   to: decompose-domain
-  label_cs: "Procesní a jazykové clustery"
+  label_cs: Procesní a jazykové clustery
 - from: discover-evidence
   to: decompose-lifecycles
-  label_cs: "Pozorované stavy a přechody"
+  label_cs: Pozorované stavy a přechody
 - from: decompose-lifecycles
   to: define-lifecycle
-  label_cs: "Hypotéza → validovaný lifecycle"
+  label_cs: Hypotéza → validovaný lifecycle
 - from: decompose-domain
   to: define-bounded-context
-  label_cs: "Kandidát → vymezený bounded context"
+  label_cs: Kandidát → vymezený bounded context
 - from: define-bounded-context
   to: define-design-level-es
-  label_cs: "Vybraný core nebo komplexní supporting context"
+  label_cs: Vybraný core nebo komplexní supporting context
 - from: define-design-level-es
   to: code-tactical-model
-  label_cs: "Agregáty, invarianty a doménové události"
+  label_cs: Agregáty, invarianty a doménové události
 - from: define-lifecycle
   to: code-state-machine
-  label_cs: "Pouze když explicitní state machine přináší hodnotu"
-
+  label_cs: Pouze když explicitní state machine přináší hodnotu
 rendering:
   include_method_spine: true
   include_gate_markers: true
@@ -842,8 +740,7 @@ gate_states:
 - id: conditional
   label_cs: CONDITIONAL
   symbol: △
-  meaning_cs: Lidské rozhodnutí s otevřenou podmínkou, ownerem a termínem; gate
-    není dokončena.
+  meaning_cs: Lidské rozhodnutí s otevřenou podmínkou, ownerem a termínem; gate není dokončena.
   fill_color: '#FCE5CD'
 - id: rejected
   label_cs: REJECTED
@@ -859,30 +756,30 @@ managed_placements:
   project-charter:
     frame_id: control-center
     position:
-      x: -1900
-      y: 450
-    width: 1600
+      x: -2100
+      y: -250
+    width: 1700
   ddda.current-status:
     frame_id: control-center
     position:
       x: 0
-      y: 450
-    width: 1800
+      y: -250
+    width: 1900
   ddda.next-actions:
     frame_id: control-center
     position:
-      x: 1900
-      y: 450
-    width: 1800
+      x: 2100
+      y: -250
+    width: 1900
 zones:
 - id: zone-understand
   title_cs: ALIGN & UNDERSTAND
   stages:
   - align
   - discover
-  x: -10500
-  y: -10400
-  width: 5200
+  x: -13500
+  y: -9200
+  width: 7600
   height: 700
 - id: zone-strategic
   title_cs: STRATEGIC ARCHITECTURE
@@ -890,26 +787,26 @@ zones:
   - decompose
   - strategize
   - connect
-  x: -3500
-  y: -10400
-  width: 5200
+  x: -2250
+  y: -9200
+  width: 12100
   height: 700
 - id: zone-organization
   title_cs: STRATEGY & ORG DESIGN
   stages:
   - organize
-  x: 3500
-  y: -6900
-  width: 5200
+  x: 6750
+  y: -9200
+  width: 3800
   height: 700
 - id: zone-tactical
   title_cs: TACTICAL ARCHITECTURE
   stages:
   - define
   - code
-  x: 10500
-  y: -10400
-  width: 5200
+  x: 13500
+  y: -9200
+  width: 7600
   height: 700
 traceability:
 - starter_step: Align / Understand
@@ -920,39 +817,30 @@ traceability:
   - project-charter
   - ddda.current-status
   - ddda.next-actions
-  human_acceptance: Uživatel rozumí problému, cíli, scope, aktérům a decision
-    ownerovi.
+  human_acceptance: Uživatel rozumí problému, cíli, scope, aktérům a decision ownerovi.
   reference_visual: vector-situation-card:align
-  cookbook_url:
-    https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/16-zalozeni-rizeneho-projektu.md
-  method_url:
-    https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/01-metodicky-tok-a-gates.md
+  cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/16-zalozeni-rizeneho-projektu.md
+  method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/01-metodicky-tok-a-gates.md
 - starter_step: Discover
   stage: discover
   gate: G2
   frame: discover-big-picture-es
   managed_artifacts:
   - discover evidence
-  human_acceptance: Big Picture, slovník, hotspoty a otevřené otázky jsou
-    dohledatelné.
+  human_acceptance: Big Picture, slovník, hotspoty a otevřené otázky jsou dohledatelné.
   reference_visual: vector-situation-card:discover
-  cookbook_url:
-    https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/03-big-picture-eventstorming.md
-  method_url:
-    https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/03-eventstorming-facilitace.md
+  cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/03-big-picture-eventstorming.md
+  method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/03-eventstorming-facilitace.md
 - starter_step: Decompose
   stage: decompose
   gate: G3
   frame: decompose-domain
   managed_artifacts:
   - decomposition candidates
-  human_acceptance: Kandidátní hranice mají rationale v jazyku, pravidlech,
-    lifecycle a změnovém couplingu.
+  human_acceptance: Kandidátní hranice mají rationale v jazyku, pravidlech, lifecycle a změnovém couplingu.
   reference_visual: vector-situation-card:decompose
-  cookbook_url:
-    https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/06-stavove-modely.md
-  method_url:
-    https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/02-ddd-strategic-design.md
+  cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/06-stavove-modely.md
+  method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/02-ddd-strategic-design.md
 - starter_step: Strategize
   stage: strategize
   gate: G4
@@ -961,10 +849,8 @@ traceability:
   - subdomain classification
   human_acceptance: Je zřejmé, kde diferencovat a kam investovat.
   reference_visual: vector-situation-card:strategize
-  cookbook_url:
-    https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/01-metodicky-tok-a-gates.md
-  method_url:
-    https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/02-ddd-strategic-design.md
+  cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/01-metodicky-tok-a-gates.md
+  method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/02-ddd-strategic-design.md
 - starter_step: Connect
   stage: connect
   gate: G5
@@ -973,10 +859,8 @@ traceability:
   - context map
   human_acceptance: Vztahy BC, data ownership a kontrakty jsou explicitní.
   reference_visual: vector-situation-card:connect
-  cookbook_url:
-    https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/product/04-synchronizace.md
-  method_url:
-    https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/07-integration-and-data-ownership.md
+  cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/product/04-synchronizace.md
+  method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/07-integration-and-data-ownership.md
 - starter_step: Organise
   stage: organize
   gate: G6
@@ -985,23 +869,18 @@ traceability:
   - team topology
   human_acceptance: Ownership je proveditelný pro reálné týmy a cognitive load.
   reference_visual: vector-situation-card:organize
-  cookbook_url:
-    https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/01-metodicky-tok-a-gates.md
-  method_url:
-    https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/10-team-topologies-and-governance.md
+  cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/01-metodicky-tok-a-gates.md
+  method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/10-team-topologies-and-governance.md
 - starter_step: Define
   stage: define
   gate: G7
   frame: define-bounded-context
   managed_artifacts:
   - bounded context canvas
-  human_acceptance: Vybraný BC je připraven pro detailní návrh včetně invariantů
-    a quality attributes.
+  human_acceptance: Vybraný BC je připraven pro detailní návrh včetně invariantů a quality attributes.
   reference_visual: vector-situation-card:define
-  cookbook_url:
-    https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/05-design-level-eventstorming.md
-  method_url:
-    https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/03-ddd-tactical-design.md
+  cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/05-design-level-eventstorming.md
+  method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/03-ddd-tactical-design.md
 - starter_step: Code
   stage: code
   gate: G8
@@ -1010,434 +889,429 @@ traceability:
   - tactical model
   - ADR
   - contracts
-  human_acceptance: Implementace chrání invarianty a splňuje provozní quality
-    attributes.
+  human_acceptance: Implementace chrání invarianty a splňuje provozní quality attributes.
   reference_visual: vector-situation-card:code
-  cookbook_url:
-    https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/product/01-architektura-ddda.md
-  method_url:
-    https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/03-ddd-tactical-design.md
+  cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/product/01-architektura-ddda.md
+  method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/03-ddd-tactical-design.md
 section_catalog:
   board_index:
     label_cs: Jak board používat
-    guidance_cs: Začni ve frame „00 – Navigace, legenda a stav artefaktů“, najdi
-      aktuální gate a pokračuj do uvedené pracovní oblasti.
+    guidance_cs: Začni ve frame „00 – Navigace, legenda a stav artefaktů (Control Center)“, použij kompaktní
+      osmibodový průvodce a pokračuj do aktivního pracovního frame.
   method_flow_legend:
     label_cs: Journey G1–G8
-    guidance_cs: Použij velké situační karty fází. Šipky ukazují typický tok i
-      explicitní návraty při nové evidenci; gate neposouvej bez lidského
-      rozhodnutí.
+    guidance_cs: Čti aligned metodické zóny a stage flow shapes. Pojmenované Miro connectory ukazují dopředný
+      tok i explicitní návraty; gate neposouvej bez lidského rozhodnutí.
   artifact_status_legend:
-    label_cs: Stavy gatů
-    guidance_cs: Barva je podpůrná; rozhodující je textový label a symbol.
+    label_cs: Stavy artefaktů
+    guidance_cs: Dynamická tabulková projekce seskupuje managed YAML artefakty podle jejich statusu. Gate
+      status je samostatný kontrakt.
   event_storming_legend:
     label_cs: EventStorming legenda
-    guidance_cs: Události, příkazy, policy, aktéři, systémy, read modely a
-      hotspoty.
+    guidance_cs: Události, příkazy, policy, aktéři, systémy, read modely a hotspoty.
   open_questions:
     label_cs: Otevřené otázky a blokery
     guidance_cs: Každá otázka má ownera nebo je explicitně bez ownera.
   sync_status:
     label_cs: Sync a autorita
-    guidance_cs: Git/YAML je source of truth. Miro synchronizace sama
-      neschvaluje gate.
+    guidance_cs: Git/YAML je source of truth. Miro synchronizace sama neschvaluje gate.
   project_charter:
     label_cs: Project Charter
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   business_goals:
     label_cs: Business Goals
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   user_needs:
     label_cs: User Needs
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   stakeholders:
     label_cs: Stakeholders
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   scope_and_out_of_scope:
     label_cs: Scope & Out Of Scope
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   assumptions_and_constraints:
     label_cs: Assumptions & Constraints
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   success_metrics:
     label_cs: Success Metrics
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   event_timeline:
     label_cs: Event Timeline
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   temporal_events:
     label_cs: Temporal Events
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   pivot_events:
     label_cs: Pivot Events
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   actors_and_systems:
     label_cs: Actors & Systems
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   hotspots:
     label_cs: Hotspots
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   questions:
     label_cs: Questions
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   value_up_down_markers:
     label_cs: Value Up Down Markers
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   source_inventory:
     label_cs: Source Inventory
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   domain_glossary:
     label_cs: Domain Glossary
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   observed_lifecycle_snapshots:
     label_cs: Observed Lifecycle Snapshots
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   contradictions:
     label_cs: Contradictions
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   unanswered_questions:
     label_cs: Unanswered Questions
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   selected_process_slices:
     label_cs: Selected Process Slices
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   commands_actions:
     label_cs: Commands Actions
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   policies_procedures:
     label_cs: Policies Procedures
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   read_models:
     label_cs: Read Models
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   external_systems:
     label_cs: External Systems
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   events:
     label_cs: Events
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   business_capability_candidates:
     label_cs: Business Capability Candidates
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   candidate_subdomains:
     label_cs: Candidate Subdomains
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   language_and_rule_clusters:
     label_cs: Language & Rule Clusters
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   change_coupling_clusters:
     label_cs: Change Coupling Clusters
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   candidate_bounded_contexts:
     label_cs: Candidate Bounded Contexts
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   decomposition_rationale:
     label_cs: Decomposition Rationale
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   state_inventory:
     label_cs: State Inventory
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   candidate_state_transition_diagrams:
     label_cs: Candidate State Transition Diagrams
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   forbidden_transitions:
     label_cs: Forbidden Transitions
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   lifecycle_owners:
     label_cs: Lifecycle Owners
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   lifecycle_questions:
     label_cs: Lifecycle Questions
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   core_supporting_generic_matrix:
     label_cs: Core Supporting Generic Matrix
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   differentiation_vs_complexity:
     label_cs: Differentiation Vs Complexity
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   build_buy_partner_retire:
     label_cs: Build Buy Partner Retire
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   investment_rationale:
     label_cs: Investment Rationale
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   optional_wardley_map:
     label_cs: Optional Wardley Map
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   bounded_context_map:
     label_cs: Bounded Context Map
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   upstream_downstream:
     label_cs: Upstream Downstream
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   context_mapping_patterns:
     label_cs: Context Mapping Patterns
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   source_of_truth:
     label_cs: Source Of Truth
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   integration_contracts:
     label_cs: Integration Contracts
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   acl_and_translation:
     label_cs: Acl & Translation
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   integration_risks:
     label_cs: Integration Risks
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   stream_aligned_ownership:
     label_cs: Stream Aligned Ownership
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   platform_and_enabling_support:
     label_cs: Platform & Enabling Support
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   complicated_subsystem_candidates:
     label_cs: Complicated Subsystem Candidates
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   interaction_modes:
     label_cs: Interaction Modes
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   cognitive_load:
     label_cs: Cognitive Load
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   governance_guardrails:
     label_cs: Governance Guardrails
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   purpose:
     label_cs: Purpose
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   strategic_classification:
     label_cs: Strategic Classification
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   domain_roles:
     label_cs: Domain Roles
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   ubiquitous_language:
     label_cs: Ubiquitous Language
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   business_decisions:
     label_cs: Business Decisions
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   inbound_communication:
     label_cs: Inbound Communication
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   outbound_communication:
     label_cs: Outbound Communication
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   assumptions:
     label_cs: Assumptions
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   verification_metrics:
     label_cs: Verification Metrics
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   commands:
     label_cs: Commands
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   policies:
     label_cs: Policies
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   aggregate_candidates:
     label_cs: Aggregate Candidates
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   invariants:
     label_cs: Invariants
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   domain_events:
     label_cs: Domain Events
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   external_dependencies:
     label_cs: External Dependencies
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   state_transition_diagram:
     label_cs: State Transition Diagram
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   transition_table:
     label_cs: Transition Table
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   command_event_mapping:
     label_cs: Command Event Mapping
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   invariants_and_authorization:
     label_cs: Invariants & Authorization
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   timeout_and_compensation:
     label_cs: Timeout & Compensation
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   lifecycle_acceptance_tests:
     label_cs: Lifecycle Acceptance Tests
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   quality_attribute_scenarios:
     label_cs: Quality Attribute Scenarios
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   failure_modes:
     label_cs: Failure Modes
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   consistency_decisions:
     label_cs: Consistency Decisions
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   security_and_audit:
     label_cs: Security & Audit
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   observability_signals:
     label_cs: Observability Signals
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   aggregates:
     label_cs: Aggregates
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   aggregate_roots:
     label_cs: Aggregate Roots
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   entities_and_value_objects:
     label_cs: Entities & Value Objects
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   domain_services:
     label_cs: Domain Services
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   application_services:
     label_cs: Application Services
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   repositories:
     label_cs: Repositories
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   cqrs_or_event_sourcing_justification:
     label_cs: Cqrs Or Event Sourcing Justification
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   implementation_state_chart:
     label_cs: Implementation State Chart
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   transition_guards:
     label_cs: Transition Guards
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   persistence_mapping:
     label_cs: Persistence Mapping
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   concurrency_and_idempotency:
     label_cs: Concurrency & Idempotency
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   test_cases:
     label_cs: Test Cases
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   c4_context:
     label_cs: C4 Context
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   c4_containers:
     label_cs: C4 Containers
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   c4_components:
     label_cs: C4 Components
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   api_and_event_contracts:
     label_cs: Api & Event Contracts
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   architecture_decisions:
     label_cs: Architecture Decisions
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
   rollout_and_migration:
     label_cs: Rollout & Migration
-    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky
-      relevantní pro tuto pracovní oblast.
+    guidance_cs: Zachyť fakta, hypotézy, rozhodnutí, ownera a otevřené otázky relevantní pro tuto pracovní
+      oblast.
 overlays: []
 visual_contract:
   overview_frame: method-overview
-  minimum_stage_card_width: 4600
-  minimum_stage_card_height: 2300
+  minimum_stage_card_width: 3200
+  minimum_stage_card_height: 1900
   minimum_work_frame_width: 4800
   minimum_work_frame_height: 3600
   minimum_frame_gap: 600
@@ -1448,106 +1322,93 @@ visual_contract:
   require_iteration_transitions: 2
   developer_team_watermark: external_environment_not_rendered_by_ddda
   minimum_stage_visual_items: 4
+  require_overview_resources: 4
+  require_zone_connectors: 3
+  require_example_panel: true
+  require_example_sync_ignore: true
+  minimum_connector_count: 20
 method_transitions:
 - id: align-discover
   from: align
   to: discover
-  x: -10500
-  y: -6250
-  symbol: ↓
   label_cs: sdílený problém → doménový obraz
   kind: forward
+  shape: elbowed
 - id: discover-decompose
   from: discover
   to: decompose
-  x: -7000
-  y: -4500
-  symbol: →
   label_cs: hotspoty, jazyk a pravidla
   kind: forward
+  shape: elbowed
 - id: decompose-strategize
   from: decompose
   to: strategize
-  x: -3500
-  y: -6250
-  symbol: ↓
   label_cs: hypotézy hranic → investiční fokus
   kind: forward
+  shape: elbowed
 - id: strategize-connect
   from: strategize
   to: connect
-  x: -3500
-  y: -2750
-  symbol: ↓
   label_cs: klasifikace → vztahy a ownership
   kind: forward
+  shape: elbowed
 - id: connect-organize
   from: connect
   to: organize
-  x: 0
-  y: -1800
-  symbol: ↗
   label_cs: kontexty → týmové ownership
   kind: forward
+  shape: elbowed
 - id: organize-define
   from: organize
   to: define
-  x: 7000
-  y: -4500
-  symbol: ↗
   label_cs: ownership → detail BC
   kind: forward
+  shape: elbowed
 - id: define-code
   from: define
   to: code
-  x: 10500
-  y: -6250
-  symbol: ↓
   label_cs: validovaný model → implementace
   kind: forward
+  shape: elbowed
 - id: feedback-discover-align
   from: discover
   to: align
-  x: -13200
-  y: -6250
-  symbol: ↺
   label_cs: nová evidence může změnit cíl a scope
   kind: feedback
+  shape: curved
 - id: feedback-define-decompose
   from: define
   to: decompose
-  x: 3500
-  y: -900
-  symbol: ↶
   label_cs: detail odhalí chybnou hranici – vrať hypotézu
   kind: feedback
+  shape: curved
 stage_visual_templates:
   align:
     items:
     - id: problem
       label_cs: PROBLÉM
-      item_type: shape
+      item_type: sticky_note
       shape: round_rectangle
       x: -1650
       y: 520
       width: 900
       height: 440
-      fill_color: '#FDE68A'
+      fill_color: light_yellow
       font_size: 24
     - id: goal
       label_cs: CÍL
-      item_type: shape
+      item_type: sticky_note
       shape: round_rectangle
       x: -550
       y: 520
       width: 900
       height: 440
-      fill_color: '#BFDBFE'
+      fill_color: light_blue
       font_size: 24
     - id: owner
       label_cs: OWNER
       item_type: shape
-      shape: round_rectangle
+      shape: circle
       x: 550
       y: 520
       width: 900
@@ -1556,56 +1417,72 @@ stage_visual_templates:
       font_size: 24
     - id: evidence
       label_cs: EVIDENCE?
-      item_type: shape
+      item_type: sticky_note
       shape: round_rectangle
       x: 1650
       y: 520
       width: 900
       height: 440
-      fill_color: '#E5E7EB'
+      fill_color: gray
       font_size: 24
+    sync_policy: ignore
+    connectors: []
+    exclude_from_ingestion: true
   discover:
     items:
     - id: event
       label_cs: UDÁLOST
-      item_type: shape
-      shape: round_rectangle
+      item_type: sticky_note
+      shape: rectangle
       x: -1650
       y: 520
       width: 900
       height: 440
-      fill_color: '#F6A04D'
+      fill_color: orange
       font_size: 24
     - id: command
       label_cs: PŘÍKAZ
-      item_type: shape
-      shape: round_rectangle
+      item_type: sticky_note
+      shape: rectangle
       x: -550
       y: 520
       width: 900
       height: 440
-      fill_color: '#86C5E8'
+      fill_color: light_blue
       font_size: 24
     - id: hotspot
       label_cs: HOTSPOT
-      item_type: shape
-      shape: round_rectangle
+      item_type: sticky_note
+      shape: rectangle
       x: 550
       y: 520
       width: 900
       height: 440
-      fill_color: '#FCA5A5'
+      fill_color: red
       font_size: 24
     - id: question
       label_cs: OTÁZKA?
-      item_type: shape
-      shape: round_rectangle
+      item_type: sticky_note
+      shape: rectangle
       x: 1650
       y: 520
       width: 900
       height: 440
-      fill_color: '#FDE68A'
+      fill_color: light_yellow
       font_size: 24
+    sync_policy: ignore
+    connectors:
+    - id: event-command
+      from: event
+      to: command
+      label_cs: čas / příčina
+      shape: straight
+    - id: command-hotspot
+      from: command
+      to: hotspot
+      label_cs: nejasné pravidlo
+      shape: elbowed
+    exclude_from_ingestion: true
   decompose:
     items:
     - id: domain
@@ -1648,6 +1525,9 @@ stage_visual_templates:
       height: 440
       fill_color: '#FDE68A'
       font_size: 24
+    sync_policy: ignore
+    connectors: []
+    exclude_from_ingestion: true
   strategize:
     items:
     - id: core
@@ -1690,6 +1570,9 @@ stage_visual_templates:
       height: 440
       fill_color: '#BFDBFE'
       font_size: 24
+    sync_policy: ignore
+    connectors: []
+    exclude_from_ingestion: true
   connect:
     items:
     - id: upstream
@@ -1732,6 +1615,19 @@ stage_visual_templates:
       height: 440
       fill_color: '#C7D2FE'
       font_size: 24
+    sync_policy: ignore
+    connectors:
+    - id: upstream-contract
+      from: upstream
+      to: contract
+      label_cs: publikuje
+      shape: straight
+    - id: contract-downstream
+      from: contract
+      to: downstream
+      label_cs: konzumuje
+      shape: straight
+    exclude_from_ingestion: true
   organize:
     items:
     - id: stream
@@ -1774,6 +1670,19 @@ stage_visual_templates:
       height: 440
       fill_color: '#BFDBFE'
       font_size: 24
+    sync_policy: ignore
+    connectors:
+    - id: stream-platform
+      from: stream
+      to: platform
+      label_cs: X-as-a-Service
+      shape: straight
+    - id: enabling-stream
+      from: enabling
+      to: stream
+      label_cs: facilitating
+      shape: curved
+    exclude_from_ingestion: true
   define:
     items:
     - id: purpose
@@ -1816,6 +1725,9 @@ stage_visual_templates:
       height: 440
       fill_color: '#F8E58C'
       font_size: 24
+    sync_policy: ignore
+    connectors: []
+    exclude_from_ingestion: true
   code:
     items:
     - id: aggregate
@@ -1858,12 +1770,27 @@ stage_visual_templates:
       height: 440
       fill_color: '#E5E7EB'
       font_size: 24
+    sync_policy: ignore
+    connectors:
+    - id: aggregate-event
+      from: aggregate
+      to: event
+      label_cs: emits
+      shape: straight
+    - id: adr-operability
+      from: adr
+      to: operability
+      label_cs: quality decisions
+      shape: straight
+    exclude_from_ingestion: true
 example_templates:
   navigation:
     title_cs: 'Mini-vzor: jak číst board'
     items:
     - id: where
-      label_cs: "1. KDE JSME?\nAktuální fáze a gate"
+      label_cs: '1. KDE JSME?
+
+        Aktuální fáze a gate'
       item_type: shape
       shape: round_rectangle
       x: 650
@@ -1873,7 +1800,9 @@ example_templates:
       fill_color: '#BFDBFE'
       font_size: 22
     - id: why
-      label_cs: "2. PROČ?\nRozhodovací otázka"
+      label_cs: '2. PROČ?
+
+        Rozhodovací otázka'
       item_type: shape
       shape: round_rectangle
       x: 650
@@ -1883,7 +1812,9 @@ example_templates:
       fill_color: '#FDE68A'
       font_size: 22
     - id: next
-      label_cs: "3. CO DÁL?\nNejmenší další krok"
+      label_cs: '3. CO DÁL?
+
+        Nejmenší další krok'
       item_type: shape
       shape: round_rectangle
       x: 650
@@ -1892,11 +1823,20 @@ example_templates:
       height: 650
       fill_color: '#C8E986'
       font_size: 22
+    sync_policy: ignore
+    exclude_from_ingestion: true
+    panel:
+      title_cs: VZOR / LEGENDA – neexportuje se do YAML
+      border_style: dashed
+      sync_policy: ignore
+    connectors: []
   align:
     title_cs: 'Mini-vzor: problém → rozhodnutí → ownership'
     items:
     - id: problem
-      label_cs: "PROBLÉM\nZměna produktu trvá 6 měsíců"
+      label_cs: 'PROBLÉM
+
+        Změna produktu trvá 6 měsíců'
       item_type: shape
       shape: round_rectangle
       x: 300
@@ -1906,7 +1846,9 @@ example_templates:
       fill_color: '#FDE68A'
       font_size: 22
     - id: decision
-      label_cs: "ROZHODNUTÍ\nKde oddělit odpovědnosti?"
+      label_cs: 'ROZHODNUTÍ
+
+        Kde oddělit odpovědnosti?'
       item_type: shape
       shape: round_rectangle
       x: 1500
@@ -1916,7 +1858,9 @@ example_templates:
       fill_color: '#BFDBFE'
       font_size: 22
     - id: owner
-      label_cs: "OWNER\nHead of Claims"
+      label_cs: 'OWNER
+
+        Head of Claims'
       item_type: shape
       shape: round_rectangle
       x: 900
@@ -1926,7 +1870,9 @@ example_templates:
       fill_color: '#C7D2FE'
       font_size: 22
     - id: scope
-      label_cs: "SCOPE\nClaim intake + adjudication"
+      label_cs: 'SCOPE
+
+        Claim intake + adjudication'
       item_type: shape
       shape: round_rectangle
       x: 900
@@ -1935,64 +1881,97 @@ example_templates:
       height: 620
       fill_color: '#DDEFA9'
       font_size: 22
+    sync_policy: ignore
+    exclude_from_ingestion: true
+    panel:
+      title_cs: VZOR / LEGENDA – neexportuje se do YAML
+      border_style: dashed
+      sync_policy: ignore
+    connectors: []
   big_picture:
     title_cs: 'Mini-vzor: EventStorming Big Picture'
     items:
     - id: event1
       label_cs: Claim submitted
-      item_type: shape
-      shape: round_rectangle
+      item_type: sticky_note
+      shape: rectangle
       x: -100
       y: -650
       width: 1050
       height: 620
-      fill_color: '#F6A04D'
+      fill_color: orange
       font_size: 22
     - id: event2
       label_cs: Claim assessed
-      item_type: shape
-      shape: round_rectangle
+      item_type: sticky_note
+      shape: rectangle
       x: 1150
       y: -650
       width: 1050
       height: 620
-      fill_color: '#F6A04D'
+      fill_color: orange
       font_size: 22
     - id: command
       label_cs: Assess claim
-      item_type: shape
-      shape: round_rectangle
+      item_type: sticky_note
+      shape: rectangle
       x: 500
       y: 250
       width: 1050
       height: 620
-      fill_color: '#86C5E8'
+      fill_color: light_blue
       font_size: 22
     - id: policy
       label_cs: 'Policy: missing evidence?'
-      item_type: shape
-      shape: round_rectangle
+      item_type: sticky_note
+      shape: rectangle
       x: 1700
       y: 250
       width: 1200
       height: 620
-      fill_color: '#C49ACD'
+      fill_color: violet
       font_size: 21
     - id: hotspot
-      label_cs: "HOTSPOT\nKdo rozhoduje výjimku?"
-      item_type: shape
-      shape: round_rectangle
+      label_cs: 'HOTSPOT
+
+        Kdo rozhoduje výjimku?'
+      item_type: sticky_note
+      shape: rectangle
       x: 1100
       y: 1150
       width: 1350
       height: 650
-      fill_color: '#FCA5A5'
+      fill_color: red
       font_size: 21
+    sync_policy: ignore
+    exclude_from_ingestion: true
+    panel:
+      title_cs: VZOR / LEGENDA – neexportuje se do YAML
+      border_style: dashed
+      sync_policy: ignore
+    connectors:
+    - id: timeline-1
+      from: event1
+      to: event2
+      label_cs: event timeline
+      shape: straight
+    - id: command-event
+      from: command
+      to: event2
+      label_cs: vyvolá
+      shape: elbowed
+    - id: policy-event
+      from: policy
+      to: event2
+      label_cs: rozhodne
+      shape: elbowed
   evidence:
     title_cs: 'Mini-vzor: zdroj → termín → rozpor → otázka'
     items:
     - id: source
-      label_cs: "ZDROJ\nProcesní směrnice"
+      label_cs: 'ZDROJ
+
+        Procesní směrnice'
       item_type: shape
       shape: round_rectangle
       x: 250
@@ -2002,7 +1981,9 @@ example_templates:
       fill_color: '#E5E7EB'
       font_size: 21
     - id: term
-      label_cs: "TERMÍN\nClaim = pojistná událost?"
+      label_cs: 'TERMÍN
+
+        Claim = pojistná událost?'
       item_type: shape
       shape: round_rectangle
       x: 1600
@@ -2012,7 +1993,9 @@ example_templates:
       fill_color: '#FDE68A'
       font_size: 21
     - id: contradiction
-      label_cs: "ROZPOR\nDva různé vlastníci"
+      label_cs: 'ROZPOR
+
+        Dva různé vlastníci'
       item_type: shape
       shape: round_rectangle
       x: 250
@@ -2022,7 +2005,9 @@ example_templates:
       fill_color: '#FCA5A5'
       font_size: 21
     - id: question
-      label_cs: "OTÁZKA\nKdo je autorita dat?"
+      label_cs: 'OTÁZKA
+
+        Kdo je autorita dat?'
       item_type: shape
       shape: round_rectangle
       x: 1600
@@ -2031,64 +2016,111 @@ example_templates:
       height: 650
       fill_color: '#BFDBFE'
       font_size: 21
+    sync_policy: ignore
+    exclude_from_ingestion: true
+    panel:
+      title_cs: VZOR / LEGENDA – neexportuje se do YAML
+      border_style: dashed
+      sync_policy: ignore
+    connectors: []
+    representation: table_grid
   process:
     title_cs: 'Mini-vzor: actor → command → policy → event'
     items:
     - id: actor
-      label_cs: "ACTOR\nHandler"
-      item_type: shape
-      shape: round_rectangle
+      label_cs: 'ACTOR
+
+        Handler'
+      item_type: sticky_note
+      shape: rectangle
       x: -150
       y: -550
       width: 900
       height: 600
-      fill_color: '#F4DC67'
+      fill_color: yellow
       font_size: 21
     - id: command
-      label_cs: "COMMAND\nAssess"
-      item_type: shape
-      shape: round_rectangle
+      label_cs: 'COMMAND
+
+        Assess'
+      item_type: sticky_note
+      shape: rectangle
       x: 900
       y: -550
       width: 900
       height: 600
-      fill_color: '#86C5E8'
+      fill_color: light_blue
       font_size: 21
     - id: policy
-      label_cs: "POLICY\nRules"
-      item_type: shape
-      shape: round_rectangle
+      label_cs: 'POLICY
+
+        Rules'
+      item_type: sticky_note
+      shape: rectangle
       x: 1950
       y: -550
       width: 900
       height: 600
-      fill_color: '#C49ACD'
+      fill_color: violet
       font_size: 21
     - id: event
-      label_cs: "EVENT\nAssessed"
-      item_type: shape
-      shape: round_rectangle
+      label_cs: 'EVENT
+
+        Assessed'
+      item_type: sticky_note
+      shape: rectangle
       x: 900
       y: 350
       width: 900
       height: 600
-      fill_color: '#F6A04D'
+      fill_color: orange
       font_size: 21
     - id: read
-      label_cs: "READ MODEL\nQueue"
-      item_type: shape
-      shape: round_rectangle
+      label_cs: 'READ MODEL
+
+        Queue'
+      item_type: sticky_note
+      shape: rectangle
       x: 1950
       y: 350
       width: 900
       height: 600
-      fill_color: '#C8E986'
+      fill_color: light_green
       font_size: 21
+    sync_policy: ignore
+    exclude_from_ingestion: true
+    panel:
+      title_cs: VZOR / LEGENDA – neexportuje se do YAML
+      border_style: dashed
+      sync_policy: ignore
+    connectors:
+    - id: actor-command
+      from: actor
+      to: command
+      label_cs: provádí
+      shape: straight
+    - id: command-policy
+      from: command
+      to: policy
+      label_cs: vyhodnotí
+      shape: straight
+    - id: policy-event
+      from: policy
+      to: event
+      label_cs: vede k
+      shape: straight
+    - id: event-read
+      from: event
+      to: read
+      label_cs: aktualizuje
+      shape: straight
   decompose:
     title_cs: 'Mini-vzor: subdomény a kandidátní hranice'
     items:
     - id: core
-      label_cs: "CORE\nAdjudication"
+      label_cs: 'CORE
+
+        Adjudication'
       item_type: shape
       shape: round_rectangle
       x: 200
@@ -2098,7 +2130,9 @@ example_templates:
       fill_color: '#88C999'
       font_size: 22
     - id: supporting
-      label_cs: "SUPPORTING\nEvidence intake"
+      label_cs: 'SUPPORTING
+
+        Evidence intake'
       item_type: shape
       shape: round_rectangle
       x: 1650
@@ -2108,7 +2142,9 @@ example_templates:
       fill_color: '#F8E58C'
       font_size: 22
     - id: generic
-      label_cs: "GENERIC\nNotifications"
+      label_cs: 'GENERIC
+
+        Notifications'
       item_type: shape
       shape: round_rectangle
       x: 200
@@ -2118,7 +2154,9 @@ example_templates:
       fill_color: '#D1D5DB'
       font_size: 22
     - id: boundary
-      label_cs: "HRANICE?\nJazyk + pravidla + změnový coupling"
+      label_cs: 'HRANICE?
+
+        Jazyk + pravidla + změnový coupling'
       item_type: shape
       shape: round_rectangle
       x: 1650
@@ -2127,6 +2165,13 @@ example_templates:
       height: 700
       fill_color: '#BFDBFE'
       font_size: 20
+    sync_policy: ignore
+    exclude_from_ingestion: true
+    panel:
+      title_cs: VZOR / LEGENDA – neexportuje se do YAML
+      border_style: dashed
+      sync_policy: ignore
+    connectors: []
   lifecycle:
     title_cs: 'Mini-vzor: stavový model a zakázaný přechod'
     items:
@@ -2161,7 +2206,9 @@ example_templates:
       fill_color: '#D9EAD3'
       font_size: 24
     - id: guard
-      label_cs: "GUARD\nEvidence complete"
+      label_cs: 'GUARD
+
+        Evidence complete'
       item_type: shape
       shape: round_rectangle
       x: 1200
@@ -2180,11 +2227,37 @@ example_templates:
       height: 650
       fill_color: '#F4CCCC'
       font_size: 21
+    sync_policy: ignore
+    exclude_from_ingestion: true
+    panel:
+      title_cs: VZOR / LEGENDA – neexportuje se do YAML
+      border_style: dashed
+      sync_policy: ignore
+    connectors:
+    - id: new-review
+      from: new
+      to: review
+      label_cs: submit
+      shape: straight
+    - id: review-approved
+      from: review
+      to: approved
+      label_cs: approve [guard]
+      shape: straight
+    - id: forbidden
+      from: approved
+      to: new
+      label_cs: zakázáno
+      shape: curved
+      stroke_color: '#B91C1C'
+      stroke_style: dashed
   strategize:
     title_cs: 'Mini-vzor: diferenciace, komplexita a sourcing'
     items:
     - id: core
-      label_cs: "CORE\nBuild + invest"
+      label_cs: 'CORE
+
+        Build + invest'
       item_type: shape
       shape: round_rectangle
       x: 250
@@ -2194,7 +2267,9 @@ example_templates:
       fill_color: '#88C999'
       font_size: 22
     - id: supporting
-      label_cs: "SUPPORTING\nSelective build"
+      label_cs: 'SUPPORTING
+
+        Selective build'
       item_type: shape
       shape: round_rectangle
       x: 1650
@@ -2204,7 +2279,9 @@ example_templates:
       fill_color: '#F8E58C'
       font_size: 22
     - id: generic
-      label_cs: "GENERIC\nBuy / SaaS"
+      label_cs: 'GENERIC
+
+        Buy / SaaS'
       item_type: shape
       shape: round_rectangle
       x: 250
@@ -2214,7 +2291,9 @@ example_templates:
       fill_color: '#D1D5DB'
       font_size: 22
     - id: rationale
-      label_cs: "RATIONALE\nBusiness differentiation × complexity"
+      label_cs: 'RATIONALE
+
+        Business differentiation × complexity'
       item_type: shape
       shape: round_rectangle
       x: 1650
@@ -2223,11 +2302,23 @@ example_templates:
       height: 700
       fill_color: '#BFDBFE'
       font_size: 20
+    sync_policy: ignore
+    exclude_from_ingestion: true
+    panel:
+      title_cs: VZOR / LEGENDA – neexportuje se do YAML
+      border_style: dashed
+      sync_policy: ignore
+    connectors: []
+    representation: table_grid
   context_map:
     title_cs: 'Mini-vzor: vztah BC, kontrakt a data ownership'
     items:
     - id: upstream
-      label_cs: "POLICY BC\nUPSTREAM\nOwns policy data"
+      label_cs: 'POLICY BC
+
+        UPSTREAM
+
+        Owns policy data'
       item_type: shape
       shape: round_rectangle
       x: 150
@@ -2237,7 +2328,9 @@ example_templates:
       fill_color: '#DDEFA9'
       font_size: 22
     - id: contract
-      label_cs: "OHS / API\n→"
+      label_cs: 'OHS / API
+
+        →'
       item_type: shape
       shape: round_rectangle
       x: 1700
@@ -2247,7 +2340,11 @@ example_templates:
       fill_color: '#BFDBFE'
       font_size: 22
     - id: downstream
-      label_cs: "CLAIMS BC\nDOWNSTREAM\nACL"
+      label_cs: 'CLAIMS BC
+
+        DOWNSTREAM
+
+        ACL'
       item_type: shape
       shape: round_rectangle
       x: 2850
@@ -2257,7 +2354,9 @@ example_templates:
       fill_color: '#DDEFA9'
       font_size: 22
     - id: risk
-      label_cs: "RIZIKO\nShared database = zakázáno"
+      label_cs: 'RIZIKO
+
+        Shared database = zakázáno'
       item_type: shape
       shape: round_rectangle
       x: 1700
@@ -2266,11 +2365,32 @@ example_templates:
       height: 650
       fill_color: '#FCA5A5'
       font_size: 21
+    sync_policy: ignore
+    exclude_from_ingestion: true
+    panel:
+      title_cs: VZOR / LEGENDA – neexportuje se do YAML
+      border_style: dashed
+      sync_policy: ignore
+    connectors:
+    - id: upstream-contract
+      from: upstream
+      to: contract
+      label_cs: publikuje
+      shape: straight
+    - id: contract-downstream
+      from: contract
+      to: downstream
+      label_cs: ACL / Published Language
+      shape: straight
   teams:
     title_cs: 'Mini-vzor: ownership a interaction modes'
     items:
     - id: stream
-      label_cs: "STREAM-ALIGNED\nClaims team\nOwns Claims BC"
+      label_cs: 'STREAM-ALIGNED
+
+        Claims team
+
+        Owns Claims BC'
       item_type: shape
       shape: round_rectangle
       x: 150
@@ -2280,7 +2400,9 @@ example_templates:
       fill_color: '#B7D7F0'
       font_size: 21
     - id: platform
-      label_cs: "PLATFORM\nSelf-service runtime"
+      label_cs: 'PLATFORM
+
+        Self-service runtime'
       item_type: shape
       shape: round_rectangle
       x: 1750
@@ -2290,7 +2412,9 @@ example_templates:
       fill_color: '#C7D2FE'
       font_size: 21
     - id: enabling
-      label_cs: "ENABLING\nDDD coaching"
+      label_cs: 'ENABLING
+
+        DDD coaching'
       item_type: shape
       shape: round_rectangle
       x: 3350
@@ -2309,11 +2433,30 @@ example_templates:
       height: 650
       fill_color: '#FDE68A'
       font_size: 20
+    sync_policy: ignore
+    exclude_from_ingestion: true
+    panel:
+      title_cs: VZOR / LEGENDA – neexportuje se do YAML
+      border_style: dashed
+      sync_policy: ignore
+    connectors:
+    - id: platform-stream
+      from: platform
+      to: stream
+      label_cs: X-as-a-Service
+      shape: straight
+    - id: enabling-stream
+      from: enabling
+      to: stream
+      label_cs: Facilitating
+      shape: curved
   bc_canvas:
     title_cs: 'Mini-vzor: Bounded Context Canvas'
     items:
     - id: purpose
-      label_cs: "PURPOSE\nRozhodnout claim"
+      label_cs: 'PURPOSE
+
+        Rozhodnout claim'
       item_type: shape
       shape: round_rectangle
       x: 200
@@ -2323,7 +2466,9 @@ example_templates:
       fill_color: '#DDEFA9'
       font_size: 21
     - id: language
-      label_cs: "LANGUAGE\nclaim, evidence, decision"
+      label_cs: 'LANGUAGE
+
+        claim, evidence, decision'
       item_type: shape
       shape: round_rectangle
       x: 1650
@@ -2333,7 +2478,9 @@ example_templates:
       fill_color: '#FDE68A'
       font_size: 21
     - id: inbound
-      label_cs: "INBOUND\nClaim submitted"
+      label_cs: 'INBOUND
+
+        Claim submitted'
       item_type: shape
       shape: round_rectangle
       x: 200
@@ -2343,7 +2490,9 @@ example_templates:
       fill_color: '#BFDBFE'
       font_size: 21
     - id: outbound
-      label_cs: "OUTBOUND\nPayment authorized"
+      label_cs: 'OUTBOUND
+
+        Payment authorized'
       item_type: shape
       shape: round_rectangle
       x: 1650
@@ -2352,21 +2501,33 @@ example_templates:
       height: 700
       fill_color: '#C8E986'
       font_size: 21
+    sync_policy: ignore
+    exclude_from_ingestion: true
+    panel:
+      title_cs: VZOR / LEGENDA – neexportuje se do YAML
+      border_style: dashed
+      sync_policy: ignore
+    connectors: []
+    representation: table_grid
   design_es:
     title_cs: 'Mini-vzor: command → aggregate → event → projection'
     items:
     - id: command
-      label_cs: "COMMAND\nApprove claim"
-      item_type: shape
-      shape: round_rectangle
+      label_cs: 'COMMAND
+
+        Approve claim'
+      item_type: sticky_note
+      shape: rectangle
       x: -100
       y: -550
       width: 1000
       height: 650
-      fill_color: '#86C5E8'
+      fill_color: light_blue
       font_size: 21
     - id: aggregate
-      label_cs: "AGGREGATE\nClaim"
+      label_cs: 'AGGREGATE
+
+        Claim'
       item_type: shape
       shape: round_rectangle
       x: 1050
@@ -2376,27 +2537,33 @@ example_templates:
       fill_color: '#DDEFA9'
       font_size: 21
     - id: event
-      label_cs: "EVENT\nClaim approved"
-      item_type: shape
-      shape: round_rectangle
+      label_cs: 'EVENT
+
+        Claim approved'
+      item_type: sticky_note
+      shape: rectangle
       x: 2250
       y: -550
       width: 1050
       height: 650
-      fill_color: '#F6A04D'
+      fill_color: orange
       font_size: 21
     - id: projection
-      label_cs: "PROJECTION\nPayment queue"
-      item_type: shape
-      shape: round_rectangle
+      label_cs: 'PROJECTION
+
+        Payment queue'
+      item_type: sticky_note
+      shape: rectangle
       x: 1050
       y: 350
       width: 1200
       height: 650
-      fill_color: '#C8E986'
+      fill_color: light_green
       font_size: 21
     - id: invariant
-      label_cs: "INVARIANT\nApproved amount ≤ coverage"
+      label_cs: 'INVARIANT
+
+        Approved amount ≤ coverage'
       item_type: shape
       shape: round_rectangle
       x: 2400
@@ -2405,11 +2572,35 @@ example_templates:
       height: 650
       fill_color: '#F8E58C'
       font_size: 20
+    sync_policy: ignore
+    exclude_from_ingestion: true
+    panel:
+      title_cs: VZOR / LEGENDA – neexportuje se do YAML
+      border_style: dashed
+      sync_policy: ignore
+    connectors:
+    - id: command-aggregate
+      from: command
+      to: aggregate
+      label_cs: handles
+      shape: straight
+    - id: aggregate-event
+      from: aggregate
+      to: event
+      label_cs: emits
+      shape: straight
+    - id: event-projection
+      from: event
+      to: projection
+      label_cs: updates
+      shape: straight
   quality:
     title_cs: 'Mini-vzor: quality scenario a failure mode'
     items:
     - id: availability
-      label_cs: "AVAILABILITY\n99.9 % during business hours"
+      label_cs: 'AVAILABILITY
+
+        99.9 % during business hours'
       item_type: shape
       shape: round_rectangle
       x: 200
@@ -2419,7 +2610,9 @@ example_templates:
       fill_color: '#BFDBFE'
       font_size: 21
     - id: audit
-      label_cs: "AUDITABILITY\nWho/what/when/why"
+      label_cs: 'AUDITABILITY
+
+        Who/what/when/why'
       item_type: shape
       shape: round_rectangle
       x: 1800
@@ -2429,7 +2622,9 @@ example_templates:
       fill_color: '#DDEFA9'
       font_size: 21
     - id: failure
-      label_cs: "FAILURE MODE\nPayment provider timeout"
+      label_cs: 'FAILURE MODE
+
+        Payment provider timeout'
       item_type: shape
       shape: round_rectangle
       x: 200
@@ -2439,7 +2634,9 @@ example_templates:
       fill_color: '#FCA5A5'
       font_size: 21
     - id: signal
-      label_cs: "SIGNAL\nRetry lag + dead letters"
+      label_cs: 'SIGNAL
+
+        Retry lag + dead letters'
       item_type: shape
       shape: round_rectangle
       x: 1800
@@ -2448,11 +2645,21 @@ example_templates:
       height: 700
       fill_color: '#FDE68A'
       font_size: 21
+    sync_policy: ignore
+    exclude_from_ingestion: true
+    panel:
+      title_cs: VZOR / LEGENDA – neexportuje se do YAML
+      border_style: dashed
+      sync_policy: ignore
+    connectors: []
+    representation: table_grid
   tactical:
     title_cs: 'Mini-vzor: agregát, invariant a doménová událost'
     items:
     - id: root
-      label_cs: "AGGREGATE ROOT\nClaim"
+      label_cs: 'AGGREGATE ROOT
+
+        Claim'
       item_type: shape
       shape: round_rectangle
       x: 200
@@ -2462,7 +2669,9 @@ example_templates:
       fill_color: '#DDEFA9'
       font_size: 22
     - id: vo
-      label_cs: "VALUE OBJECT\nMoney"
+      label_cs: 'VALUE OBJECT
+
+        Money'
       item_type: shape
       shape: round_rectangle
       x: 1750
@@ -2472,7 +2681,9 @@ example_templates:
       fill_color: '#BFDBFE'
       font_size: 22
     - id: invariant
-      label_cs: "INVARIANT\nNo approval without evidence"
+      label_cs: 'INVARIANT
+
+        No approval without evidence'
       item_type: shape
       shape: round_rectangle
       x: 200
@@ -2482,7 +2693,9 @@ example_templates:
       fill_color: '#F8E58C'
       font_size: 20
     - id: event
-      label_cs: "DOMAIN EVENT\nClaimApproved"
+      label_cs: 'DOMAIN EVENT
+
+        ClaimApproved'
       item_type: shape
       shape: round_rectangle
       x: 1900
@@ -2491,6 +2704,13 @@ example_templates:
       height: 700
       fill_color: '#F6A04D'
       font_size: 21
+    sync_policy: ignore
+    exclude_from_ingestion: true
+    panel:
+      title_cs: VZOR / LEGENDA – neexportuje se do YAML
+      border_style: dashed
+      sync_policy: ignore
+    connectors: []
   state_machine:
     title_cs: 'Mini-vzor: implementační state machine pouze s business důvodem'
     items:
@@ -2534,11 +2754,30 @@ example_templates:
       height: 650
       fill_color: '#F8E58C'
       font_size: 21
+    sync_policy: ignore
+    exclude_from_ingestion: true
+    panel:
+      title_cs: VZOR / LEGENDA – neexportuje se do YAML
+      border_style: dashed
+      sync_policy: ignore
+    connectors:
+    - id: draft-open
+      from: draft
+      to: open
+      label_cs: publish [guard]
+      shape: straight
+    - id: open-closed
+      from: open
+      to: closed
+      label_cs: close
+      shape: straight
   architecture:
     title_cs: 'Mini-vzor: C4, kontrakt a ADR'
     items:
     - id: system
-      label_cs: "C4 SYSTEM\nClaims platform"
+      label_cs: 'C4 SYSTEM
+
+        Claims platform'
       item_type: shape
       shape: round_rectangle
       x: 200
@@ -2548,7 +2787,9 @@ example_templates:
       fill_color: '#BFDBFE'
       font_size: 21
     - id: container
-      label_cs: "CONTAINER\nClaims API"
+      label_cs: 'CONTAINER
+
+        Claims API'
       item_type: shape
       shape: round_rectangle
       x: 1750
@@ -2558,7 +2799,9 @@ example_templates:
       fill_color: '#DDEFA9'
       font_size: 21
     - id: contract
-      label_cs: "CONTRACT\nClaimApproved v1"
+      label_cs: 'CONTRACT
+
+        ClaimApproved v1'
       item_type: shape
       shape: round_rectangle
       x: 200
@@ -2568,7 +2811,9 @@ example_templates:
       fill_color: '#F6A04D'
       font_size: 21
     - id: adr
-      label_cs: "ADR\nWhy async integration?"
+      label_cs: 'ADR
+
+        Why async integration?'
       item_type: shape
       shape: round_rectangle
       x: 1750
@@ -2577,3 +2822,111 @@ example_templates:
       height: 700
       fill_color: '#FDE68A'
       font_size: 21
+    sync_policy: ignore
+    exclude_from_ingestion: true
+    panel:
+      title_cs: VZOR / LEGENDA – neexportuje se do YAML
+      border_style: dashed
+      sync_policy: ignore
+    connectors:
+    - id: system-container
+      from: system
+      to: container
+      label_cs: contains
+      shape: straight
+    - id: container-contract
+      from: container
+      to: contract
+      label_cs: exposes
+      shape: straight
+    - id: contract-adr
+      from: contract
+      to: adr
+      label_cs: governed by
+      shape: straight
+board_guide:
+  title_cs: Jak board používat – rychlý průvodce
+  mode: compact_panel_with_detailed_link
+  steps_cs:
+  - 'Začni v 00 (Control Center): zjisti aktuální stage, gate, blockery a next actions.'
+  - V 01 si ověř celou DDD Starter journey, vyšší metodické skupiny a povolené návraty.
+  - Přejdi do aktivního pracovního frame uvedeného u aktuální gate.
+  - Použij podframe VZOR / LEGENDA jako návod; jeho obsah není projektová evidence.
+  - Workshopový obsah konsoliduj do managed YAML artefaktů; Miro zůstává pracovní projekcí.
+  - Otevřené otázky, hypotézy a rozhodnutí udržuj dohledatelné ke zdrojům a ownerům.
+  - Automatizace může vytvořit ready_for_review, ale gate rozhoduje pouze oprávněný člověk.
+  - Po rozhodnutí pokračuj, doplň podmínku, nebo se vrať do dřívější fáze podle nové evidence.
+  details_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/product/03-miro-scaffolding.md
+  cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/14-inicializace-ciloveho-miro-boardu.md
+  method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/01-metodicky-tok-a-gates.md
+  starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
+  knowledge_index_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/00-knowledge-index.md
+overview_resources:
+- id: starter
+  label_cs: DDD Starter Modelling Process – základní metodika
+  url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
+- id: ddda-method
+  label_cs: DDDA – metodický tok a gates
+  url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/01-metodicky-tok-a-gates.md
+- id: ddda-cookbooks
+  label_cs: DDDA – workshopové kuchařky
+  url: https://github.com/romanhlavac/ddd-accelerator/tree/main/docs/cookbooks
+- id: ddda-knowledge
+  label_cs: DDDA – knowledge index a zdroje
+  url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/00-knowledge-index.md
+artifact_status_tables:
+  title_cs: Stavy artefaktů – synchronizováno z managed YAML
+  native_table_support: unavailable_in_miro_rest_v2
+  rendering: deterministic_grid
+  statuses:
+  - id: empty
+    label_cs: SCAFFOLD
+    aliases:
+    - empty
+  - id: generated
+    label_cs: GENERATED
+    aliases:
+    - generated
+  - id: workshop
+    label_cs: WORKSHOP / CANDIDATE
+    aliases:
+    - workshop
+    - candidate
+    - draft
+    - observed
+  - id: validated
+    label_cs: VALIDATED
+    aliases:
+    - validated
+    - ready_for_review
+  - id: accepted
+    label_cs: ACCEPTED
+    aliases:
+    - accepted
+    - passed
+  - id: superseded
+    label_cs: SUPERSEDED
+    aliases:
+    - superseded
+    - deleted_pending
+  columns:
+  - artefakt
+  - fáze
+  - stav
+  max_rows_per_status: 4
+zone_transitions:
+- id: understand-strategic
+  from: zone-understand
+  to: zone-strategic
+  label_cs: porozumění → hranice a strategie
+  shape: straight
+- id: strategic-organization
+  from: zone-strategic
+  to: zone-organization
+  label_cs: hranice → týmové ownership
+  shape: straight
+- id: organization-tactical
+  from: zone-organization
+  to: zone-tactical
+  label_cs: ownership → detail a implementace
+  shape: straight

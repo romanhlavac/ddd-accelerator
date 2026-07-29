@@ -176,6 +176,39 @@ class MiroClient:
             self._remember_frame_geometry(board_id, item_id, remote, prepared)
         return remote
 
+
+    def list_connectors(self, board_id: str) -> list[dict[str, Any]]:
+        cursor: str | None = None
+        result: list[dict[str, Any]] = []
+        while True:
+            page = self._request(
+                "GET",
+                f"boards/{board_id}/connectors",
+                query={"limit": 50, "cursor": cursor},
+            )
+            result.extend(page.get("data", []))
+            cursor = page.get("cursor")
+            if not cursor:
+                return result
+
+    def create_connector(self, board_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._request("POST", f"boards/{board_id}/connectors", body=deepcopy(payload))
+
+    def update_connector(
+        self,
+        board_id: str,
+        connector_id: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        return self._request(
+            "PATCH",
+            f"boards/{board_id}/connectors/{connector_id}",
+            body=deepcopy(payload),
+        )
+
+    def delete_connector(self, board_id: str, connector_id: str) -> None:
+        self._request("DELETE", f"boards/{board_id}/connectors/{connector_id}")
+
     def delete_item(self, board_id: str, item_id: str) -> None:
         self._request("DELETE", f"boards/{board_id}/items/{item_id}")
 

@@ -114,7 +114,11 @@ def sync_project(config: ProjectConfig, client: MiroClient, *, direction: str, d
         remote_data = remote_pair[1] if remote_pair else None
         entry = state["items"].get(artifact_id) or {}
         map_entry = mapping["items"].get(artifact_id) or {}
-        if map_entry.get("system_item"):
+        if (
+            map_entry.get("system_item")
+            or str(map_entry.get("sync_policy") or "") == "ignore"
+            or bool(map_entry.get("exclude_from_ingestion"))
+        ):
             continue
         base_local_hash, base_remote_hash = entry.get("local_hash"), entry.get("remote_hash")
         local_hash = artifact.semantic_hash() if artifact else None

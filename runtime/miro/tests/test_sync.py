@@ -236,3 +236,39 @@ def test_secret_is_not_written_to_mapping_state_or_report(tmp_path, monkeypatch)
         ]
     )
     assert secret not in persisted
+
+
+def test_sync_explicitly_ignores_example_panel_and_connector_entries(tmp_path):
+    config = build_project(tmp_path)
+    save_yaml(tmp_path / "miro" / "miro-map.yaml", {
+        "schema_version": 1,
+        "project_id": "life-insurance",
+        "board_id": "board-1",
+        "frames": {},
+        "items": {
+            "example-panel:discover-big-picture-es": {
+                "miro_item_id": "shape-example-panel",
+                "item_type": "shape",
+                "system_item": False,
+                "sync_policy": "ignore",
+                "exclude_from_ingestion": True,
+            },
+            "example-connector:discover-big-picture-es:timeline": {
+                "miro_item_id": "connector-example",
+                "item_type": "connector",
+                "system_item": False,
+                "sync_policy": "ignore",
+                "exclude_from_ingestion": True,
+            },
+        },
+    })
+    client = FakeClient()
+    result = sync_project(
+        config, client, direction="both", dry_run=True,
+        include_layout=False, confirm_delete=False, promote_new=True,
+    )
+    ignored_ids = {
+        "example-panel:discover-big-picture-es",
+        "example-connector:discover-big-picture-es:timeline",
+    }
+    assert not any(operation.get("artifact_id") in ignored_ids for operation in result["operations"])

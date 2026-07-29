@@ -16,6 +16,24 @@ DDDA-Workspace/
 
 Společný workspace board není náhradou projektových boardů. Pokud vznikne, má být samostatnou portfolio projekcí bez sdíleného `miro-map.yaml` s projektovými artefakty.
 
+## Jak se v inicializovaném boardu orientovat
+
+1. Otevři `00 – Navigace, legenda a stav artefaktů (Control Center)`.
+2. Zkontroluj current stage, current gate, decision question, blockery a next actions.
+3. V `01 – DDD Starter journey, gates a iterace` si ověř celý tok, vyšší metodické skupiny a feedback loops.
+4. Přejdi do pracovního frame uvedeného u aktuální gate.
+5. Panel `VZOR / LEGENDA – neexportuje se do YAML` použij pouze jako metodický návod.
+6. Skutečný workshopový výstup konsoliduj do managed YAML artefaktu.
+7. Gate může automatizace připravit jako `ready_for_review`; lidské rozhodnutí vzniká mimo Miro v auditovatelném decision recordu.
+
+Základní metodika je [DDD Starter Modelling Process](https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work). DDDA rozšíření jsou popsána v [metodickém toku a gates](../methodology/01-metodicky-tok-a-gates.md), [knowledge indexu](../../knowledge/00-knowledge-index.md) a jednotlivých cookbooks.
+
+### Omezení Miro REST reprezentace
+
+Renderer používá skutečné Miro shapes, sticky notes a connectors. Miro REST API v2 však neposkytuje obecný collapse/expand panel ani endpoint pro nativní tabulky. Onboarding je proto kompaktní panel s podrobným odkazem a tabulkové projekce jsou deterministické mřížky ze shapes. Tyto fallbacky jsou součástí testovaného scaffold contractu.
+
+Každý example panel a jeho obsah mají `sync_policy: ignore` a `exclude_from_ingestion: true`; nesmějí být při Miro → YAML synchronizaci povýšeny na projektovou evidenci.
+
 ## Entry criteria
 
 - inicializace po clone prošla;

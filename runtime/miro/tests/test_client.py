@@ -91,3 +91,33 @@ def test_client_normalizes_text_font_size_before_api_call(monkeypatch):
 
     assert calls[-1][2]["style"]["fontSize"] == 36
     assert authored["style"]["fontSize"] == 34
+
+
+def test_connector_api_uses_dedicated_endpoints_and_does_not_mutate_payload(monkeypatch):
+    calls = []
+
+    def fake_request(self, method, path, *, query=None, body=None):
+        calls.append((method, path, query, body))
+        if method == "GET":
+            return {"data": [{"id": "connector-existing"}], "cursor": None}
+        return {"id": "connector-1", **(body or {})}
+
+    monkeypatch.setattr(MiroClient, "_request", fake_request)
+    client = MiroClient("token")
+    authored = {
+        "startItem": {"id": "shape-1"},
+        "endItem": {"id": "shape-2"},
+        "shape": "elbowed",
+        "captions": [{"content": "evidence → boundary", "position": 0.5}],
+    }
+    client.create_connector("board-1", authored)
+    client.update_connector("board-1", "connector-1", authored)
+    listed = client.list_connectors("board-1")
+    client.delete_connector("board-1", "connector-1")
+
+    assert calls[0][0:2] == ("POST", "boards/board-1/connectors")
+    assert calls[1][0:2] == ("PATCH", "boards/board-1/connectors/connector-1")
+    assert calls[2][0:2] == ("GET", "boards/board-1/connectors")
+    assert calls[3][0:2] == ("DELETE", "boards/board-1/connectors/connector-1")
+    assert listed == [{"id": "connector-existing"}]
+    assert authored["captions"][0]["content"] == "evidence → boundary"

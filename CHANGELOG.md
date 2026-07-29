@@ -52,6 +52,11 @@ Změny pro další verzi se během vývoje zapisují sem. Před promotion se vš
 - Miro board ID a auditní metadata se po automatickém cleanupu již neztrácejí a reporty odmítají secret-like evidence;
 - Miro child položky převádějí frame-center souřadnice na top-left parent souřadnice REST API a před API voláním validují hranice parent frame;
 - Miro REST payloady normalizují velikosti písma na podporovanou diskrétní škálu před voláním text/shape endpointů;
+- Miro board obsahuje kompaktní first-user onboarding, základní DDD Starter/DDDA zdroje a explicitní Control Center název;
+- vyšší metodické zóny jsou zarovnané a stage, gate, zone i feedback flow používají stabilní shapes a popsané Miro connectors;
+- workshopové mini-vzory používají metodicky specifické sticky notes, shapes a table-grid reprezentace namísto generických karet;
+- každý pracovní frame má oddělený panel `VZOR / LEGENDA`, jehož položky a connectors jsou explicitně vyřazeny z Miro → YAML synchronizace a ingestion;
+- artifact-status projekce v Control Center používá deterministický shape-grid, protože Miro REST API v2 neposkytuje vytvoření nativní tabulky;
 - syntetická legacy workspace compatibility regrese dokazuje non-breaking/aditivní kontrakt bez klientských dat;
 - ADR odstranil zastaralý požadavek na GitHub CLI jako povinnou závislost promotion.
 

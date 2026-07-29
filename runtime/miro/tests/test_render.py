@@ -11,6 +11,7 @@ from ddda_miro.yamlio import load_yaml, save_yaml
 class FakeClient:
     def __init__(self):
         self.items = {}
+        self.connectors = {}
         self.created = []
         self.updated = []
         self.board_created = False
@@ -40,6 +41,25 @@ class FakeClient:
 
     def delete_item(self, board_id, item_id):
         self.items.pop(item_id, None)
+
+    def create_connector(self, board_id, payload):
+        connector_id = f"connector-{len(self.connectors) + 1}"
+        connector = {"id": connector_id, "type": "connector", **payload}
+        self.connectors[connector_id] = connector
+        self.created.append(("connector", connector_id))
+        return connector
+
+    def update_connector(self, board_id, connector_id, payload):
+        connector = {"id": connector_id, "type": "connector", **payload}
+        self.connectors[connector_id] = connector
+        self.updated.append(("connector", connector_id))
+        return connector
+
+    def list_connectors(self, board_id):
+        return list(self.connectors.values())
+
+    def delete_connector(self, board_id, connector_id):
+        self.connectors.pop(connector_id, None)
 
 
 def _status_document(next_gate: str = "G1") -> dict:
@@ -108,10 +128,15 @@ def test_render_creates_control_center_journey_legends_and_is_idempotent(tmp_pat
     assert first["layout_contract_status"] == "PASS"
     assert first["remote_layout_status"] == "PASS"
     assert first["remote_layout_evidence"]["journey_card_count"] == 8
+    assert first["remote_layout_evidence"]["gate_marker_count"] == 8
     assert first["remote_layout_evidence"]["stage_visual_count"] >= 32
     assert first["remote_layout_evidence"]["workshop_example_count"] >= 45
+    assert first["remote_layout_evidence"]["example_panel_count"] == 16
     assert first["remote_layout_evidence"]["zone_header_count"] == 4
-    assert first["remote_layout_evidence"]["transition_count"] >= 9
+    assert first["remote_layout_evidence"]["zone_transition_count"] == 3
+    assert first["remote_layout_evidence"]["transition_count"] >= 17
+    assert first["remote_layout_evidence"]["navigation_connector_count"] >= 20
+    assert first["remote_layout_evidence"]["artifact_status_table_item_count"] >= 13
     assert first["utf8_status"] == "PASS"
     assert first["human_visual_acceptance_status"] == "PENDING"
     assert first["overall_status"] == "PENDING_HUMAN_REVIEW"
@@ -120,10 +145,14 @@ def test_render_creates_control_center_journey_legends_and_is_idempotent(tmp_pat
     assert mapping["frames"]["control-center"]["miro_item_id"]
     assert mapping["items"]["control-center:summary"]["system_item"] is True
     assert len([key for key in mapping["items"] if key.startswith("journey:G")]) == 8
+    assert len([key for key in mapping["items"] if key.startswith("gate-marker:G")]) == 8
     assert len([key for key in mapping["items"] if key.startswith("legend:")]) == 5
     assert len([key for key in mapping["items"] if key.startswith("stage-visual:G")]) >= 32
     assert len([key for key in mapping["items"] if key.startswith("example:")]) >= 45
+    assert len([key for key in mapping["items"] if key.startswith("example-panel:")]) == 16
     assert len([key for key in mapping["items"] if key.startswith("transition:")]) >= 9
+    assert len([key for key in mapping["items"] if key.startswith("stage-gate:")]) == 8
+    assert len([key for key in mapping["items"] if key.startswith("zone-transition:")]) == 3
     assert mapping["remote_layout_status"] == "PASS"
     assert len(mapping["traceability"]) == 8
 
@@ -173,6 +202,7 @@ def test_render_dry_run_does_not_write_and_reports_human_pending(tmp_path):
     assert any(item["role"] == "journey_gate" for item in result["operations"] if "role" in item)
     assert result["overall_status"] == "PENDING_HUMAN_REVIEW"
     assert client.created == []
+    assert client.connectors == {}
     assert not (config.root / "miro" / "miro-map.yaml").exists()
 
 
@@ -222,3 +252,15 @@ def test_workshop_guides_have_links_and_examples(tmp_path):
 
     example_entries = [value for value in mapping["items"].values() if value.get("role") == "workshop_example"]
     assert len(example_entries) >= 45
+    panel_entries = [value for value in mapping["items"].values() if value.get("role") == "workshop_example_panel"]
+    assert len(panel_entries) == 16
+    ignored_entries = [
+        value for value in mapping["items"].values()
+        if value.get("role") in {
+            "workshop_example", "workshop_example_panel", "workshop_example_title",
+            "workshop_example_connector", "stage_visual", "stage_visual_connector",
+        }
+    ]
+    assert ignored_entries
+    assert all(entry.get("sync_policy") == "ignore" for entry in ignored_entries)
+    assert all(entry.get("exclude_from_ingestion") is True for entry in ignored_entries)

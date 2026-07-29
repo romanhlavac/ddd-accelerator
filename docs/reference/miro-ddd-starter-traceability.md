@@ -2,22 +2,47 @@
 
 ## Účel
 
-Tento dokument dokládá, jak `strategic-ddd-method-board.yaml` převádí DDD Starter Modelling Process do auditovatelné Miro projekce.
+Tento dokument dokládá, jak `strategic-ddd-method-board.yaml` převádí [DDD Starter Modelling Process](https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work) do auditovatelné Miro projekce.
 
-Uživatelem dodaný referenční board a jeho situační obrázky jsou návrhovým vstupem. Release package používá deterministický vektorový ekvivalent, protože musí být verzovatelný, testovatelný a editovatelný. Nejde pouze o osm prázdných frames: každá fáze má situační kartu, mini-vzor artefaktů, návod a metodické odkazy.
+Uživatelem dodaný referenční board a DDD Starter vizuály jsou návrhovým vstupem. Release package používá deterministický, editovatelný ekvivalent z Miro shapes, sticky notes, textů a connectors. Board nesmí být pouze souborem prázdných frames ani generických obdélníků.
+
+## Navigační traceability
+
+```text
+Control Center onboarding
+→ vyšší metodická zóna
+→ stage flow shape
+→ gate diamond
+→ popsaný connector
+→ pracovní frame
+→ VZOR / LEGENDA
+→ managed YAML artefakt
+→ human gate decision
+```
+
+Vyšší zóny jsou na jedné vizuální baseline a mají popsané connectors:
+
+```text
+Align & Understand
+→ Strategic Architecture
+→ Strategy & Org Design
+→ Tactical Architecture
+```
+
+Stage/gate flow je doplněn explicitními feedback loops, aby board nesugeroval rigidní waterfall.
 
 ## Traceability matrix
 
-| DDD Starter krok | DDDA stage | Gate | Viditelný pracovní frame | Vektorová situace a vzor | Human acceptance |
+| DDD Starter krok | DDDA stage | Gate | Viditelný pracovní frame | Metodicky specifický vzor | Human acceptance |
 |---|---|---|---|---|---|
-| Align / Understand | `align` | G1 | `10 – Align / Intake` | problém, cíl, owner, evidence; problem/decision/scope mini-vzor | problém, cíl, scope a decision owner jsou pochopeny |
-| Discover | `discover` | G2 | `20 – EventStorming: Big Picture` | event, command, hotspot, otázka; Big Picture mini-vzor | vznikl sdílený obraz dění a nejasností |
-| Decompose | `decompose` | G3 | `30 – Rozklad domény` | doména, subdoména, hranice, alternativa | hranice mají explicitní rationale |
-| Strategize | `strategize` | G4 | `40 – Strategická klasifikace` | core/supporting/generic/build-buy-SaaS | investiční fokus je vědomé rozhodnutí |
-| Connect | `connect` | G5 | `50 – Context Map a data ownership` | upstream, kontrakt, downstream, data owner | vztahy a source of truth jsou explicitní |
-| Organise | `organize` | G6 | `60 – Team Topologies` | stream-aligned, platform, enabling, interaction | ownership je organizačně proveditelný |
-| Define | `define` | G7 | `70 – Bounded Context Canvas` | purpose, language, lifecycle, invariant | BC je připraven pro detailní návrh |
-| Code | `code` | G8 | `80 – Taktický DDD a architektura` | aggregate, event, ADR/C4, operability | implementace chrání model a quality attributes |
+| Align / Understand | `align` | G1 | `10 – Align / Intake` | problém, cíl, scope, owner a evidence | problém, cíl, scope a decision owner jsou pochopeny |
+| Discover | `discover` | G2 | `20 – EventStorming: Big Picture` | EventStorming sticky notes, event timeline, command, policy, hotspot a otázka | vznikl sdílený obraz dění a nejasností |
+| Decompose | `decompose` | G3 | `30 – Rozklad domény` | clustery, subdomény, boundary hypotheses a alternativy | hranice mají explicitní rationale |
+| Strategize | `strategize` | G4 | `40 – Strategická klasifikace` | core/supporting/generic a build/buy/SaaS table-grid | investiční fokus je vědomé rozhodnutí |
+| Connect | `connect` | G5 | `50 – Context Map a data ownership` | upstream/downstream, contract connector, ACL a data owner | vztahy a source of truth jsou explicitní |
+| Organise | `organize` | G6 | `60 – Team Topologies` | týmové ownership a interaction-mode vztahy | ownership je organizačně proveditelný |
+| Define | `define` | G7 | `70 – Bounded Context Canvases` | canvas grid, lifecycle, Design-Level ES a quality scenarios | BC je připraven pro detailní návrh |
+| Code | `code` | G8 | `80 – Taktický DDD a architektura` | agregáty, state machine, C4, contracts a ADR | implementace chrání model a quality attributes |
 
 Každý řádek je ve scaffoldu dohledatelný přes:
 
@@ -31,39 +56,55 @@ reference_visual
 → human_acceptance
 ```
 
-## Iterativnost
+## Vzor versus projektová evidence
 
-Přehled obsahuje celý dopředný tok a explicitní návraty, minimálně:
+Každý pracovní frame obsahuje oddělený panel:
 
-- Discover → Align, pokud nová evidence mění problém nebo scope;
-- Define → Decompose, pokud detail odhalí chybnou boundary hypothesis.
+```text
+VZOR / LEGENDA – neexportuje se do YAML
+```
 
-Tím se zamezuje dojmu rigidního waterfall procesu.
+Panel, jeho položky a connectors mají v mappingu:
+
+```yaml
+managed: false
+sync_policy: ignore
+exclude_from_ingestion: true
+```
+
+Sync tento obsah explicitně ignoruje i při `promote_new`. Vzor vysvětluje formu práce, ale nesmí se stát managed projektovým artefaktem ani splnit gate evidence.
+
+## Tabulkové projekce
+
+Slovníky, evidence inventory, strategické klasifikace, canvas a quality-attribute přehledy používají deterministický table-grid ze shapes. Důvodem je, že Miro REST API v2 neposkytuje endpoint pro vytvoření nativní Miro tabulky. Omezení je explicitní ve scaffold contractu a nesmí být maskováno tvrzením, že renderer vytváří nativní tabulku.
 
 ## Automatizovaná evidence
 
 Testy ověřují:
 
-- osm stage/gate karet a čtyři metodické zóny;
-- minimální fonty journey, legendy, guides a mini-vzorů;
-- nejméně čtyři situační prvky na gate;
-- top-left guide a metodické odkazy v každém pracovním frame;
-- neprázdné mini-vzory;
-- zarovnání, minimální rozestupy a nepřekrývání frames;
-- actual remote geometry po renderu do Miro;
-- stable item IDs a změnu current-gate highlight bez recreation;
+- kompaktní first-user onboarding a pět základních metodických odkazů;
+- osm stage flow shapes a osm gate diamonds;
+- čtyři zarovnané vyšší zóny a tři zone connectors;
+- sedm dopředných stage/gate přechodů a nejméně dvě feedback loops;
+- minimální fonty, rozměry, rozestupy a nepřekrývání;
+- metodicky specifické sticky notes, shapes a table-grid příklady;
+- oddělený example panel ve všech pracovních frames;
+- explicitní sync-ignore a ingestion-exclusion kontrakt pro vzory i jejich connectors;
+- remote Miro geometrii a skutečné connector IDs po renderu;
+- stabilní item IDs a current-gate highlight bez recreation;
 - UTF-8;
 - oddělení technical PASS od human visual acceptance.
 
 ## Lidská evidence
 
-Reviewer používá viditelné názvy boardu a ověřuje:
+Reviewer ověřuje:
 
-- `00 – Navigace, legenda a stav artefaktů`;
+- že lze bez externího výkladu zjistit, kde začít a kde projekt právě je;
+- `00 – Navigace, legenda a stav artefaktů (Control Center)`;
 - `01 – DDD Starter journey, gates a iterace`;
-- čitelnost stage/gate karet bez extrémního zoomu;
-- metodické seskupení a návratové smyčky;
-- použitelnost guides, mini-vzorů a odkazů;
-- nepřekrývání a přiměřenou hustotu;
-- české znaky;
+- čitelnost stages, gates, zone flow a popisků connectorů;
+- zda vizuální typy odpovídají metodě, například sticky notes pro EventStorming;
+- zda je projektová pracovní plocha jasně oddělena od `VZOR / LEGENDA`;
+- použitelnost guides, resources a artifact-status table-gridu;
+- nepřekrývání, přiměřenou hustotu a české znaky;
 - že board nevytváří dojem automatického gate approval.
