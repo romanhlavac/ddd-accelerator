@@ -15,6 +15,35 @@ platform repository
 
 Klientský workspace není test fixture platformy.
 
+## Povinný platform-development skill
+
+Kanonický a verzovaný operating contract pro vývoj platformy je:
+
+```text
+knowledge/ddda-platform-development-skill.md
+```
+
+Každý ChatGPT projekt, custom GPT, agent nebo jiný runtime používaný pro změny DDDA platformy musí tento skill registrovat jako **povinný pro vývoj DDDA** alespoň jedním z těchto mechanismů:
+
+1. položkou v `knowledge/00-knowledge-index.md`;
+2. explicitním odkazem v ChatGPT Project Instructions nebo ekvivalentních agent bootstrap instructions.
+
+Git a runtime activation jsou dva oddělené kontrolní mechanismy:
+
+- soubor v Gitu zajišťuje versioning, review a traceability;
+- knowledge index nebo project/agent instructions zajišťují, že jej konkrétní chat či agent skutečně načte.
+
+Před návrhem nebo aplikací změny platformy se musí ověřit:
+
+```text
+- runtime načetl aktuální repository verzi skillu;
+- skill odpovídá aktivní branch/SHA;
+- tento developer lifecycle a testing strategy jsou dostupné;
+- případný rozpor mezi skillem a dokumentací je vyřešen v Gitu.
+```
+
+Chybějící nebo zastaralá registrace je governance defect. U změn s dopadem `HIGH` nebo `BREAKING` se pokračování zastaví, dokud není routing opraven. Samotná existence skillu v repozitáři není důkazem, že jej runtime používá.
+
 ## Kanonický tok
 
 ```text
@@ -213,4 +242,5 @@ PR je hotový, když:
 - změna kompatibility má migration note;
 - dlouhodobé rozhodnutí má ADR;
 - changelog je aktualizován;
+- povinný platform-development skill je verzovaný a runtime routing jej skutečně načítá;
 - merge nebyl proveden bez explicitního lidského rozhodnutí.
