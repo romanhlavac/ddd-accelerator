@@ -1,4 +1,4 @@
-schema_version: '2.2'
+schema_version: '2.3'
 id: strategic-ddd-method-board
 name_cs: DDDA DDD Starter – project steering board
 description_cs: Deterministický onboarding, project steering a metodicky věrný workshop board podle DDD
@@ -74,6 +74,10 @@ artifact_statuses:
   label_cs: Nahrazeno
   border_style: dotted
 metadata_contract:
+  state_dimensions:
+    project_gate_state: 'not_ready | ready_for_review | conditional | rejected | passed'
+    artifact_lifecycle: 'scaffold | working | candidate | validated | accepted | superseded'
+    artifact_provenance: 'generated | workshop | imported | manual'
   widget_metadata:
     dd_d_a_id: stabilní UUID artefaktu nebo prvku
     dd_d_a_artifact_type: typ YAML artefaktu
@@ -251,18 +255,71 @@ gates:
   - domain_events
   - architecture_decisions
   - implementation_views
+stage_columns:
+- id: control-align
+  title_cs: CONTROL / ALIGN
+  x: -17000
+  frames:
+  - control-center
+  - align-intake
+- id: discover
+  title_cs: DISCOVER
+  x: -8500
+  frames:
+  - discover-big-picture-es
+  - discover-evidence
+  - discover-process-modeling
+- id: decompose
+  title_cs: DECOMPOSE
+  x: -1500
+  frames:
+  - decompose-domain
+  - decompose-lifecycles
+- id: strategize
+  title_cs: STRATEGIZE
+  x: 5500
+  frames:
+  - strategize-classification
+- id: connect
+  title_cs: CONNECT
+  x: 12500
+  frames:
+  - connect-context-map
+- id: organize
+  title_cs: ORGANIZE
+  x: 19500
+  frames:
+  - organize-teams
+- id: define
+  title_cs: DEFINE
+  x: 26500
+  frames:
+  - define-bounded-context
+  - define-design-level-es
+  - define-lifecycle
+  - define-quality
+- id: code
+  title_cs: CODE
+  x: 33500
+  frames:
+  - code-tactical-model
+  - code-state-machine
+  - code-views-and-decisions
 frames:
 - id: control-center
   stage: control
-  title_cs: 00 – Navigace, legenda a stav artefaktů (Control Center)
-  x: -11000
-  y: 4500
-  width: 7000
-  height: 6000
+  title_cs: 00 – Control Center / Project State / Artifact Registry
+  x: -17000
+  y: 1000
+  width: 9000
+  height: 8000
   scaffold:
   - board_index
   - method_flow_legend
-  - artifact_status_legend
+  - project_gate_state_legend
+  - artifact_lifecycle_legend
+  - artifact_provenance_legend
+  - artifact_registry
   - event_storming_legend
   - open_questions
   - sync_status
@@ -278,9 +335,9 @@ frames:
   role: overview
   stage: overview
   title_cs: 01 – DDD Starter journey, gates a iterace
-  x: 0
-  y: -5000
-  width: 40000
+  x: 8000
+  y: -7500
+  width: 58000
   height: 13000
   scaffold:
   - method_flow_legend
@@ -288,8 +345,8 @@ frames:
 - id: align-intake
   stage: align
   title_cs: 10 – Align / Intake
-  x: -11000
-  y: 11500
+  x: -17000
+  y: 8000
   width: 6000
   height: 4800
   scaffold:
@@ -311,10 +368,11 @@ frames:
 - id: discover-big-picture-es
   stage: discover
   title_cs: '20 – EventStorming: Big Picture'
-  x: -11000
-  y: 17000
+  x: -8500
+  y: 1000
   width: 6500
   height: 4800
+  canonical_workshop_shell: true
   mandatory: true
   visual_rules:
     timeline: horizontal
@@ -335,16 +393,22 @@ frames:
   guide:
     start_cs: S doménovými experty rozlož dění v čase od událostí a hotspotů.
     outputs_cs: Big Picture, pivoty, hotspoty, otázky a první ubiquitous language.
+    recipe_cs: '1) Vymez časový rozsah. 2) Zachyť doménové události. 3) Doplň pivoty, aktéry, systémy a hotspoty. 4) Projdi timeline s doménovými experty.'
+    done_criteria_cs: 'Timeline má čitelný směr, klíčové pivoty, hotspoty, vlastníky otázek a ověřené doménové termíny.'
+    open_questions_cs: 'Které události jsou fakta, kde chybí příčina a kdo může sporný průběh potvrdit?'
+    heuristics_cs: 'Začínej událostmi v minulém čase; používej temporal markers; seskupuj podle přirozeného toku, ne podle systémů.'
+    anti_patterns_cs: 'Procesní diagram bez událostí; předčasné bounded contexts; technické komponenty vydávané za doménový tok.'
     cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/03-big-picture-eventstorming.md
     method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/03-eventstorming-facilitace.md
     starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
 - id: discover-evidence
   stage: discover
   title_cs: 21 – Zdroje, slovník a pozorované stavy
-  x: -14000
-  y: 22500
+  x: -8500
+  y: 6500
   width: 5000
   height: 3800
+  canonical_workshop_shell: true
   scaffold:
   - source_inventory
   - domain_glossary
@@ -357,16 +421,22 @@ frames:
   guide:
     start_cs: Sesbírej zdroje, rozpory, termíny a pozorované stavy.
     outputs_cs: Source inventory, glossary, contradictions a unanswered questions.
+    recipe_cs: '1) Eviduj zdroje a jejich autoritu. 2) Vytěž termíny a pozorované stavy. 3) Označ rozpory. 4) Přiděl ownera otevřeným otázkám.'
+    done_criteria_cs: 'Každé tvrzení má dohledatelný zdroj nebo je označeno jako hypotéza; rozpory a otázky mají ownera.'
+    open_questions_cs: 'Které zdroje si odporují, co je pouze lokální slang a které lifecycle stavy nebyly potvrzeny?'
+    heuristics_cs: 'Preferuj primární zdroje; zachovej přesné doménové termíny; odděluj pozorování od interpretace.'
+    anti_patterns_cs: 'Slovník bez zdrojů; umlčení rozporů konsenzem; import dokumentů bez provenance.'
     cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/03-big-picture-eventstorming.md
     method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/02-ddd-strategic-design.md
     starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
 - id: discover-process-modeling
   stage: discover
   title_cs: '22 – EventStorming: Process Modeling'
-  x: -8000
-  y: 22500
+  x: -8500
+  y: 11500
   width: 5000
   height: 3800
+  canonical_workshop_shell: true
   mandatory: false
   entry_criteria:
   - selected_business_flow
@@ -388,16 +458,22 @@ frames:
   guide:
     start_cs: Vyber hodnotný nebo problematický procesní slice.
     outputs_cs: Actor-command-policy-event-read model tok a hotspoty.
+    recipe_cs: '1) Vyber jeden procesní slice. 2) Propoj actor → command → policy/system → event → read model. 3) Označ rozhodnutí a hotspoty. 4) Ověř happy i failure flow.'
+    done_criteria_cs: 'Tok má spouštěč, rozhodovací pravidla, výsledné události, potřebné informace a explicitní výjimky.'
+    open_questions_cs: 'Kdo rozhoduje, jaká informace chybí, co se stane při selhání a kde vzniká čekání?'
+    heuristics_cs: 'Modeluj od události zpět k příčině; jeden řádek drž jako jeden smysluplný slice; zobrazuj policies odděleně.'
+    anti_patterns_cs: 'BPMN převlečené za EventStorming; systém jako actor; událost formulovaná jako příkaz.'
     cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/04-process-modeling.md
     method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/03-eventstorming-facilitace.md
     starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
 - id: decompose-domain
   stage: decompose
   title_cs: 30 – Rozklad domény
-  x: -2500
-  y: 4500
+  x: -1500
+  y: 1000
   width: 6000
   height: 4800
+  canonical_workshop_shell: true
   scaffold:
   - business_capability_candidates
   - candidate_subdomains
@@ -410,16 +486,22 @@ frames:
   guide:
     start_cs: Clusteruj jazyk, pravidla, lifecycle a změnový coupling.
     outputs_cs: Kandidátní subdomény, BC hranice, alternativy a rationale.
+    recipe_cs: '1) Seskup jazyk, pravidla a lifecycle. 2) Porovnej change coupling. 3) Navrhni alternativní hranice. 4) Zapiš trade-offy a evidence.'
+    done_criteria_cs: 'Každá kandidátní hranice má doménové rationale, alternativu, riziko a vazbu na pozorovanou evidenci.'
+    open_questions_cs: 'Kde se mění jazyk, která pravidla musí být konzistentní a které clustery se mění nezávisle?'
+    heuristics_cs: 'Hranice hledej v jazyku, invariantu a tempu změn; udržuj více hypotéz; odděluj subdomain a bounded context.'
+    anti_patterns_cs: 'Hranice podle databázových tabulek; jeden context na tým bez doménového důvodu; předčasný consensus.'
     cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/06-stavove-modely.md
     method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/02-ddd-strategic-design.md
     starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
 - id: decompose-lifecycles
   stage: decompose
   title_cs: 31 – Kandidátní životní cykly a stavové modely
-  x: -2500
-  y: 10000
+  x: -1500
+  y: 6500
   width: 5000
   height: 3800
+  canonical_workshop_shell: true
   mandatory: true
   visual_rules:
     one_model_per_key_domain_object: true
@@ -438,16 +520,22 @@ frames:
   guide:
     start_cs: Vyber klíčové doménové objekty s netriviálním lifecycle.
     outputs_cs: Stavy, přechody, zakázané přechody, invarianty a owners.
+    recipe_cs: '1) Vyber klíčový objekt. 2) Sepiš pozorované stavy. 3) Propoj command a event přes přechod. 4) Doplň guards, zakázané přechody a ownera.'
+    done_criteria_cs: 'Model rozlišuje stav a status, má spouštěče, výsledky, zakázané přechody a označené hypotézy.'
+    open_questions_cs: 'Které přechody jsou nevratné, kdo je autorizuje a jak se řeší timeout nebo kompenzace?'
+    heuristics_cs: 'Jeden model na klíčový objekt; každý přechod má příčinu a výsledek; validuj s business ownerem.'
+    anti_patterns_cs: 'Stavy odvozené jen z UI; lifecycle kopírující CRUD; přechody bez invariantů.'
     cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/06-stavove-modely.md
     method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/03-ddd-tactical-design.md
     starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
 - id: strategize-classification
   stage: strategize
   title_cs: 40 – Strategická klasifikace
-  x: -2500
-  y: 15500
+  x: 5500
+  y: 1000
   width: 6000
   height: 4800
+  canonical_workshop_shell: true
   scaffold:
   - core_supporting_generic_matrix
   - differentiation_vs_complexity
@@ -459,16 +547,22 @@ frames:
   guide:
     start_cs: Porovnej diferenciaci, komplexitu a evoluční fázi capability.
     outputs_cs: Core/supporting/generic, investiční rationale a build/buy/SaaS.
+    recipe_cs: '1) Ohodnoť diferenciaci a komplexitu. 2) Klasifikuj core/supporting/generic. 3) Porovnej build/buy/partner/retire. 4) Zapiš investiční rationale.'
+    done_criteria_cs: 'Klasifikace má business důvod, očekávanou investici, zvažované alternativy a vlastníka rozhodnutí.'
+    open_questions_cs: 'Co skutečně diferencuje, kde vzniká konkurenční výhoda a jak rychle se capability komoditizuje?'
+    heuristics_cs: 'Klasifikaci pravidelně reviduj; odděluj strategickou hodnotu od technické složitosti; pracuj s portfoliem.'
+    anti_patterns_cs: 'Všechno je core; core podle množství kódu; build jako výchozí odpověď bez trade-offu.'
     cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/01-metodicky-tok-a-gates.md
     method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/02-ddd-strategic-design.md
     starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
 - id: connect-context-map
   stage: connect
   title_cs: 50 – Context Map a data ownership
-  x: -2500
-  y: 27500
+  x: 12500
+  y: 1000
   width: 6000
   height: 4800
+  canonical_workshop_shell: true
   scaffold:
   - bounded_context_map
   - upstream_downstream
@@ -482,16 +576,22 @@ frames:
   guide:
     start_cs: Nakresli explicitní vztahy mezi bounded contexts.
     outputs_cs: Upstream/downstream, data ownership, kontrakty, ACL a rizika.
+    recipe_cs: '1) Polož bounded contexts. 2) Urči upstream/downstream a ownership dat. 3) Pojmenuj mapping pattern a kontrakt. 4) Doplň ACL, rizika a failure modes.'
+    done_criteria_cs: 'Každý vztah má směr, vlastníka kontraktu, pattern, zdroj pravdy, provozní očekávání a riziko.'
+    open_questions_cs: 'Kdo může změnit kontrakt, kde probíhá překlad jazyka a co se stane při nedostupnosti upstreamu?'
+    heuristics_cs: 'Vztahy pojmenovávej explicitně; rozlišuj data ownership a kopii; používej ACL při významovém nesouladu.'
+    anti_patterns_cs: 'Neoznačené šipky; shared database jako neutrální integrace; ownership bez odpovědného týmu.'
     cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/product/04-synchronizace.md
     method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/07-integration-and-data-ownership.md
     starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
 - id: organize-teams
   stage: organize
   title_cs: 60 – Team Topologies
-  x: 5000
-  y: 4500
+  x: 19500
+  y: 1000
   width: 6000
   height: 4800
+  canonical_workshop_shell: true
   scaffold:
   - stream_aligned_ownership
   - platform_and_enabling_support
@@ -504,16 +604,22 @@ frames:
   guide:
     start_cs: Přiřaď ownership reálným týmům a ověř cognitive load.
     outputs_cs: Team Topologies typ, ownership a interaction mode.
+    recipe_cs: '1) Namapuj value streams a contexts. 2) Přiřaď typy týmů. 3) Zvol interaction modes. 4) Ověř cognitive load, mezery v ownership a governance guardrails.'
+    done_criteria_cs: 'Každý významný context a kontrakt má vlastníka; interakce mají režim, cíl a očekávanou dobu trvání.'
+    open_questions_cs: 'Kde tým čeká na jiný tým, co přesahuje cognitive load a která platformní služba chybí?'
+    heuristics_cs: 'Optimalizuj pro tok změny; interaction mode je dočasná nebo cílená dohoda; platforma je interní produkt.'
+    anti_patterns_cs: 'Context map kopírující org chart; permanentní collaboration všude; platform team jako ticket queue.'
     cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/01-metodicky-tok-a-gates.md
     method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/10-team-topologies-and-governance.md
     starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
 - id: define-bounded-context
   stage: define
   title_cs: 70 – Bounded Context Canvases
-  x: 13000
-  y: 4500
+  x: 26500
+  y: 1000
   width: 6000
   height: 4800
+  canonical_workshop_shell: true
   repeat_for: bounded_context
   scaffold:
   - purpose
@@ -531,16 +637,22 @@ frames:
   guide:
     start_cs: Vyplň canvas pro vybraný bounded context.
     outputs_cs: Purpose, jazyk, business decisions, komunikace a assumptions.
+    recipe_cs: '1) Formuluj purpose a strategickou roli. 2) Vymez jazyk a business decisions. 3) Zapiš inbound/outbound komunikaci. 4) Doplň assumptions, metriky a otázky.'
+    done_criteria_cs: 'Canvas vysvětluje odpovědnost contextu, jeho jazyk, klíčová rozhodnutí, kontrakty a hranice ownership.'
+    open_questions_cs: 'Která rozhodnutí patří dovnitř, co context nesmí vlastnit a jak ověříme jeho účel?'
+    heuristics_cs: 'Jeden canvas na bounded context; používej business slovesa a pojmy; propoj s Context Map a ownerem.'
+    anti_patterns_cs: 'Canvas jako seznam komponent; neomezený purpose; identický jazyk bez ověření hranice.'
     cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/05-design-level-eventstorming.md
     method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/02-ddd-strategic-design.md
     starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
 - id: define-design-level-es
   stage: define
   title_cs: '71 – EventStorming: Design Level'
-  x: 13000
-  y: 10000
+  x: 26500
+  y: 6500
   width: 6000
   height: 4800
+  canonical_workshop_shell: true
   repeat_for: selected_bounded_context
   mandatory_for:
   - core
@@ -564,16 +676,22 @@ frames:
   guide:
     start_cs: Modeluj detail pouze uvnitř jednoho BC.
     outputs_cs: Commands, policies, aggregate candidates, invariants a events.
+    recipe_cs: '1) Vyber jeden bounded context a scénář. 2) Modeluj commands, policies, aggregates a events. 3) Zviditelni invarianty. 4) Ověř transakční hranice a výjimky.'
+    done_criteria_cs: 'Tok zůstává uvnitř jednoho BC, aggregate candidates chrání pojmenované invarianty a read models odpovídají rozhodnutím.'
+    open_questions_cs: 'Která data musí být konzistentní okamžitě, kdo autorizuje command a jaké externí závislosti ovlivní výsledek?'
+    heuristics_cs: 'Modeluj od invariantů; jeden command má jasný intent; externí context nezahrnuj do jedné transakce.'
+    anti_patterns_cs: 'Aggregate podle tabulky; distribuovaná transakce přes contexts; event bez business významu.'
     cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/05-design-level-eventstorming.md
     method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/03-eventstorming-facilitace.md
     starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
 - id: define-lifecycle
   stage: define
   title_cs: 72 – Validovaný stavový model
-  x: 10000
-  y: 15500
+  x: 26500
+  y: 11500
   width: 5000
   height: 3800
+  canonical_workshop_shell: true
   repeat_for: key_domain_object
   mandatory_when:
   - object_has_non_trivial_lifecycle
@@ -591,16 +709,22 @@ frames:
   guide:
     start_cs: Validuj lifecycle s business ownerem a pravidly autorizace.
     outputs_cs: State diagram, transition table, guards a acceptance tests.
+    recipe_cs: '1) Přenes kandidátní lifecycle. 2) Ověř každý přechod s ownerem. 3) Doplň guards, autorizaci, timeouty a kompenzace. 4) Odvoď acceptance tests.'
+    done_criteria_cs: 'Diagram a transition table jsou konzistentní, pokrývají forbidden transitions a mají testovatelné business guards.'
+    open_questions_cs: 'Co se stane při souběhu, timeoutu nebo opakování commandu a které stavy jsou právně či auditně významné?'
+    heuristics_cs: 'Validuj tabulku i diagram; odděluj business stav od technického processing stavu; testuj negativní přechody.'
+    anti_patterns_cs: 'Enum bez přechodových pravidel; hidden status v datech; acceptance test pouze pro happy path.'
     cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/06-stavove-modely.md
     method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/03-ddd-tactical-design.md
     starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
 - id: define-quality
   stage: define
   title_cs: 73 – Quality attributes a integrační scénáře
-  x: 16000
-  y: 15500
+  x: 26500
+  y: 16500
   width: 5000
   height: 3800
+  canonical_workshop_shell: true
   scaffold:
   - quality_attribute_scenarios
   - failure_modes
@@ -612,16 +736,22 @@ frames:
   guide:
     start_cs: Zapiš měřitelné quality-attribute scénáře a failure modes.
     outputs_cs: Scénáře, consistency decisions, security, audit a observability.
+    recipe_cs: '1) Vyber kritický stimulus. 2) Urči prostředí, response a měřitelnou response measure. 3) Projdi failure modes. 4) Zapiš security, audit a observability signály.'
+    done_criteria_cs: 'Každý scénář má měřitelnou odezvu, vlastníka, trade-off a vazbu na konkrétní failure mode nebo business riziko.'
+    open_questions_cs: 'Jak poznáme degradaci, co musí zůstat dostupné, jaká data nesmí uniknout a jak rychle obnovujeme?'
+    heuristics_cs: 'Používej stimulus–response–measure; prioritizuj business dopad; propojuj scénáře s ADR a testy.'
+    anti_patterns_cs: 'Vágní „musí být rychlé“; SLA bez workloadu; observability až po implementaci.'
     cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/01-metodicky-tok-a-gates.md
     method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/05-quality-attributes.md
     starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
 - id: code-tactical-model
   stage: code
   title_cs: 80 – Taktický DDD a architektura
-  x: 13000
-  y: 21000
+  x: 33500
+  y: 1000
   width: 6000
   height: 4800
+  canonical_workshop_shell: true
   repeat_for: implementation_scope
   scaffold:
   - aggregates
@@ -638,16 +768,22 @@ frames:
   guide:
     start_cs: Navrhni agregáty podle invariantů, ne podle databázových tabulek.
     outputs_cs: Aggregate roots, value objects, services, repositories a events.
+    recipe_cs: '1) Seřaď invarianty. 2) Navrhni nejmenší aggregate boundaries. 3) Přiděl odpovědnosti entitám, value objects a services. 4) Vymez repositories a domain events.'
+    done_criteria_cs: 'Každý aggregate chrání konkrétní invariant, má jasný root, transakční hranici a publikované doménové události.'
+    open_questions_cs: 'Která konzistence musí být okamžitá, kde stačí eventual consistency a které pravidlo nepatří do agregátu?'
+    heuristics_cs: 'Agregáty drž malé; reference mezi agregáty přes identity; aplikační služba orchestruje, doména rozhoduje.'
+    anti_patterns_cs: 'Aggregate jako objektový graf celé domény; anemický model; repository pro každou entitu.'
     cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/product/01-architektura-ddda.md
     method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/03-ddd-tactical-design.md
     starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
 - id: code-state-machine
   stage: code
   title_cs: 81 – Implementační state machine (volitelné)
-  x: 10000
-  y: 26500
+  x: 33500
+  y: 6500
   width: 5000
   height: 3800
+  canonical_workshop_shell: true
   mandatory: false
   entry_criteria:
   - validated_lifecycle_exists
@@ -663,16 +799,22 @@ frames:
   guide:
     start_cs: Použij explicitní state machine pouze s doloženou hodnotou.
     outputs_cs: State chart, guards, persistence, concurrency a test cases.
+    recipe_cs: '1) Ověř, že explicitní state machine přidává hodnotu. 2) Přenes validovaný lifecycle. 3) Implementuj guards a persistence. 4) Doplň concurrency, idempotency a testy.'
+    done_criteria_cs: 'Implementační stavy odpovídají validovanému lifecycle, guards jsou testované a opakovaný command je bezpečný.'
+    open_questions_cs: 'Jak se řeší optimistic concurrency, retry, out-of-order event a změna definice lifecycle?'
+    heuristics_cs: 'Doménový lifecycle je autorita; persistence detail nesmí měnit význam; testuj všechny zakázané přechody.'
+    anti_patterns_cs: 'State machine jako náhrada nepochopené domény; technické stavy smíchané s business stavy; implicitní fallback transition.'
     cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/06-stavove-modely.md
     method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/03-ddd-tactical-design.md
     starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
 - id: code-views-and-decisions
   stage: code
   title_cs: 82 – C4, kontrakty a ADR
-  x: 16000
-  y: 26500
+  x: 33500
+  y: 11500
   width: 5000
   height: 3800
+  canonical_workshop_shell: true
   scaffold:
   - c4_context
   - c4_containers
@@ -685,6 +827,11 @@ frames:
   guide:
     start_cs: Propoj doménový model s implementační a provozní architekturou.
     outputs_cs: C4, API/event kontrakty, ADR, rollout a migration.
+    recipe_cs: '1) Aktualizuj C4 od contextu ke komponentám. 2) Specifikuj API/event kontrakty. 3) Zapiš významné trade-offy do ADR. 4) Naplánuj rollout, migraci a rollback.'
+    done_criteria_cs: 'Pohledy jsou konzistentní s Context Map, kontrakty mají ownera/verzi a významné volby mají ADR i migrační dopad.'
+    open_questions_cs: 'Které závislosti brání nezávislému nasazení, jak zachováme kompatibilitu a jak ověříme rollback?'
+    heuristics_cs: 'Každý pohled má publikum; kontrakty verzuj podle kompatibility; ADR zachycuje kontext, volbu a důsledky.'
+    anti_patterns_cs: 'C4 jako deployment inventář bez domény; ADR po rozhodnutí bez alternativ; big-bang migrace bez rollbacku.'
     cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/product/01-architektura-ddda.md
     method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/04-architecture-decision-making.md
     starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
@@ -757,19 +904,19 @@ managed_placements:
     frame_id: control-center
     position:
       x: -2100
-      y: -250
+      y: -850
     width: 1700
   ddda.current-status:
     frame_id: control-center
     position:
       x: 0
-      y: -250
+      y: -850
     width: 1900
   ddda.next-actions:
     frame_id: control-center
     position:
       x: 2100
-      y: -250
+      y: -850
     width: 1900
 zones:
 - id: zone-understand
@@ -896,16 +1043,24 @@ traceability:
 section_catalog:
   board_index:
     label_cs: Jak board používat
-    guidance_cs: Začni ve frame „00 – Navigace, legenda a stav artefaktů (Control Center)“, použij kompaktní
+    guidance_cs: Začni ve frame „00 – Control Center / Project State / Artifact Registry“, použij kompaktní
       osmibodový průvodce a pokračuj do aktivního pracovního frame.
   method_flow_legend:
     label_cs: Journey G1–G8
     guidance_cs: Čti aligned metodické zóny a stage flow shapes. Pojmenované Miro connectory ukazují dopředný
       tok i explicitní návraty; gate neposouvej bez lidského rozhodnutí.
-  artifact_status_legend:
-    label_cs: Stavy artefaktů
-    guidance_cs: Dynamická tabulková projekce seskupuje managed YAML artefakty podle jejich statusu. Gate
-      status je samostatný kontrakt.
+  project_gate_state_legend:
+    label_cs: Project / Gate State
+    guidance_cs: Pět gate stavů popisuje rozhodovací bod projektu a nesmí se odvozovat ze zralosti artefaktu.
+  artifact_lifecycle_legend:
+    label_cs: Artifact Lifecycle
+    guidance_cs: Šest lifecycle stavů popisuje zralost artefaktu od SCAFFOLD po SUPERSEDED.
+  artifact_provenance_legend:
+    label_cs: Artifact Provenance
+    guidance_cs: GENERATED, WORKSHOP, IMPORTED a MANUAL popisují původ obsahu, nikoli jeho zralost.
+  artifact_registry:
+    label_cs: Artifact Registry
+    guidance_cs: Jediný devítisloupcový shape-grid promítá managed YAML bez předstírání nativní Miro Table.
   event_storming_legend:
     label_cs: EventStorming legenda
     guidance_cs: Události, příkazy, policy, aktéři, systémy, read modely a hotspoty.
@@ -1326,6 +1481,12 @@ visual_contract:
   require_zone_connectors: 3
   require_example_panel: true
   require_example_sync_ignore: true
+  require_canonical_workshop_shell: true
+  require_state_lifecycle_provenance_separation: true
+  require_stage_columns: true
+  preserved_internal_frames:
+  - method-overview
+  - align-intake
   minimum_connector_count: 20
 method_transitions:
 - id: align-discover
@@ -2875,45 +3036,112 @@ overview_resources:
   label_cs: DDDA – knowledge index a zdroje
   url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/00-knowledge-index.md
 artifact_status_tables:
-  title_cs: Stavy artefaktů – synchronizováno z managed YAML
+  title_cs: ARTIFACT REGISTRY – managed YAML projection
+  project_gate_state_title_cs: PROJECT / GATE STATE — LEGENDA
+  lifecycle_title_cs: ARTIFACT LIFECYCLE — LEGENDA
+  lifecycle_legend_cs: Zralost artefaktu v metodickém toku; není to stav gate ani informace o původu.
+  provenance_title_cs: ARTIFACT PROVENANCE — LEGENDA
+  provenance_legend_cs: Původ obsahu; nemění lifecycle ani autoritu lidského gate decision.
   native_table_support: unavailable_in_miro_rest_v2
   rendering: deterministic_grid
   statuses:
-  - id: empty
+  - id: scaffold
     label_cs: SCAFFOLD
     aliases:
     - empty
-  - id: generated
-    label_cs: GENERATED
+    - scaffold
+    meaning_cs: Připravená struktura bez projektového obsahu.
+  - id: working
+    label_cs: WORKING
     aliases:
     - generated
-  - id: workshop
-    label_cs: WORKSHOP / CANDIDATE
-    aliases:
     - workshop
-    - candidate
+    - working
     - draft
     - observed
+    meaning_cs: Rozpracovaný obsah, který ještě není kandidátem k review.
+  - id: candidate
+    label_cs: CANDIDATE
+    aliases:
+    - candidate
+    - ready_for_review
+    meaning_cs: Obsah připravený k odbornému review.
   - id: validated
     label_cs: VALIDATED
     aliases:
     - validated
-    - ready_for_review
+    meaning_cs: Ověřeno doménovými nebo odbornými reviewery.
   - id: accepted
     label_cs: ACCEPTED
     aliases:
     - accepted
     - passed
+    meaning_cs: Explicitně přijatý artefakt v deklarovaném scope.
   - id: superseded
     label_cs: SUPERSEDED
     aliases:
     - superseded
     - deleted_pending
+    meaning_cs: Nahrazeno novější autoritativní verzí.
+  provenance_values:
+  - id: generated
+    label_cs: GENERATED
+    aliases:
+    - generated
+    - yaml
+    meaning_cs: Projekce byla vygenerována z autoritativního YAML.
+  - id: workshop
+    label_cs: WORKSHOP
+    aliases:
+    - workshop
+    - collaborative
+    meaning_cs: Obsah vznikl během facilitovaného workshopu.
+  - id: imported
+    label_cs: IMPORTED
+    aliases:
+    - imported
+    - external
+    meaning_cs: Obsah byl převzat z dohledatelného externího zdroje.
+  - id: manual
+    label_cs: MANUAL
+    aliases:
+    - manual
+    - miro
+    meaning_cs: Obsah byl vytvořen ručně a čeká na konsolidaci.
   columns:
   - artefakt
   - fáze
   - stav
   max_rows_per_status: 4
+  max_artifact_rows: 4
+  registry_columns:
+  - id: artifact
+    label_cs: Artifact
+    width_weight: 1.45
+  - id: type
+    label_cs: Type
+    width_weight: 1
+  - id: stage
+    label_cs: Stage
+    width_weight: 0.75
+  - id: lifecycle
+    label_cs: Lifecycle
+    width_weight: 0.95
+  - id: provenance
+    label_cs: Provenance
+    width_weight: 1
+  - id: owner
+    label_cs: Owner
+    width_weight: 0.9
+  - id: revision
+    label_cs: Revision
+    width_weight: 0.9
+  - id: last_sync
+    label_cs: Last sync
+    width_weight: 1.15
+  - id: detail
+    label_cs: Detail
+    width_weight: 1.5
 zone_transitions:
 - id: understand-strategic
   from: zone-understand

@@ -18,19 +18,20 @@ Společný workspace board není náhradou projektových boardů. Pokud vznikne,
 
 ## Jak se v inicializovaném boardu orientovat
 
-1. Otevři `00 – Navigace, legenda a stav artefaktů (Control Center)`.
-2. Zkontroluj current stage, current gate, decision question, blockery a next actions.
+1. Otevři `00 – Control Center / Project State / Artifact Registry`.
+2. Zkontroluj current stage, current gate, decision question, blockery a next actions; gate state nezaměňuj s lifecycle nebo provenance artefaktu.
 3. V `01 – DDD Starter journey, gates a iterace` si ověř celý tok, vyšší metodické skupiny a feedback loops.
-4. Přejdi do pracovního frame uvedeného u aktuální gate.
-5. Panel `VZOR / LEGENDA – neexportuje se do YAML` použij pouze jako metodický návod.
-6. Skutečný workshopový výstup konsoliduj do managed YAML artefaktu.
-7. Gate může automatizace připravit jako `ready_for_review`; lidské rozhodnutí vzniká mimo Miro v auditovatelném decision recordu.
+4. Přejdi do pracovního frame uvedeného u aktuální gate; frames `20–82` jsou organizovány v deterministických stage columns.
+5. V method guide použij recept, definition of done, otevřené otázky, heuristiky a anti-patterns.
+6. Projektový obsah vytvářej v editovatelné pracovní ploše; panel `VZOR / LEGENDA – neexportuje se do YAML` použij pouze jako metodický návod.
+7. Skutečný workshopový výstup konsoliduj do managed YAML artefaktu.
+8. Gate může automatizace připravit jako `ready_for_review`; lidské rozhodnutí vzniká mimo Miro v auditovatelném decision recordu.
 
 Základní metodika je [DDD Starter Modelling Process](https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work). DDDA rozšíření jsou popsána v [metodickém toku a gates](../methodology/01-metodicky-tok-a-gates.md), [knowledge indexu](../../knowledge/00-knowledge-index.md) a jednotlivých cookbooks.
 
 ### Omezení Miro REST reprezentace
 
-Renderer používá skutečné Miro shapes, sticky notes a connectors. Miro REST API v2 však neposkytuje obecný collapse/expand panel ani endpoint pro nativní tabulky. Onboarding je proto kompaktní panel s podrobným odkazem a tabulkové projekce jsou deterministické mřížky ze shapes. Tyto fallbacky jsou součástí testovaného scaffold contractu.
+Renderer používá skutečné Miro shapes, sticky notes a connectors. Miro REST API v2 však neposkytuje obecný collapse/expand panel ani programové vytvoření či aktualizaci obsahu nativních tabulek. Onboarding je proto kompaktní panel s podrobným odkazem a Artifact Registry je deterministická mřížka ze shapes. Tyto fallbacky jsou součástí testovaného scaffold contractu.
 
 Každý example panel a jeho obsah mají `sync_policy: ignore` a `exclude_from_ingestion: true`; nesmějí být při Miro → YAML synchronizaci povýšeny na projektovou evidenci.
 
@@ -198,6 +199,6 @@ Runner vypíše:
 - review workspace;
 - acceptance report.
 
-Finální lidský reviewer ověřuje `00 – Navigace, legenda a stav artefaktů`, `01 – DDD Starter journey, gates a iterace`, aktuální gate, čitelnost fontů, status legendu, mini-vzory, metodické odkazy, nepřekrývání, UTF-8 a zachování ruční workshopové práce. Human review se neopakuje po každé automatické opravě; proběhne jednou po zmrazení všech relevantních online změn.
+Finální lidský reviewer ověřuje `00 – Control Center / Project State / Artifact Registry`, `01 – DDD Starter journey, gates a iterace`, aktuální gate, oddělené legendy Gate State/Lifecycle/Provenance, devítisloupcový Artifact Registry, stage-column layout, třízónový shell `20–82`, čitelnost fontů, mini-vzory, metodické odkazy, nepřekrývání, UTF-8 a zachování ruční workshopové práce. Zároveň ověří, že frames `01` a `10` nebyly interně změněny. Human review se neopakuje po každé automatické opravě; proběhne jednou po zmrazení všech relevantních online změn.
 
 Traceability je popsána v [Miro DDD Starter traceability](../reference/miro-ddd-starter-traceability.md).

@@ -4,7 +4,14 @@ import shutil
 import pytest
 
 from ddda_miro.config import ProjectConfig
-from ddda_miro.render import assert_utf8_contract, render_board, validate_layout_contract, validate_remote_layout
+from ddda_miro.render import (
+    CANONICAL_SHELL_FRAME_IDS,
+    _workshop_shell_layout,
+    assert_utf8_contract,
+    render_board,
+    validate_layout_contract,
+    validate_remote_layout,
+)
 from ddda_miro.yamlio import load_yaml, save_yaml
 
 
@@ -118,6 +125,48 @@ def test_real_scaffold_satisfies_layout_traceability_and_utf8_contract(tmp_path)
     assert result["status"] == "PASS"
     assert result["gate_count"] == 8
     assert result["traceability_count"] == 8
+    assert result["canonical_workshop_shell_count"] == 15
+    assert result["stage_column_count"] == 8
+
+    frame_by_id = {frame["id"]: frame for frame in scaffold["frames"]}
+    canonical_ids = [
+        frame["id"] for frame in scaffold["frames"]
+        if frame.get("canonical_workshop_shell") is True
+    ]
+    assert canonical_ids == CANONICAL_SHELL_FRAME_IDS
+    assert "canonical_workshop_shell" not in frame_by_id["method-overview"]
+    assert "canonical_workshop_shell" not in frame_by_id["align-intake"]
+    align_shell = _workshop_shell_layout(frame_by_id["align-intake"])
+    assert align_shell["guide"]["x"] == pytest.approx(-1860)
+    assert align_shell["guide"]["y"] == pytest.approx(-1500)
+    assert align_shell["guide"]["width"] == pytest.approx(2040)
+    assert align_shell["example"] == pytest.approx({
+        "x": 1080,
+        "y": 30,
+        "width": 3480,
+        "height": 4380,
+    })
+    owned_frames = [
+        frame_id
+        for column in scaffold["stage_columns"]
+        for frame_id in column["frames"]
+    ]
+    assert sorted(owned_frames) == sorted(
+        frame["id"] for frame in scaffold["frames"] if frame.get("role") != "overview"
+    )
+    assert len(owned_frames) == len(set(owned_frames))
+
+    registry = scaffold["artifact_status_tables"]
+    assert [item["id"] for item in registry["statuses"]] == [
+        "scaffold", "working", "candidate", "validated", "accepted", "superseded",
+    ]
+    assert [item["id"] for item in registry["provenance_values"]] == [
+        "generated", "workshop", "imported", "manual",
+    ]
+    assert [item["id"] for item in registry["registry_columns"]] == [
+        "artifact", "type", "stage", "lifecycle", "provenance",
+        "owner", "revision", "last_sync", "detail",
+    ]
 
 
 def test_render_creates_control_center_journey_legends_and_is_idempotent(tmp_path):
@@ -132,11 +181,13 @@ def test_render_creates_control_center_journey_legends_and_is_idempotent(tmp_pat
     assert first["remote_layout_evidence"]["stage_visual_count"] >= 32
     assert first["remote_layout_evidence"]["workshop_example_count"] >= 45
     assert first["remote_layout_evidence"]["example_panel_count"] == 16
+    assert first["remote_layout_evidence"]["workshop_workspace_count"] == 15
     assert first["remote_layout_evidence"]["zone_header_count"] == 4
     assert first["remote_layout_evidence"]["zone_transition_count"] == 3
     assert first["remote_layout_evidence"]["transition_count"] >= 17
     assert first["remote_layout_evidence"]["navigation_connector_count"] >= 20
-    assert first["remote_layout_evidence"]["artifact_status_table_item_count"] >= 13
+    assert first["remote_layout_evidence"]["artifact_registry_cell_count"] == 45
+    assert first["remote_layout_evidence"]["state_lifecycle_provenance_separation"] == "PASS"
     assert first["utf8_status"] == "PASS"
     assert first["human_visual_acceptance_status"] == "PENDING"
     assert first["overall_status"] == "PENDING_HUMAN_REVIEW"
@@ -150,6 +201,8 @@ def test_render_creates_control_center_journey_legends_and_is_idempotent(tmp_pat
     assert len([key for key in mapping["items"] if key.startswith("stage-visual:G")]) >= 32
     assert len([key for key in mapping["items"] if key.startswith("example:")]) >= 45
     assert len([key for key in mapping["items"] if key.startswith("example-panel:")]) == 16
+    assert len([key for key in mapping["items"] if key.startswith("workspace-panel:")]) == 15
+    assert "workspace-panel:align-intake" not in mapping["items"]
     assert len([key for key in mapping["items"] if key.startswith("transition:")]) >= 9
     assert len([key for key in mapping["items"] if key.startswith("stage-gate:")]) == 8
     assert len([key for key in mapping["items"] if key.startswith("zone-transition:")]) == 3
@@ -182,6 +235,44 @@ def test_current_gate_highlight_changes_without_recreating_board_items(tmp_path)
     assert len(client.created) == created_count
     assert "DOKONČENO" in client.items[g1_remote_id]["data"]["content"]
     assert "AKTUÁLNÍ" in client.items[g2_remote_id]["data"]["content"]
+
+
+def test_render_removes_legacy_artifact_status_projection(tmp_path):
+    config = build_config(tmp_path)
+    client = FakeClient()
+    render_board(config, client, create_board=False, dry_run=False)
+    mapping_path = config.root / "miro" / "miro-map.yaml"
+    mapping = load_yaml(mapping_path)
+    legacy_remote_id = "shape-legacy-artifact-status"
+    client.items[legacy_remote_id] = {
+        "id": legacy_remote_id,
+        "type": "shape",
+        "data": {"content": "legacy"},
+        "position": {"x": 0, "y": 0},
+        "geometry": {"width": 100, "height": 100},
+        "style": {"fontSize": 18},
+    }
+    mapping["items"]["artifact-table:workshop:body"] = {
+        "miro_item_id": legacy_remote_id,
+        "item_type": "shape",
+        "frame_id": "control-center",
+        "managed": False,
+        "system_item": True,
+        "role": "artifact_status_table",
+        "sync_policy": "ignore",
+        "exclude_from_ingestion": True,
+    }
+    save_yaml(mapping_path, mapping)
+
+    result = render_board(config, client, create_board=False, dry_run=False)
+    updated = load_yaml(mapping_path)
+    assert "artifact-table:workshop:body" not in updated["items"]
+    assert legacy_remote_id not in client.items
+    assert any(
+        operation.get("action") == "delete_deprecated_system_item"
+        and operation.get("item_id") == "artifact-table:workshop:body"
+        for operation in result["operations"]
+    )
 
 
 def test_render_can_create_board_and_persist_board_id(tmp_path):
@@ -254,6 +345,21 @@ def test_workshop_guides_have_links_and_examples(tmp_path):
     assert len(example_entries) >= 45
     panel_entries = [value for value in mapping["items"].values() if value.get("role") == "workshop_example_panel"]
     assert len(panel_entries) == 16
+    workspace_entries = {
+        key: value for key, value in mapping["items"].items()
+        if value.get("role") == "workshop_workspace_panel"
+    }
+    assert len(workspace_entries) == 15
+    assert "workspace-panel:align-intake" not in workspace_entries
+    assert all(entry.get("sync_policy") == "manual" for entry in workspace_entries.values())
+    assert all(entry.get("exclude_from_ingestion") is False for entry in workspace_entries.values())
+
+    align_guide = client.items[guide_entries["align-intake:guide"]["miro_item_id"]]["data"]["content"]
+    assert "<strong>RECEPT</strong>" not in align_guide
+    for frame_id in CANONICAL_SHELL_FRAME_IDS:
+        content = client.items[guide_entries[f"{frame_id}:guide"]["miro_item_id"]]["data"]["content"]
+        for heading in ("RECEPT", "HOTOVO KDYŽ", "OTEVŘENÉ OTÁZKY", "HEURISTIKY", "ANTI-PATTERNS"):
+            assert f"<strong>{heading}</strong>" in content
     ignored_entries = [
         value for value in mapping["items"].values()
         if value.get("role") in {
@@ -264,3 +370,43 @@ def test_workshop_guides_have_links_and_examples(tmp_path):
     assert ignored_entries
     assert all(entry.get("sync_policy") == "ignore" for entry in ignored_entries)
     assert all(entry.get("exclude_from_ingestion") is True for entry in ignored_entries)
+
+
+def test_control_center_separates_gate_state_lifecycle_and_provenance(tmp_path):
+    config = build_config(tmp_path)
+    client = FakeClient()
+    render_board(config, client, create_board=False, dry_run=False)
+    mapping = load_yaml(config.root / "miro" / "miro-map.yaml")
+
+    roles = {
+        role: [key for key, entry in mapping["items"].items() if entry.get("role") == role]
+        for role in (
+            "project_gate_state_title",
+            "gate_state_legend",
+            "artifact_lifecycle_legend",
+            "artifact_provenance_legend",
+            "artifact_registry_table",
+        )
+    }
+    assert len(roles["project_gate_state_title"]) == 1
+    assert len(roles["gate_state_legend"]) == 5
+    assert len(roles["artifact_lifecycle_legend"]) == 1
+    assert len(roles["artifact_provenance_legend"]) == 1
+    assert len(roles["artifact_registry_table"]) == 45
+
+    gate_title = client.items[
+        mapping["items"]["control-center:gate-state-title"]["miro_item_id"]
+    ]["data"]["content"]
+    lifecycle = client.items[
+        mapping["items"]["artifact-registry:lifecycle-legend"]["miro_item_id"]
+    ]["data"]["content"]
+    provenance = client.items[
+        mapping["items"]["artifact-registry:provenance-legend"]["miro_item_id"]
+    ]["data"]["content"]
+    assert "PROJECT / GATE STATE" in gate_title
+    for lifecycle_id in ("SCAFFOLD", "WORKING", "CANDIDATE", "VALIDATED", "ACCEPTED", "SUPERSEDED"):
+        assert lifecycle_id in lifecycle
+    for provenance_id in ("GENERATED", "WORKSHOP", "IMPORTED", "MANUAL"):
+        assert provenance_id in provenance
+    assert "PASSED" not in lifecycle
+    assert "ACCEPTED" not in provenance
