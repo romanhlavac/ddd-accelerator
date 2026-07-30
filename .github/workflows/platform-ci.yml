@@ -209,3 +209,92 @@ jobs:
           path: ${{ runner.temp }}/validate-pr-reports/**
           if-no-files-found: error
           retention-days: 14
+
+  online-miro-acceptance:
+    name: Online Miro acceptance
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.action == 'synchronize' &&
+      github.event.pull_request.number == 8 &&
+      github.actor == 'romanhlavac' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: windows-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    env:
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      MIRO_TEAM_ID: "3458764678971681560"
+
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.SOURCE_SHA }}
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Check online secret availability
+        id: online-secret
+        shell: pwsh
+        env:
+          MIRO_ACCESS_TOKEN: ${{ secrets.MIRO_ACCESS_TOKEN }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:MIRO_ACCESS_TOKEN)) {
+            "available=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            "MIRO_ACCESS_TOKEN is not configured; online acceptance is skipped." | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
+          }
+          else {
+            "available=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          }
+
+      - name: Run exact-SHA online acceptance
+        if: steps.online-secret.outputs.available == 'true'
+        shell: pwsh
+        env:
+          MIRO_ACCESS_TOKEN: ${{ secrets.MIRO_ACCESS_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $actual = (git rev-parse HEAD).Trim()
+          if ($actual -ne $env:SOURCE_SHA) {
+            throw "Checkout SHA '$actual' neodpovídá PR head '$env:SOURCE_SHA'."
+          }
+          .\ddda.ps1 validate-pr `
+            -Pr ([int]$env:PR_NUMBER) `
+            -WithMiro `
+            -Full `
+            -KeepReviewBoard `
+            -MiroTeamId $env:MIRO_TEAM_ID `
+            -NonInteractive
+
+      - name: Stage online acceptance evidence
+        if: always() && steps.online-secret.outputs.available == 'true'
+        shell: pwsh
+        run: |
+          $target = Join-Path $env:RUNNER_TEMP 'online-miro-acceptance'
+          New-Item -ItemType Directory -Path $target -Force | Out-Null
+          foreach ($source in @(
+            (Join-Path $env:LOCALAPPDATA "DDDA\validation-reports"),
+            (Join-Path $env:LOCALAPPDATA "DDDA\acceptance-reports")
+          )) {
+            if (Test-Path -LiteralPath $source) {
+              Copy-Item -LiteralPath $source -Destination $target -Recurse -Force
+            }
+          }
+
+      - name: Upload online acceptance evidence
+        if: always() && steps.online-secret.outputs.available == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: online-miro-acceptance-${{ env.PR_NUMBER }}-${{ env.SOURCE_SHA }}
+          path: ${{ runner.temp }}/online-miro-acceptance/**
+          if-no-files-found: warn
+          retention-days: 14
