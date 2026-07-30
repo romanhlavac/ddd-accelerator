@@ -1,0 +1,171 @@
+name: Apply REM-PR8-HVA-CC-003
+
+on:
+  push:
+    branches:
+      - feat/project-steering-and-documentation
+    paths:
+      - .github/workflows/rem-003-apply.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rem-pr8-hva-cc-003
+  cancel-in-progress: false
+
+jobs:
+  apply-test-commit-push:
+    runs-on: windows-latest
+    timeout-minutes: 180
+    env:
+      EXPECTED_PARENT_SHA: 9796df802943dad602ae6d53bf7e78dcb20578ef
+      TARGET_BRANCH: feat/project-steering-and-documentation
+      PATCH_PATH: scripts/remediation/REM-PR8-HVA-CC-003.patch
+      TRANSPORT_WORKFLOW: .github/workflows/rem-003-apply.yml
+
+    steps:
+      - name: Checkout exact transport commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.sha }}
+          persist-credentials: true
+
+      - name: Verify transport preconditions
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $actual = (git rev-parse HEAD).Trim()
+          $parent = (git rev-parse HEAD^).Trim()
+          if ($actual -ne '${{ github.sha }}') {
+            throw "Checkout SHA '$actual' neodpovídá event SHA '${{ github.sha }}'."
+          }
+          if ($parent -ne $env:EXPECTED_PARENT_SHA) {
+            throw "REM-003 transport parent '$parent' neodpovídá '$env:EXPECTED_PARENT_SHA'."
+          }
+          if ($env:GITHUB_REF_NAME -ne $env:TARGET_BRANCH) {
+            throw "REM-003 smí běžet pouze na '$env:TARGET_BRANCH'."
+          }
+          if (-not (Test-Path -LiteralPath $env:PATCH_PATH -PathType Leaf)) {
+            throw "Remediation patch nebyl nalezen: $env:PATCH_PATH"
+          }
+          $changes = git status --porcelain
+          if (-not [string]::IsNullOrWhiteSpace(($changes -join "`n"))) {
+            throw "Transport checkout není čistý:`n$($changes -join "`n")"
+          }
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Apply remediation payload
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git apply --check --whitespace=nowarn $env:PATCH_PATH
+          git apply --whitespace=nowarn $env:PATCH_PATH
+          git rm -- $env:PATCH_PATH $env:TRANSPORT_WORKFLOW
+          $changes = git status --porcelain
+          if ([string]::IsNullOrWhiteSpace(($changes -join "`n"))) {
+            throw 'REM-003 nevytvořil žádné změny.'
+          }
+          Write-Host $changes
+
+      - name: Create local candidate commit
+        id: commit
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git config user.name 'DDDA Remediation Bot'
+          git config user.email 'ddda-remediation@example.invalid'
+          git add --all
+          git commit -m 'fix(platform): isolate candidate runtime and add remote execution broker'
+          $sha = (git rev-parse HEAD).Trim()
+          "sha=$sha" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          Write-Host "Local remediation SHA: $sha"
+
+      - name: Source-level validation
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          .\ddda.ps1 doctor
+          foreach ($suite in @('lint', 'schema', 'unit', 'component', 'regression', 'security')) {
+            Write-Host "=== REM-003 source suite: $suite ==="
+            .\ddda.ps1 test -Suite $suite -NonInteractive
+          }
+
+      - name: Build exact-SHA candidate package
+        id: package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $sha = '${{ steps.commit.outputs.sha }}'
+          $version = 'rem003.' + $env:GITHUB_RUN_ID + '.' + $sha.Substring(0, 12)
+          $output = Join-Path $env:RUNNER_TEMP ('ddda-rem003-' + $sha.Substring(0, 12) + '.zip')
+          $json = .\scripts\platform\New-DDDAPlatformPackage.ps1 `
+            -PlatformPath $PWD.Path `
+            -Kind candidate `
+            -Version $version `
+            -SourceRef $sha `
+            -OutputPath $output `
+            -Json | Out-String
+          $package = $json.Trim() | ConvertFrom-Json
+          if ($package.source_commit -ne $sha) {
+            throw 'Candidate package není svázán s lokálním remediation SHA.'
+          }
+          "path=$($package.path)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "sha256=$($package.sha256)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Package-first exact-SHA validation
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $packagePath = '${{ steps.package.outputs.path }}'
+          $sha = '${{ steps.commit.outputs.sha }}'
+          .\scripts\platform\Test-DDDAPlatformPackage.ps1 `
+            -PackagePath $packagePath `
+            -ExpectedCommit $sha `
+            -ExpectedKind candidate
+          foreach ($suite in @('integration', 'smoke', 'security', 'e2e')) {
+            Write-Host "=== REM-003 package suite: $suite ==="
+            .\ddda.ps1 test -Suite $suite -PackagePath $packagePath -NonInteractive
+          }
+          .\ddda.ps1 test `
+            -Suite acceptance `
+            -PackagePath $packagePath `
+            -CleanupOnFailure `
+            -NonInteractive
+
+      - name: Verify one clean remediation commit
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $changes = git status --porcelain
+          if (-not [string]::IsNullOrWhiteSpace(($changes -join "`n"))) {
+            throw "REM-003 testy zanechaly nečistý repozitář:`n$($changes -join "`n")"
+          }
+          $count = [int](git rev-list --count "${{ github.sha }}..HEAD")
+          if ($count -ne 1) {
+            throw "REM-003 musí vytvořit právě jeden implementační commit; vytvořeno: $count."
+          }
+          $actual = (git rev-parse HEAD).Trim()
+          if ($actual -ne '${{ steps.commit.outputs.sha }}') {
+            throw 'Lokální remediation SHA se během validace změnil.'
+          }
+
+      - name: Push validated remediation commit
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git push origin "HEAD:$env:TARGET_BRANCH"
+
+      - name: Upload candidate package
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rem-pr8-hva-cc-003-${{ steps.commit.outputs.sha }}
+          path: ${{ steps.package.outputs.path }}
+          if-no-files-found: warn
+          retention-days: 7
