@@ -271,11 +271,11 @@ intake:
             }
         }
 
-        foreach ($binding in [ordered]@{
+        foreach ($binding in ([ordered]@{
             render_contract_version = $renderContractVersion
             platform_source_commit = $platformSourceCommit
             scaffold_sha256 = $scaffoldSha256
-        }.GetEnumerator()) {
+        }).GetEnumerator()) {
             $pattern = "(?m)^$([regex]::Escape([string]$binding.Key)):[ \t]*(?:\r?\n[ \t]+)?$([regex]::Escape([string]$binding.Value))[ \t]*$"
             if ($mapText -notmatch $pattern) {
                 throw "Miro mapping není svázán s candidate package: '$($binding.Key)' neodpovídá '$($binding.Value)'."
