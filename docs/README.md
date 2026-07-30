@@ -30,7 +30,6 @@
 
 - [ADR 0001 — Reprodukovatelný lifecycle vývoje platformy](adr/0001-platform-development-lifecycle.md)
 - [ADR 0002 — Project steering a gate semantics](adr/0002-project-steering-and-gate-semantics.md)
-- [ADR 0003 — Control Center, Artifact Registry a kanonický workshop shell](adr/0003-miro-control-center-and-workshop-shell.md)
 - [PR #8 migration note](migration/pr8-non-breaking-steering-extension.md)
 - [Changelog](../CHANGELOG.md)
 

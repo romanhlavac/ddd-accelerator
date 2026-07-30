@@ -69,21 +69,13 @@ Starší `passed` bez strukturované human provenance se po novém status přepo
 Při explicitním opakovaném Miro initializeru se existující project-owned board aktualizuje idempotentně:
 
 - frames a systémové journey/legend items používají stabilní mapping;
-- `00 – Control Center / Project State / Artifact Registry`, DDD Starter journey G1–G8 a vyšší zóny se aktualizují podle nového layout contractu;
-- frames `20–82` přejdou na deterministické stage columns a třízónový shell; frames `01` a `10` se interně nemění;
-- Artifact Registry nově odděluje Project/Gate State, Artifact Lifecycle a Artifact Provenance;
+- `00 – Navigace, legenda a stav artefaktů`, DDD Starter journey G1–G8 a vyšší zóny se aktualizují podle nového layout contractu;
 - unmanaged workshopový obsah se nemaže;
 - layout existujícího managed doménového artefaktu se bez explicitního `--include-layout` nepřepisuje;
 - project charter, current status a next actions se přesunou do `control-center` pouze jako řízené managed artefakty;
 - technická aktualizace boardu končí `PENDING_HUMAN_REVIEW`, nikoli automatickým vizuálním PASS.
 
 Před aktualizací produkčně používaného boardu zkontroluj dry-run a projektový Git diff. Pro validační a release testy používej izolovaný review board, nikoli klientský board.
-
-### REM-PR8-HVA-CC-001 review isolation
-
-Baseline board `uXjVH2o4NRU=`, human-review target `uXjVH2vcvRI=` a metodický reference board `uXjVH27wYU4=` jsou pouze read-only vstupy. Remediation acceptance musí vytvořit nový izolovaný board z exact candidate SHA; nesmí tyto boardy znovu použít ani modifikovat.
-
-Změna scaffold schema `2.2 → 2.3` je aditivní vůči projektovým YAML artefaktům. Historický klíč `artifact_status_tables` zůstává čitelný kvůli kompatibilitě, ale jeho projekce je jeden devítisloupcový Artifact Registry. Nativní Miro Table se nevytváří, protože REST API v2 tento programový kontrakt neposkytuje.
 
 ## Git and generated outputs
 
