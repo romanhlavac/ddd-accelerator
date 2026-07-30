@@ -9,5 +9,35 @@
     "docs/adr/0001-platform-development-lifecycle.md",
     "docs/adr/0002-project-steering-and-gate-semantics.md",
     "docs/migration/pr8-non-breaking-steering-extension.md"
-  ]
+  ],
+  "remote_execution": {
+    "schema_version": 1,
+    "enabled": true,
+    "allowed_actors": [
+      "romanhlavac"
+    ],
+    "same_repository_only": true,
+    "exact_sha_required": true,
+    "miro_team_id": "3458764678971681560",
+    "required_secret_names": [
+      "MIRO_ACCESS_TOKEN"
+    ],
+    "allowed_validate_commands": [
+      "/ddda validate-pr --with-miro --full --keep-review-board"
+    ],
+    "remediation": {
+      "enabled": true,
+      "allowed_path_prefix": "scripts/remediation/",
+      "require_no_push_switch": true,
+      "maximum_new_commits": 1
+    },
+    "forbidden_operations": [
+      "merge",
+      "tag",
+      "release",
+      "promotion",
+      "force-push"
+    ],
+    "evidence_retention_days": 14
+  }
 }
