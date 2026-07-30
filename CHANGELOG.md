@@ -47,6 +47,9 @@ Změny pro další verzi se během vývoje zapisují sem. Před promotion se vš
 
 ### Fixed
 
+- candidate-package validation sanitizuje ambientní `PYTHONPATH`, `PYTHONHOME` a DDDA root proměnné před spuštěním child procesů;
+- Miro CLI běží v Python isolated mode a před prvním vzdáleným zápisem ověřuje skutečně importovaný modul, jeho SHA-256 a render contract;
+- GitHub Actions remote-execution broker umožňuje oprávněnému actorovi spouštět exact-SHA validation/acceptance bez předání Miro tokenu do ChatGPT runtime;
 - lidské visual review už nemůže zaměnit gate state za lifecycle nebo provenance artefaktu;
 - technický acceptance PASS už nemůže vzniknout pouze z lokálního mappingu: board musí prokázat exact candidate SHA, scaffold hash, render contract, minimálně 250 skutečně načtených items, povinný viditelný obsah a remote content digest;
 - editovatelná workshopová plocha je explicitně `manual`, zatímco celý `VZOR / LEGENDA` zůstává `ignore` a je vyloučen z ingestion;
