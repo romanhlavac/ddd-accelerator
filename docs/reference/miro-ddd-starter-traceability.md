@@ -15,6 +15,7 @@ Control Center onboarding
 → gate diamond
 → popsaný connector
 → pracovní frame
+→ method guide / editovatelná pracovní plocha
 → VZOR / LEGENDA
 → managed YAML artefakt
 → human gate decision
@@ -74,6 +75,8 @@ exclude_from_ingestion: true
 
 Sync tento obsah explicitně ignoruje i při `promote_new`. Vzor vysvětluje formu práce, ale nesmí se stát managed projektovým artefaktem ani splnit gate evidence.
 
+Frames `20–82` mají navíc jednotný třízónový shell. Method guide obsahuje method-specific recept, definition of done, otevřené otázky, heuristiky a anti-patterns; střední pracovní plocha je určena pro ruční projektový obsah a má `sync_policy: manual`. Frames `01` a `10` se interně nemění.
+
 ## Tabulkové projekce
 
 Slovníky, evidence inventory, strategické klasifikace, canvas a quality-attribute přehledy používají deterministický table-grid ze shapes. Důvodem je, že Miro REST API v2 neposkytuje endpoint pro vytvoření nativní Miro tabulky. Omezení je explicitní ve scaffold contractu a nesmí být maskováno tvrzením, že renderer vytváří nativní tabulku.
@@ -89,7 +92,11 @@ Testy ověřují:
 - minimální fonty, rozměry, rozestupy a nepřekrývání;
 - metodicky specifické sticky notes, shapes a table-grid příklady;
 - oddělený example panel ve všech pracovních frames;
+- kanonický třízónový shell přesně v patnácti frames `20–82`;
+- absenci nového workspace shellu ve frames `01` a `10`;
 - explicitní sync-ignore a ingestion-exclusion kontrakt pro vzory i jejich connectors;
+- oddělení pěti Project/Gate State hodnot, šesti Artifact Lifecycle hodnot a čtyř Artifact Provenance hodnot;
+- jeden Artifact Registry se sloupci `Artifact`, `Type`, `Stage`, `Lifecycle`, `Provenance`, `Owner`, `Revision`, `Last sync` a `Detail`;
 - remote Miro geometrii a skutečné connector IDs po renderu;
 - stabilní item IDs a current-gate highlight bez recreation;
 - UTF-8;
@@ -105,6 +112,6 @@ Reviewer ověřuje:
 - čitelnost stages, gates, zone flow a popisků connectorů;
 - zda vizuální typy odpovídají metodě, například sticky notes pro EventStorming;
 - zda je projektová pracovní plocha jasně oddělena od `VZOR / LEGENDA`;
-- použitelnost guides, resources a artifact-status table-gridu;
+- použitelnost method guides, editovatelných pracovních ploch, resources a Artifact Registry;
 - nepřekrývání, přiměřenou hustotu a české znaky;
 - že board nevytváří dojem automatického gate approval.

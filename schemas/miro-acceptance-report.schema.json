@@ -11,6 +11,12 @@
     "technical_sync_status",
     "layout_contract_status",
     "remote_layout_status",
+    "render_contract_status",
+    "render_contract_version",
+    "platform_source_commit",
+    "scaffold_sha256",
+    "remote_item_count",
+    "remote_content_digest",
     "review_team_selection_status",
     "utf8_status",
     "human_visual_acceptance_status",
@@ -412,6 +418,41 @@
         "NOT_RUN"
       ]
     },
+    "render_contract_status": {
+      "enum": [
+        "PASS",
+        "FAIL",
+        "NOT_RUN"
+      ]
+    },
+    "render_contract_version": {
+      "const": "REM-PR8-HVA-CC-002"
+    },
+    "platform_source_commit": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "scaffold_sha256": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "remote_item_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "remote_content_digest": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    },
     "review_team_selection_status": {
       "enum": [
         "EXPLICIT_TEAM",
@@ -431,6 +472,24 @@
       },
       "then": {
         "properties": {
+          "render_contract_status": {
+            "const": "PASS"
+          },
+          "platform_source_commit": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{40}$"
+          },
+          "scaffold_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "remote_item_count": {
+            "minimum": 250
+          },
+          "remote_content_digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
           "human_visual_acceptance_status": {
             "enum": [
               "PENDING",

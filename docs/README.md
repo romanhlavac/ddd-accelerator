@@ -30,7 +30,9 @@
 
 - [ADR 0001 — Reprodukovatelný lifecycle vývoje platformy](adr/0001-platform-development-lifecycle.md)
 - [ADR 0002 — Project steering a gate semantics](adr/0002-project-steering-and-gate-semantics.md)
+- [ADR 0003 — Control Center, Artifact Registry a kanonický workshop shell](adr/0003-miro-control-center-and-workshop-shell.md)
 - [PR #8 migration note](migration/pr8-non-breaking-steering-extension.md)
+- [Forenzní review REM-PR8-HVA-CC-001](reviews/REM-PR8-HVA-CC-001-forensic-review.md)
 - [Changelog](../CHANGELOG.md)
 
 ## Metodika
@@ -85,4 +87,4 @@
 
 ## Strukturní pravidlo
 
-V kořeni `docs/` je pouze tento index. Detailní dokumentace patří do `getting-started/`, `user-guide/`, `developer-guide/`, `adr/`, `migration/`, `capabilities/`, `cookbooks/`, `methodology/`, `product/` nebo `reference/`.
+V kořeni `docs/` je pouze tento index. Detailní dokumentace patří do `getting-started/`, `user-guide/`, `developer-guide/`, `adr/`, `migration/`, `reviews/`, `capabilities/`, `cookbooks/`, `methodology/`, `product/` nebo `reference/`.

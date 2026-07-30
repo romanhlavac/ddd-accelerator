@@ -31,6 +31,9 @@ Změny pro další verzi se během vývoje zapisují sem. Před promotion se vš
 
 ### Changed
 
+- korekce `REM-PR8-HVA-CC-002`: Miro scaffold schema `2.4` používá deterministické stage columns a ve frames `20–82` kanonický shell `method guide | editable work area | VZOR / LEGENDA`; frames `01` a `10` zůstávají interně beze změny;
+- Control Center odděluje `Project / Gate State`, `Artifact Lifecycle` a `Artifact Provenance` a promítá managed YAML do jediného devítisloupcového Artifact Registry;
+- method guides ve frames `20–82` obsahují method-specific recept, definition of done, otevřené otázky, heuristiky a anti-patterns;
 - dokumentace je organizována do getting-started, methodology, capabilities, cookbooks, product, reference, developer-guide, user-guide, ADR a migration sekcí;
 - projektový Miro bootstrap publikuje vedle scaffoldu také aktuální managed YAML artefakty;
 - JSON reporty a jejich testy zachovávají prázdné kolekce jako skutečná pole v PowerShellu 7 i Windows PowerShellu 5.1;
@@ -44,6 +47,10 @@ Změny pro další verzi se během vývoje zapisují sem. Před promotion se vš
 
 ### Fixed
 
+- lidské visual review už nemůže zaměnit gate state za lifecycle nebo provenance artefaktu;
+- technický acceptance PASS už nemůže vzniknout pouze z lokálního mappingu: board musí prokázat exact candidate SHA, scaffold hash, render contract, minimálně 250 skutečně načtených items, povinný viditelný obsah a remote content digest;
+- editovatelná workshopová plocha je explicitně `manual`, zatímco celý `VZOR / LEGENDA` zůstává `ignore` a je vyloučen z ingestion;
+- Artifact Registry používá reprodukovatelný shape-grid a transparentně deklaruje omezení Miro REST API v2 namísto předstírání nativní Miro Table;
 - automatizace, CI, bot ani obecný reviewer text již nemohou vytvořit produkční `passed`;
 - změna relevantního scope, ownership nebo evidence hashů zneplatní dřívější gate decision;
 - test-only gate simulation je omezena na explicitně označený dočasný fixture projekt;

@@ -25,7 +25,7 @@
   ],
   "properties": {
     "schema_version": {
-      "type": "string"
+      "const": "2.4"
     },
     "id": {
       "type": "string",
@@ -212,6 +212,42 @@
         ]
       }
     },
+    "stage_columns": {
+      "type": "array",
+      "minItems": 8,
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "title_cs",
+          "x",
+          "frames"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title_cs": {
+            "type": "string",
+            "minLength": 1
+          },
+          "x": {
+            "type": "number"
+          },
+          "frames": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
     "frames": {
       "type": "array",
       "minItems": 1,
@@ -278,6 +314,9 @@
             "type": "string",
             "minLength": 1
           },
+          "canonical_workshop_shell": {
+            "type": "boolean"
+          },
           "guide": {
             "type": "object",
             "required": [
@@ -293,6 +332,26 @@
                 "minLength": 1
               },
               "outputs_cs": {
+                "type": "string",
+                "minLength": 1
+              },
+              "recipe_cs": {
+                "type": "string",
+                "minLength": 1
+              },
+              "done_criteria_cs": {
+                "type": "string",
+                "minLength": 1
+              },
+              "open_questions_cs": {
+                "type": "string",
+                "minLength": 1
+              },
+              "heuristics_cs": {
+                "type": "string",
+                "minLength": 1
+              },
+              "anti_patterns_cs": {
                 "type": "string",
                 "minLength": 1
               },
@@ -505,6 +564,8 @@
     "visual_contract": {
       "type": "object",
       "required": [
+        "render_contract_version",
+        "minimum_remote_item_count",
         "overview_frame",
         "minimum_stage_card_width",
         "minimum_stage_card_height",
@@ -522,9 +583,20 @@
         "require_zone_connectors",
         "require_example_panel",
         "require_example_sync_ignore",
+        "require_canonical_workshop_shell",
+        "require_state_lifecycle_provenance_separation",
+        "require_stage_columns",
+        "preserved_internal_frames",
         "minimum_connector_count"
       ],
       "properties": {
+        "render_contract_version": {
+          "const": "REM-PR8-HVA-CC-002"
+        },
+        "minimum_remote_item_count": {
+          "type": "integer",
+          "minimum": 250
+        },
         "overview_frame": {
           "type": "string",
           "minLength": 1
@@ -586,6 +658,25 @@
         },
         "require_example_sync_ignore": {
           "const": true
+        },
+        "require_canonical_workshop_shell": {
+          "const": true
+        },
+        "require_state_lifecycle_provenance_separation": {
+          "const": true
+        },
+        "require_stage_columns": {
+          "const": true
+        },
+        "preserved_internal_frames": {
+          "type": "array",
+          "contains": {
+            "const": "method-overview"
+          },
+          "minContains": 1,
+          "items": {
+            "type": "string"
+          }
         },
         "minimum_connector_count": {
           "type": "integer",
@@ -1067,6 +1158,26 @@
           "type": "string",
           "minLength": 1
         },
+        "project_gate_state_title_cs": {
+          "type": "string",
+          "minLength": 1
+        },
+        "lifecycle_title_cs": {
+          "type": "string",
+          "minLength": 1
+        },
+        "lifecycle_legend_cs": {
+          "type": "string",
+          "minLength": 1
+        },
+        "provenance_title_cs": {
+          "type": "string",
+          "minLength": 1
+        },
+        "provenance_legend_cs": {
+          "type": "string",
+          "minLength": 1
+        },
         "native_table_support": {
           "const": "unavailable_in_miro_rest_v2"
         },
@@ -1099,6 +1210,47 @@
                   "type": "string",
                   "minLength": 1
                 }
+              },
+              "meaning_cs": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "provenance_values": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "label_cs",
+              "aliases",
+              "meaning_cs"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "label_cs": {
+                "type": "string",
+                "minLength": 1
+              },
+              "aliases": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "meaning_cs": {
+                "type": "string",
+                "minLength": 1
               }
             },
             "additionalProperties": false
@@ -1115,6 +1267,38 @@
         "max_rows_per_status": {
           "type": "integer",
           "minimum": 1
+        },
+        "max_artifact_rows": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "registry_columns": {
+          "type": "array",
+          "minItems": 9,
+          "maxItems": 9,
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "label_cs",
+              "width_weight"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "label_cs": {
+                "type": "string",
+                "minLength": 1
+              },
+              "width_weight": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              }
+            },
+            "additionalProperties": false
+          }
         }
       },
       "additionalProperties": false

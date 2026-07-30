@@ -5,6 +5,7 @@ from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 
 import jsonschema
+import pytest
 
 
 MODULE_PATH = Path(__file__).resolve().parents[1] / "validate_repository.py"
@@ -154,7 +155,6 @@ def test_failure_report_can_exist_before_package_creation() -> None:
 
     jsonschema.validate(report, schema)
 
-
 def test_validation_report_preserves_deleted_miro_board_evidence() -> None:
     schema = json.loads(
         (REPOSITORY_ROOT / "schemas" / "validation-report.schema.json").read_text(
@@ -238,6 +238,12 @@ def test_miro_acceptance_schema_accepts_preserved_review_board() -> None:
         "technical_sync_status": "PASS",
         "layout_contract_status": "PASS",
         "remote_layout_status": "PASS",
+        "render_contract_status": "PASS",
+        "render_contract_version": "REM-PR8-HVA-CC-002",
+        "platform_source_commit": "a" * 40,
+        "scaffold_sha256": "b" * 64,
+        "remote_item_count": 259,
+        "remote_content_digest": "c" * 64,
         "review_team_selection_status": "EXPLICIT_TEAM",
         "utf8_status": "PASS",
         "human_visual_acceptance_status": "PENDING",
@@ -255,6 +261,16 @@ def test_miro_acceptance_schema_accepts_preserved_review_board() -> None:
     }
 
     jsonschema.validate(report, schema)
+
+    legacy_mapping_only_report = dict(report)
+    legacy_mapping_only_report.pop("remote_content_digest")
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(legacy_mapping_only_report, schema)
+
+    baseline_like_report = dict(report)
+    baseline_like_report["remote_item_count"] = 211
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(baseline_like_report, schema)
 
 
 def write_release_contract_fixture(root: Path) -> None:

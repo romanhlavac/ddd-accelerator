@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import hashlib
 import html
+import json
+import re
 import time
 from pathlib import Path
 from typing import Any
@@ -15,6 +18,86 @@ MOJIBAKE_MARKERS = ("â€“", "â€”", "Ă", "Ĺ", "Ä", "�")
 GATE_IDS = [f"G{index}" for index in range(1, 9)]
 GATE_STATUS_IDS = ["not_ready", "ready_for_review", "conditional", "rejected", "passed"]
 EXPECTED_STAGES = ["align", "discover", "decompose", "strategize", "connect", "organize", "define", "code"]
+RENDER_CONTRACT_VERSION = "REM-PR8-HVA-CC-002"
+CANONICAL_GUIDE_HEADINGS = (
+    "RECEPT",
+    "HOTOVO KDYŽ",
+    "OTEVŘENÉ OTÁZKY",
+    "HEURISTIKY",
+    "ANTI-PATTERNS",
+)
+CONTROL_CENTER_MARKERS = (
+    "PROJECT / GATE STATE",
+    "ARTIFACT LIFECYCLE",
+    "ARTIFACT PROVENANCE",
+    "ARTIFACT REGISTRY",
+)
+CANONICAL_SHELL_FRAME_IDS = [
+    "discover-big-picture-es",
+    "discover-evidence",
+    "discover-process-modeling",
+    "decompose-domain",
+    "decompose-lifecycles",
+    "strategize-classification",
+    "connect-context-map",
+    "organize-teams",
+    "define-bounded-context",
+    "define-design-level-es",
+    "define-lifecycle",
+    "define-quality",
+    "code-tactical-model",
+    "code-state-machine",
+    "code-views-and-decisions",
+]
+
+
+def _platform_source_commit(config: ProjectConfig) -> str:
+    package_manifest = config.platform_root / "ddda-package.json"
+    if package_manifest.is_file():
+        try:
+            payload = json.loads(package_manifest.read_text(encoding="utf-8-sig"))
+        except (json.JSONDecodeError, OSError) as exc:
+            raise ValueError(f"Invalid DDDA package manifest: {package_manifest}") from exc
+        source_commit = str(payload.get("source_commit") or "")
+        if not re.fullmatch(r"[0-9a-f]{40}", source_commit):
+            raise ValueError("ddda-package.json does not contain an exact 40-character source_commit")
+        return source_commit
+    return "WORKTREE"
+
+
+def _scaffold_sha256(config: ProjectConfig) -> str:
+    return hashlib.sha256(config.scaffold_path.read_bytes()).hexdigest()
+
+
+def _visible_text(item: dict[str, Any]) -> str:
+    data = item.get("data") or {}
+    raw = str(data.get("content") or data.get("title") or "")
+    return " ".join(html.unescape(re.sub(r"<[^>]*>", " ", raw)).split())
+
+
+def _remote_content_digest(
+    mapping: dict[str, Any],
+    remote_by_id: dict[str, dict[str, Any]],
+) -> str:
+    records: list[dict[str, Any]] = []
+    for semantic_id, entry in sorted((mapping.get("items") or {}).items()):
+        if not (entry or {}).get("system_item"):
+            continue
+        remote = remote_by_id.get(str((entry or {}).get("miro_item_id") or ""))
+        if not remote:
+            continue
+        records.append(
+            {
+                "semantic_id": semantic_id,
+                "role": str((entry or {}).get("role") or ""),
+                "type": str(remote.get("type") or (entry or {}).get("item_type") or ""),
+                "text": _visible_text(remote),
+                "position": remote.get("position") or {},
+                "geometry": remote.get("geometry") or {},
+            }
+        )
+    serialized = json.dumps(records, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
 
 def _walk_strings(value: Any):
@@ -82,6 +165,14 @@ def validate_layout_contract(scaffold: dict[str, Any]) -> dict[str, Any]:
     contract = scaffold.get("visual_contract") or {}
     coordinate = scaffold.get("coordinate_system") or {}
     minimum_fonts = coordinate.get("minimum_font_size") or {}
+    stage_columns = scaffold.get("stage_columns") or []
+
+    if str(contract.get("render_contract_version") or "") != RENDER_CONTRACT_VERSION:
+        failures.append(
+            f"visual contract must declare render_contract_version={RENDER_CONTRACT_VERSION}"
+        )
+    if int(contract.get("minimum_remote_item_count") or 0) < 250:
+        failures.append("visual contract minimum_remote_item_count must distinguish the redesigned board from the 211-item baseline")
 
     stage_ids = [str(item.get("id") or "") for item in stages]
     gate_ids = [str(item.get("id") or "") for item in gates]
@@ -90,6 +181,9 @@ def validate_layout_contract(scaffold: dict[str, Any]) -> dict[str, Any]:
     traced_gates = [str(item.get("gate") or "") for item in traceability]
     if stage_ids != EXPECTED_STAGES:
         failures.append(f"method_flow stages must be {EXPECTED_STAGES}, got {stage_ids}")
+    if contract.get("require_stage_columns"):
+        if len({float(stage.get("y", 0)) for stage in stages}) != 1:
+            failures.append("stage headers must share one horizontal axis")
     if gate_ids != GATE_IDS:
         failures.append(f"gates must be {GATE_IDS}, got {gate_ids}")
     if state_ids != GATE_STATUS_IDS:
@@ -114,8 +208,33 @@ def validate_layout_contract(scaffold: dict[str, Any]) -> dict[str, Any]:
     for field in ("details_url", "cookbook_url", "method_url", "starter_reference_url", "knowledge_index_url"):
         if not str(board_guide.get(field) or "").startswith("https://"):
             failures.append(f"board guide is missing {field}")
-    if not scaffold.get("artifact_status_tables"):
-        failures.append("control-center artifact status table contract is missing")
+    registry_cfg = scaffold.get("artifact_status_tables") or {}
+    if not registry_cfg:
+        failures.append("control-center artifact registry contract is missing")
+    if contract.get("require_state_lifecycle_provenance_separation"):
+        for field in (
+            "project_gate_state_title_cs",
+            "lifecycle_title_cs",
+            "lifecycle_legend_cs",
+            "provenance_title_cs",
+            "provenance_legend_cs",
+            "provenance_values",
+            "registry_columns",
+        ):
+            if not registry_cfg.get(field):
+                failures.append(f"control-center artifact registry is missing {field}")
+        lifecycle_ids = [str(item.get("id") or "") for item in registry_cfg.get("statuses") or []]
+        if lifecycle_ids != ["scaffold", "working", "candidate", "validated", "accepted", "superseded"]:
+            failures.append("artifact lifecycle must be SCAFFOLD → WORKING → CANDIDATE → VALIDATED → ACCEPTED → SUPERSEDED")
+        provenance_ids = [str(item.get("id") or "") for item in registry_cfg.get("provenance_values") or []]
+        if provenance_ids != ["generated", "workshop", "imported", "manual"]:
+            failures.append("artifact provenance must be GENERATED, WORKSHOP, IMPORTED, MANUAL")
+        registry_columns = [str(item.get("id") or "") for item in registry_cfg.get("registry_columns") or []]
+        if registry_columns != [
+            "artifact", "type", "stage", "lifecycle", "provenance",
+            "owner", "revision", "last_sync", "detail",
+        ]:
+            failures.append("artifact registry columns do not match the Control Center contract")
 
     frame_by_id = {str(item.get("id") or ""): item for item in frames}
     overview = frame_by_id.get(overview_id) or {}
@@ -158,6 +277,31 @@ def validate_layout_contract(scaffold: dict[str, Any]) -> dict[str, Any]:
     minimum_frame_height = float(contract.get("minimum_work_frame_height", 0))
     minimum_gap = float(contract.get("minimum_frame_gap", 0))
     work_frames = [frame for frame in frames if str(frame.get("role") or "work") != "overview"]
+    canonical_shell_ids = [
+        str(frame.get("id") or "")
+        for frame in frames
+        if frame.get("canonical_workshop_shell") is True
+    ]
+    if contract.get("require_canonical_workshop_shell"):
+        if canonical_shell_ids != CANONICAL_SHELL_FRAME_IDS:
+            failures.append(
+                "canonical workshop shell must cover frames 20–82 exactly and preserve frames 01/10"
+            )
+    if contract.get("require_stage_columns"):
+        owned_frame_ids: list[str] = []
+        for column in stage_columns:
+            column_x = float(column.get("x", 0))
+            for owned_frame_id in column.get("frames") or []:
+                owned_frame_id = str(owned_frame_id)
+                owned_frame_ids.append(owned_frame_id)
+                owned_frame = frame_by_id.get(owned_frame_id)
+                if not owned_frame:
+                    failures.append(f"stage column {column.get('id')} references unknown frame {owned_frame_id}")
+                elif float(owned_frame.get("x", 0)) != column_x:
+                    failures.append(f"frame {owned_frame_id} is outside its deterministic stage column")
+        expected_owned = [str(frame.get("id") or "") for frame in work_frames]
+        if sorted(owned_frame_ids) != sorted(expected_owned) or len(owned_frame_ids) != len(set(owned_frame_ids)):
+            failures.append("stage columns must own every non-overview frame exactly once")
     for frame in work_frames:
         frame_id = str(frame.get("id") or "")
         if not frame.get("purpose_cs") or not frame.get("scaffold"):
@@ -169,6 +313,25 @@ def validate_layout_contract(scaffold: dict[str, Any]) -> dict[str, Any]:
             for field in ("start_cs", "outputs_cs", "cookbook_url", "method_url", "starter_reference_url"):
                 if not guide.get(field):
                     failures.append(f"frame {frame_id} guide is missing {field}")
+            if frame.get("canonical_workshop_shell") is True:
+                for field in (
+                    "recipe_cs",
+                    "done_criteria_cs",
+                    "open_questions_cs",
+                    "heuristics_cs",
+                    "anti_patterns_cs",
+                ):
+                    if not guide.get(field):
+                        failures.append(f"frame {frame_id} canonical guide is missing {field}")
+                visible_guide = " ".join(str(guide.get(field) or "") for field in (
+                    "recipe_cs",
+                    "done_criteria_cs",
+                    "open_questions_cs",
+                    "heuristics_cs",
+                    "anti_patterns_cs",
+                ))
+                if len(visible_guide) < 240:
+                    failures.append(f"frame {frame_id} canonical guide is too shallow for visual onboarding")
             template = example_templates.get(str(frame.get("example_template") or "")) or {}
             if len(template.get("items") or []) < int(contract.get("minimum_example_items", 3)):
                 failures.append(f"frame {frame_id} has no useful mini-example template")
@@ -184,6 +347,13 @@ def validate_layout_contract(scaffold: dict[str, Any]) -> dict[str, Any]:
             local_frame = {"x": 0, "y": 0, "width": frame.get("width", 0), "height": frame.get("height", 0)}
             if not _inside(panel, local_frame, margin=100):
                 failures.append(f"frame {frame_id} example panel is outside parent boundaries")
+            if frame.get("canonical_workshop_shell") is True:
+                shell = _workshop_shell_layout(frame)
+                workspace = shell["workspace"]
+                if not _inside(workspace, local_frame, margin=100):
+                    failures.append(f"frame {frame_id} editable workspace is outside parent boundaries")
+                if _overlaps(workspace, panel, gap=120):
+                    failures.append(f"frame {frame_id} editable workspace overlaps VZOR / LEGENDA")
             for example_id, (x, y, width, height) in example_layout.items():
                 if not _inside({"x": x, "y": y, "width": width, "height": height}, panel, margin=80):
                     failures.append(f"frame {frame_id} mini-example {example_id} is outside example panel")
@@ -240,6 +410,8 @@ def validate_layout_contract(scaffold: dict[str, Any]) -> dict[str, Any]:
         "transition_count": len(transitions), "feedback_transition_count": feedback_count,
         "zone_transition_count": len(zone_transitions), "example_connector_count": example_connector_count,
         "stage_connector_count": stage_connector_count,
+        "canonical_workshop_shell_count": len(canonical_shell_ids),
+        "stage_column_count": len(stage_columns),
     }
 
 def _project_context(config: ProjectConfig) -> dict[str, Any]:
@@ -375,17 +547,26 @@ def _frame_guide_content(frame: dict[str, Any], project_id: str) -> str:
     scaffold_names = ", ".join(str(item).replace("_", " ") for item in (frame.get("scaffold") or [])[:6])
     if len(frame.get("scaffold") or []) > 6:
         scaffold_names += ", …"
-    return "".join(
-        [
-            f"<p><strong>ÚČEL</strong><br>{html.escape(str(frame.get('purpose_cs') or 'Řízená pracovní oblast.'))}</p>",
-            f"<p><strong>JAK ZAČÍT</strong><br>{html.escape(str(guide.get('start_cs') or 'Začni fakty, hypotézami a otevřenými otázkami.'))}</p>",
-            f"<p><strong>VÝSTUP</strong><br>{html.escape(str(guide.get('outputs_cs') or scaffold_names))}</p>",
-            f"<p><strong>ARTEFAKTY</strong><br>{html.escape(scaffold_names)}</p>",
-            f"<p>{_link('DDDA kuchařka', str(guide.get('cookbook_url') or ''))} · {_link('Metodika DDDA', str(guide.get('method_url') or ''))}</p>",
-            f"<p>{_link('DDD Starter Modelling Process', str(guide.get('starter_reference_url') or ''))}</p>",
-            f"<p>DDDA-SCAFFOLD:{project_id}:{frame['id']}:guide</p>",
-        ]
-    )
+    sections = [
+        f"<p><strong>ÚČEL</strong><br>{html.escape(str(frame.get('purpose_cs') or 'Řízená pracovní oblast.'))}</p>",
+        f"<p><strong>JAK ZAČÍT</strong><br>{html.escape(str(guide.get('start_cs') or 'Začni fakty, hypotézami a otevřenými otázkami.'))}</p>",
+    ]
+    if frame.get("canonical_workshop_shell") is True:
+        sections.extend([
+            f"<p><strong>RECEPT</strong><br>{html.escape(str(guide.get('recipe_cs') or 'Postupuj od evidence přes hypotézy k ověřenému výstupu.'))}</p>",
+            f"<p><strong>HOTOVO KDYŽ</strong><br>{html.escape(str(guide.get('done_criteria_cs') or guide.get('outputs_cs') or scaffold_names))}</p>",
+            f"<p><strong>OTEVŘENÉ OTÁZKY</strong><br>{html.escape(str(guide.get('open_questions_cs') or 'Co ještě nevíme, kdo to ověří a do kdy?'))}</p>",
+            f"<p><strong>HEURISTIKY</strong><br>{html.escape(str(guide.get('heuristics_cs') or 'Odděluj fakta, hypotézy a rozhodnutí.'))}</p>",
+            f"<p><strong>ANTI-PATTERNS</strong><br>{html.escape(str(guide.get('anti_patterns_cs') or 'Nezaměňuj příklad za projektovou evidenci.'))}</p>",
+        ])
+    sections.extend([
+        f"<p><strong>VÝSTUP</strong><br>{html.escape(str(guide.get('outputs_cs') or scaffold_names))}</p>",
+        f"<p><strong>ARTEFAKTY</strong><br>{html.escape(scaffold_names)}</p>",
+        f"<p>{_link('DDDA kuchařka', str(guide.get('cookbook_url') or ''))} · {_link('Metodika DDDA', str(guide.get('method_url') or ''))}</p>",
+        f"<p>{_link('DDD Starter Modelling Process', str(guide.get('starter_reference_url') or ''))}</p>",
+        f"<p>DDDA-SCAFFOLD:{project_id}:{frame['id']}:guide</p>",
+    ])
+    return "".join(sections)
 
 
 def _control_usage_content(frame: dict[str, Any], project_id: str, scaffold: dict[str, Any]) -> str:
@@ -407,7 +588,13 @@ def _control_usage_content(frame: dict[str, Any], project_id: str, scaffold: dic
         f"<p>DDDA-SCAFFOLD:{project_id}:control-center:usage</p>",
     ])
 
-def _control_summary(config: ProjectConfig, context: dict[str, Any]) -> str:
+def _control_summary(
+    config: ProjectConfig,
+    context: dict[str, Any],
+    *,
+    platform_source_commit: str,
+    scaffold_sha256: str,
+) -> str:
     status = context["status"]
     current = context["current_gate_data"]
     missing = current.get("missing") or []
@@ -428,7 +615,13 @@ def _control_summary(config: ProjectConfig, context: dict[str, Any]) -> str:
         f"<p><strong>Next actions:</strong> {html.escape('; '.join(map(str, actions)) if actions else 'nejsou')}</p>",
         f"<p><strong>Commit:</strong> {html.escape(project_commit)}</p>",
         f"<p><strong>Last sync:</strong> {html.escape(context['last_sync_at'])}</p>",
+        f"<p><strong>Render contract:</strong> {RENDER_CONTRACT_VERSION}</p>",
+        f"<p><strong>Platform source:</strong> {html.escape(platform_source_commit)}</p>",
+        f"<p><strong>Scaffold SHA-256:</strong> {scaffold_sha256}</p>",
         "<p><strong>Autorita:</strong> Git/YAML + explicitní human gate decision.</p>",
+        f"<p>DDDA-RENDER-CONTRACT:{RENDER_CONTRACT_VERSION}</p>",
+        f"<p>DDDA-PLATFORM-SOURCE:{html.escape(platform_source_commit)}</p>",
+        f"<p>DDDA-SCAFFOLD-SHA256:{scaffold_sha256}</p>",
         f"<p>DDDA-SCAFFOLD:{config.project_id}:control-center:summary</p>",
     ]
     return "".join(lines)
@@ -580,18 +773,108 @@ def _artifact_status_bucket(status: str, table_cfg: dict[str, Any]) -> str:
         aliases = {str(item).lower() for item in definition.get("aliases") or []}
         if normalized == str(definition.get("id") or "").lower() or normalized in aliases:
             return str(definition.get("id"))
-    return "workshop"
+    return "working"
+
+
+def _artifact_payload(artifact: Any) -> dict[str, Any]:
+    document = artifact.document if isinstance(artifact.document, dict) else {}
+    payload = document.get("artifact", document)
+    return payload if isinstance(payload, dict) else {}
+
+
+def _artifact_provenance(artifact: Any, table_cfg: dict[str, Any]) -> str:
+    payload = _artifact_payload(artifact)
+    miro = payload.get("miro") if isinstance(payload.get("miro"), dict) else {}
+    raw = str(payload.get("provenance") or miro.get("provenance") or "generated").lower()
+    aliases: dict[str, str] = {}
+    for definition in table_cfg.get("provenance_values") or []:
+        provenance_id = str(definition.get("id") or "")
+        aliases[provenance_id.lower()] = provenance_id
+        for alias in definition.get("aliases") or []:
+            aliases[str(alias).lower()] = provenance_id
+    return aliases.get(raw, "manual")
+
+
+def _artifact_owner(artifact: Any) -> str:
+    payload = _artifact_payload(artifact)
+    owner = payload.get("owner") or payload.get("owners") or "NEURČENO"
+    if isinstance(owner, dict):
+        owner = owner.get("name") or owner.get("id") or ", ".join(map(str, owner.values()))
+    if isinstance(owner, list):
+        owner = ", ".join(map(str, owner))
+    return str(owner)
+
+
+def _artifact_revision(artifact: Any, project_commit: str) -> str:
+    payload = _artifact_payload(artifact)
+    revision = str(payload.get("revision") or payload.get("git_revision") or project_commit or "UNCOMMITTED")
+    return revision[:12] if len(revision) >= 12 else revision
+
+
+def _workshop_shell_layout(frame: dict[str, Any]) -> dict[str, dict[str, float]]:
+    frame_width = float(frame.get("width", 5200))
+    frame_height = float(frame.get("height", 4200))
+    outer_margin = 180.0
+    zone_gap = 180.0
+    if frame.get("canonical_workshop_shell") is not True:
+        legacy_guide_width = min(2100.0, max(1550.0, frame_width * 0.34))
+        panel_left = -frame_width / 2 + legacy_guide_width + 300
+        panel_right = frame_width / 2 - outer_margin
+        panel_top = -frame_height / 2 + 240
+        panel_bottom = frame_height / 2 - outer_margin
+        return {
+            "guide": {
+                "x": -frame_width / 2 + legacy_guide_width / 2 + 120,
+                "y": -frame_height / 2 + 900,
+                "width": legacy_guide_width,
+                "height": frame_height - 2 * outer_margin,
+            },
+            "workspace": {"x": 0, "y": 0, "width": 0, "height": 0},
+            "example": {
+                "x": (panel_left + panel_right) / 2,
+                "y": (panel_top + panel_bottom) / 2,
+                "width": panel_right - panel_left,
+                "height": panel_bottom - panel_top,
+            },
+        }
+
+    guide_width = min(1900.0, max(1400.0, frame_width * 0.28))
+    example_width = min(2100.0, max(1400.0, frame_width * 0.30))
+    usable_width = frame_width - 2 * outer_margin - 2 * zone_gap
+    workspace_width = usable_width - guide_width - example_width
+    left = -frame_width / 2 + outer_margin
+    panel_top = -frame_height / 2 + 180
+    panel_bottom = frame_height / 2 - 180
+    guide = {
+        "x": left + guide_width / 2,
+        "y": -frame_height / 2 + 1240,
+        "width": guide_width,
+        "height": panel_bottom - panel_top,
+    }
+    workspace_left = left + guide_width + zone_gap
+    workspace = {
+        "x": workspace_left + workspace_width / 2,
+        "y": (panel_top + panel_bottom) / 2,
+        "width": workspace_width,
+        "height": panel_bottom - panel_top,
+    }
+    example_left = workspace_left + workspace_width + zone_gap
+    example = {
+        "x": example_left + example_width / 2,
+        "y": (panel_top + panel_bottom) / 2,
+        "width": example_width,
+        "height": panel_bottom - panel_top,
+    }
+    return {"guide": guide, "workspace": workspace, "example": example}
 
 
 def _template_layout(frame: dict[str, Any], template: dict[str, Any]) -> tuple[dict[str, tuple[float, float, float, float]], tuple[float, float, float], dict[str, float]]:
-    frame_width = float(frame.get("width", 5200))
-    frame_height = float(frame.get("height", 4200))
-    guide_width = min(2100.0, max(1550.0, frame_width * 0.34))
-    panel_left = -frame_width / 2 + guide_width + 300
-    panel_right = frame_width / 2 - 180
-    panel_top = -frame_height / 2 + 240
-    panel_bottom = frame_height / 2 - 180
-    panel = {"x": (panel_left + panel_right) / 2, "y": (panel_top + panel_bottom) / 2, "width": panel_right - panel_left, "height": panel_bottom - panel_top}
+    shell = _workshop_shell_layout(frame)
+    panel = shell["example"]
+    panel_left = panel["x"] - panel["width"] / 2
+    panel_right = panel["x"] + panel["width"] / 2
+    panel_top = panel["y"] - panel["height"] / 2
+    panel_bottom = panel["y"] + panel["height"] / 2
     title_y = panel_top + 220
     item_top = panel_top + 520
     items = template.get("items") or []
@@ -628,19 +911,39 @@ def _render_frame_guide_and_example(
 ) -> None:
     frame_id = str(frame["id"])
     minimum_fonts = (scaffold.get("coordinate_system") or {}).get("minimum_font_size") or {}
-    frame_width = float(frame.get("width", 5200))
-    frame_height = float(frame.get("height", 4200))
-    guide_width = min(2100.0, max(1550.0, frame_width * 0.34))
+    shell = _workshop_shell_layout(frame)
+    guide = shell["guide"]
     guide_payload = _text_payload(
         content=_frame_guide_content(frame, project_id),
-        x=-frame_width / 2 + guide_width / 2 + 120,
-        y=-frame_height / 2 + 900,
-        width=guide_width,
+        x=guide["x"],
+        y=guide["y"],
+        width=guide["width"],
         font_size=float(minimum_fonts.get("workshop_guide", 22)),
         parent_id=frame_remote_id, text_align="left",
     )
     _upsert_system_item(mapping=mapping, operations=operations, client=client, board_id=board_id, dry_run=False,
         item_id=f"{frame_id}:guide", item_type="text", payload=guide_payload, frame_id=frame_id, role="workshop_guide")
+
+    if frame.get("canonical_workshop_shell") is True:
+        workspace = shell["workspace"]
+        workspace_payload = _shape_payload(
+            content=(
+                "<p><strong>EDITOVATELNÁ PRACOVNÍ PLOCHA</strong></p>"
+                "<p>Sem patří projektový workshopový obsah. Rozlišuj fakta, hypotézy, "
+                "rozhodnutí, ownera a otevřené otázky.</p>"
+            ),
+            x=workspace["x"], y=workspace["y"],
+            width=workspace["width"], height=workspace["height"],
+            fill_color="#F8FAFC", font_size=18, shape="rectangle",
+            parent_id=frame_remote_id, border_color="#94A3B8", border_width=2,
+            text_align="center", text_align_vertical="top",
+        )
+        _upsert_system_item(
+            mapping=mapping, operations=operations, client=client, board_id=board_id,
+            dry_run=False, item_id=f"workspace-panel:{frame_id}", item_type="shape",
+            payload=workspace_payload, frame_id=frame_id, role="workshop_workspace_panel",
+            managed=False, sync_policy="manual",
+        )
 
     template = (scaffold.get("example_templates") or {}).get(str(frame.get("example_template") or "")) or {}
     layout, title, panel = _template_layout(frame, template)
@@ -700,6 +1003,7 @@ def _delete_deprecated_items(
             str((entry or {}).get("role") or "") == "method_transition"
             and str((entry or {}).get("item_type") or "") != "connector"
         )
+        or str((entry or {}).get("role") or "") == "artifact_status_table"
     ]
     for item_id in deprecated:
         entry = mapping["items"].get(item_id) or {}
@@ -800,6 +1104,7 @@ def validate_remote_layout(
             failures.append(f"{item_id} font size is below readable minimum")
     examples = role_entries.get("workshop_example") or []
     panels = role_entries.get("workshop_example_panel") or []
+    workspaces = role_entries.get("workshop_workspace_panel") or []
     for frame in frames:
         frame_id = str(frame.get("id") or "")
         if frame_id in {overview_id, "control-center"}:
@@ -809,6 +1114,15 @@ def validate_remote_layout(
         panel_entries = [entry for item_id, entry, _ in panels if item_id == f"example-panel:{frame_id}"]
         if len(panel_entries) != 1 or panel_entries[0].get("sync_policy") != "ignore":
             failures.append(f"remote frame {frame_id} has no sync-ignored example panel")
+        workspace_entries = [
+            entry for item_id, entry, _ in workspaces
+            if item_id == f"workspace-panel:{frame_id}"
+        ]
+        if frame.get("canonical_workshop_shell") is True:
+            if len(workspace_entries) != 1 or workspace_entries[0].get("sync_policy") != "manual":
+                failures.append(f"remote frame {frame_id} has no editable manual workspace panel")
+        elif workspace_entries:
+            failures.append(f"preserved frame {frame_id} must not receive the canonical workspace shell")
     zones = role_entries.get("zone_header") or []
     zone_connectors = role_entries.get("zone_transition") or []
     method_connectors = role_entries.get("method_transition") or []
@@ -826,9 +1140,80 @@ def validate_remote_layout(
     resources = role_entries.get("overview_resource_panel") or []
     if len(resources) != 1:
         failures.append("remote overview resource panel is missing")
-    artifact_tables = role_entries.get("artifact_status_table") or []
-    if len(artifact_tables) < 6:
-        failures.append("control-center artifact status table projection is incomplete")
+    gate_state_titles = role_entries.get("project_gate_state_title") or []
+    lifecycle_legends = role_entries.get("artifact_lifecycle_legend") or []
+    provenance_legends = role_entries.get("artifact_provenance_legend") or []
+    artifact_registry_titles = role_entries.get("artifact_registry_title") or []
+    artifact_registry = role_entries.get("artifact_registry_table") or []
+    if len(gate_state_titles) != 1:
+        failures.append("control-center Project / Gate State title is missing")
+    if len(lifecycle_legends) != 1:
+        failures.append("control-center Artifact Lifecycle legend is missing")
+    if len(provenance_legends) != 1:
+        failures.append("control-center Artifact Provenance legend is missing")
+    if len(artifact_registry_titles) != 1:
+        failures.append("control-center Artifact Registry title is missing")
+    registry_cfg = scaffold.get("artifact_status_tables") or {}
+    expected_registry_cells = len(registry_cfg.get("registry_columns") or []) * (
+        1 + int(registry_cfg.get("max_artifact_rows", 4))
+    )
+    if len(artifact_registry) != expected_registry_cells:
+        failures.append(
+            f"control-center Artifact Registry projection is incomplete: "
+            f"{len(artifact_registry)} vs {expected_registry_cells}"
+        )
+
+    minimum_remote_items = int(contract.get("minimum_remote_item_count") or 0)
+    if len(remote_items) < minimum_remote_items:
+        failures.append(
+            f"remote board has only {len(remote_items)} items; redesigned contract requires at least "
+            f"{minimum_remote_items} and must not collapse to the 211-item baseline"
+        )
+
+    visible_texts = [_visible_text(item) for item in remote_items]
+    visible_board_text = "\n".join(visible_texts)
+    for marker in CONTROL_CENTER_MARKERS:
+        if marker not in visible_board_text:
+            failures.append(f"remote board does not visibly contain {marker}")
+    for heading in CANONICAL_GUIDE_HEADINGS:
+        count = sum(heading in content for content in visible_texts)
+        if count != len(CANONICAL_SHELL_FRAME_IDS):
+            failures.append(
+                f"remote board must visibly contain {heading} in all "
+                f"{len(CANONICAL_SHELL_FRAME_IDS)} canonical workshop guides, got {count}"
+            )
+    workspace_count = sum("EDITOVATELNÁ PRACOVNÍ PLOCHA" in content for content in visible_texts)
+    if workspace_count != len(CANONICAL_SHELL_FRAME_IDS):
+        failures.append(
+            "remote board does not expose one visible editable workspace in every canonical workshop frame: "
+            f"{workspace_count} vs {len(CANONICAL_SHELL_FRAME_IDS)}"
+        )
+    for column in registry_cfg.get("registry_columns") or []:
+        label = str(column.get("label_cs") or "")
+        if label and label not in visible_board_text:
+            failures.append(f"remote Artifact Registry does not visibly contain column {label}")
+
+    expected_contract = str(contract.get("render_contract_version") or "")
+    mapped_contract = str(mapping.get("render_contract_version") or "")
+    if mapped_contract != expected_contract or expected_contract != RENDER_CONTRACT_VERSION:
+        failures.append(
+            f"render contract provenance mismatch: mapping={mapped_contract}, scaffold={expected_contract}, "
+            f"runtime={RENDER_CONTRACT_VERSION}"
+        )
+    platform_source_commit = str(mapping.get("platform_source_commit") or "")
+    if platform_source_commit != "WORKTREE" and not re.fullmatch(r"[0-9a-f]{40}", platform_source_commit):
+        failures.append("mapping does not identify an exact platform source commit")
+    scaffold_sha256 = str(mapping.get("scaffold_sha256") or "")
+    if not re.fullmatch(r"[0-9a-f]{64}", scaffold_sha256):
+        failures.append("mapping does not identify the rendered scaffold SHA-256")
+    for marker in (
+        f"DDDA-RENDER-CONTRACT:{RENDER_CONTRACT_VERSION}",
+        f"DDDA-PLATFORM-SOURCE:{platform_source_commit}",
+        f"DDDA-SCAFFOLD-SHA256:{scaffold_sha256}",
+    ):
+        if marker not in visible_board_text:
+            failures.append(f"remote board provenance marker is missing: {marker}")
+
     ignored_roles = (
         examples
         + panels
@@ -836,10 +1221,15 @@ def validate_remote_layout(
         + (role_entries.get("workshop_example_connector") or [])
         + stage_visuals
         + (role_entries.get("stage_visual_connector") or [])
+        + lifecycle_legends
+        + provenance_legends
+        + artifact_registry_titles
+        + artifact_registry
     )
     ignored = [entry for _item_id, entry, _remote in ignored_roles]
     if any(entry.get("sync_policy") != "ignore" or not entry.get("exclude_from_ingestion") for entry in ignored):
-        failures.append("example panel content is not explicitly excluded from YAML sync/ingestion")
+        failures.append("reference or registry projection content is not explicitly excluded from YAML sync/ingestion")
+    content_digest = _remote_content_digest(mapping, remote_by_id)
     if failures:
         raise ValueError("Miro remote layout contract failed: " + "; ".join(failures))
     return {
@@ -847,9 +1237,16 @@ def validate_remote_layout(
         "remote_frame_count": len(frame_remote), "journey_card_count": len(stage_cards), "gate_marker_count": len(gate_markers),
         "stage_visual_count": len(stage_visuals), "gate_legend_count": len(legends), "workshop_guide_count": len(guides),
         "workshop_example_count": len(examples), "example_panel_count": len(panels), "zone_header_count": len(zones),
+        "workshop_workspace_count": len(workspaces),
         "zone_transition_count": len(zone_connectors), "transition_count": len(method_connectors) + len(stage_gate_connectors),
         "navigation_connector_count": navigation_connector_count,
-        "artifact_status_table_item_count": len(artifact_tables),
+        "artifact_registry_cell_count": len(artifact_registry),
+        "artifact_status_table_item_count": len(artifact_registry),
+        "state_lifecycle_provenance_separation": "PASS",
+        "render_contract_version": RENDER_CONTRACT_VERSION,
+        "platform_source_commit": platform_source_commit,
+        "scaffold_sha256": scaffold_sha256,
+        "remote_content_digest": content_digest,
     }
 
 def render_board(config: ProjectConfig, client: MiroClient | None, *, create_board: bool, dry_run: bool) -> dict[str, Any]:
@@ -859,6 +1256,8 @@ def render_board(config: ProjectConfig, client: MiroClient | None, *, create_boa
     contract = validate_layout_contract(scaffold)
     context = _project_context(config)
     assert_utf8_contract(context, label="project steering context")
+    platform_source_commit = _platform_source_commit(config)
+    scaffold_sha256 = _scaffold_sha256(config)
     board_id = config.board_id
     operations: list[dict[str, Any]] = []
     if not board_id:
@@ -870,6 +1269,13 @@ def render_board(config: ProjectConfig, client: MiroClient | None, *, create_boa
             board = client.create_board(f"DDDA – {config.name}", f"DDDA project {config.project_id}; managed through YAML and Git. Miro is a projection, not gate authority.", team_id=config.team_id, project_id=config.miro_project_id)
             board_id = str(board["id"])
     mapping = load_map(config.root, config.project_id, board_id)
+    mapping.update(
+        {
+            "render_contract_version": RENDER_CONTRACT_VERSION,
+            "platform_source_commit": platform_source_commit,
+            "scaffold_sha256": scaffold_sha256,
+        }
+    )
     palette = scaffold.get("palette") or {}
     frames = scaffold.get("frames") or []
     frame_remote_ids: dict[str, str] = {}
@@ -881,6 +1287,14 @@ def render_board(config: ProjectConfig, client: MiroClient | None, *, create_boa
         operations.append({"action": "update_frame" if entry.get("miro_item_id") else "create_frame", "frame_id": frame_id, "title": payload["data"]["title"]})
         if dry_run:
             if frame_id not in {"control-center", str((scaffold.get("visual_contract") or {}).get("overview_frame") or "method-overview")}:
+                if frame.get("canonical_workshop_shell") is True:
+                    operations.append({
+                        "action": "create_system_item",
+                        "item_id": f"workspace-panel:{frame_id}",
+                        "item_type": "shape",
+                        "role": "workshop_workspace_panel",
+                        "sync_policy": "manual",
+                    })
                 operations.append({"action": "create_system_item", "item_id": f"example-panel:{frame_id}", "item_type": "shape", "role": "workshop_example_panel", "sync_policy": "ignore"})
                 template = (scaffold.get("example_templates") or {}).get(str(frame.get("example_template") or "")) or {}
                 for item in template.get("items") or []:
@@ -926,10 +1340,19 @@ def render_board(config: ProjectConfig, client: MiroClient | None, *, create_boa
 
     # Control Center summary and compact onboarding.
     _upsert_system_item(mapping=mapping, operations=operations, client=client, board_id=board_id, dry_run=False,
-        item_id="control-center:summary", item_type="text", payload=_text_payload(content=_control_summary(config, context), x=-1850, y=-1850, width=3000, font_size=22, parent_id=control_frame, text_align="left"), frame_id="control-center", role="control_center_summary")
+        item_id="control-center:summary", item_type="text", payload=_text_payload(
+            content=_control_summary(
+                config,
+                context,
+                platform_source_commit=platform_source_commit,
+                scaffold_sha256=scaffold_sha256,
+            ),
+            x=-2300, y=-2350, width=4000, font_size=22,
+            parent_id=control_frame, text_align="left",
+        ), frame_id="control-center", role="control_center_summary")
     control_cfg = next(frame for frame in frames if str(frame.get("id")) == "control-center")
     _upsert_system_item(mapping=mapping, operations=operations, client=client, board_id=board_id, dry_run=False,
-        item_id="control-center:usage", item_type="text", payload=_text_payload(content=_control_usage_content(control_cfg, config.project_id, scaffold), x=1750, y=-1800, width=3000, font_size=18, parent_id=control_frame, text_align="left", color="#365A8C"), frame_id="control-center", role="control_center_usage")
+        item_id="control-center:usage", item_type="text", payload=_text_payload(content=_control_usage_content(control_cfg, config.project_id, scaffold), x=2300, y=-2350, width=4000, font_size=18, parent_id=control_frame, text_align="left", color="#365A8C"), frame_id="control-center", role="control_center_usage")
 
     minimum_fonts = (scaffold.get("coordinate_system") or {}).get("minimum_font_size") or {}
     status_defs = _status_definitions(scaffold)
@@ -991,36 +1414,163 @@ def render_board(config: ProjectConfig, client: MiroClient | None, *, create_boa
             raise ValueError(f"Method transition {transition.get('id')} has no rendered endpoints")
         _upsert_connector(mapping=mapping, operations=operations, client=client, board_id=board_id, dry_run=False, item_id=f"transition:{kind}:{transition.get('id')}", payload=_connector_payload(start,end,str(transition.get("label_cs") or ""),shape=str(transition.get("shape") or ("curved" if kind=="feedback" else "elbowed")),stroke_color="#B45309" if kind=="feedback" else "#365A8C",stroke_style="dashed" if kind=="feedback" else "normal",start_snap="auto",end_snap="auto"), role="method_transition")
 
-    # Gate-state legend and dynamic artifact-status tables.
-    legend_positions=[-2800,-1400,0,1400,2800]
-    for index,state in enumerate(scaffold.get("gate_states") or []):
-        _upsert_system_item(mapping=mapping, operations=operations, client=client, board_id=board_id, dry_run=False, item_id=f"legend:{state.get('id')}", item_type="shape", payload=_shape_payload(content=f"<p><strong>{html.escape(str(state.get('symbol') or '•'))} {html.escape(str(state.get('label_cs') or state.get('id')))}</strong></p><p>{html.escape(str(state.get('meaning_cs') or ''))}</p>", x=legend_positions[index], y=900, width=1250, height=620, fill_color=str(state.get("fill_color") or "#FFFFFF"), font_size=float(minimum_fonts.get("gate_legend",24)), parent_id=control_frame, border_color="#64748B", border_width=2), frame_id="control-center", role="gate_state_legend")
-    table_cfg=scaffold.get("artifact_status_tables") or {}
+    # Control Center keeps gate state, artifact lifecycle and artifact provenance separate.
+    table_cfg = scaffold.get("artifact_status_tables") or {}
     _upsert_system_item(
-        mapping=mapping, operations=operations, client=client, board_id=board_id, dry_run=False,
-        item_id="artifact-table:title", item_type="text",
+        mapping=mapping, operations=operations, client=client, board_id=board_id,
+        dry_run=False, item_id="control-center:gate-state-title", item_type="text",
         payload=_text_payload(
             content=(
-                f"<p><strong>{html.escape(str(table_cfg.get('title_cs') or 'Stavy artefaktů'))}</strong></p>"
-                "<p>Jde o zralost artefaktů, nikoli o stav gate.</p>"
+                f"<p><strong>{html.escape(str(table_cfg.get('project_gate_state_title_cs') or 'PROJECT / GATE STATE — LEGENDA'))}</strong></p>"
+                "<p>Výsledek rozhodovacího bodu projektu; není to lifecycle artefaktu.</p>"
             ),
-            x=0, y=1450, width=6000, font_size=18, parent_id=control_frame,
+            x=0, y=-50, width=8000, font_size=18, parent_id=control_frame,
             text_align="center", color="#365A8C",
         ),
-        frame_id="control-center", role="artifact_status_table", managed=False, sync_policy="ignore",
+        frame_id="control-center", role="project_gate_state_title",
     )
-    artifacts=load_artifacts(config.root, config.artifact_root)
-    buckets={str(item.get("id")):[] for item in table_cfg.get("statuses") or []}
-    for artifact in artifacts:
-        buckets.setdefault(_artifact_status_bucket(artifact.status,table_cfg),[]).append(artifact)
-    status_defs_table=table_cfg.get("statuses") or []
-    start_x=-2900; column_width=950; header_y=1950; body_y=2500
-    for index,status in enumerate(status_defs_table):
-        sid=str(status.get("id")); x=start_x+index*1160
-        _upsert_system_item(mapping=mapping, operations=operations, client=client, board_id=board_id, dry_run=False, item_id=f"artifact-table:{sid}:header", item_type="shape", payload=_shape_payload(content=f"<p><strong>{html.escape(str(status.get('label_cs') or sid))}</strong></p>", x=x,y=header_y,width=column_width,height=360,fill_color="#E0F2FE",font_size=18,parent_id=control_frame,shape="rectangle",border_color="#2F7E95",border_width=2), frame_id="control-center", role="artifact_status_table", managed=False, sync_policy="ignore")
-        rows=buckets.get(sid,[])[:int(table_cfg.get("max_rows_per_status",4))]
-        row_text="<p>—</p>" if not rows else "".join(f"<p><strong>{html.escape(a.name[:28])}</strong><br>{html.escape(a.stage)} · {html.escape(a.status)}</p>" for a in rows)
-        _upsert_system_item(mapping=mapping, operations=operations, client=client, board_id=board_id, dry_run=False, item_id=f"artifact-table:{sid}:body", item_type="shape", payload=_shape_payload(content=row_text,x=x,y=body_y,width=column_width,height=700,fill_color="#FFFFFF",font_size=18,parent_id=control_frame,shape="rectangle",border_color="#94A3B8",border_width=1,text_align="left",text_align_vertical="top"), frame_id="control-center", role="artifact_status_table", managed=False, sync_policy="ignore")
+    legend_positions = [-3200, -1600, 0, 1600, 3200]
+    for index, state in enumerate(scaffold.get("gate_states") or []):
+        _upsert_system_item(
+            mapping=mapping, operations=operations, client=client, board_id=board_id,
+            dry_run=False, item_id=f"legend:{state.get('id')}", item_type="shape",
+            payload=_shape_payload(
+                content=(
+                    f"<p><strong>{html.escape(str(state.get('symbol') or '•'))} "
+                    f"{html.escape(str(state.get('label_cs') or state.get('id')))}</strong></p>"
+                    f"<p>{html.escape(str(state.get('meaning_cs') or ''))}</p>"
+                ),
+                x=legend_positions[index], y=390, width=1450, height=430,
+                fill_color=str(state.get("fill_color") or "#FFFFFF"),
+                font_size=float(minimum_fonts.get("gate_legend", 24)),
+                parent_id=control_frame, border_color="#64748B", border_width=2,
+            ),
+            frame_id="control-center", role="gate_state_legend",
+        )
+
+    lifecycle_content = " · ".join(
+        f"<strong>{html.escape(str(item.get('label_cs') or item.get('id')))}</strong>: "
+        f"{html.escape(str(item.get('meaning_cs') or ''))}"
+        for item in table_cfg.get("statuses") or []
+    )
+    _upsert_system_item(
+        mapping=mapping, operations=operations, client=client, board_id=board_id,
+        dry_run=False, item_id="artifact-registry:lifecycle-legend", item_type="shape",
+        payload=_shape_payload(
+            content=(
+                f"<p><strong>{html.escape(str(table_cfg.get('lifecycle_title_cs') or 'ARTIFACT LIFECYCLE'))}</strong></p>"
+                f"<p>{html.escape(str(table_cfg.get('lifecycle_legend_cs') or 'Zralost artefaktu.'))}</p>"
+                f"<p>{lifecycle_content}</p>"
+            ),
+            x=0, y=1000, width=8200, height=650, fill_color="#EFF6FF",
+            font_size=18, parent_id=control_frame, shape="rectangle",
+            border_color="#2F7E95", border_width=2, text_align="left",
+        ),
+        frame_id="control-center", role="artifact_lifecycle_legend",
+        managed=False, sync_policy="ignore",
+    )
+    provenance_content = " · ".join(
+        f"<strong>{html.escape(str(item.get('label_cs') or item.get('id')))}</strong>: "
+        f"{html.escape(str(item.get('meaning_cs') or ''))}"
+        for item in table_cfg.get("provenance_values") or []
+    )
+    _upsert_system_item(
+        mapping=mapping, operations=operations, client=client, board_id=board_id,
+        dry_run=False, item_id="artifact-registry:provenance-legend", item_type="shape",
+        payload=_shape_payload(
+            content=(
+                f"<p><strong>{html.escape(str(table_cfg.get('provenance_title_cs') or 'ARTIFACT PROVENANCE'))}</strong></p>"
+                f"<p>{html.escape(str(table_cfg.get('provenance_legend_cs') or 'Původ projektového obsahu.'))}</p>"
+                f"<p>{provenance_content}</p>"
+            ),
+            x=0, y=1660, width=8200, height=520, fill_color="#F5F3FF",
+            font_size=18, parent_id=control_frame, shape="rectangle",
+            border_color="#6D5AA7", border_width=2, text_align="left",
+        ),
+        frame_id="control-center", role="artifact_provenance_legend",
+        managed=False, sync_policy="ignore",
+    )
+    _upsert_system_item(
+        mapping=mapping, operations=operations, client=client, board_id=board_id,
+        dry_run=False, item_id="artifact-registry:title", item_type="text",
+        payload=_text_payload(
+            content=(
+                f"<p><strong>{html.escape(str(table_cfg.get('title_cs') or 'ARTIFACT REGISTRY'))}</strong></p>"
+                "<p>Jedna projekce oddělující lifecycle a provenance. "
+                "REST API v2 používá deterministický shape-grid, nikoli nativní Miro Table.</p>"
+            ),
+            x=0, y=2110, width=8200, font_size=18, parent_id=control_frame,
+            text_align="center", color="#365A8C",
+        ),
+        frame_id="control-center", role="artifact_registry_title",
+        managed=False, sync_policy="ignore",
+    )
+
+    artifacts = load_artifacts(config.root, config.artifact_root)
+    artifacts = sorted(artifacts, key=lambda item: (item.stage, item.artifact_type, item.artifact_id))
+    max_rows = int(table_cfg.get("max_artifact_rows", 4))
+    registry_columns = table_cfg.get("registry_columns") or []
+    total_weight = sum(float(column.get("width_weight", 1)) for column in registry_columns) or 1
+    table_width = 8400.0
+    left_edge = -table_width / 2
+    header_y = 2480.0
+    row_height = 300.0
+    project_commit = str(context["status"].get("project_commit") or "UNCOMMITTED")
+    last_sync = str(context.get("last_sync_at") or "NOT_SYNCED")
+    rows: list[dict[str, str]] = []
+    for artifact in artifacts[:max_rows]:
+        try:
+            detail = str(artifact.source_path.relative_to(config.root))
+        except ValueError:
+            detail = str(artifact.source_path)
+        rows.append({
+            "artifact": artifact.name,
+            "type": artifact.artifact_type,
+            "stage": artifact.stage,
+            "lifecycle": _artifact_status_bucket(artifact.status, table_cfg).upper(),
+            "provenance": _artifact_provenance(artifact, table_cfg).upper(),
+            "owner": _artifact_owner(artifact),
+            "revision": _artifact_revision(artifact, project_commit),
+            "last_sync": last_sync,
+            "detail": detail,
+        })
+    while len(rows) < max_rows:
+        rows.append({str(column.get("id")): "—" for column in registry_columns})
+
+    current_left = left_edge
+    for column in registry_columns:
+        column_id = str(column.get("id") or "")
+        column_width = table_width * float(column.get("width_weight", 1)) / total_weight
+        x = current_left + column_width / 2
+        _upsert_system_item(
+            mapping=mapping, operations=operations, client=client, board_id=board_id,
+            dry_run=False, item_id=f"artifact-registry:header:{column_id}",
+            item_type="shape", payload=_shape_payload(
+                content=f"<p><strong>{html.escape(str(column.get('label_cs') or column_id))}</strong></p>",
+                x=x, y=header_y, width=column_width, height=row_height,
+                fill_color="#E0F2FE", font_size=18, parent_id=control_frame,
+                shape="rectangle", border_color="#2F7E95", border_width=2,
+            ),
+            frame_id="control-center", role="artifact_registry_table",
+            managed=False, sync_policy="ignore",
+        )
+        for row_index, row in enumerate(rows, start=1):
+            _upsert_system_item(
+                mapping=mapping, operations=operations, client=client, board_id=board_id,
+                dry_run=False, item_id=f"artifact-registry:row:{row_index}:{column_id}",
+                item_type="shape", payload=_shape_payload(
+                    content=f"<p>{html.escape(str(row.get(column_id) or '—')[:72])}</p>",
+                    x=x, y=header_y + row_index * row_height,
+                    width=column_width, height=row_height,
+                    fill_color="#FFFFFF" if row_index % 2 else "#F8FAFC",
+                    font_size=18, parent_id=control_frame, shape="rectangle",
+                    border_color="#94A3B8", border_width=1,
+                    text_align="left", text_align_vertical="middle",
+                ),
+                frame_id="control-center", role="artifact_registry_table",
+                managed=False, sync_policy="ignore",
+            )
+        current_left += column_width
 
     expected_item_ids={str(frame.get("miro_item_id")) for frame in (mapping.get("frames") or {}).values() if (frame or {}).get("miro_item_id")}
     expected_item_ids.update(str(entry.get("miro_item_id")) for entry in (mapping.get("items") or {}).values() if (entry or {}).get("system_item") and (entry or {}).get("item_type") != "connector" and (entry or {}).get("miro_item_id"))
@@ -1028,7 +1578,7 @@ def render_board(config: ProjectConfig, client: MiroClient | None, *, create_boa
     remote_items=_load_remote_items(client,board_id,expected_item_ids)
     remote_connectors=_load_remote_connectors(client,board_id,expected_connector_ids)
     remote_layout=validate_remote_layout(scaffold,mapping,remote_items,remote_connectors)
-    mapping.update({"board_id":board_id,"scaffold_id":scaffold.get("id"),"scaffold_schema_version":scaffold.get("schema_version"),"rendered_at":utc_now(),"layout_contract_status":"PASS","remote_layout_status":remote_layout["status"],"remote_layout_evidence":remote_layout,"utf8_status":"PASS","human_visual_acceptance_status":"PENDING","overall_status":"PENDING_HUMAN_REVIEW","review_team_selection_status":"EXPLICIT_TEAM" if config.team_id else "DEFAULT_TOKEN_TEAM","developer_team_watermark_status":"EXTERNAL_ENVIRONMENT_NOT_RENDERED_BY_DDDA","traceability":scaffold.get("traceability") or []})
+    mapping.update({"board_id":board_id,"scaffold_id":scaffold.get("id"),"scaffold_schema_version":scaffold.get("schema_version"),"rendered_at":utc_now(),"layout_contract_status":"PASS","remote_layout_status":remote_layout["status"],"remote_layout_evidence":remote_layout,"remote_content_digest":remote_layout["remote_content_digest"],"utf8_status":"PASS","human_visual_acceptance_status":"PENDING","overall_status":"PENDING_HUMAN_REVIEW","review_team_selection_status":"EXPLICIT_TEAM" if config.team_id else "DEFAULT_TOKEN_TEAM","developer_team_watermark_status":"EXTERNAL_ENVIRONMENT_NOT_RENDERED_BY_DDDA","traceability":scaffold.get("traceability") or []})
     assert_utf8_contract(mapping,label="Miro mapping")
     save_map(config.root,mapping)
     return {"project_id":config.project_id,"board_id":board_id,"dry_run":False,"operations":operations,"operation_count":len(operations),"technical_sync_status":"NOT_RUN","layout_contract_status":"PASS","remote_layout_status":remote_layout["status"],"remote_layout_evidence":remote_layout,"utf8_status":"PASS","human_visual_acceptance_status":"PENDING","overall_status":"PENDING_HUMAN_REVIEW","traceability_count":contract["traceability_count"],"current_gate":context["current_gate"],"review_team_selection_status":"EXPLICIT_TEAM" if config.team_id else "DEFAULT_TOKEN_TEAM","developer_team_watermark_status":"EXTERNAL_ENVIRONMENT_NOT_RENDERED_BY_DDDA"}

@@ -58,6 +58,12 @@ $oldMiroToken = $env:MIRO_ACCESS_TOKEN
 $oldMiroTeamIdExists = Test-Path Env:\MIRO_TEAM_ID
 $oldMiroTeamId = if ($oldMiroTeamIdExists) { [string]$env:MIRO_TEAM_ID } else { $null }
 $remoteLayoutStatus = if ($WithMiro) { "FAIL" } else { "NOT_RUN" }
+$renderContractVersion = "REM-PR8-HVA-CC-002"
+$renderContractStatus = if ($WithMiro) { "FAIL" } else { "NOT_RUN" }
+$platformSourceCommit = $null
+$scaffoldSha256 = $null
+$remoteItemCount = 0
+$remoteContentDigest = $null
 $reviewTeamSelectionStatus = if (-not $WithMiro) { "NOT_APPLICABLE" } elseif (-not [string]::IsNullOrWhiteSpace($MiroTeamId)) { "EXPLICIT_TEAM" } else { "DEFAULT_TOKEN_TEAM" }
 $passed = $false
 
@@ -75,6 +81,12 @@ function Write-AcceptanceReport {
         technical_sync_status = $technicalSyncStatus
         layout_contract_status = if ($Status -eq "PASS") { "PASS" } else { "FAIL" }
         remote_layout_status = if ($Status -eq "PASS") { $remoteLayoutStatus } else { "FAIL" }
+        render_contract_status = if ($Status -eq "PASS") { $renderContractStatus } else { "FAIL" }
+        render_contract_version = $renderContractVersion
+        platform_source_commit = $platformSourceCommit
+        scaffold_sha256 = $scaffoldSha256
+        remote_item_count = $remoteItemCount
+        remote_content_digest = $remoteContentDigest
         review_team_selection_status = $reviewTeamSelectionStatus
         utf8_status = if ($Status -eq "PASS") { "PASS" } else { "FAIL" }
         human_visual_acceptance_status = $humanVisualStatus
@@ -119,6 +131,20 @@ try {
         if (-not [string]::IsNullOrWhiteSpace($MiroTeamId)) {
             $env:MIRO_TEAM_ID = $MiroTeamId
         }
+        $packageManifestPath = Join-Path $platformRoot "ddda-package.json"
+        if (-not (Test-Path -LiteralPath $packageManifestPath -PathType Leaf)) {
+            throw "Online acceptance vyžaduje candidate package s ddda-package.json a exact source_commit."
+        }
+        $packageManifest = Get-Content -LiteralPath $packageManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $platformSourceCommit = [string]$packageManifest.source_commit
+        if ($platformSourceCommit -notmatch '^[0-9a-f]{40}$') {
+            throw "Candidate package neobsahuje platný exact source_commit."
+        }
+        $scaffoldPath = Join-Path $platformRoot "scaffolds/miro/strategic-ddd-method-board.yaml"
+        if (-not (Test-Path -LiteralPath $scaffoldPath -PathType Leaf)) {
+            throw "Candidate package neobsahuje Miro scaffold."
+        }
+        $scaffoldSha256 = (Get-FileHash -LiteralPath $scaffoldPath -Algorithm SHA256).Hash.ToLowerInvariant()
     }
     Invoke-DDDAChildPowerShell -ScriptPath (Join-Path $platformRoot "scripts/Initialize-DDDAAfterClone.ps1") -Arguments @("-PlatformPath", $platformRoot, "-NonInteractive")
     if ($WithMiro -and $Full) {
@@ -244,6 +270,68 @@ intake:
                 throw "Miro mapping contract '$($contract.Key)' nemá očekávanou hodnotu '$($contract.Value)'."
             }
         }
+
+        foreach ($binding in [ordered]@{
+            render_contract_version = $renderContractVersion
+            platform_source_commit = $platformSourceCommit
+            scaffold_sha256 = $scaffoldSha256
+        }.GetEnumerator()) {
+            $pattern = "(?m)^$([regex]::Escape([string]$binding.Key)):[ \t]*(?:\r?\n[ \t]+)?$([regex]::Escape([string]$binding.Value))[ \t]*$"
+            if ($mapText -notmatch $pattern) {
+                throw "Miro mapping není svázán s candidate package: '$($binding.Key)' neodpovídá '$($binding.Value)'."
+            }
+        }
+        if ($mapText -notmatch '(?m)^remote_content_digest:[ \t]*(?:\r?\n[ \t]+)?[''"]?(?<digest>[0-9a-f]{64})[''"]?[ \t]*$') {
+            throw "Miro mapping neobsahuje auditovatelný remote_content_digest."
+        }
+        $remoteContentDigest = [string]$Matches["digest"]
+
+        $remoteItems = @(Get-DDDAAllMiroItems -BoardId $boardId -AccessToken $accessToken)
+        $remoteItemCount = $remoteItems.Count
+        if ($remoteItemCount -lt 250) {
+            throw "Remote board má pouze $remoteItemCount položek; redesign vyžaduje nejméně 250 a nesmí odpovídat 211položkové baseline."
+        }
+        $visibleRemoteTexts = [System.Collections.Generic.List[string]]::new()
+        foreach ($remoteItem in $remoteItems) {
+            $data = Get-DDDAObjectPropertyValue -InputObject $remoteItem -Name "data"
+            $content = [string](Get-DDDAObjectPropertyValue -InputObject $data -Name "content" -DefaultValue "")
+            if ([string]::IsNullOrWhiteSpace($content)) {
+                $content = [string](Get-DDDAObjectPropertyValue -InputObject $data -Name "title" -DefaultValue "")
+            }
+            if (-not [string]::IsNullOrWhiteSpace($content)) {
+                $visibleRemoteTexts.Add($content)
+            }
+        }
+        $visibleBoardText = [string]::Join("`n", $visibleRemoteTexts)
+        foreach ($marker in @(
+            "DDDA-RENDER-CONTRACT:$renderContractVersion",
+            "DDDA-PLATFORM-SOURCE:$platformSourceCommit",
+            "DDDA-SCAFFOLD-SHA256:$scaffoldSha256",
+            "PROJECT / GATE STATE",
+            "ARTIFACT LIFECYCLE",
+            "ARTIFACT PROVENANCE",
+            "ARTIFACT REGISTRY"
+        )) {
+            if ($visibleBoardText -notmatch [regex]::Escape($marker)) {
+                throw "Remote board neobsahuje povinný viditelný marker '$marker'."
+            }
+        }
+        foreach ($heading in @("RECEPT", "HOTOVO KDYŽ", "OTEVŘENÉ OTÁZKY", "HEURISTIKY", "ANTI-PATTERNS")) {
+            $headingCount = @($visibleRemoteTexts | Where-Object { $_ -match [regex]::Escape($heading) }).Count
+            if ($headingCount -ne 15) {
+                throw "Remote board musí obsahovat '$heading' v přesně 15 kanonických pracovních framech; nalezeno $headingCount."
+            }
+        }
+        $workspaceCount = @($visibleRemoteTexts | Where-Object { $_ -match [regex]::Escape("EDITOVATELNÁ PRACOVNÍ PLOCHA") }).Count
+        if ($workspaceCount -ne 15) {
+            throw "Remote board musí obsahovat 15 viditelných editovatelných pracovních ploch; nalezeno $workspaceCount."
+        }
+        foreach ($column in @("Artifact", "Type", "Stage", "Lifecycle", "Provenance", "Owner", "Revision", "Last sync", "Detail")) {
+            if ($visibleBoardText -notmatch [regex]::Escape($column)) {
+                throw "Remote Artifact Registry neobsahuje viditelný sloupec '$column'."
+            }
+        }
+        $renderContractStatus = "PASS"
         $remoteLayoutStatus = "PASS"
         $teamPattern = "(?m)^review_team_selection_status:\s*(?<status>EXPLICIT_TEAM|DEFAULT_TOKEN_TEAM)\s*$"
         if ($mapText -notmatch $teamPattern) {
@@ -272,6 +360,11 @@ intake:
     if ($WithMiro) {
         Write-Host "Layout contract: PASS"
         Write-Host "Remote Miro layout: PASS"
+        Write-Host "Render contract: $renderContractVersion PASS"
+        Write-Host "Platform source: $platformSourceCommit"
+        Write-Host "Scaffold SHA-256: $scaffoldSha256"
+        Write-Host "Remote items: $remoteItemCount"
+        Write-Host "Remote content digest: $remoteContentDigest"
         Write-Host "Review team selection: $reviewTeamSelectionStatus"
         Write-Host "UTF-8: PASS"
         Write-Host "Human visual acceptance: PENDING"

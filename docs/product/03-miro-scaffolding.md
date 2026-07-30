@@ -35,8 +35,8 @@ Renderer vytváří:
    - Strategy & Org Design,
    - Tactical Architecture;
 6. sedm dopředných přechodů a explicitní feedback loops;
-7. zarovnané pracovní frames s facilitačním návodem vlevo nahoře;
-8. v každém pracovním frame oddělený metodicky specifický panel `VZOR / LEGENDA`;
+7. deterministické stage columns s vlastnictvím pracovních frames: Control, Align, Discover, Decompose, Strategize, Connect, Organize, Define a Code;
+8. ve frames `20–82` kanonický třízónový shell: method guide, editovatelná pracovní plocha a metodicky specifický panel `VZOR / LEGENDA`;
 9. odkazy na DDD Starter Modelling Process, DDDA metodiku, cookbooks a knowledge index.
 
 Interní ID `control-center` zůstává stabilní pro mapping a synchronizaci. Viditelný název explicitně obsahuje označení Control Center.
@@ -54,7 +54,8 @@ Frame musí na první pohled ukázat:
 - project/source commit a poslední sync;
 - kompaktní osmibodový návod k použití boardu;
 - legendu všech pěti gate stavů;
-- synchronizovaný přehled zralosti managed artefaktů.
+- explicitně oddělené `Project / Gate State`, `Artifact Lifecycle` a `Artifact Provenance`;
+- jediný synchronizovaný Artifact Registry pro managed artefakty.
 
 Povinné managed artefakty mají stabilní placement:
 
@@ -64,11 +65,25 @@ ddda.current-status   → control-center
 ddda.next-actions     → control-center
 ```
 
-### Přehled stavů artefaktů
+### Tři nezávislé stavové dimenze
 
-Miro REST API v2 aktuálně neposkytuje endpoint pro vytvoření nativní Miro tabulky. Renderer proto používá deterministický vizuální table-grid složený z Miro shapes. Mřížka je naplněna z managed YAML a rozlišuje například scaffold, generated, workshop/candidate, validated, accepted a superseded.
+| Dimenze | Hodnoty | Význam |
+|---|---|---|
+| Project / Gate State | `not_ready`, `ready_for_review`, `conditional`, `rejected`, `passed` | stav rozhodovacího bodu projektu |
+| Artifact Lifecycle | `SCAFFOLD`, `WORKING`, `CANDIDATE`, `VALIDATED`, `ACCEPTED`, `SUPERSEDED` | zralost artefaktu |
+| Artifact Provenance | `GENERATED`, `WORKSHOP`, `IMPORTED`, `MANUAL` | původ obsahu |
 
-Tato projekce nesmí být zaměněna s gate statusy. `validated` artefakt může existovat i při gate `not_ready`; gate vyhodnocuje úplnost evidence a lidské rozhodnutí, nikoli pouze zralost jedné položky.
+Žádná z dimenzí se neodvozuje z jiné. Například artefakt může být `VALIDATED`, pocházet z `WORKSHOP`, ale gate stále zůstane `not_ready`, pokud chybí jiná evidence.
+
+### Artifact Registry
+
+Miro REST API v2 nepodporuje programové vytvoření ani aktualizaci obsahu nativní Miro Table. Renderer proto používá deterministický vizuální shape-grid. Registry je naplněn z managed YAML a má sloupce:
+
+```text
+Artifact | Type | Stage | Lifecycle | Provenance | Owner | Revision | Last sync | Detail
+```
+
+Historický konfigurační klíč `artifact_status_tables` zůstává kvůli kompatibilitě, ale jeho aktuální kontrakt reprezentuje jeden Artifact Registry, nikoli sadu statusových tabulek.
 
 ## `01 – DDD Starter journey, gates a iterace`
 
@@ -103,14 +118,17 @@ Přehled musí působit jako iterativní rozhodovací mapa, nikoli jako rigidní
 
 Rozlišení je založeno na symbolu, plném textovém labelu, významu a barvě. Barva je pouze podpůrná.
 
-## Workshop frames
+## Workshop frames `20–82`
 
-Každý pracovní frame má tři jasně oddělené části.
+Každý frame `20–82` má tři jasně oddělené části. Frames `01` a `10` jsou v této remediaci obsahově zachovány; makro-layout může změnit jejich pozici, ale renderer jim nepřidává nový shell.
 
 ### Facilitační návod vlevo nahoře
 
 - účel;
 - jak začít;
+- opakovatelný recept;
+- definition of done a otevřené otázky;
+- metodické heuristiky a anti-patterns;
 - očekávané výstupy;
 - povinné pracovní oblasti;
 - odkazy na DDDA cookbook, metodiku a DDD Starter reference.
@@ -152,6 +170,7 @@ Opakovaný render:
 - aktualizuje existující frames, shapes, sticky notes, texts a connectors;
 - nevytváří nový board;
 - zachovává stabilní journey, gate, zone a example IDs;
+- zachovává interní kontrakt frames `01` a `10`;
 - odstraní pouze zastaralé systémové prvky předchozí verze scaffoldu;
 - nemaže unmanaged workshopový obsah;
 - při běžném syncu nepřepisuje ručně upravený layout managed artefaktu bez explicitního `--include-layout`;
@@ -166,8 +185,10 @@ Před zápisem ověřuje YAML:
 - rozměry, minimální fonty, zarovnání a mezery;
 - G1–G8, gate diamonds, stage flow, čtyři zarovnané zóny a jejich connectors;
 - sedm dopředných přechodů a nejméně dvě feedback loops;
-- onboarding, resource links a artifact-status table contract;
-- guide a metodicky specifický example panel v každém pracovním frame;
+- onboarding, resource links a oddělení Project/Gate State, Artifact Lifecycle a Artifact Provenance;
+- kanonický třízónový shell přesně ve frames `20–82`;
+- recept, definition of done, otevřené otázky, heuristiky a anti-patterns v method guide;
+- metodicky specifický example panel v každém pracovním frame;
 - explicitní `sync_policy: ignore` a `exclude_from_ingestion`;
 - placement managed artefaktů a zákaz DDDA-rendered blocking overlay.
 
@@ -182,8 +203,14 @@ Po renderu renderer načte skutečné Miro items i connectors a ověří:
 - situační prvky pro všech osm stages;
 - pět čitelných gate-state karet;
 - top-left workshop guides;
+- patnáct editovatelných pracovních ploch ve frames `20–82` a žádnou novou shell plochu ve frame `10`;
 - oddělený example panel a jeho sync-ignore metadata;
-- resource panel a synchronizovaný artifact-status table-grid.
+- samostatnou lifecycle a provenance legendu;
+- jeden Artifact Registry s devíti deklarovanými sloupci.
+- viditelné provenance markery pro render contract, exact candidate SHA a scaffold SHA-256;
+- nejméně 250 vzdálených items, aby 211položková baseline nemohla projít jako redesign;
+- přesně patnáct viditelných pracovních ploch a patnáct výskytů každé povinné guide sekce;
+- `remote_content_digest` vypočtený z reálně načtených systémových položek.
 
 Výsledek se ukládá jako `remote_layout_status` a `remote_layout_evidence`.
 
@@ -197,6 +224,12 @@ Velký nápis `Developer team` není prvek renderovaný DDDA a není dostupný j
 technical_sync_status: PASS
 layout_contract_status: PASS
 remote_layout_status: PASS
+render_contract_status: PASS
+render_contract_version: REM-PR8-HVA-CC-002
+platform_source_commit: <40-char SHA>
+scaffold_sha256: <64-char SHA-256>
+remote_item_count: 250+
+remote_content_digest: <64-char SHA-256>
 utf8_status: PASS
 human_visual_acceptance_status: PENDING
 overall_status: PENDING_HUMAN_REVIEW
