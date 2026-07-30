@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)][string]$PlatformPath,
     [Parameter(Mandatory = $true)][string]$ExpectedRenderContractVersion,

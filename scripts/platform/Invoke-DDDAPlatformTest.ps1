@@ -241,6 +241,7 @@ function Invoke-OneSuite {
         "security" {
             Invoke-RepositoryValidator -ValidationSuite "security"
             Invoke-TestScript -RelativePath "tests/powershell/Test-DDDAPlatformSecurity.ps1" -Arguments @("-PlatformPath", $platformRoot)
+            Invoke-TestScript -RelativePath "tests/powershell/Test-DDDARuntimeIsolation.ps1" -Arguments @("-PlatformPath", $platformRoot)
             if (-not [string]::IsNullOrWhiteSpace($PackagePath)) {
                 Invoke-TestScript -RelativePath "scripts/platform/Test-DDDAPlatformPackage.ps1" -Arguments @("-PackagePath", (Resolve-Path -LiteralPath $PackagePath).Path)
             }

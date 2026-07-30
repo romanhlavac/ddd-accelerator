@@ -74,9 +74,9 @@ else {
 if (-not (Test-Path $steeringPython)) { throw "DDDA steering runtime nebyl vytvořen: $steeringPython" }
 if (-not (Test-Path $miroPython)) { throw "DDDA Miro runtime nebyl vytvořen: $miroPython" }
 
-& $steeringPython -m ddda_steering --help *> $null
+& $steeringPython -I -m ddda_steering --help *> $null
 Assert-DDDALastExitCode -Operation "Ověření DDDA steering CLI"
-& $miroPython -m ddda_miro --help *> $null
+& $miroPython -I -m ddda_miro --help *> $null
 Assert-DDDALastExitCode -Operation "Ověření DDDA Miro CLI"
 
 if ($isGitDistribution) {

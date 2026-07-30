@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [string]$PlatformPath = (Resolve-Path (Join-Path $PSScriptRoot "../..")).Path,
     [Parameter(Mandatory = $true)][string]$Repository,

@@ -99,14 +99,34 @@ function Invoke-ValidationSuite {
     }
 
     Write-Host "=== Validation suite: $Name ==="
+    $sanitizedEnvironmentNames = @(
+        "PYTHONPATH",
+        "PYTHONHOME",
+        "DDDA_PLATFORM_ROOT",
+        "DDDA_REPO_ROOT"
+    )
+    $savedEnvironment = @{}
     $previousPreference = $ErrorActionPreference
     $exitCode = 1
     try {
+        foreach ($environmentName in $sanitizedEnvironmentNames) {
+            $environmentPath = "Env:\$environmentName"
+            if (Test-Path -LiteralPath $environmentPath) {
+                $savedEnvironment[$environmentName] = [string](Get-Item -LiteralPath $environmentPath).Value
+                Remove-Item -LiteralPath $environmentPath
+            }
+        }
         $ErrorActionPreference = "Continue"
         & $hostExe @hostArguments *> $logPath
         $exitCode = $LASTEXITCODE
     }
     finally {
+        foreach ($environmentName in $sanitizedEnvironmentNames) {
+            Remove-Item -LiteralPath "Env:\$environmentName" -ErrorAction SilentlyContinue
+            if ($savedEnvironment.ContainsKey($environmentName)) {
+                Set-Item -LiteralPath "Env:\$environmentName" -Value $savedEnvironment[$environmentName]
+            }
+        }
         $ErrorActionPreference = $previousPreference
         $suiteStarted.Stop()
     }

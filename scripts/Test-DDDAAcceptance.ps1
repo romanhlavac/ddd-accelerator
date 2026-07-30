@@ -62,6 +62,9 @@ $renderContractVersion = "REM-PR8-HVA-CC-002"
 $renderContractStatus = if ($WithMiro) { "FAIL" } else { "NOT_RUN" }
 $platformSourceCommit = $null
 $scaffoldSha256 = $null
+$runtimeProvenanceStatus = if ($WithMiro) { "FAIL" } else { "NOT_RUN" }
+$runtimeProvenanceEvidencePath = Join-Path $reportRoot "runtime-provenance.json"
+$runtimeProvenance = $null
 $remoteItemCount = 0
 $remoteContentDigest = $null
 $reviewTeamSelectionStatus = if (-not $WithMiro) { "NOT_APPLICABLE" } elseif (-not [string]::IsNullOrWhiteSpace($MiroTeamId)) { "EXPLICIT_TEAM" } else { "DEFAULT_TOKEN_TEAM" }
@@ -85,6 +88,8 @@ function Write-AcceptanceReport {
         render_contract_version = $renderContractVersion
         platform_source_commit = $platformSourceCommit
         scaffold_sha256 = $scaffoldSha256
+        runtime_provenance_status = $runtimeProvenanceStatus
+        runtime_provenance = $runtimeProvenance
         remote_item_count = $remoteItemCount
         remote_content_digest = $remoteContentDigest
         review_team_selection_status = $reviewTeamSelectionStatus
@@ -147,6 +152,26 @@ try {
         $scaffoldSha256 = (Get-FileHash -LiteralPath $scaffoldPath -Algorithm SHA256).Hash.ToLowerInvariant()
     }
     Invoke-DDDAChildPowerShell -ScriptPath (Join-Path $platformRoot "scripts/Initialize-DDDAAfterClone.ps1") -Arguments @("-PlatformPath", $platformRoot, "-NonInteractive")
+    if ($WithMiro) {
+        $provenanceText = & (Join-Path $platformRoot "scripts/platform/Assert-DDDAMiroRuntimeProvenance.ps1") `
+            -PlatformPath $platformRoot `
+            -ExpectedRenderContractVersion $renderContractVersion `
+            -ExpectedSourceCommit $platformSourceCommit `
+            -ExpectedScaffoldSha256 $scaffoldSha256 `
+            -EvidencePath $runtimeProvenanceEvidencePath `
+            -Json | Out-String
+        if ($LASTEXITCODE -ne 0) {
+            throw "Miro runtime provenance guard selhal před prvním vzdáleným zápisem."
+        }
+        $runtimeProvenance = $provenanceText.Trim() | ConvertFrom-Json
+        if ([string]$runtimeProvenance.status -ne "PASS") {
+            throw "Miro runtime provenance guard nevrátil PASS."
+        }
+        if (-not [bool]$runtimeProvenance.checked_before_remote_write) {
+            throw "Miro runtime provenance nebyla ověřena před vzdáleným zápisem."
+        }
+        $runtimeProvenanceStatus = "PASS"
+    }
     if ($WithMiro -and $Full) {
         $smokeArgs = @("-PlatformPath", $platformRoot, "-SkipRuntimeInstall", "-Full")
         if ($NonInteractive) { $smokeArgs += "-NonInteractive" }
@@ -228,7 +253,8 @@ intake:
             "-PlatformPath", $platformRoot,
             "-WorkspaceRoot", $workspaceRoot,
             "-ProjectId", "acceptance-claims-modernization",
-            "-CreateBoard"
+            "-CreateBoard",
+            "-SuppressCommitInstructions"
         )
         if ($NonInteractive) { $miroArgs += "-NonInteractive" }
         Invoke-DDDAChildPowerShell -ScriptPath (Join-Path $platformRoot "scripts/Initialize-DDDAProjectMiro.ps1") -Arguments $miroArgs
@@ -361,6 +387,7 @@ intake:
         Write-Host "Layout contract: PASS"
         Write-Host "Remote Miro layout: PASS"
         Write-Host "Render contract: $renderContractVersion PASS"
+        Write-Host "Runtime provenance: $runtimeProvenanceStatus"
         Write-Host "Platform source: $platformSourceCommit"
         Write-Host "Scaffold SHA-256: $scaffoldSha256"
         Write-Host "Remote items: $remoteItemCount"
@@ -378,6 +405,9 @@ catch {
         $boardId = Get-BoardIdFromMap -MapPath $candidateMapPath
     }
     Write-AcceptanceReport -Status "FAIL" -ErrorMessage $_.Exception.Message -GateStatus $g1Status
+    if ($WithMiro) {
+        Write-Host "Generated Miro project changes are invalid diagnostic output. Do not commit." -ForegroundColor Yellow
+    }
     Write-Host "Acceptance workspace zachován pro diagnostiku: $workspaceRoot"
     Write-Host "Report: $reportFile"
     throw

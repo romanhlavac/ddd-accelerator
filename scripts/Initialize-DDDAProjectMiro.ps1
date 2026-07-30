@@ -8,7 +8,8 @@ param(
     [switch]$ResetToken,
     [switch]$ForceRecreateRuntime,
     [switch]$NonInteractive,
-    [switch]$Resume
+    [switch]$Resume,
+    [switch]$SuppressCommitInstructions
 )
 
 Set-StrictMode -Version Latest
@@ -30,7 +31,7 @@ function Invoke-ProjectMiroCli {
     $previousErrorActionPreference = $ErrorActionPreference
     try {
         $ErrorActionPreference = "Continue"
-        $raw = @(& $script:MiroPython -m ddda_miro --project $script:ProjectRoot --platform $script:PlatformRoot @CommandArguments 2>&1)
+        $raw = @(& $script:MiroPython -I -m ddda_miro --project $script:ProjectRoot --platform $script:PlatformRoot @CommandArguments 2>&1)
         $exitCode = $LASTEXITCODE
     }
     finally {
@@ -113,6 +114,35 @@ try {
     $script:MiroPython = Join-Path $script:PlatformRoot ".ddda/runtime/miro-venv/Scripts/python.exe"
     if (-not (Test-Path $script:MiroPython)) {
         throw "DDDA Miro runtime nebyl vytvořen: $($script:MiroPython)"
+    }
+
+    $packageManifestPath = Join-Path $script:PlatformRoot "ddda-package.json"
+    if (Test-Path -LiteralPath $packageManifestPath -PathType Leaf) {
+        $packageManifest = Get-Content -LiteralPath $packageManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $sourceCommit = [string]$packageManifest.source_commit
+        $renderPath = Join-Path $script:PlatformRoot "runtime/miro/ddda_miro/render.py"
+        $renderText = Get-Content -LiteralPath $renderPath -Raw -Encoding UTF8
+        if ($renderText -notmatch 'RENDER_CONTRACT_VERSION\s*=\s*"(?<version>[^"]+)"') {
+            throw "Candidate package renderer neobsahuje RENDER_CONTRACT_VERSION."
+        }
+        $expectedContract = [string]$Matches["version"]
+        $scaffoldPath = Join-Path $script:PlatformRoot "scaffolds/miro/strategic-ddd-method-board.yaml"
+        $scaffoldHash = (Get-FileHash -LiteralPath $scaffoldPath -Algorithm SHA256).Hash.ToLowerInvariant()
+        $provenanceEvidencePath = Join-Path $script:ProjectRoot "reports/miro-sync/runtime-provenance.json"
+        $provenanceText = & (Join-Path $script:PlatformRoot "scripts/platform/Assert-DDDAMiroRuntimeProvenance.ps1") `
+            -PlatformPath $script:PlatformRoot `
+            -ExpectedRenderContractVersion $expectedContract `
+            -ExpectedSourceCommit $sourceCommit `
+            -ExpectedScaffoldSha256 $scaffoldHash `
+            -EvidencePath $provenanceEvidencePath `
+            -Json | Out-String
+        if ($LASTEXITCODE -ne 0) {
+            throw "Miro runtime provenance guard selhal před prvním vzdáleným zápisem."
+        }
+        $provenance = $provenanceText.Trim() | ConvertFrom-Json
+        if ([string]$provenance.status -ne "PASS" -or -not [bool]$provenance.checked_before_remote_write) {
+            throw "Miro runtime provenance guard nevrátil PASS."
+        }
     }
 
     Write-Host "=== Projektový Miro preflight ==="
@@ -260,10 +290,16 @@ try {
     else {
         Write-Host $projectChanges
         Write-Host ""
-        Write-Host "Zkontroluj diff a commitni Miro mapping, sync state a sync report v projektovém repozitáři:"
-        Write-Host "  git -C `"$($script:ProjectRoot)`" diff -- miro/ reports/miro-sync/"
-        Write-Host "  git -C `"$($script:ProjectRoot)`" add miro/miro-map.yaml miro/sync-state.yaml reports/miro-sync/"
-        Write-Host "  git -C `"$($script:ProjectRoot)`" commit -m `"chore: initialize project Miro board and managed artifacts`""
+        if ($SuppressCommitInstructions) {
+            Write-Host "Projektové změny jsou diagnostický výstup acceptance běhu."
+            Write-Host "Necommituj je, dokud nadřazený acceptance report není technicky PASS."
+        }
+        else {
+            Write-Host "Zkontroluj diff a commitni Miro mapping, sync state a sync report v projektovém repozitáři:"
+            Write-Host "  git -C `"$($script:ProjectRoot)`" diff -- miro/ reports/miro-sync/"
+            Write-Host "  git -C `"$($script:ProjectRoot)`" add miro/miro-map.yaml miro/sync-state.yaml reports/miro-sync/"
+            Write-Host "  git -C `"$($script:ProjectRoot)`" commit -m `"chore: initialize project Miro board and managed artifacts`""
+        }
     }
 }
 finally {
