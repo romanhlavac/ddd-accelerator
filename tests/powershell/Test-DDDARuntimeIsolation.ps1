@@ -32,10 +32,22 @@ RENDER_CONTRACT_VERSION = "OLD-CONTAMINATED-RENDERER"
         throw "Renderer contract was not found."
     }
     $expectedContract = [string]$Matches["version"]
-    $sourceCommit = (& git -C $platformRoot rev-parse HEAD).Trim()
-    if ($LASTEXITCODE -ne 0 -or $sourceCommit -notmatch '^[0-9a-f]{40}$') {
-        throw "Exact source SHA was not resolved."
+
+    $packageManifestPath = Join-Path $platformRoot "ddda-package.json"
+    if (Test-Path -LiteralPath $packageManifestPath -PathType Leaf) {
+        $packageManifest = Get-Content -LiteralPath $packageManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $sourceCommit = [string]$packageManifest.source_commit
     }
+    else {
+        $sourceCommit = (& git -C $platformRoot rev-parse HEAD).Trim()
+        if ($LASTEXITCODE -ne 0) {
+            throw "Exact source SHA was not resolved from Git."
+        }
+    }
+    if ($sourceCommit -notmatch '^[0-9a-f]{40}$') {
+        throw "Exact source SHA has invalid format: '$sourceCommit'."
+    }
+
     $scaffoldHash = (Get-FileHash -LiteralPath (Join-Path $platformRoot "scaffolds/miro/strategic-ddd-method-board.yaml") -Algorithm SHA256).Hash.ToLowerInvariant()
 
     $env:PYTHONPATH = $fakeRoot + [System.IO.Path]::PathSeparator + (Join-Path $platformRoot "runtime/miro")
@@ -57,8 +69,14 @@ RENDER_CONTRACT_VERSION = "OLD-CONTAMINATED-RENDERER"
         throw "Test did not prove an ambient PYTHONPATH was present."
     }
     $expectedPath = [System.IO.Path]::GetFullPath($renderPath)
+    $comparison = if ($env:OS -eq "Windows_NT") {
+        [System.StringComparison]::OrdinalIgnoreCase
+    }
+    else {
+        [System.StringComparison]::Ordinal
+    }
     if (-not [string]$pass.imported_module_path -or
-        -not ([string]$pass.imported_module_path).Equals($expectedPath, [System.StringComparison]::OrdinalIgnoreCase)) {
+        -not ([string]$pass.imported_module_path).Equals($expectedPath, $comparison)) {
         throw "Isolated runtime imported a module outside the platform root: $($pass.imported_module_path)"
     }
 
