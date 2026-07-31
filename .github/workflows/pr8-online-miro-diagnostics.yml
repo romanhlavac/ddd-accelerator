@@ -1,0 +1,171 @@
+name: PR8 online Miro diagnostics
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr8-online-miro-diagnostics-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: true
+
+jobs:
+  diagnose:
+    if: >-
+      github.event.pull_request.number == 8 &&
+      github.actor == 'romanhlavac' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      MIRO_TEAM_ID: "3458764678971681560"
+
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.SOURCE_SHA }}
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run package-first online Miro diagnostics
+        id: diagnose
+        continue-on-error: true
+        shell: pwsh
+        env:
+          MIRO_ACCESS_TOKEN: ${{ secrets.MIRO_ACCESS_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ([string]::IsNullOrWhiteSpace($env:MIRO_ACCESS_TOKEN)) {
+            throw 'MIRO_ACCESS_TOKEN is not configured.'
+          }
+
+          $actual = (git rev-parse HEAD).Trim()
+          if ($actual -ne $env:SOURCE_SHA) {
+            throw "Checkout SHA '$actual' does not match '$env:SOURCE_SHA'."
+          }
+
+          $diagRoot = Join-Path $env:RUNNER_TEMP 'pr8-miro-diagnostics'
+          New-Item -ItemType Directory -Path $diagRoot -Force | Out-Null
+          $rawLog = Join-Path $diagRoot 'online-miro.raw.log'
+          $safeLog = Join-Path $diagRoot 'online-miro.log'
+          $exitCodePath = Join-Path $diagRoot 'exit-code.txt'
+
+          $version = 'diagnostic.' + $env:GITHUB_RUN_ID + '.' + $env:SOURCE_SHA.Substring(0, 12)
+          $packagePath = Join-Path $env:RUNNER_TEMP ('ddda-candidate-' + $env:SOURCE_SHA.Substring(0, 12) + '.zip')
+          $packageJson = .\scripts\platform\New-DDDAPlatformPackage.ps1 `
+            -PlatformPath $PWD.Path `
+            -Kind candidate `
+            -Version $version `
+            -SourceRef $env:SOURCE_SHA `
+            -OutputPath $packagePath `
+            -Json | Out-String
+          $package = $packageJson.Trim() | ConvertFrom-Json
+          if ([string]$package.source_commit -ne $env:SOURCE_SHA) {
+            throw 'Candidate source_commit mismatch.'
+          }
+
+          .\scripts\platform\Test-DDDAPlatformPackage.ps1 `
+            -PackagePath $packagePath `
+            -ExpectedCommit $env:SOURCE_SHA `
+            -ExpectedKind candidate
+
+          $packageRoot = Join-Path $env:RUNNER_TEMP 'online-miro-package'
+          if (Test-Path -LiteralPath $packageRoot) {
+            Remove-Item -LiteralPath $packageRoot -Recurse -Force
+          }
+          Expand-Archive -LiteralPath $packagePath -DestinationPath $packageRoot -Force
+
+          $manifest = Get-Content -LiteralPath (Join-Path $packageRoot 'ddda-package.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+          if ([string]$manifest.source_commit -ne $env:SOURCE_SHA -or [string]$manifest.kind -ne 'candidate') {
+            throw 'Expanded candidate provenance mismatch.'
+          }
+
+          git -C $packageRoot init --initial-branch=acceptance
+          git -C $packageRoot config user.name 'DDDA Online Diagnostics'
+          git -C $packageRoot config user.email 'ddda-online-diagnostics@example.invalid'
+          git -C $packageRoot add --all
+          git -C $packageRoot commit -m "test: initialize diagnostic candidate $env:SOURCE_SHA"
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Temporary package Git baseline failed.'
+          }
+
+          $code = 1
+          $previousPreference = $ErrorActionPreference
+          try {
+            $ErrorActionPreference = 'Continue'
+            & (Join-Path $packageRoot 'scripts\platform\Invoke-DDDAMiroAcceptanceEvidence.ps1') `
+              -PlatformPath $packageRoot `
+              -Suite project-steering `
+              -Full `
+              -KeepReviewBoard `
+              -MiroTeamId $env:MIRO_TEAM_ID `
+              -NonInteractive *> $rawLog
+            $code = $LASTEXITCODE
+            if ($null -eq $code) { $code = 0 }
+          }
+          catch {
+            ($_ | Out-String) | Add-Content -LiteralPath $rawLog -Encoding UTF8
+            $code = 1
+          }
+          finally {
+            $ErrorActionPreference = $previousPreference
+          }
+
+          $text = if (Test-Path -LiteralPath $rawLog) { Get-Content -LiteralPath $rawLog -Raw -Encoding UTF8 } else { '' }
+          if (-not [string]::IsNullOrWhiteSpace($env:MIRO_ACCESS_TOKEN)) {
+            $text = $text.Replace($env:MIRO_ACCESS_TOKEN, '[REDACTED]')
+          }
+          $text = [regex]::Replace($text, '(?i)Bearer\s+[A-Za-z0-9._~+/=-]{8,}', 'Bearer [REDACTED]')
+          $text = [regex]::Replace($text, '(?i)(MIRO_ACCESS_TOKEN\s*[=:]\s*)\S+', '$1[REDACTED]')
+          Set-Content -LiteralPath $safeLog -Value $text -Encoding UTF8
+          Remove-Item -LiteralPath $rawLog -Force -ErrorAction SilentlyContinue
+          Set-Content -LiteralPath $exitCodePath -Value ([string]$code) -Encoding ASCII
+
+          foreach ($source in @(
+            (Join-Path $env:LOCALAPPDATA 'DDDA\smoke-reports'),
+            (Join-Path $env:LOCALAPPDATA 'DDDA\acceptance-reports'),
+            (Join-Path $env:LOCALAPPDATA 'DDDA\validation-reports'),
+            (Join-Path $env:LOCALAPPDATA 'DDDA\validation'),
+            (Join-Path $packageRoot '.reports')
+          )) {
+            if (Test-Path -LiteralPath $source) {
+              $leaf = Split-Path -Leaf $source
+              Copy-Item -LiteralPath $source -Destination (Join-Path $diagRoot $leaf) -Recurse -Force
+            }
+          }
+
+          "exit_code=$code" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          Get-Content -LiteralPath $safeLog -Tail 160
+
+      - name: Upload redacted diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr8-online-miro-diagnostics-${{ env.SOURCE_SHA }}
+          path: ${{ runner.temp }}/pr8-miro-diagnostics/**
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Preserve failure status
+        if: always()
+        shell: pwsh
+        run: |
+          $exitCodePath = Join-Path $env:RUNNER_TEMP 'pr8-miro-diagnostics\exit-code.txt'
+          if (-not (Test-Path -LiteralPath $exitCodePath -PathType Leaf)) {
+            throw 'Diagnostic execution did not produce an exit code.'
+          }
+          $code = [int](Get-Content -LiteralPath $exitCodePath -Raw -Encoding ASCII).Trim()
+          if ($code -ne 0) {
+            throw "Online Miro diagnostic run failed with exit code $code."
+          }
