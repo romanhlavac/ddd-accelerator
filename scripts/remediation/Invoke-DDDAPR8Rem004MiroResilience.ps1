@@ -82,10 +82,10 @@ $updated = $text.Replace($old, $new)
 if ($updated -notmatch [regex]::Escape("Join-Path `$packageRoot 'scripts\platform\Invoke-DDDAMiroAcceptanceEvidence.ps1'")) {
     throw 'Package-root acceptance invocation was not created.'
 }
-if ($updated -notmatch "-PlatformPath \$packageRoot") {
+if ($updated -notmatch '-PlatformPath \$packageRoot') {
     throw 'Package-root PlatformPath binding was not created.'
 }
-if ($updated -match "Invoke-DDDAMiroAcceptanceEvidence\.ps1 `\r?\n\s+-PlatformPath \$PWD\.Path") {
+if ($updated -match 'Invoke-DDDAMiroAcceptanceEvidence\.ps1 `\r?\n\s+-PlatformPath \$PWD\.Path') {
     throw 'Source-root acceptance invocation remains present.'
 }
 
@@ -93,10 +93,6 @@ if ($updated -match "Invoke-DDDAMiroAcceptanceEvidence\.ps1 `\r?\n\s+-PlatformPa
 
 # The bootstrap payload is one-shot and must not remain in the product branch.
 Remove-Item -LiteralPath $PSCommandPath -Force
-
-$changes = @(git status --porcelain)
-$expectedChange = ' M .github/workflows/platform-ci.yml'
-$expectedDelete = 'D  scripts/remediation/Invoke-DDDAPR8Rem004MiroResilience.ps1'
 
 # Stage first so deletion status is deterministic.
 git add -- '.github/workflows/platform-ci.yml' 'scripts/remediation/Invoke-DDDAPR8Rem004MiroResilience.ps1'
