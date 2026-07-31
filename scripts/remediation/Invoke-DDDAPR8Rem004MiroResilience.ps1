@@ -118,11 +118,6 @@ foreach ($marker in @(
     }
 }
 
-& (Join-Path $root 'ddda.ps1') test -Suite lint -NonInteractive
-if ($LASTEXITCODE -ne 0) {
-    throw "Lint suite failed with exit code $LASTEXITCODE."
-}
-
 $commitMessage = 'ci: run online Miro acceptance from expanded candidate package'
 git commit -m $commitMessage
 if ($LASTEXITCODE -ne 0) {
@@ -138,6 +133,16 @@ if ($parentSha -ne $ExpectedSha) {
 $committedPaths = @(git diff-tree --no-commit-id --name-only -r HEAD)
 if ($committedPaths.Count -ne 2 -or @($committedPaths | Where-Object { $_ -notin $expectedNames }).Count -ne 0) {
     throw "Unexpected committed paths: $($committedPaths -join ', ')."
+}
+
+# Run lint only after the local remediation commit, when the working tree is clean,
+# but still before any remote write.
+& (Join-Path $root 'ddda.ps1') test -Suite lint -NonInteractive
+if ($LASTEXITCODE -ne 0) {
+    throw "Lint suite failed with exit code $LASTEXITCODE."
+}
+if (-not [string]::IsNullOrWhiteSpace((git status --porcelain | Out-String))) {
+    throw 'Repository is not clean after local remediation validation.'
 }
 
 $remoteBeforePush = ((git ls-remote origin "refs/heads/$Branch") -split "`t")[0].Trim()
