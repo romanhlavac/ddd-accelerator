@@ -125,6 +125,9 @@ Assert-True -Condition ($projectInitializerText -match 'reports/miro-sync/') -Me
 $smokeText = Get-Content (Join-Path $PlatformPath "scripts/Invoke-DDDAMiroSmokeTest.ps1") -Raw -Encoding UTF8
 Assert-True -Condition ($smokeText -notmatch "romanhlavac/ddd-accelerator") -Message "Smoke runner nesmí být svázán s konkrétním origin remote."
 Assert-True -Condition ($smokeText -match 'DDDA:\$\{projectId\}:evt-smoke-policy-issued') -Message "Smoke runner nepoužívá bezpečnou interpolaci markeru."
+Assert-True -Condition ($smokeText -notmatch '@CommandArguments\s+2>&1') -Message "Miro CLI adapter nesmí slučovat stderr retry telemetry s JSON stdout."
+Assert-True -Condition ($smokeText -match '@CommandArguments\s+2>\s+\$stderrPath') -Message "Miro CLI adapter neodděluje stderr do samostatného diagnostického streamu."
+Assert-True -Condition ($smokeText -match 'Stdout:.*Stderr:' -or $smokeText -match 'Stdout:`n\{1\}`nStderr:') -Message "Miro CLI parse failure nerozlišuje stdout a stderr."
 
 
 $scaffoldPath = Join-Path $PlatformPath "scaffolds/miro/strategic-ddd-method-board.yaml"
