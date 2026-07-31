@@ -1,10 +1,15 @@
-from ddda_miro.client import MiroClient, normalize_miro_font_size, normalize_miro_percentage
+import io
+import urllib.error
+
+import pytest
+
+from ddda_miro.client import MiroApiError, MiroClient, normalize_miro_font_size, normalize_miro_percentage
 
 
 def test_client_converts_child_position_using_cached_parent_geometry(monkeypatch):
     calls = []
 
-    def fake_request(self, method, path, *, query=None, body=None):
+    def fake_request(self, method, path, *, query=None, body=None, reconcile=None):
         calls.append((method, path, body))
         if path.endswith("/frames"):
             return {"id": "frame-1", "geometry": {"width": 5000, "height": 3200}}
@@ -38,7 +43,7 @@ def test_client_converts_child_position_using_cached_parent_geometry(monkeypatch
 def test_client_fetches_parent_geometry_when_cache_is_empty(monkeypatch):
     calls = []
 
-    def fake_request(self, method, path, *, query=None, body=None):
+    def fake_request(self, method, path, *, query=None, body=None, reconcile=None):
         calls.append((method, path, body))
         if method == "GET":
             return {"id": "frame-existing", "geometry": {"width": 5000, "height": 3200}}
@@ -72,7 +77,6 @@ def test_font_size_normalization_uses_supported_rest_scale():
     assert normalize_miro_font_size(500) == 288
 
 
-
 def test_connector_caption_percentage_normalization_uses_rest_wire_format():
     assert normalize_miro_percentage(0) == "0%"
     assert normalize_miro_percentage(0.5) == "50%"
@@ -83,7 +87,7 @@ def test_connector_caption_percentage_normalization_uses_rest_wire_format():
 def test_client_normalizes_text_font_size_before_api_call(monkeypatch):
     calls = []
 
-    def fake_request(self, method, path, *, query=None, body=None):
+    def fake_request(self, method, path, *, query=None, body=None, reconcile=None):
         calls.append((method, path, body))
         return {"id": "text-1", **(body or {})}
 
@@ -104,7 +108,7 @@ def test_client_normalizes_text_font_size_before_api_call(monkeypatch):
 def test_connector_api_uses_dedicated_endpoints_and_does_not_mutate_payload(monkeypatch):
     calls = []
 
-    def fake_request(self, method, path, *, query=None, body=None):
+    def fake_request(self, method, path, *, query=None, body=None, reconcile=None):
         calls.append((method, path, query, body))
         if method == "GET":
             return {"data": [{"id": "connector-existing"}], "cursor": None}
@@ -131,3 +135,102 @@ def test_connector_api_uses_dedicated_endpoints_and_does_not_mutate_payload(monk
     assert calls[3][0:2] == ("DELETE", "boards/board-1/connectors/connector-1")
     assert listed == [{"id": "connector-existing"}]
     assert authored["captions"][0] == {"content": "evidence → boundary", "position": 0.5}
+
+
+def test_transient_500_is_retried_and_then_succeeds(monkeypatch):
+    attempts = []
+    sleeps = []
+
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self):
+            return b'{"id":"board-1"}'
+
+    def fake_urlopen(request, timeout):
+        attempts.append(request)
+        if len(attempts) < 3:
+            raise urllib.error.HTTPError(request.full_url, 500, "Internal error", {}, io.BytesIO(b'{}'))
+        return Response()
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    monkeypatch.setattr("time.sleep", lambda delay: sleeps.append(delay))
+    monkeypatch.setattr("random.uniform", lambda left, right: 0.0)
+
+    client = MiroClient("token", max_retries=4)
+    result = client._request("GET", "boards/board-1")
+
+    assert result == {"id": "board-1"}
+    assert len(attempts) == 3
+    assert sleeps == [1.0, 2.0]
+
+
+@pytest.mark.parametrize("status", [400, 401, 403])
+def test_non_retryable_client_errors_fail_immediately(monkeypatch, status):
+    attempts = []
+
+    def fake_urlopen(request, timeout):
+        attempts.append(request)
+        raise urllib.error.HTTPError(request.full_url, status, "failure", {}, io.BytesIO(b'{}'))
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    client = MiroClient("token", max_retries=5)
+
+    with pytest.raises(MiroApiError):
+        client._request("GET", "boards/board-1")
+    assert len(attempts) == 1
+
+
+def test_retry_after_header_is_respected(monkeypatch):
+    attempts = []
+    sleeps = []
+
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self):
+            return b'{"id":"board-1"}'
+
+    def fake_urlopen(request, timeout):
+        attempts.append(request)
+        if len(attempts) == 1:
+            raise urllib.error.HTTPError(request.full_url, 429, "rate", {"Retry-After": "3"}, io.BytesIO(b'{}'))
+        return Response()
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    monkeypatch.setattr("time.sleep", lambda delay: sleeps.append(delay))
+    client = MiroClient("token")
+    client._request("GET", "boards/board-1")
+
+    assert sleeps == [3.0]
+
+
+def test_post_reconciles_existing_item_before_retrying(monkeypatch):
+    attempts = []
+    authored = {
+        "data": {"title": "20 – EventStorming: Big Picture"},
+        "position": {"x": -8500, "y": 1000, "origin": "center"},
+        "geometry": {"width": 6500, "height": 4800},
+    }
+
+    def fake_urlopen(request, timeout):
+        attempts.append(request)
+        raise urllib.error.HTTPError(request.full_url, 500, "Internal error", {}, io.BytesIO(b'{}'))
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    monkeypatch.setattr(MiroClient, "list_items", lambda self, board_id, item_type=None: [{"id": "existing-frame", **authored}])
+    monkeypatch.setattr("time.sleep", lambda delay: None)
+
+    client = MiroClient("token", max_retries=5)
+    result = client.create_item("board-1", "frame", authored)
+
+    assert result["id"] == "existing-frame"
+    assert len(attempts) == 1
