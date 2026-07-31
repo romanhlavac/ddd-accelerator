@@ -301,6 +301,23 @@ jobs:
             throw "Expanded candidate package provenance does not match exact SHA '$env:SOURCE_SHA'."
           }
 
+          git -C $packageRoot init --initial-branch=acceptance
+          git -C $packageRoot config user.name 'DDDA Online Acceptance'
+          git -C $packageRoot config user.email 'ddda-online-acceptance@example.invalid'
+          git -C $packageRoot add --all
+          git -C $packageRoot commit -m "test: initialize candidate package $env:SOURCE_SHA"
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Failed to create the temporary candidate-package Git baseline.'
+          }
+          $packageGitRoot = (git -C $packageRoot rev-parse --show-toplevel).Trim()
+          if ([IO.Path]::GetFullPath($packageGitRoot).TrimEnd('\', '/') -ne [IO.Path]::GetFullPath($packageRoot).TrimEnd('\', '/')) {
+            throw "Temporary package Git root '$packageGitRoot' does not match package root '$packageRoot'."
+          }
+          $packageChanges = @(git -C $packageRoot status --porcelain)
+          if (-not [string]::IsNullOrWhiteSpace(($packageChanges -join "`n"))) {
+            throw "Temporary package Git baseline is not clean:`n$($packageChanges -join "`n")"
+          }
+
           & (Join-Path $packageRoot 'scripts\platform\Invoke-DDDAMiroAcceptanceEvidence.ps1') `
             -PlatformPath $packageRoot `
             -Suite project-steering `
