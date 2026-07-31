@@ -265,7 +265,7 @@ jobs:
           name: ddda-candidate-${{ env.SOURCE_SHA }}
           path: ${{ runner.temp }}/candidate
 
-      - name: Run package-first online Miro acceptance only
+      - name: Run exact-SHA online Miro acceptance only
         if: steps.online-secret.outputs.available == 'true'
         shell: pwsh
         env:
@@ -285,10 +285,8 @@ jobs:
             -PackagePath $candidate[0].FullName `
             -ExpectedCommit $env:SOURCE_SHA `
             -ExpectedKind candidate
-          $packageRoot = Join-Path $env:RUNNER_TEMP 'online-miro-package'
-          Expand-Archive -LiteralPath $candidate[0].FullName -DestinationPath $packageRoot -Force
-          & (Join-Path $packageRoot 'scripts\platform\Invoke-DDDAMiroAcceptanceEvidence.ps1') `
-            -PlatformPath $packageRoot `
+          .\scripts\platform\Invoke-DDDAMiroAcceptanceEvidence.ps1 `
+            -PlatformPath $PWD.Path `
             -Suite project-steering `
             -Full `
             -KeepReviewBoard `
