@@ -212,6 +212,9 @@ jobs:
 
   online-miro-acceptance:
     name: Online Miro acceptance
+    needs:
+      - validate-platform
+      - validate-pr-command
     if: >-
       github.event_name == 'pull_request' &&
       github.event.action == 'synchronize' &&
@@ -219,7 +222,7 @@ jobs:
       github.actor == 'romanhlavac' &&
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: windows-latest
-    timeout-minutes: 120
+    timeout-minutes: 60
     permissions:
       contents: read
       issues: write
@@ -255,7 +258,14 @@ jobs:
             "available=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           }
 
-      - name: Run exact-SHA online acceptance
+      - name: Download exact-SHA candidate package
+        if: steps.online-secret.outputs.available == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: ddda-candidate-${{ env.SOURCE_SHA }}
+          path: ${{ runner.temp }}/candidate
+
+      - name: Run package-first online Miro acceptance only
         if: steps.online-secret.outputs.available == 'true'
         shell: pwsh
         env:
@@ -267,9 +277,19 @@ jobs:
           if ($actual -ne $env:SOURCE_SHA) {
             throw "Checkout SHA '$actual' neodpovídá PR head '$env:SOURCE_SHA'."
           }
-          .\ddda.ps1 validate-pr `
-            -Pr ([int]$env:PR_NUMBER) `
-            -WithMiro `
+          $candidate = @(Get-ChildItem -LiteralPath (Join-Path $env:RUNNER_TEMP 'candidate') -Filter '*.zip' -File)
+          if ($candidate.Count -ne 1) {
+            throw "Expected exactly one candidate package, found $($candidate.Count)."
+          }
+          .\scripts\platform\Test-DDDAPlatformPackage.ps1 `
+            -PackagePath $candidate[0].FullName `
+            -ExpectedCommit $env:SOURCE_SHA `
+            -ExpectedKind candidate
+          $packageRoot = Join-Path $env:RUNNER_TEMP 'online-miro-package'
+          Expand-Archive -LiteralPath $candidate[0].FullName -DestinationPath $packageRoot -Force
+          & (Join-Path $packageRoot 'scripts\platform\Invoke-DDDAMiroAcceptanceEvidence.ps1') `
+            -PlatformPath $packageRoot `
+            -Suite project-steering `
             -Full `
             -KeepReviewBoard `
             -MiroTeamId $env:MIRO_TEAM_ID `
