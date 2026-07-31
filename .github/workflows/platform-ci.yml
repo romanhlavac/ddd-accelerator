@@ -285,8 +285,24 @@ jobs:
             -PackagePath $candidate[0].FullName `
             -ExpectedCommit $env:SOURCE_SHA `
             -ExpectedKind candidate
-          .\scripts\platform\Invoke-DDDAMiroAcceptanceEvidence.ps1 `
-            -PlatformPath $PWD.Path `
+
+          $packageRoot = Join-Path $env:RUNNER_TEMP 'online-miro-package'
+          if (Test-Path -LiteralPath $packageRoot) {
+            Remove-Item -LiteralPath $packageRoot -Recurse -Force
+          }
+          Expand-Archive -LiteralPath $candidate[0].FullName -DestinationPath $packageRoot -Force
+
+          $manifestPath = Join-Path $packageRoot 'ddda-package.json'
+          if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
+            throw "Expanded candidate package is missing ddda-package.json: $manifestPath"
+          }
+          $manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+          if ([string]$manifest.source_commit -ne $env:SOURCE_SHA -or [string]$manifest.kind -ne 'candidate') {
+            throw "Expanded candidate package provenance does not match exact SHA '$env:SOURCE_SHA'."
+          }
+
+          & (Join-Path $packageRoot 'scripts\platform\Invoke-DDDAMiroAcceptanceEvidence.ps1') `
+            -PlatformPath $packageRoot `
             -Suite project-steering `
             -Full `
             -KeepReviewBoard `
