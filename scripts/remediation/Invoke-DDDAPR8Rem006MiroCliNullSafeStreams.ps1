@@ -39,14 +39,21 @@ $oldStreamBlock = @'
 
 $newStreamBlock = @'
         $exitCode = $LASTEXITCODE
-        $text = ([string]($raw | Out-String)).Trim()
+        $rawText = $raw | Out-String
+        $text = ""
+        if ($null -ne $rawText) {
+            $text = ([string]$rawText).Trim()
+        }
         $stderrRaw = if (Test-Path -LiteralPath $stderrPath -PathType Leaf) {
             Get-Content -LiteralPath $stderrPath -Raw -Encoding UTF8
         }
         else {
             $null
         }
-        $stderrText = ([string]$stderrRaw).Trim()
+        $stderrText = ""
+        if ($null -ne $stderrRaw) {
+            $stderrText = ([string]$stderrRaw).Trim()
+        }
 '@
 
 $streamCount = ([regex]::Matches($smokeText, [regex]::Escape($oldStreamBlock))).Count
@@ -64,14 +71,25 @@ Assert-True -Condition ($smokeText -notmatch '@CommandArguments\s+2>&1') -Messag
 Assert-True -Condition ($smokeText -match '@CommandArguments\s+2>\s+\$stderrPath') -Message "Miro CLI adapter neodděluje stderr do samostatného diagnostického streamu."
 Assert-True -Condition ($smokeText -match 'Stdout:.*Stderr:' -or $smokeText -match 'Stdout:`n\{1\}`nStderr:') -Message "Miro CLI parse failure nerozlišuje stdout a stderr."
 Assert-True -Condition ($smokeText -match '\$stderrRaw\s*=\s*if\s*\(Test-Path') -Message "Miro CLI adapter nemá explicitní null-safe mezivýsledek stderr."
-Assert-True -Condition ($smokeText -match '\$stderrText\s*=\s*\(\[string\]\$stderrRaw\)\.Trim\(\)') -Message "Miro CLI adapter nenormalizuje prázdný stderr přes string cast před Trim."
+Assert-True -Condition ($smokeText -match 'if\s*\(\$null\s+-ne\s+\$rawText\)') -Message "Miro CLI adapter nechrání normalizaci prázdného stdout explicitní null větví."
+Assert-True -Condition ($smokeText -match 'if\s*\(\$null\s+-ne\s+\$stderrRaw\)') -Message "Miro CLI adapter nechrání normalizaci prázdného stderr explicitní null větví."
 Assert-True -Condition ($smokeText -notmatch '\(Get-Content[^\r\n]+\)\.Trim\(\)') -Message "Miro CLI adapter stále volá Trim přímo nad potenciálně null Get-Content výsledkem."
+
+$emptyStdoutRaw = @() | Out-String
+$emptyStdoutText = ""
+if ($null -ne $emptyStdoutRaw) {
+    $emptyStdoutText = ([string]$emptyStdoutRaw).Trim()
+}
+Assert-Equal -Expected "" -Actual $emptyStdoutText -Message "Prázdný stdout musí být bezpečně normalizován na prázdný řetězec."
 
 $emptyStderrPath = Join-Path $env:TEMP ("ddda-empty-stderr-" + [Guid]::NewGuid().ToString("N") + ".log")
 try {
     [IO.File]::WriteAllBytes($emptyStderrPath, [byte[]]@())
     $emptyStderrRaw = Get-Content -LiteralPath $emptyStderrPath -Raw -Encoding UTF8
-    $emptyStderrText = ([string]$emptyStderrRaw).Trim()
+    $emptyStderrText = ""
+    if ($null -ne $emptyStderrRaw) {
+        $emptyStderrText = ([string]$emptyStderrRaw).Trim()
+    }
     Assert-Equal -Expected "" -Actual $emptyStderrText -Message "Prázdný stderr musí být bezpečně normalizován na prázdný řetězec."
 }
 finally {
@@ -96,7 +114,8 @@ if ($staged.Count -ne 3 -or @($stagedNames | Where-Object { $_ -notin $expectedN
 }
 
 $smokeCheck = [IO.File]::ReadAllText($smokePath, [Text.UTF8Encoding]::new($false))
-if ($smokeCheck -notmatch '\$stderrText\s*=\s*\(\[string\]\$stderrRaw\)\.Trim\(\)') { throw 'Null-safe stderr normalization is missing.' }
+if ($smokeCheck -notmatch 'if\s*\(\$null\s+-ne\s+\$rawText\)') { throw 'Null-safe stdout normalization is missing.' }
+if ($smokeCheck -notmatch 'if\s*\(\$null\s+-ne\s+\$stderrRaw\)') { throw 'Null-safe stderr normalization is missing.' }
 if ($smokeCheck -match '\(Get-Content[^\r\n]+\)\.Trim\(\)') { throw 'Unsafe Get-Content.Trim remains.' }
 
 git commit -m 'fix(miro): handle empty CLI diagnostic streams safely'
