@@ -26,84 +26,11 @@ $utf8Bom = [Text.UTF8Encoding]::new($true)
 $initializerText = [IO.File]::ReadAllText($initializerPath, [Text.UTF8Encoding]::new($false))
 $testText = [IO.File]::ReadAllText($testPath, [Text.UTF8Encoding]::new($false))
 
-$oldEnvironmentBlock = @'
-$originalTokenExists = Test-Path Env:\MIRO_ACCESS_TOKEN
-$originalToken = $null
-if ($originalTokenExists) {
-    $originalToken = $env:MIRO_ACCESS_TOKEN
-}
-
-$script:PlatformRoot = (Resolve-Path $PlatformPath).Path
-'@
-
-$newEnvironmentBlock = @'
-$originalTokenExists = Test-Path Env:\MIRO_ACCESS_TOKEN
-$originalToken = $null
-if ($originalTokenExists) {
-    $originalToken = $env:MIRO_ACCESS_TOKEN
-}
-
-$originalPythonUtf8Exists = Test-Path Env:\PYTHONUTF8
-$originalPythonUtf8 = $null
-if ($originalPythonUtf8Exists) {
-    $originalPythonUtf8 = $env:PYTHONUTF8
-}
-
-$originalPythonIoEncodingExists = Test-Path Env:\PYTHONIOENCODING
-$originalPythonIoEncoding = $null
-if ($originalPythonIoEncodingExists) {
-    $originalPythonIoEncoding = $env:PYTHONIOENCODING
-}
-
-$env:PYTHONUTF8 = "1"
-$env:PYTHONIOENCODING = "utf-8"
-
-$script:PlatformRoot = (Resolve-Path $PlatformPath).Path
-'@
-
-$environmentCount = ([regex]::Matches($initializerText, [regex]::Escape($oldEnvironmentBlock))).Count
-if ($environmentCount -ne 1) { throw "Expected one initializer environment anchor, found $environmentCount." }
-$initializerUpdated = $initializerText.Replace($oldEnvironmentBlock, $newEnvironmentBlock)
-
-$oldFinallyBlock = @'
-finally {
-    if ($originalTokenExists) {
-        $env:MIRO_ACCESS_TOKEN = $originalToken
-    }
-    else {
-        Remove-Item Env:\MIRO_ACCESS_TOKEN -ErrorAction SilentlyContinue
-    }
-}
-'@
-
-$newFinallyBlock = @'
-finally {
-    if ($originalTokenExists) {
-        $env:MIRO_ACCESS_TOKEN = $originalToken
-    }
-    else {
-        Remove-Item Env:\MIRO_ACCESS_TOKEN -ErrorAction SilentlyContinue
-    }
-
-    if ($originalPythonUtf8Exists) {
-        $env:PYTHONUTF8 = $originalPythonUtf8
-    }
-    else {
-        Remove-Item Env:\PYTHONUTF8 -ErrorAction SilentlyContinue
-    }
-
-    if ($originalPythonIoEncodingExists) {
-        $env:PYTHONIOENCODING = $originalPythonIoEncoding
-    }
-    else {
-        Remove-Item Env:\PYTHONIOENCODING -ErrorAction SilentlyContinue
-    }
-}
-'@
-
-$finallyCount = ([regex]::Matches($initializerUpdated, [regex]::Escape($oldFinallyBlock))).Count
-if ($finallyCount -ne 1) { throw "Expected one initializer cleanup anchor, found $finallyCount." }
-$initializerUpdated = $initializerUpdated.Replace($oldFinallyBlock, $newFinallyBlock)
+$oldCliInvocation = '$raw = @(& $script:MiroPython -I -m ddda_miro --project $script:ProjectRoot --platform $script:PlatformRoot @CommandArguments 2>&1)'
+$newCliInvocation = '$raw = @(& $script:MiroPython -I -X utf8 -m ddda_miro --project $script:ProjectRoot --platform $script:PlatformRoot @CommandArguments 2>&1)'
+$invocationCount = ([regex]::Matches($initializerText, [regex]::Escape($oldCliInvocation))).Count
+if ($invocationCount -ne 1) { throw "Expected one isolated Python CLI invocation, found $invocationCount." }
+$initializerUpdated = $initializerText.Replace($oldCliInvocation, $newCliInvocation)
 
 $testAnchor = @'
 $projectInitializerText = Get-Content (Join-Path $PlatformPath "scripts/Initialize-DDDAProjectMiro.ps1") -Raw -Encoding UTF8
@@ -116,47 +43,12 @@ $projectInitializerText = Get-Content (Join-Path $PlatformPath "scripts/Initiali
 Assert-True -Condition ($projectInitializerText -match '"sync",\s*"--direction",\s*"push"') -Message "Project Miro initializer neprovádí počáteční managed artifact push."
 Assert-True -Condition ($projectInitializerText -match 'reports/miro-sync/') -Message "Project Miro initializer nepovoluje auditní sync reporty."
 
-$pythonAdapterIndex = $projectInitializerText.IndexOf('& $script:MiroPython', [StringComparison]::Ordinal)
-$pythonInvocationIndex = $projectInitializerText.IndexOf('$doctor = Invoke-ProjectMiroCli', [StringComparison]::Ordinal)
-$pythonUtf8SetIndex = $projectInitializerText.IndexOf('$env:PYTHONUTF8 = "1"', [StringComparison]::Ordinal)
-$pythonIoEncodingSetIndex = $projectInitializerText.IndexOf('$env:PYTHONIOENCODING = "utf-8"', [StringComparison]::Ordinal)
-$pythonUtf8CleanupIndex = $projectInitializerText.IndexOf('Remove-Item Env:\PYTHONUTF8', [StringComparison]::Ordinal)
-$pythonIoEncodingCleanupIndex = $projectInitializerText.IndexOf('Remove-Item Env:\PYTHONIOENCODING', [StringComparison]::Ordinal)
-Assert-True -Condition ($pythonAdapterIndex -ge 0) -Message "Project Miro initializer nemá dohledatelný Python CLI adapter."
-Assert-True -Condition ($pythonInvocationIndex -ge 0) -Message "Project Miro initializer nemá dohledatelné první CLI volání."
-Assert-True -Condition ($pythonUtf8SetIndex -ge 0 -and $pythonUtf8SetIndex -lt $pythonInvocationIndex) -Message "Project Miro initializer nenastavuje PYTHONUTF8=1 před CLI voláním."
-Assert-True -Condition ($pythonIoEncodingSetIndex -ge 0 -and $pythonIoEncodingSetIndex -lt $pythonInvocationIndex) -Message "Project Miro initializer nenastavuje PYTHONIOENCODING=utf-8 před CLI voláním."
-Assert-True -Condition ($pythonUtf8CleanupIndex -gt $pythonInvocationIndex) -Message "Project Miro initializer neobnovuje nebo neodstraňuje PYTHONUTF8 po CLI volání."
-Assert-True -Condition ($pythonIoEncodingCleanupIndex -gt $pythonInvocationIndex) -Message "Project Miro initializer neobnovuje nebo neodstraňuje PYTHONIOENCODING po CLI volání."
-Assert-True -Condition ($projectInitializerText -match '(?s)if\s*\(\$originalPythonUtf8Exists\).*?\$env:PYTHONUTF8\s*=\s*\$originalPythonUtf8') -Message "Project Miro initializer neumí obnovit původní PYTHONUTF8."
-Assert-True -Condition ($projectInitializerText -match '(?s)if\s*\(\$originalPythonIoEncodingExists\).*?\$env:PYTHONIOENCODING\s*=\s*\$originalPythonIoEncoding') -Message "Project Miro initializer neumí obnovit původní PYTHONIOENCODING."
+Assert-True -Condition ($projectInitializerText -match '\$script:MiroPython\s+-I\s+-X\s+utf8\s+-m\s+ddda_miro') -Message "Project Miro initializer nevynucuje UTF-8 v izolovaném Python procesu pomocí -X utf8."
 
 $pythonProbeCommand = Resolve-DDDAPythonCommand
-$originalProbePythonUtf8Exists = Test-Path Env:\PYTHONUTF8
-$originalProbePythonUtf8 = if ($originalProbePythonUtf8Exists) { $env:PYTHONUTF8 } else { $null }
-$originalProbePythonIoEncodingExists = Test-Path Env:\PYTHONIOENCODING
-$originalProbePythonIoEncoding = if ($originalProbePythonIoEncodingExists) { $env:PYTHONIOENCODING } else { $null }
-try {
-    $env:PYTHONUTF8 = "1"
-    $env:PYTHONIOENCODING = "utf-8"
-    $pythonProbeCode = 'import json, sys; print(json.dumps({"encoding": sys.stdout.encoding, "text": "Povinn\u00fd d\u016fkaz: k\u00f3dov\u00e1n\u00ed v\u00fdstup\u016f"}, ensure_ascii=False))'
-    $pythonProbeRaw = @(& $pythonProbeCommand -I -c $pythonProbeCode 2>&1)
-    $pythonProbeExitCode = $LASTEXITCODE
-}
-finally {
-    if ($originalProbePythonUtf8Exists) {
-        $env:PYTHONUTF8 = $originalProbePythonUtf8
-    }
-    else {
-        Remove-Item Env:\PYTHONUTF8 -ErrorAction SilentlyContinue
-    }
-    if ($originalProbePythonIoEncodingExists) {
-        $env:PYTHONIOENCODING = $originalProbePythonIoEncoding
-    }
-    else {
-        Remove-Item Env:\PYTHONIOENCODING -ErrorAction SilentlyContinue
-    }
-}
+$pythonProbeCode = 'import json, sys; print(json.dumps({"encoding": sys.stdout.encoding, "text": "Povinn\u00fd d\u016fkaz: k\u00f3dov\u00e1n\u00ed v\u00fdstup\u016f"}, ensure_ascii=False))'
+$pythonProbeRaw = @(& $pythonProbeCommand -I -X utf8 -c $pythonProbeCode 2>&1)
+$pythonProbeExitCode = $LASTEXITCODE
 $pythonProbeText = ($pythonProbeRaw | ForEach-Object { $_.ToString() } | Out-String).Trim()
 Assert-Equal -Expected 0 -Actual $pythonProbeExitCode -Message "Python UTF-8 stdout probe selhal. Výstup: $pythonProbeText"
 $pythonProbe = $pythonProbeText | ConvertFrom-Json
@@ -181,10 +73,7 @@ if ($staged.Count -ne 3 -or @($stagedNames | Where-Object { $_ -notin $expectedN
 }
 
 $initializerCheck = [IO.File]::ReadAllText($initializerPath, [Text.UTF8Encoding]::new($false))
-if ($initializerCheck -notmatch '\$env:PYTHONUTF8\s*=\s*"1"') { throw 'PYTHONUTF8 contract is missing.' }
-if ($initializerCheck -notmatch '\$env:PYTHONIOENCODING\s*=\s*"utf-8"') { throw 'PYTHONIOENCODING contract is missing.' }
-if ($initializerCheck -notmatch 'Remove-Item Env:\\PYTHONUTF8') { throw 'PYTHONUTF8 cleanup is missing.' }
-if ($initializerCheck -notmatch 'Remove-Item Env:\\PYTHONIOENCODING') { throw 'PYTHONIOENCODING cleanup is missing.' }
+if ($initializerCheck -notmatch '\$script:MiroPython\s+-I\s+-X\s+utf8\s+-m\s+ddda_miro') { throw 'Isolated Python UTF-8 option is missing.' }
 
 git commit -m 'fix(miro): force UTF-8 for project CLI subprocess'
 if ($LASTEXITCODE -ne 0) { throw 'Failed to create REM-007 commit.' }
