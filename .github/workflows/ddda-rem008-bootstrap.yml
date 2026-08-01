@@ -70,7 +70,7 @@ jobs:
           if (-not [string]::IsNullOrWhiteSpace((git status --porcelain | Out-String))) { throw 'Checkout is not clean.' }
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          $script = Join-Path $PWD 'scripts/remediation/Invoke-DDDAPR8Rem007ProjectMiroUtf8.ps1'
+          $script = Join-Path $PWD 'scripts/remediation/Invoke-DDDAPR8Rem008Ps51PythonProbeQuoting.ps1'
           if (-not (Test-Path -LiteralPath $script -PathType Leaf)) { throw 'Allowlisted REM-008 script is missing.' }
           & $script -RepositoryRoot $PWD.Path -ExpectedSha $env:EXPECTED_SHA -Branch $env:HEAD_REF
 
@@ -86,7 +86,7 @@ jobs:
         run: |
           $newSha = try { (git rev-parse HEAD).Trim() } catch { '' }
           $body = @"
-          REM-PR8-HVA-CC-007: **$env:JOB_STATUS**
+          REM-PR8-HVA-CC-008: **$env:JOB_STATUS**
 
           - requested SHA: $env:EXPECTED_SHA
           - resulting SHA: $newSha
