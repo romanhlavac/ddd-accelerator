@@ -270,5 +270,14 @@ Assert-True -Condition ($acceptanceText -match 'overall_status = \$overallStatus
 Assert-True -Condition ($acceptanceText -match 'PENDING_HUMAN_REVIEW') -Message "Acceptance report nerozlišuje pending human review."
 $acceptanceCommand = Get-Command $acceptancePath
 Assert-True -Condition $acceptanceCommand.Parameters.ContainsKey("MiroTeamId") -Message "Acceptance runner neumí explicitně vybrat standardní Miro team."
+Assert-True -Condition ($acceptanceText -match '\$_\s+-cmatch\s+\[regex\]::Escape\(\$heading\)') -Message "Acceptance runner nepočítá kanonické guide nadpisy case-sensitive."
+
+$canonicalHeadingProbe = @()
+$canonicalHeadingProbe += @(1..15 | ForEach-Object { "<strong>OTEVŘENÉ OTÁZKY</strong>" })
+$canonicalHeadingProbe += @(1..15 | ForEach-Object { "Rozlišuj fakta, hypotézy, rozhodnutí a otevřené otázky." })
+$caseInsensitiveHeadingCount = @($canonicalHeadingProbe | Where-Object { $_ -match [regex]::Escape("OTEVŘENÉ OTÁZKY") }).Count
+$caseSensitiveHeadingCount = @($canonicalHeadingProbe | Where-Object { $_ -cmatch [regex]::Escape("OTEVŘENÉ OTÁZKY") }).Count
+Assert-True -Condition ($caseInsensitiveHeadingCount -gt 15) -Message "Regresní fixture neprokazuje původní case-insensitive přepočítání workspace textů."
+Assert-Equal -Expected 15 -Actual $caseSensitiveHeadingCount -Message "Case-sensitive canonical heading count musí ignorovat lowercase workspace texty."
 
 Write-Host "DDDA Miro automation tests: PASS"

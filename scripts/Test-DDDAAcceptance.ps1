@@ -343,7 +343,7 @@ intake:
             }
         }
         foreach ($heading in @("RECEPT", "HOTOVO KDYŽ", "OTEVŘENÉ OTÁZKY", "HEURISTIKY", "ANTI-PATTERNS")) {
-            $headingCount = @($visibleRemoteTexts | Where-Object { $_ -match [regex]::Escape($heading) }).Count
+            $headingCount = @($visibleRemoteTexts | Where-Object { $_ -cmatch [regex]::Escape($heading) }).Count
             if ($headingCount -ne 15) {
                 throw "Remote board musí obsahovat '$heading' v přesně 15 kanonických pracovních framech; nalezeno $headingCount."
             }
