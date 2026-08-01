@@ -128,6 +128,31 @@ Assert-True -Condition ($smokeText -match 'DDDA:\$\{projectId\}:evt-smoke-policy
 Assert-True -Condition ($smokeText -notmatch '@CommandArguments\s+2>&1') -Message "Miro CLI adapter nesmí slučovat stderr retry telemetry s JSON stdout."
 Assert-True -Condition ($smokeText -match '@CommandArguments\s+2>\s+\$stderrPath') -Message "Miro CLI adapter neodděluje stderr do samostatného diagnostického streamu."
 Assert-True -Condition ($smokeText -match 'Stdout:.*Stderr:' -or $smokeText -match 'Stdout:`n\{1\}`nStderr:') -Message "Miro CLI parse failure nerozlišuje stdout a stderr."
+Assert-True -Condition ($smokeText -match '\$stderrRaw\s*=\s*if\s*\(Test-Path') -Message "Miro CLI adapter nemá explicitní null-safe mezivýsledek stderr."
+Assert-True -Condition ($smokeText -match 'if\s*\(\$null\s+-ne\s+\$rawText\)') -Message "Miro CLI adapter nechrání normalizaci prázdného stdout explicitní null větví."
+Assert-True -Condition ($smokeText -match 'if\s*\(\$null\s+-ne\s+\$stderrRaw\)') -Message "Miro CLI adapter nechrání normalizaci prázdného stderr explicitní null větví."
+Assert-True -Condition ($smokeText -notmatch '\(Get-Content[^\r\n]+\)\.Trim\(\)') -Message "Miro CLI adapter stále volá Trim přímo nad potenciálně null Get-Content výsledkem."
+
+$emptyStdoutRaw = @() | Out-String
+$emptyStdoutText = ""
+if ($null -ne $emptyStdoutRaw) {
+    $emptyStdoutText = ([string]$emptyStdoutRaw).Trim()
+}
+Assert-Equal -Expected "" -Actual $emptyStdoutText -Message "Prázdný stdout musí být bezpečně normalizován na prázdný řetězec."
+
+$emptyStderrPath = Join-Path $env:TEMP ("ddda-empty-stderr-" + [Guid]::NewGuid().ToString("N") + ".log")
+try {
+    [IO.File]::WriteAllBytes($emptyStderrPath, [byte[]]@())
+    $emptyStderrRaw = Get-Content -LiteralPath $emptyStderrPath -Raw -Encoding UTF8
+    $emptyStderrText = ""
+    if ($null -ne $emptyStderrRaw) {
+        $emptyStderrText = ([string]$emptyStderrRaw).Trim()
+    }
+    Assert-Equal -Expected "" -Actual $emptyStderrText -Message "Prázdný stderr musí být bezpečně normalizován na prázdný řetězec."
+}
+finally {
+    Remove-Item -LiteralPath $emptyStderrPath -Force -ErrorAction SilentlyContinue
+}
 
 
 $scaffoldPath = Join-Path $PlatformPath "scaffolds/miro/strategic-ddd-method-board.yaml"

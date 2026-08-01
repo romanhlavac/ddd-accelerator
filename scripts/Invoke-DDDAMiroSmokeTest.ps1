@@ -50,12 +50,20 @@ function Invoke-MiroCli {
     try {
         $raw = & $script:MiroPython -m ddda_miro --project $script:ProjectRoot --platform $script:PlatformRoot @CommandArguments 2> $stderrPath
         $exitCode = $LASTEXITCODE
-        $text = ($raw | Out-String).Trim()
-        $stderrText = if (Test-Path -LiteralPath $stderrPath -PathType Leaf) {
-            (Get-Content -LiteralPath $stderrPath -Raw -Encoding UTF8).Trim()
+        $rawText = $raw | Out-String
+        $text = ""
+        if ($null -ne $rawText) {
+            $text = ([string]$rawText).Trim()
+        }
+        $stderrRaw = if (Test-Path -LiteralPath $stderrPath -PathType Leaf) {
+            Get-Content -LiteralPath $stderrPath -Raw -Encoding UTF8
         }
         else {
-            ""
+            $null
+        }
+        $stderrText = ""
+        if ($null -ne $stderrRaw) {
+            $stderrText = ([string]$stderrRaw).Trim()
         }
 
         if (-not [string]::IsNullOrWhiteSpace($stderrText)) {
