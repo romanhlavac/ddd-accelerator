@@ -125,7 +125,7 @@ Assert-True -Condition ($projectInitializerText -match 'reports/miro-sync/') -Me
 Assert-True -Condition ($projectInitializerText -match '\$script:MiroPython\s+-I\s+-X\s+utf8\s+-m\s+ddda_miro') -Message "Project Miro initializer nevynucuje UTF-8 v izolovaném Python procesu pomocí -X utf8."
 
 $pythonProbeCommand = Resolve-DDDAPythonCommand
-$pythonProbeCode = 'import json, sys; print(json.dumps({"encoding": sys.stdout.encoding, "text": "Povinn\u00fd d\u016fkaz: k\u00f3dov\u00e1n\u00ed v\u00fdstup\u016f"}, ensure_ascii=False))'
+$pythonProbeCode = "import json, sys; print(json.dumps(dict(encoding=sys.stdout.encoding, text='Povinn\u00fd d\u016fkaz: k\u00f3dov\u00e1n\u00ed v\u00fdstup\u016f'), ensure_ascii=False))"
 $pythonProbeRaw = @(& $pythonProbeCommand -I -X utf8 -c $pythonProbeCode 2>&1)
 $pythonProbeExitCode = $LASTEXITCODE
 $pythonProbeText = ($pythonProbeRaw | ForEach-Object { $_.ToString() } | Out-String).Trim()
