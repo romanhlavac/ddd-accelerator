@@ -116,12 +116,14 @@ $projectInitializerText = Get-Content (Join-Path $PlatformPath "scripts/Initiali
 Assert-True -Condition ($projectInitializerText -match '"sync",\s*"--direction",\s*"push"') -Message "Project Miro initializer neprovádí počáteční managed artifact push."
 Assert-True -Condition ($projectInitializerText -match 'reports/miro-sync/') -Message "Project Miro initializer nepovoluje auditní sync reporty."
 
-$pythonInvocationIndex = $projectInitializerText.IndexOf('& $script:MiroPython', [StringComparison]::Ordinal)
+$pythonAdapterIndex = $projectInitializerText.IndexOf('& $script:MiroPython', [StringComparison]::Ordinal)
+$pythonInvocationIndex = $projectInitializerText.IndexOf('$doctor = Invoke-ProjectMiroCli', [StringComparison]::Ordinal)
 $pythonUtf8SetIndex = $projectInitializerText.IndexOf('$env:PYTHONUTF8 = "1"', [StringComparison]::Ordinal)
 $pythonIoEncodingSetIndex = $projectInitializerText.IndexOf('$env:PYTHONIOENCODING = "utf-8"', [StringComparison]::Ordinal)
 $pythonUtf8CleanupIndex = $projectInitializerText.IndexOf('Remove-Item Env:\PYTHONUTF8', [StringComparison]::Ordinal)
 $pythonIoEncodingCleanupIndex = $projectInitializerText.IndexOf('Remove-Item Env:\PYTHONIOENCODING', [StringComparison]::Ordinal)
-Assert-True -Condition ($pythonInvocationIndex -ge 0) -Message "Project Miro initializer nemá dohledatelné Python CLI volání."
+Assert-True -Condition ($pythonAdapterIndex -ge 0) -Message "Project Miro initializer nemá dohledatelný Python CLI adapter."
+Assert-True -Condition ($pythonInvocationIndex -ge 0) -Message "Project Miro initializer nemá dohledatelné první CLI volání."
 Assert-True -Condition ($pythonUtf8SetIndex -ge 0 -and $pythonUtf8SetIndex -lt $pythonInvocationIndex) -Message "Project Miro initializer nenastavuje PYTHONUTF8=1 před CLI voláním."
 Assert-True -Condition ($pythonIoEncodingSetIndex -ge 0 -and $pythonIoEncodingSetIndex -lt $pythonInvocationIndex) -Message "Project Miro initializer nenastavuje PYTHONIOENCODING=utf-8 před CLI voláním."
 Assert-True -Condition ($pythonUtf8CleanupIndex -gt $pythonInvocationIndex) -Message "Project Miro initializer neobnovuje nebo neodstraňuje PYTHONUTF8 po CLI volání."
