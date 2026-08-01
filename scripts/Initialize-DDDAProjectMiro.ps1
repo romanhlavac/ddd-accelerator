@@ -31,7 +31,7 @@ function Invoke-ProjectMiroCli {
     $previousErrorActionPreference = $ErrorActionPreference
     try {
         $ErrorActionPreference = "Continue"
-        $raw = @(& $script:MiroPython -I -m ddda_miro --project $script:ProjectRoot --platform $script:PlatformRoot @CommandArguments 2>&1)
+        $raw = @(& $script:MiroPython -I -X utf8 -m ddda_miro --project $script:ProjectRoot --platform $script:PlatformRoot @CommandArguments 2>&1)
         $exitCode = $LASTEXITCODE
     }
     finally {

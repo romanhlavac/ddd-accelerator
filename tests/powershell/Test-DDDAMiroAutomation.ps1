@@ -122,6 +122,18 @@ $projectInitializerText = Get-Content (Join-Path $PlatformPath "scripts/Initiali
 Assert-True -Condition ($projectInitializerText -match '"sync",\s*"--direction",\s*"push"') -Message "Project Miro initializer neprovádí počáteční managed artifact push."
 Assert-True -Condition ($projectInitializerText -match 'reports/miro-sync/') -Message "Project Miro initializer nepovoluje auditní sync reporty."
 
+Assert-True -Condition ($projectInitializerText -match '\$script:MiroPython\s+-I\s+-X\s+utf8\s+-m\s+ddda_miro') -Message "Project Miro initializer nevynucuje UTF-8 v izolovaném Python procesu pomocí -X utf8."
+
+$pythonProbeCommand = Resolve-DDDAPythonCommand
+$pythonProbeCode = 'import json, sys; print(json.dumps({"encoding": sys.stdout.encoding, "text": "Povinn\u00fd d\u016fkaz: k\u00f3dov\u00e1n\u00ed v\u00fdstup\u016f"}, ensure_ascii=False))'
+$pythonProbeRaw = @(& $pythonProbeCommand -I -X utf8 -c $pythonProbeCode 2>&1)
+$pythonProbeExitCode = $LASTEXITCODE
+$pythonProbeText = ($pythonProbeRaw | ForEach-Object { $_.ToString() } | Out-String).Trim()
+Assert-Equal -Expected 0 -Actual $pythonProbeExitCode -Message "Python UTF-8 stdout probe selhal. Výstup: $pythonProbeText"
+$pythonProbe = $pythonProbeText | ConvertFrom-Json
+Assert-Equal -Expected "Povinný důkaz: kódování výstupů" -Actual ([string]$pythonProbe.text) -Message "Python UTF-8 stdout probe poškodil český výstup."
+Assert-True -Condition (([string]$pythonProbe.encoding).Replace("-", "") -match '^utf8') -Message "Python stdout nepoužívá UTF-8: $($pythonProbe.encoding)"
+
 $smokeText = Get-Content (Join-Path $PlatformPath "scripts/Invoke-DDDAMiroSmokeTest.ps1") -Raw -Encoding UTF8
 Assert-True -Condition ($smokeText -notmatch "romanhlavac/ddd-accelerator") -Message "Smoke runner nesmí být svázán s konkrétním origin remote."
 Assert-True -Condition ($smokeText -match 'DDDA:\$\{projectId\}:evt-smoke-policy-issued') -Message "Smoke runner nepoužívá bezpečnou interpolaci markeru."
