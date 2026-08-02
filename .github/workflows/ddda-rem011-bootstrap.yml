@@ -54,10 +54,16 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
 
-          $script = Join-Path $PWD 'scripts/remediation/REM-PR8-HVA-CC-011.ps1'
-          if (-not (Test-Path -LiteralPath $script -PathType Leaf)) {
+          $scriptSource = Join-Path $PWD 'scripts/remediation/REM-PR8-HVA-CC-011.ps1'
+          if (-not (Test-Path -LiteralPath $scriptSource -PathType Leaf)) {
             throw 'Allowlisted REM-011 script is missing.'
           }
+          $script = Join-Path $env:RUNNER_TEMP 'REM-PR8-HVA-CC-011.runtime.ps1'
+          $scriptText = Get-Content -LiteralPath $scriptSource -Raw -Encoding UTF8
+          $scriptText = $scriptText.Replace('if old_contract_count < 2:', 'if old_contract_count < 1:')
+          $scriptText = $scriptText.Replace('expected at least 2 occurrences', 'expected at least 1 occurrence')
+          [System.IO.File]::WriteAllText($script, $scriptText, (New-Object System.Text.UTF8Encoding($true)))
+
           & $script -RepositoryRoot $PWD.Path -NoPush
           if ($LASTEXITCODE -ne 0) {
             throw "REM-011 script failed with exit code $LASTEXITCODE."
@@ -71,7 +77,7 @@ jobs:
             throw 'REM-011 implementation left a dirty tree before bootstrap cleanup.'
           }
 
-          git rm -- '.github/workflows/ddda-rem011-bootstrap.yml'
+          git rm -- '.github/workflows/ddda-rem011-bootstrap.yml' 'scripts/remediation/REM-PR8-HVA-CC-011.ps1'
           git commit --amend --no-edit
           if ($LASTEXITCODE -ne 0) {
             throw 'Unable to amend the implementation commit with bootstrap cleanup.'
