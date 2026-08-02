@@ -646,7 +646,7 @@
       ],
       "properties": {
         "render_contract_version": {
-          "const": "REM-PR8-HVA-CC-010"
+          "const": "REM-PR8-HVA-CC-011"
         },
         "minimum_remote_item_count": {
           "type": "integer",
