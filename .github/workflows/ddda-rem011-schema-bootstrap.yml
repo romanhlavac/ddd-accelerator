@@ -1,0 +1,100 @@
+name: DDDA REM-011 schema bootstrap
+
+on:
+  pull_request:
+    types: [synchronize]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: ddda-rem011-schema-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  align-schema:
+    if: >-
+      github.event.pull_request.number == 8 &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'feat/project-steering-and-documentation'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Align scaffold schema, validate and push
+        id: fix
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$EXPECTED_SHA"
+          test -z "$(git status --porcelain)"
+
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('schemas/miro-scaffold.schema.json')
+          text = path.read_text(encoding='utf-8')
+          old = '"const": "REM-PR8-HVA-CC-010"'
+          new = '"const": "REM-PR8-HVA-CC-011"'
+          count = text.count(old)
+          if count != 1:
+              raise SystemExit(f'Expected exactly one legacy scaffold contract constant, found {count}.')
+          path.write_text(text.replace(old, new), encoding='utf-8')
+          PY
+
+          git rm -- '.github/workflows/ddda-rem011-schema-bootstrap.yml'
+
+          python -m pip install --disable-pip-version-check 'ruamel.yaml>=0.18,<0.19' 'jsonschema>=4.22,<5' 'pytest>=8,<9'
+          python runtime/platform/validate_repository.py --root . --suite all
+          python -m pytest runtime/platform/tests/test_validate_repository.py runtime/miro/tests/test_render.py -q
+          git diff --check
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'fix(schema): align Miro scaffold with REM-011'
+          final_sha="$(git rev-parse HEAD)"
+          test "$(git rev-list --count "$EXPECTED_SHA..$final_sha")" = '1'
+          test -z "$(git status --porcelain)"
+          git push origin "$final_sha:$HEAD_REF"
+          echo "final_sha=$final_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Publish completion comment
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          JOB_STATUS: ${{ job.status }}
+          REQUESTED_SHA: ${{ github.event.pull_request.head.sha }}
+          FINAL_SHA: ${{ steps.fix.outputs.final_sha }}
+        run: |
+          cat > /tmp/comment.md <<EOF
+          REM-PR8-HVA-CC-011 schema alignment: **${JOB_STATUS}**
+
+          - bootstrap SHA: ${REQUESTED_SHA}
+          - resulting schema-fix SHA: ${FINAL_SHA}
+          - workflow run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
+
+          No merge, promotion, release, tag or force-push was performed.
+          EOF
+          gh pr comment "$PR_NUMBER" --repo "$REPOSITORY" --body-file /tmp/comment.md
