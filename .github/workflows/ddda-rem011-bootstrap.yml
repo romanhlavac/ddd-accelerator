@@ -66,6 +66,10 @@ jobs:
             '& python -m pip install --disable-pip-version-check -e (Join-Path $root "runtime/miro") pytest',
             '& python -m pip install --disable-pip-version-check -e (Join-Path $root "runtime/miro") pytest jsonschema'
           )
+          $scriptText = $scriptText.Replace(
+            'branch = (git branch --show-current).Trim()',
+            'branch = [string]$env:HEAD_REF'
+          )
           $schemaMarker = '# Replace residual active contract tokens in executable tests/runtime, but preserve historical review documents.'
           $schemaPatch = @'
           update(
