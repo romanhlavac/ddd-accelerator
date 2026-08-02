@@ -18,7 +18,7 @@ REM-010 opravil parent ownership frame `01` a prokázal technickou reprodukovate
 4. Každý `cookbook_url` míří pod `docs/cookbooks/`; metodika zůstává v `method_url`.
 5. Layout validator fail-closed ověřuje exact source frame, klasifikaci cookbook odkazů a neduplicitní stage role.
 6. Acceptance test ověřuje doménovou koherenci syntetického claims scénáře.
-7. Report schema a runtime používají render contract `REM-PR8-HVA-CC-011`.
+7. Scaffold schema, acceptance-report schema a runtime používají render contract `REM-PR8-HVA-CC-011`.
 
 ## Exact source frames doplněné v REM-011
 
@@ -35,9 +35,16 @@ Exact-SHA remediation před push ověřila:
 - Python renderer a repository contract tests: `27 passed`;
 - PowerShell Miro automation regression: `PASS`;
 - `git diff --check`: `PASS`;
-- výsledný product delta proti REM-010: 13 souborů, bez jednorázového bootstrap workflow a bez remediation transport skriptu;
-- běžný fast-forward push na `feat/project-steering-and-documentation`;
+- výsledný product delta proti REM-010 bez jednorázových bootstrap workflow a bez remediation transport skriptů;
+- běžné fast-forward push operace na `feat/project-steering-and-documentation`;
 - žádný merge, promotion, release, tag ani force-push.
+
+Následná schema alignment oprava ověřila před push:
+
+- celý repository validator `--suite all`: `PASS`;
+- `runtime/platform/tests/test_validate_repository.py` a `runtime/miro/tests/test_render.py`: `PASS`;
+- `git diff --check`: `PASS`;
+- `schemas/miro-scaffold.schema.json` vyžaduje `REM-PR8-HVA-CC-011` stejně jako scaffold a acceptance-report schema.
 
 Standardní PR workflow nad aktuálním head SHA zůstávají autoritativním CI gate.
 
