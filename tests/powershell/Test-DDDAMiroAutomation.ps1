@@ -141,8 +141,15 @@ Assert-True -Condition (([string]$pythonProbe.encoding).Replace("-", "") -match 
 $retryProbeStderrPath = Join-Path $env:TEMP ("ddda-retry-probe-" + [Guid]::NewGuid().ToString("N") + ".log")
 try {
     $retryProbeCode = "import json, sys; print('DDDA Miro retry: status=500', file=sys.stderr); print(json.dumps(dict(status='PASS')))"
-    $retryProbeRaw = @(& $pythonProbeCommand -I -X utf8 -c $retryProbeCode 2> $retryProbeStderrPath)
-    $retryProbeExitCode = $LASTEXITCODE
+    $retryProbePreviousErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "Continue"
+        $retryProbeRaw = @(& $pythonProbeCommand -I -X utf8 -c $retryProbeCode 2> $retryProbeStderrPath)
+        $retryProbeExitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $retryProbePreviousErrorActionPreference
+    }
     $retryProbeText = ($retryProbeRaw | ForEach-Object { $_.ToString() } | Out-String).Trim()
     $retryProbeStderrRaw = Get-Content -LiteralPath $retryProbeStderrPath -Raw -Encoding UTF8
     $retryProbeStderrText = ""
