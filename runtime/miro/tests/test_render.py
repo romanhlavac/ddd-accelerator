@@ -8,6 +8,7 @@ from ddda_miro.config import ProjectConfig
 from ddda_miro.render import (
     CANONICAL_SHELL_FRAME_IDS,
     RENDER_CONTRACT_VERSION,
+    STARTER_REFERENCE_BOARD_ID,
     _workshop_shell_layout,
     assert_utf8_contract,
     render_board,
@@ -133,9 +134,12 @@ def test_real_scaffold_satisfies_layout_traceability_and_utf8_contract(tmp_path)
     assert result["traceability_count"] == 8
     assert result["canonical_workshop_shell_count"] == 15
     assert result["stage_column_count"] == 8
-    assert scaffold["schema_version"] == "2.4"
+    assert scaffold["schema_version"] == "2.5"
     assert scaffold["visual_contract"]["render_contract_version"] == RENDER_CONTRACT_VERSION
-    assert scaffold["visual_contract"]["minimum_remote_item_count"] >= 250
+    assert scaffold["visual_contract"]["minimum_remote_item_count"] >= 280
+    assert scaffold["review_sources"]["redline"]["board_id"] == "uXjVH2vcvRI="
+    assert scaffold["review_sources"]["ddd_starter"]["board_id"] == STARTER_REFERENCE_BOARD_ID
+    assert result["starter_reference_template_count"] == 11
 
     frame_by_id = {frame["id"]: frame for frame in scaffold["frames"]}
     canonical_ids = [
@@ -196,8 +200,10 @@ def test_render_creates_control_center_journey_legends_and_is_idempotent(tmp_pat
     assert first["remote_layout_evidence"]["transition_count"] >= 17
     assert first["remote_layout_evidence"]["navigation_connector_count"] >= 20
     assert first["remote_layout_evidence"]["artifact_registry_cell_count"] == 45
+    assert first["remote_layout_evidence"]["overview_child_count"] >= 61
+    assert first["remote_layout_evidence"]["starter_reference_caption_count"] >= 11
     assert first["remote_layout_evidence"]["state_lifecycle_provenance_separation"] == "PASS"
-    assert first["remote_layout_evidence"]["remote_item_count"] >= 250
+    assert first["remote_layout_evidence"]["remote_item_count"] >= 280
     assert first["remote_layout_evidence"]["render_contract_version"] == RENDER_CONTRACT_VERSION
     assert first["remote_layout_evidence"]["platform_source_commit"] == "b" * 40
     assert len(first["remote_layout_evidence"]["scaffold_sha256"]) == 64
@@ -211,6 +217,7 @@ def test_render_creates_control_center_journey_legends_and_is_idempotent(tmp_pat
     assert mapping["items"]["control-center:summary"]["system_item"] is True
     assert len([key for key in mapping["items"] if key.startswith("journey:G")]) == 8
     assert len([key for key in mapping["items"] if key.startswith("gate-marker:G")]) == 8
+    assert len([key for key in mapping["items"] if key.startswith("overview-reference:")]) == 8
     assert len([key for key in mapping["items"] if key.startswith("legend:")]) == 5
     assert len([key for key in mapping["items"] if key.startswith("stage-visual:G")]) >= 32
     assert len([key for key in mapping["items"] if key.startswith("example:")]) >= 45
@@ -225,6 +232,21 @@ def test_render_creates_control_center_journey_legends_and_is_idempotent(tmp_pat
     assert mapping["platform_source_commit"] == "b" * 40
     assert mapping["remote_content_digest"] == first["remote_layout_evidence"]["remote_content_digest"]
     assert len(mapping["traceability"]) == 8
+
+    overview_remote_id = mapping["frames"]["method-overview"]["miro_item_id"]
+    overview_entries = [
+        entry for entry in mapping["items"].values()
+        if entry.get("role") in {
+            "journey_gate", "journey_gate_marker", "stage_visual",
+            "overview_resource_panel", "overview_reference_stage", "zone_header",
+        }
+    ]
+    assert len(overview_entries) >= 61
+    assert all(entry.get("frame_id") == "method-overview" for entry in overview_entries)
+    assert all(
+        client.items[entry["miro_item_id"]]["parent"]["id"] == overview_remote_id
+        for entry in overview_entries
+    )
 
     created_count = len(client.created)
     first_item_ids = {key: value["miro_item_id"] for key, value in mapping["items"].items()}
@@ -357,6 +379,20 @@ def test_remote_layout_rejects_mapping_only_false_positive(tmp_path):
         validate_remote_layout(scaffold, mapping, client.list_items("board-1"))
 
 
+def test_remote_layout_rejects_detached_frame_01_content(tmp_path):
+    config = build_config(tmp_path)
+    client = FakeClient()
+    render_board(config, client, create_board=False, dry_run=False)
+    scaffold = load_yaml(config.scaffold_path)
+    mapping = load_yaml(config.root / "miro" / "miro-map.yaml")
+
+    remote_id = mapping["items"]["journey:G1"]["miro_item_id"]
+    client.items[remote_id].pop("parent", None)
+
+    with pytest.raises(ValueError, match="not a navigable child of overview frame"):
+        validate_remote_layout(scaffold, mapping, client.list_items("board-1"))
+
+
 def test_remote_layout_rejects_baseline_like_board_without_visible_shell(tmp_path):
     config = build_config(tmp_path)
     client = FakeClient()
@@ -391,6 +427,14 @@ def test_workshop_guides_have_links_and_examples(tmp_path):
     assert len(example_entries) >= 45
     panel_entries = [value for value in mapping["items"].values() if value.get("role") == "workshop_example_panel"]
     assert len(panel_entries) == 16
+    source_titles = [
+        client.items[value["miro_item_id"]]["data"]["content"]
+        for value in mapping["items"].values()
+        if value.get("role") == "workshop_example_title"
+    ]
+    assert sum(f"DDD STARTER SOURCE: {STARTER_REFERENCE_BOARD_ID}" in value for value in source_titles) >= 11
+    assert any("Business model canvas - exercise" in value for value in source_titles)
+    assert any("Context Maps - Examples" in value for value in source_titles)
     workspace_entries = {
         key: value for key, value in mapping["items"].items()
         if value.get("role") == "workshop_workspace_panel"
@@ -411,6 +455,7 @@ def test_workshop_guides_have_links_and_examples(tmp_path):
         if value.get("role") in {
             "workshop_example", "workshop_example_panel", "workshop_example_title",
             "workshop_example_connector", "stage_visual", "stage_visual_connector",
+            "overview_reference_stage",
         }
     ]
     assert ignored_entries

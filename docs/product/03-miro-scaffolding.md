@@ -96,6 +96,8 @@ Přehled je skutečný flow diagram, nikoli pás generických rounded rectangles
 - feedback loops jsou odlišeny zakřiveným nebo přerušovaným connector stylem;
 - příklady výstupů používají odpovídající typy prvků, zejména sticky notes pro EventStorming a table-grid pro slovníky či klasifikace;
 - resource panel odkazuje na základní DDD Starter metodiku, DDDA metodiku, cookbooks a knowledge index.
+- všechny uvedené prvky mají parent nastavený na remote ID frame `01`, takže navigace na frame zobrazí jeho skutečný obsah;
+- osm source cards propojuje stages s konkrétními artefakty boardu `uXjVH27wYU4=` a uvádí redline source `uXjVH2vcvRI=`.
 
 Základní reference:
 
@@ -120,7 +122,7 @@ Rozlišení je založeno na symbolu, plném textovém labelu, významu a barvě.
 
 ## Workshop frames `20–82`
 
-Každý frame `20–82` má tři jasně oddělené části. Frames `01` a `10` jsou v této remediaci obsahově zachovány; makro-layout může změnit jejich pozici, ale renderer jim nepřidává nový shell.
+Každý frame `20–82` má tři jasně oddělené části. Frame `10` zůstává bez kanonického shellu. Frame `01` je od REM-010 obsahově přepracovaný podle redline boardu `uXjVH2vcvRI=`: journey, gates, stage visuals, zones, resources a osm source cards jsou skutečné children frame, nikoli top-level položky položené přes jeho geometrii.
 
 ### Facilitační návod vlevo nahoře
 
@@ -170,7 +172,8 @@ Opakovaný render:
 - aktualizuje existující frames, shapes, sticky notes, texts a connectors;
 - nevytváří nový board;
 - zachovává stabilní journey, gate, zone a example IDs;
-- zachovává interní kontrakt frames `01` a `10`;
+- pro frame `01` vynucuje samostatný parent/child overview kontrakt a pro frame `10` zachovává absenci kanonického shellu;
+- zobrazuje exact read-only traceability na redline board `uXjVH2vcvRI=` a DDD Starter board `uXjVH27wYU4=`;
 - odstraní pouze zastaralé systémové prvky předchozí verze scaffoldu;
 - nemaže unmanaged workshopový obsah;
 - při běžném syncu nepřepisuje ručně upravený layout managed artefaktu bez explicitního `--include-layout`;
@@ -203,12 +206,13 @@ Po renderu renderer načte skutečné Miro items i connectors a ověří:
 - situační prvky pro všech osm stages;
 - pět čitelných gate-state karet;
 - top-left workshop guides;
-- patnáct editovatelných pracovních ploch ve frames `20–82` a žádnou novou shell plochu ve frame `10`;
+- patnáct editovatelných pracovních ploch ve frames `20–82`, nejméně 61 child items ve frame `01` a žádnou novou shell plochu ve frame `10`;
 - oddělený example panel a jeho sync-ignore metadata;
 - samostatnou lifecycle a provenance legendu;
 - jeden Artifact Registry s devíti deklarovanými sloupci.
 - viditelné provenance markery pro render contract, exact candidate SHA a scaffold SHA-256;
-- nejméně 250 vzdálených items, aby 211položková baseline nemohla projít jako redesign;
+- nejméně 280 vzdálených items, aby 262položkový odmítnutý board nemohl projít jako REM-010;
+- nejméně jedenáct viditelných vazeb `VZOR / LEGENDA` na konkrétní frames DDD Starter boardu;
 - přesně patnáct viditelných pracovních ploch a patnáct výskytů každé povinné guide sekce;
 - `remote_content_digest` vypočtený z reálně načtených systémových položek.
 
@@ -225,10 +229,12 @@ technical_sync_status: PASS
 layout_contract_status: PASS
 remote_layout_status: PASS
 render_contract_status: PASS
-render_contract_version: REM-PR8-HVA-CC-002
+render_contract_version: REM-PR8-HVA-CC-010
 platform_source_commit: <40-char SHA>
 scaffold_sha256: <64-char SHA-256>
-remote_item_count: 250+
+remote_item_count: 280+
+overview_child_count: 61+
+starter_reference_caption_count: 11+
 remote_content_digest: <64-char SHA-256>
 utf8_status: PASS
 human_visual_acceptance_status: PENDING

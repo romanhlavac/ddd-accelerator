@@ -18,7 +18,9 @@ MOJIBAKE_MARKERS = ("â€“", "â€”", "Ă", "Ĺ", "Ä", "�")
 GATE_IDS = [f"G{index}" for index in range(1, 9)]
 GATE_STATUS_IDS = ["not_ready", "ready_for_review", "conditional", "rejected", "passed"]
 EXPECTED_STAGES = ["align", "discover", "decompose", "strategize", "connect", "organize", "define", "code"]
-RENDER_CONTRACT_VERSION = "REM-PR8-HVA-CC-002"
+RENDER_CONTRACT_VERSION = "REM-PR8-HVA-CC-010"
+REDLINE_BOARD_ID = "uXjVH2vcvRI="
+STARTER_REFERENCE_BOARD_ID = "uXjVH27wYU4="
 CANONICAL_GUIDE_HEADINGS = (
     "RECEPT",
     "HOTOVO KDYŽ",
@@ -32,6 +34,32 @@ CONTROL_CENTER_MARKERS = (
     "ARTIFACT PROVENANCE",
     "ARTIFACT REGISTRY",
 )
+OVERVIEW_MARKERS = (
+    "01 – DDD STARTER JOURNEY: REDLINE REWORKED",
+    f"REDLINE SOURCE: {REDLINE_BOARD_ID}",
+    f"DDD STARTER SOURCE: {STARTER_REFERENCE_BOARD_ID}",
+)
+OVERVIEW_PARENTED_ROLES = (
+    "journey_gate",
+    "journey_gate_marker",
+    "stage_visual",
+    "overview_resource_panel",
+    "overview_reference_stage",
+    "zone_header",
+)
+REQUIRED_STARTER_EXAMPLES = {
+    "align": "Business model canvas - exercise",
+    "big_picture": "Big Picture organized",
+    "evidence": "Big Picture organized",
+    "process": "Process Modelling",
+    "decompose": "Finding Domains and subdomains - group 1",
+    "lifecycle": "Starter Modelling Process - Decompose",
+    "strategize": "Strategic classification",
+    "context_map": "Context Maps - Examples",
+    "teams": "Starter Modelling Process - Organize",
+    "bc_canvas": "Bounded Context Canvas",
+    "design_es": "Domain Message Flow Modelling - Example",
+}
 CANONICAL_SHELL_FRAME_IDS = [
     "discover-big-picture-es",
     "discover-evidence",
@@ -94,6 +122,7 @@ def _remote_content_digest(
                 "text": _visible_text(remote),
                 "position": remote.get("position") or {},
                 "geometry": remote.get("geometry") or {},
+                "parent": remote.get("parent") or {},
             }
         )
     serialized = json.dumps(records, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
@@ -162,6 +191,7 @@ def validate_layout_contract(scaffold: dict[str, Any]) -> dict[str, Any]:
     transitions = scaffold.get("method_transitions") or []
     stage_templates = scaffold.get("stage_visual_templates") or {}
     example_templates = scaffold.get("example_templates") or {}
+    review_sources = scaffold.get("review_sources") or {}
     contract = scaffold.get("visual_contract") or {}
     coordinate = scaffold.get("coordinate_system") or {}
     minimum_fonts = coordinate.get("minimum_font_size") or {}
@@ -171,8 +201,20 @@ def validate_layout_contract(scaffold: dict[str, Any]) -> dict[str, Any]:
         failures.append(
             f"visual contract must declare render_contract_version={RENDER_CONTRACT_VERSION}"
         )
-    if int(contract.get("minimum_remote_item_count") or 0) < 250:
-        failures.append("visual contract minimum_remote_item_count must distinguish the redesigned board from the 211-item baseline")
+    if int(contract.get("minimum_remote_item_count") or 0) < 280:
+        failures.append("visual contract minimum_remote_item_count must distinguish REM-010 from the 262-item rejected board")
+    expected_sources = {
+        "redline": REDLINE_BOARD_ID,
+        "ddd_starter": STARTER_REFERENCE_BOARD_ID,
+    }
+    for source_name, board_id in expected_sources.items():
+        source = review_sources.get(source_name) or {}
+        if str(source.get("board_id") or "") != board_id:
+            failures.append(f"review source {source_name} must identify board {board_id}")
+        if board_id not in str(source.get("board_url") or ""):
+            failures.append(f"review source {source_name} has no exact board URL")
+        if str(source.get("mode") or "") != "read_only":
+            failures.append(f"review source {source_name} must remain read_only")
 
     stage_ids = [str(item.get("id") or "") for item in stages]
     gate_ids = [str(item.get("id") or "") for item in gates]
@@ -195,6 +237,14 @@ def validate_layout_contract(scaffold: dict[str, Any]) -> dict[str, Any]:
         failures.append(f"overview frame {overview_id} is missing")
     if sorted(traced_gates) != sorted(GATE_IDS):
         failures.append("traceability must cover G1–G8 exactly once")
+    for row in traceability:
+        gate_id = str(row.get("gate") or "")
+        if str(row.get("reference_board_id") or "") != STARTER_REFERENCE_BOARD_ID:
+            failures.append(f"traceability {gate_id} does not identify the DDD Starter board")
+        if not str(row.get("reference_frame_title") or ""):
+            failures.append(f"traceability {gate_id} has no source frame title")
+        if STARTER_REFERENCE_BOARD_ID not in str(row.get("reference_frame_url") or ""):
+            failures.append(f"traceability {gate_id} has no exact source frame URL")
 
     resources = scaffold.get("overview_resources") or []
     if len(resources) < int(contract.get("require_overview_resources", 4)):
@@ -256,6 +306,13 @@ def validate_layout_contract(scaffold: dict[str, Any]) -> dict[str, Any]:
         for link_name in ("cookbook_url", "method_url", "starter_reference_url"):
             if not str(stage.get(link_name) or "").startswith("https://"):
                 failures.append(f"stage {stage_id} has no usable {link_name}")
+        if str(stage.get("reference_board_id") or "") != STARTER_REFERENCE_BOARD_ID:
+            failures.append(f"stage {stage_id} is not traceable to the DDD Starter source board")
+        for field in ("reference_frame_title", "reference_frame_url", "reference_artifacts_cs"):
+            if not stage.get(field):
+                failures.append(f"stage {stage_id} is missing source traceability field {field}")
+        if STARTER_REFERENCE_BOARD_ID not in str(stage.get("reference_frame_url") or ""):
+            failures.append(f"stage {stage_id} source URL does not target the DDD Starter board")
         box = {"id": stage_id, "x": float(stage.get("x", 0)), "y": float(stage.get("y", 0)), "width": stage_width, "height": stage_height}
         stage_boxes.append(box)
         if overview and not _inside(box, overview, margin=300):
@@ -285,7 +342,7 @@ def validate_layout_contract(scaffold: dict[str, Any]) -> dict[str, Any]:
     if contract.get("require_canonical_workshop_shell"):
         if canonical_shell_ids != CANONICAL_SHELL_FRAME_IDS:
             failures.append(
-                "canonical workshop shell must cover frames 20–82 exactly and preserve frames 01/10"
+                "canonical workshop shell must cover frames 20–82 exactly; frame 01 has its own redline overview contract"
             )
     if contract.get("require_stage_columns"):
         owned_frame_ids: list[str] = []
@@ -343,6 +400,18 @@ def validate_layout_contract(scaffold: dict[str, Any]) -> dict[str, Any]:
             for connector in template.get("connectors") or []:
                 if str(connector.get("from") or "") not in item_ids or str(connector.get("to") or "") not in item_ids:
                     failures.append(f"frame {frame_id} example connector references an unknown item")
+            template_id = str(frame.get("example_template") or "")
+            if template_id in REQUIRED_STARTER_EXAMPLES:
+                if str(template.get("reference_kind") or "") != "ddd_starter_board":
+                    failures.append(f"example template {template_id} must declare reference_kind=ddd_starter_board")
+                if str(template.get("reference_board_id") or "") != STARTER_REFERENCE_BOARD_ID:
+                    failures.append(f"example template {template_id} has no exact DDD Starter board ID")
+                if str(template.get("reference_frame_title") or "") != REQUIRED_STARTER_EXAMPLES[template_id]:
+                    failures.append(f"example template {template_id} has the wrong source frame title")
+                if STARTER_REFERENCE_BOARD_ID not in str(template.get("reference_frame_url") or ""):
+                    failures.append(f"example template {template_id} has no exact source frame URL")
+                if not str(template.get("adaptation_cs") or ""):
+                    failures.append(f"example template {template_id} does not explain its adaptation")
             example_layout, _title, panel = _template_layout(frame, template)
             local_frame = {"x": 0, "y": 0, "width": frame.get("width", 0), "height": frame.get("height", 0)}
             if not _inside(panel, local_frame, margin=100):
@@ -412,6 +481,7 @@ def validate_layout_contract(scaffold: dict[str, Any]) -> dict[str, Any]:
         "stage_connector_count": stage_connector_count,
         "canonical_workshop_shell_count": len(canonical_shell_ids),
         "stage_column_count": len(stage_columns),
+        "starter_reference_template_count": len(REQUIRED_STARTER_EXAMPLES),
     }
 
 def _project_context(config: ProjectConfig) -> dict[str, Any]:
@@ -957,8 +1027,20 @@ def _render_frame_guide_and_example(
         role="workshop_example_panel", managed=False, sync_policy="ignore")
     title_x, title_y, title_width = title
     panel_cfg = template.get("panel") or {}
+    reference_frame_title = str(template.get("reference_frame_title") or "DDDA rozšíření")
+    reference_frame_url = str(template.get("reference_frame_url") or template.get("reference_url") or "")
+    reference_label = (
+        f"INSPIRACE: {_link(reference_frame_title, reference_frame_url)} · "
+        f"DDD STARTER SOURCE: {STARTER_REFERENCE_BOARD_ID}"
+        if str(template.get("reference_kind") or "") == "ddd_starter_board"
+        else f"ZDROJ: {html.escape(reference_frame_title)}"
+    )
     title_payload = _text_payload(
-        content=f"<p><strong>{html.escape(str(panel_cfg.get('title_cs') or template.get('title_cs') or 'VZOR / LEGENDA'))}</strong></p><p>{html.escape(str(template.get('title_cs') or ''))}</p>",
+        content=(
+            f"<p><strong>{html.escape(str(panel_cfg.get('title_cs') or template.get('title_cs') or 'VZOR / LEGENDA'))}</strong></p>"
+            f"<p>{html.escape(str(template.get('title_cs') or ''))}</p>"
+            f"<p>{reference_label}</p>"
+        ),
         x=title_x, y=title_y, width=title_width,
         font_size=max(float(minimum_fonts.get("workshop_example", 20)) + 3, 23),
         parent_id=frame_remote_id, text_align="center", color="#365A8C",
@@ -1081,6 +1163,21 @@ def validate_remote_layout(
             failures.append(f"remote system item {item_id} is missing")
             continue
         role_entries.setdefault(str((entry or {}).get("role") or "unknown"), []).append((item_id, entry, remote))
+    overview_remote_id = str(((mapping.get("frames") or {}).get(overview_id) or {}).get("miro_item_id") or "")
+    overview_children: list[tuple[str, dict[str, Any], dict[str, Any]]] = []
+    for role in OVERVIEW_PARENTED_ROLES:
+        for item_id, entry, remote in role_entries.get(role) or []:
+            overview_children.append((item_id, entry, remote))
+            if str(entry.get("frame_id") or "") != overview_id:
+                failures.append(f"{item_id} is not mapped to overview frame {overview_id}")
+            if str((remote.get("parent") or {}).get("id") or "") != overview_remote_id:
+                failures.append(f"{item_id} is not a navigable child of overview frame {overview_id}")
+    minimum_overview_children = int(contract.get("minimum_overview_child_items") or 0)
+    if len(overview_children) < minimum_overview_children:
+        failures.append(
+            f"remote overview has only {len(overview_children)} parented items; "
+            f"REM-010 requires at least {minimum_overview_children}"
+        )
     stage_cards = role_entries.get("journey_gate") or []
     gate_markers = role_entries.get("journey_gate_marker") or []
     if len(stage_cards) != 8 or len(gate_markers) != 8:
@@ -1140,6 +1237,11 @@ def validate_remote_layout(
     resources = role_entries.get("overview_resource_panel") or []
     if len(resources) != 1:
         failures.append("remote overview resource panel is missing")
+    overview_references = role_entries.get("overview_reference_stage") or []
+    if len(overview_references) != len(EXPECTED_STAGES):
+        failures.append(
+            f"remote overview must contain one visible source card per stage, got {len(overview_references)}"
+        )
     gate_state_titles = role_entries.get("project_gate_state_title") or []
     lifecycle_legends = role_entries.get("artifact_lifecycle_legend") or []
     provenance_legends = role_entries.get("artifact_provenance_legend") or []
@@ -1175,6 +1277,23 @@ def validate_remote_layout(
     for marker in CONTROL_CENTER_MARKERS:
         if marker not in visible_board_text:
             failures.append(f"remote board does not visibly contain {marker}")
+    for marker in OVERVIEW_MARKERS:
+        if marker not in visible_board_text:
+            failures.append(f"remote board does not visibly contain overview marker {marker}")
+    example_titles = role_entries.get("workshop_example_title") or []
+    starter_reference_captions = [
+        remote for _item_id, _entry, remote in example_titles
+        if f"DDD STARTER SOURCE: {STARTER_REFERENCE_BOARD_ID}" in _visible_text(remote)
+    ]
+    minimum_reference_captions = int(contract.get("minimum_starter_reference_captions") or 0)
+    if len(starter_reference_captions) < minimum_reference_captions:
+        failures.append(
+            f"remote board has only {len(starter_reference_captions)} visible DDD Starter example references; "
+            f"REM-010 requires at least {minimum_reference_captions}"
+        )
+    for source_title in sorted(set(REQUIRED_STARTER_EXAMPLES.values())):
+        if source_title not in visible_board_text:
+            failures.append(f"remote board does not visibly cite DDD Starter frame {source_title}")
     for heading in CANONICAL_GUIDE_HEADINGS:
         count = sum(heading in content for content in visible_texts)
         if count != len(CANONICAL_SHELL_FRAME_IDS):
@@ -1221,6 +1340,7 @@ def validate_remote_layout(
         + (role_entries.get("workshop_example_connector") or [])
         + stage_visuals
         + (role_entries.get("stage_visual_connector") or [])
+        + overview_references
         + lifecycle_legends
         + provenance_legends
         + artifact_registry_titles
@@ -1243,6 +1363,8 @@ def validate_remote_layout(
         "artifact_registry_cell_count": len(artifact_registry),
         "artifact_status_table_item_count": len(artifact_registry),
         "state_lifecycle_provenance_separation": "PASS",
+        "overview_child_count": len(overview_children),
+        "starter_reference_caption_count": len(starter_reference_captions),
         "render_contract_version": RENDER_CONTRACT_VERSION,
         "platform_source_commit": platform_source_commit,
         "scaffold_sha256": scaffold_sha256,
@@ -1313,6 +1435,7 @@ def render_board(config: ProjectConfig, client: MiroClient | None, *, create_boa
             operations.extend([
                 {"action": "create_system_item", "item_id": f"journey:{gate_id}", "item_type": "shape", "role": "journey_gate"},
                 {"action": "create_system_item", "item_id": f"gate-marker:{gate_id}", "item_type": "shape", "role": "journey_gate_marker"},
+                {"action": "create_system_item", "item_id": f"overview-reference:{stage.get('id')}", "item_type": "shape", "role": "overview_reference_stage", "sync_policy": "ignore"},
                 {"action": "create_connector", "item_id": f"stage-gate:{gate_id}", "item_type": "connector", "role": "stage_gate_transition"},
             ])
         for zone in scaffold.get("zones") or []:
@@ -1326,6 +1449,14 @@ def render_board(config: ProjectConfig, client: MiroClient | None, *, create_boa
     assert client is not None and board_id is not None
     _delete_deprecated_items(mapping=mapping, operations=operations, client=client, board_id=board_id)
     overview_id = str((scaffold.get("visual_contract") or {}).get("overview_frame") or "method-overview")
+    overview_frame = next((frame for frame in frames if str(frame.get("id")) == overview_id), None)
+    overview_frame_remote_id = frame_remote_ids.get(overview_id) or str((mapping["frames"].get(overview_id) or {}).get("miro_item_id") or "")
+    if not overview_frame or not overview_frame_remote_id:
+        raise ValueError("Frame 01 – DDD Starter journey was not rendered")
+
+    def overview_local(x: float, y: float) -> tuple[float, float]:
+        return x - float(overview_frame.get("x", 0)), y - float(overview_frame.get("y", 0))
+
     control_frame = frame_remote_ids.get("control-center") or str((mapping["frames"].get("control-center") or {}).get("miro_item_id") or "")
     if not control_frame:
         raise ValueError("Navigation frame 00 – Control Center was not rendered")
@@ -1364,16 +1495,19 @@ def render_board(config: ProjectConfig, client: MiroClient | None, *, create_boa
     stage_visual_ids: dict[str, dict[str, str]] = {}
     for stage in scaffold.get("method_flow", {}).get("stages") or []:
         gate_id = str(stage.get("gate_after") or "")
+        stage_x = float(stage.get("x", 0))
+        stage_y = float(stage.get("y", -6200))
+        stage_local_x, stage_local_y = overview_local(stage_x, stage_y)
         gate_state = context["gates"].get(gate_id) or {"status": "not_ready", "missing": []}
         content, fill_color = _gate_content(gate_id, stage, gate_configs.get(gate_id) or {}, gate_state, status_defs, context["current_gate"], frame_titles)
         stage_remote = _upsert_system_item(mapping=mapping, operations=operations, client=client, board_id=board_id, dry_run=False,
-            item_id=f"journey:{gate_id}", item_type="shape", payload=_shape_payload(content=content, x=float(stage.get("x", 0)), y=float(stage.get("y", -6200)), width=stage_width, height=stage_height, fill_color=fill_color, font_size=float(minimum_fonts.get("journey", 28)), shape=str(stage.get("shape") or "hexagon"), border_color="#365A8C", border_width=4 if gate_id == context["current_gate"] else 2, text_align="center", text_align_vertical="top"), role="journey_gate")
+            item_id=f"journey:{gate_id}", item_type="shape", payload=_shape_payload(content=content, x=stage_local_x, y=stage_local_y, width=stage_width, height=stage_height, fill_color=fill_color, font_size=float(minimum_fonts.get("journey", 28)), shape=str(stage.get("shape") or "hexagon"), parent_id=overview_frame_remote_id, border_color="#365A8C", border_width=4 if gate_id == context["current_gate"] else 2, text_align="center", text_align_vertical="top"), frame_id=overview_id, role="journey_gate", managed=False, sync_policy="ignore")
         if stage_remote:
             journey_ids[str(stage.get("id"))] = stage_remote
         status_id = str(gate_state.get("status") or "not_ready")
         status_def = status_defs.get(status_id) or {}
         gate_remote = _upsert_system_item(mapping=mapping, operations=operations, client=client, board_id=board_id, dry_run=False,
-            item_id=f"gate-marker:{gate_id}", item_type="shape", payload=_shape_payload(content=f"<p><strong>{html.escape(gate_id)}</strong></p><p>{html.escape(str(status_def.get('symbol') or '•'))}</p>", x=float(stage.get("x", 0)), y=float(stage.get("y", -6200))+1550, width=800, height=800, fill_color=str(status_def.get("fill_color") or "#FFFFFF"), font_size=26, shape="rhombus", border_color="#365A8C", border_width=3), role="journey_gate_marker")
+            item_id=f"gate-marker:{gate_id}", item_type="shape", payload=_shape_payload(content=f"<p><strong>{html.escape(gate_id)}</strong></p><p>{html.escape(str(status_def.get('symbol') or '•'))}</p>", x=stage_local_x, y=stage_local_y+1550, width=800, height=800, fill_color=str(status_def.get("fill_color") or "#FFFFFF"), font_size=26, shape="rhombus", parent_id=overview_frame_remote_id, border_color="#365A8C", border_width=3), frame_id=overview_id, role="journey_gate_marker", managed=False, sync_policy="ignore")
         if gate_remote:
             gate_marker_ids[gate_id]=gate_remote
         if stage_remote and gate_remote:
@@ -1382,21 +1516,50 @@ def render_board(config: ProjectConfig, client: MiroClient | None, *, create_boa
         stage_visual_ids[gate_id]={}
         for item in template.get("items") or []:
             item_id = str(item.get("id") or "item")
-            item_type, payload = _visual_payload(item, x=float(stage.get("x", 0))+float(item.get("x", 0))*0.75, y=float(stage.get("y", 0))+2850+float(item.get("y", 0))*0.55, width=float(item.get("width", 760))*0.75, height=float(item.get("height", 420))*0.75, font_size=max(float(minimum_fonts.get("stage_example", 20)), float(item.get("font_size", 20))), parent_id=None)
-            rid=_upsert_system_item(mapping=mapping, operations=operations, client=client, board_id=board_id, dry_run=False, item_id=f"stage-visual:{gate_id}:{item_id}", item_type=item_type, payload=payload, role="stage_visual", managed=False, sync_policy="ignore")
+            visual_global_x = stage_x + float(item.get("x", 0)) * 0.75
+            visual_global_y = stage_y + 2850 + float(item.get("y", 0)) * 0.55
+            visual_local_x, visual_local_y = overview_local(visual_global_x, visual_global_y)
+            item_type, payload = _visual_payload(item, x=visual_local_x, y=visual_local_y, width=float(item.get("width", 760))*0.75, height=float(item.get("height", 420))*0.75, font_size=max(float(minimum_fonts.get("stage_example", 20)), float(item.get("font_size", 20))), parent_id=overview_frame_remote_id)
+            rid=_upsert_system_item(mapping=mapping, operations=operations, client=client, board_id=board_id, dry_run=False, item_id=f"stage-visual:{gate_id}:{item_id}", item_type=item_type, payload=payload, frame_id=overview_id, role="stage_visual", managed=False, sync_policy="ignore")
             if rid: stage_visual_ids[gate_id][item_id]=rid
         for connector in template.get("connectors") or []:
             start=stage_visual_ids[gate_id].get(str(connector.get("from") or "")); end=stage_visual_ids[gate_id].get(str(connector.get("to") or ""))
             if start and end:
                 _upsert_connector(mapping=mapping, operations=operations, client=client, board_id=board_id, dry_run=False, item_id=f"stage-visual-connector:{gate_id}:{connector.get('id')}", payload=_connector_payload(start,end,str(connector.get("label_cs") or ""),shape=str(connector.get("shape") or "straight")), role="stage_visual_connector", sync_policy="ignore")
+        source_local_x, source_local_y = overview_local(stage_x, -1550)
+        source_artifacts = " · ".join(str(value) for value in stage.get("reference_artifacts_cs") or [])
+        source_content = (
+            f"<p><strong>INSPIRACE PRO {html.escape(str(stage.get('title_cs') or stage.get('id'))).upper()}</strong></p>"
+            f"<p>{_link(str(stage.get('reference_frame_title') or ''), str(stage.get('reference_frame_url') or ''))}</p>"
+            f"<p>{html.escape(source_artifacts)}</p>"
+        )
+        _upsert_system_item(
+            mapping=mapping, operations=operations, client=client, board_id=board_id,
+            dry_run=False, item_id=f"overview-reference:{stage.get('id')}", item_type="shape",
+            payload=_shape_payload(
+                content=source_content, x=source_local_x, y=source_local_y,
+                width=3400, height=700, fill_color="#FFF7ED", font_size=18,
+                shape="round_rectangle", parent_id=overview_frame_remote_id,
+                border_color="#B45309", border_width=2,
+            ),
+            frame_id=overview_id, role="overview_reference_stage",
+            managed=False, sync_policy="ignore",
+        )
 
     # Overview resources and aligned zones.
     resources = scaffold.get("overview_resources") or []
-    resource_content = "<p><strong>METODIKA A ZDROJE</strong></p>" + "".join(f"<p>{_link(str(item.get('label_cs') or item.get('id')), str(item.get('url') or ''))}</p>" for item in resources)
-    _upsert_system_item(mapping=mapping, operations=operations, client=client, board_id=board_id, dry_run=False, item_id="overview:resources", item_type="text", payload=_text_payload(content=resource_content, x=-16000, y=-10600, width=7000, font_size=24, text_align="left", color="#365A8C"), role="overview_resource_panel")
+    resource_content = (
+        f"<p><strong>{OVERVIEW_MARKERS[0]}</strong></p>"
+        f"<p>{OVERVIEW_MARKERS[1]} · {OVERVIEW_MARKERS[2]}</p>"
+        "<p><strong>METODIKA A ZDROJE</strong></p>"
+        + "".join(f"<p>{_link(str(item.get('label_cs') or item.get('id')), str(item.get('url') or ''))}</p>" for item in resources)
+    )
+    resource_x, resource_y = overview_local(-16000, -10600)
+    _upsert_system_item(mapping=mapping, operations=operations, client=client, board_id=board_id, dry_run=False, item_id="overview:resources", item_type="text", payload=_text_payload(content=resource_content, x=resource_x, y=resource_y, width=7000, font_size=24, parent_id=overview_frame_remote_id, text_align="left", color="#365A8C"), frame_id=overview_id, role="overview_resource_panel", managed=False, sync_policy="ignore")
     zone_ids: dict[str,str]={}
     for zone in scaffold.get("zones") or []:
-        rid=_upsert_system_item(mapping=mapping, operations=operations, client=client, board_id=board_id, dry_run=False, item_id=str(zone.get("id")), item_type="shape", payload=_shape_payload(content=f"<p><strong>{html.escape(str(zone.get('title_cs') or zone.get('id')))}</strong></p>", x=float(zone.get("x",0)), y=float(zone.get("y",-9200)), width=float(zone.get("width",4200)), height=float(zone.get("height",650)), fill_color="#E0F2FE", font_size=float(minimum_fonts.get("zone_header",28)), shape="rectangle", border_color="#2F7E95", border_width=3), role="zone_header")
+        zone_x, zone_y = overview_local(float(zone.get("x", 0)), float(zone.get("y", -9200)))
+        rid=_upsert_system_item(mapping=mapping, operations=operations, client=client, board_id=board_id, dry_run=False, item_id=str(zone.get("id")), item_type="shape", payload=_shape_payload(content=f"<p><strong>{html.escape(str(zone.get('title_cs') or zone.get('id')))}</strong></p>", x=zone_x, y=zone_y, width=float(zone.get("width",4200)), height=float(zone.get("height",650)), fill_color="#E0F2FE", font_size=float(minimum_fonts.get("zone_header",28)), shape="rectangle", parent_id=overview_frame_remote_id, border_color="#2F7E95", border_width=3), frame_id=overview_id, role="zone_header", managed=False, sync_policy="ignore")
         if rid: zone_ids[str(zone.get("id"))]=rid
     for transition in scaffold.get("zone_transitions") or []:
         start=zone_ids.get(str(transition.get("from") or "")); end=zone_ids.get(str(transition.get("to") or ""))

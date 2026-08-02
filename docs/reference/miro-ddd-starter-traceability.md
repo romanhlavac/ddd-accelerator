@@ -4,7 +4,7 @@
 
 Tento dokument dokládá, jak `strategic-ddd-method-board.yaml` převádí [DDD Starter Modelling Process](https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work) do auditovatelné Miro projekce.
 
-Uživatelem dodaný referenční board a DDD Starter vizuály jsou návrhovým vstupem. Release package používá deterministický, editovatelný ekvivalent z Miro shapes, sticky notes, textů a connectors. Board nesmí být pouze souborem prázdných frames ani generických obdélníků.
+Redline board `uXjVH2vcvRI=` a DDD Starter board `uXjVH27wYU4=` jsou read-only návrhové vstupy. Release package používá deterministický, editovatelný ekvivalent z Miro shapes, sticky notes, textů a connectors. Každý převzatý vzor uvádí konkrétní source frame a popis adaptace; board nesmí být pouze souborem prázdných frames ani generických obdélníků.
 
 ## Navigační traceability
 
@@ -36,14 +36,14 @@ Stage/gate flow je doplněn explicitními feedback loops, aby board nesugeroval 
 
 | DDD Starter krok | DDDA stage | Gate | Viditelný pracovní frame | Metodicky specifický vzor | Human acceptance |
 |---|---|---|---|---|---|
-| Align / Understand | `align` | G1 | `10 – Align / Intake` | problém, cíl, scope, owner a evidence | problém, cíl, scope a decision owner jsou pochopeny |
-| Discover | `discover` | G2 | `20 – EventStorming: Big Picture` | EventStorming sticky notes, event timeline, command, policy, hotspot a otázka | vznikl sdílený obraz dění a nejasností |
-| Decompose | `decompose` | G3 | `30 – Rozklad domény` | clustery, subdomény, boundary hypotheses a alternativy | hranice mají explicitní rationale |
-| Strategize | `strategize` | G4 | `40 – Strategická klasifikace` | core/supporting/generic a build/buy/SaaS table-grid | investiční fokus je vědomé rozhodnutí |
-| Connect | `connect` | G5 | `50 – Context Map a data ownership` | upstream/downstream, contract connector, ACL a data owner | vztahy a source of truth jsou explicitní |
+| Align / Understand | `align` | G1 | `10 – Align / Intake` | devítipolový `Business model canvas - exercise` | problém, cíl, scope a decision owner jsou pochopeny |
+| Discover | `discover` | G2 | `20 – EventStorming: Big Picture` | `Big Picture organized` a `Process Modelling` | vznikl sdílený obraz dění a nejasností |
+| Decompose | `decompose` | G3 | `30 – Rozklad domény` | `Finding Domains and subdomains` a Problem Space → Solution Space | hranice mají explicitní rationale |
+| Strategize | `strategize` | G4 | `40 – Strategická klasifikace` | `Strategic classification` matrix | investiční fokus je vědomé rozhodnutí |
+| Connect | `connect` | G5 | `50 – Context Map a data ownership` | `Context Maps - Examples`, OHS/PL/ACL a data owner | vztahy a source of truth jsou explicitní |
 | Organise | `organize` | G6 | `60 – Team Topologies` | týmové ownership a interaction-mode vztahy | ownership je organizačně proveditelný |
-| Define | `define` | G7 | `70 – Bounded Context Canvases` | canvas grid, lifecycle, Design-Level ES a quality scenarios | BC je připraven pro detailní návrh |
-| Code | `code` | G8 | `80 – Taktický DDD a architektura` | agregáty, state machine, C4, contracts a ADR | implementace chrání model a quality attributes |
+| Define | `define` | G7 | `70 – Bounded Context Canvases` | `Bounded Context Canvas` a `Domain Message Flow Modelling - Example` | BC je připraven pro detailní návrh |
+| Code | `code` | G8 | `80 – Taktický DDD a architektura` | message flow, agregáty, state machine, C4, contracts a ADR | implementace chrání model a quality attributes |
 
 Každý řádek je ve scaffoldu dohledatelný přes:
 
@@ -75,7 +75,7 @@ exclude_from_ingestion: true
 
 Sync tento obsah explicitně ignoruje i při `promote_new`. Vzor vysvětluje formu práce, ale nesmí se stát managed projektovým artefaktem ani splnit gate evidence.
 
-Frames `20–82` mají navíc jednotný třízónový shell. Method guide obsahuje method-specific recept, definition of done, otevřené otázky, heuristiky a anti-patterns; střední pracovní plocha je určena pro ruční projektový obsah a má `sync_policy: manual`. Frames `01` a `10` se interně nemění.
+Frames `20–82` mají navíc jednotný třízónový shell. Method guide obsahuje method-specific recept, definition of done, otevřené otázky, heuristiky a anti-patterns; střední pracovní plocha je určena pro ruční projektový obsah a má `sync_policy: manual`. Frame `10` nepoužívá kanonický shell. Frame `01` má samostatný redline overview kontrakt: jeho journey, gates, mini-vzory, zones, resources a source cards musí být skutečné Miro children tohoto frame.
 
 ## Tabulkové projekce
 
@@ -93,7 +93,9 @@ Testy ověřují:
 - metodicky specifické sticky notes, shapes a table-grid příklady;
 - oddělený example panel ve všech pracovních frames;
 - kanonický třízónový shell přesně v patnácti frames `20–82`;
-- absenci nového workspace shellu ve frames `01` a `10`;
+- nejméně 61 navigovatelných child items ve frame `01` a absenci kanonického workspace shellu ve frame `10`;
+- exact read-only traceability na boardy `uXjVH2vcvRI=` a `uXjVH27wYU4=`;
+- nejméně jedenáct viditelných source captions v panelech `VZOR / LEGENDA`;
 - explicitní sync-ignore a ingestion-exclusion kontrakt pro vzory i jejich connectors;
 - oddělení pěti Project/Gate State hodnot, šesti Artifact Lifecycle hodnot a čtyř Artifact Provenance hodnot;
 - jeden Artifact Registry se sloupci `Artifact`, `Type`, `Stage`, `Lifecycle`, `Provenance`, `Owner`, `Revision`, `Last sync` a `Detail`;

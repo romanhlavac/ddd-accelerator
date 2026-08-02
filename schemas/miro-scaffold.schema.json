@@ -3,6 +3,19 @@
   "$id": "https://ddda.local/schemas/miro-scaffold.schema.json",
   "title": "DDDA Miro scaffold",
   "type": "object",
+  "$defs": {
+    "reviewSource": {
+      "type": "object",
+      "required": ["board_id", "board_url", "mode", "purpose_cs"],
+      "properties": {
+        "board_id": {"type": "string", "minLength": 1},
+        "board_url": {"type": "string", "format": "uri"},
+        "mode": {"const": "read_only"},
+        "purpose_cs": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    }
+  },
   "required": [
     "schema_version",
     "id",
@@ -21,11 +34,12 @@
     "board_guide",
     "overview_resources",
     "artifact_status_tables",
-    "zone_transitions"
+    "zone_transitions",
+    "review_sources"
   ],
   "properties": {
     "schema_version": {
-      "const": "2.4"
+      "const": "2.5"
     },
     "id": {
       "type": "string",
@@ -109,6 +123,15 @@
     "metadata_contract": {
       "type": "object"
     },
+    "review_sources": {
+      "type": "object",
+      "required": ["redline", "ddd_starter"],
+      "properties": {
+        "redline": {"$ref": "#/$defs/reviewSource"},
+        "ddd_starter": {"$ref": "#/$defs/reviewSource"}
+      },
+      "additionalProperties": false
+    },
     "method_flow": {
       "type": "object",
       "required": [
@@ -139,6 +162,10 @@
               "cookbook_url",
               "method_url",
               "starter_reference_url",
+              "reference_board_id",
+              "reference_frame_title",
+              "reference_frame_url",
+              "reference_artifacts_cs",
               "shape"
             ],
             "properties": {
@@ -181,6 +208,23 @@
               "starter_reference_url": {
                 "type": "string",
                 "format": "uri"
+              },
+              "reference_board_id": {
+                "const": "uXjVH27wYU4="
+              },
+              "reference_frame_title": {
+                "type": "string",
+                "minLength": 1
+              },
+              "reference_frame_url": {
+                "type": "string",
+                "format": "uri",
+                "pattern": "uXjVH27wYU4="
+              },
+              "reference_artifacts_cs": {
+                "type": "array",
+                "minItems": 2,
+                "items": {"type": "string", "minLength": 1}
               },
               "shape": {
                 "enum": [
@@ -539,9 +583,17 @@
           "managed_artifacts",
           "human_acceptance",
           "reference_visual",
+          "reference_board_id",
+          "reference_frame_title",
+          "reference_frame_url",
           "cookbook_url",
           "method_url"
-        ]
+        ],
+        "properties": {
+          "reference_board_id": {"const": "uXjVH27wYU4="},
+          "reference_frame_title": {"type": "string", "minLength": 1},
+          "reference_frame_url": {"type": "string", "format": "uri", "pattern": "uXjVH27wYU4="}
+        }
       }
     },
     "section_catalog": {
@@ -567,6 +619,9 @@
         "render_contract_version",
         "minimum_remote_item_count",
         "overview_frame",
+        "minimum_overview_child_items",
+        "minimum_starter_reference_captions",
+        "require_overview_parenting",
         "minimum_stage_card_width",
         "minimum_stage_card_height",
         "minimum_work_frame_width",
@@ -591,15 +646,26 @@
       ],
       "properties": {
         "render_contract_version": {
-          "const": "REM-PR8-HVA-CC-002"
+          "const": "REM-PR8-HVA-CC-010"
         },
         "minimum_remote_item_count": {
           "type": "integer",
-          "minimum": 250
+          "minimum": 280
         },
         "overview_frame": {
           "type": "string",
           "minLength": 1
+        },
+        "minimum_overview_child_items": {
+          "type": "integer",
+          "minimum": 61
+        },
+        "minimum_starter_reference_captions": {
+          "type": "integer",
+          "minimum": 11
+        },
+        "require_overview_parenting": {
+          "const": true
         },
         "minimum_stage_card_width": {
           "type": "number",
@@ -671,7 +737,7 @@
         "preserved_internal_frames": {
           "type": "array",
           "contains": {
-            "const": "method-overview"
+            "const": "align-intake"
           },
           "minContains": 1,
           "items": {
@@ -893,6 +959,24 @@
         ],
         "properties": {
           "title_cs": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reference_kind": {
+            "enum": ["ddd_starter_board", "ddda_extension"]
+          },
+          "reference_board_id": {
+            "type": "string"
+          },
+          "reference_frame_title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reference_frame_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "adaptation_cs": {
             "type": "string",
             "minLength": 1
           },

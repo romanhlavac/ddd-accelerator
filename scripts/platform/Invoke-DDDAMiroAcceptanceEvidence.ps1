@@ -91,10 +91,12 @@ function New-DDDAFallbackAcceptanceReport {
         layout_contract_status = "FAIL"
         remote_layout_status = "FAIL"
         render_contract_status = "FAIL"
-        render_contract_version = "REM-PR8-HVA-CC-002"
+        render_contract_version = "REM-PR8-HVA-CC-010"
         platform_source_commit = $null
         scaffold_sha256 = $null
         remote_item_count = 0
+        overview_child_count = 0
+        starter_reference_caption_count = 0
         remote_content_digest = $null
         review_team_selection_status = if ([string]::IsNullOrWhiteSpace($MiroTeamId)) { "DEFAULT_TOKEN_TEAM" } else { "EXPLICIT_TEAM" }
         utf8_status = "FAIL"

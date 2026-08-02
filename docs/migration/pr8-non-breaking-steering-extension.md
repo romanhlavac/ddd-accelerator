@@ -85,6 +85,8 @@ Baseline board `uXjVH2o4NRU=`, human-review target `uXjVH2vcvRI=` a metodický r
 
 Změna scaffold schema `2.2 → 2.4` je aditivní vůči projektovým YAML artefaktům. Verze `2.4` vyžaduje render contract `REM-PR8-HVA-CC-002`, exact candidate provenance, scaffold hash, remote content digest a nejméně 250 skutečně načtených board items. Historický klíč `artifact_status_tables` zůstává čitelný kvůli kompatibilitě, ale jeho projekce je jeden devítisloupcový Artifact Registry. Nativní Miro Table se nevytváří, protože REST API v2 tento programový kontrakt neposkytuje.
 
+Následný human-review rejection je řešen REM-010 a schema `2.5`; viz [samostatná migrace 2.4 → 2.5](miro-scaffold-2.4-to-2.5.md) a [gap analýza](../reviews/REM-PR8-HVA-CC-010-gap-analysis.md). Historický popis `2.4` výše zůstává zachován jako auditní stopa, nikoli jako aktuální acceptance kontrakt.
+
 Starý technický report bez těchto polí není důkazem nového vizuálního kontraktu. Board vytvořený starší implementací musí být zachován pouze jako diagnostická evidence a acceptance se opakuje na novém izolovaném boardu.
 
 ## Git and generated outputs

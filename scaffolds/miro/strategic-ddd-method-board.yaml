@@ -1,4 +1,4 @@
-schema_version: '2.4'
+schema_version: '2.5'
 id: strategic-ddd-method-board
 name_cs: DDDA DDD Starter – project steering board
 description_cs: Deterministický onboarding, project steering a metodicky věrný workshop board podle DDD
@@ -95,6 +95,17 @@ metadata_contract:
     workshop_notes_and_hotspots: miro
     identifiers_and_traceability: yaml
     conflict_policy: explicit-review
+review_sources:
+  redline:
+    board_id: uXjVH2vcvRI=
+    board_url: https://miro.com/app/board/uXjVH2vcvRI=/
+    mode: read_only
+    purpose_cs: Human review redline a požadovaný vzor přepracování frame 01.
+  ddd_starter:
+    board_id: uXjVH27wYU4=
+    board_url: https://miro.com/app/board/uXjVH27wYU4=/
+    mode: read_only
+    purpose_cs: Zdroj konkrétních workshopových artefaktů a vizuálního jazyka DDD Starter.
 method_flow:
   direction: left_to_right
   overview_y: -4400
@@ -111,6 +122,12 @@ method_flow:
     cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/16-zalozeni-rizeneho-projektu.md
     method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/01-metodicky-tok-a-gates.md
     starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
+    reference_board_id: uXjVH27wYU4=
+    reference_frame_title: Business model canvas - exercise
+    reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/
+    reference_artifacts_cs:
+    - Business Model Canvas
+    - zákaznické segmenty a value propositions
     shape: hexagon
   - id: discover
     order: 20
@@ -124,6 +141,12 @@ method_flow:
     cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/03-big-picture-eventstorming.md
     method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/03-eventstorming-facilitace.md
     starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
+    reference_board_id: uXjVH27wYU4=
+    reference_frame_title: Big Picture organized
+    reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/?moveToWidget=3458764567797029923
+    reference_artifacts_cs:
+    - timeline doménových událostí
+    - actors, policies a hotspots
     shape: hexagon
   - id: decompose
     order: 30
@@ -137,6 +160,12 @@ method_flow:
     cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/06-stavove-modely.md
     method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/02-ddd-strategic-design.md
     starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
+    reference_board_id: uXjVH27wYU4=
+    reference_frame_title: Finding Domains and subdomains - group 1
+    reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/?moveToWidget=3458764567797029927
+    reference_artifacts_cs:
+    - event clusters a subdomény
+    - Problem Space → Solution Space
     shape: hexagon
   - id: strategize
     order: 40
@@ -150,6 +179,12 @@ method_flow:
     cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/01-metodicky-tok-a-gates.md
     method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/02-ddd-strategic-design.md
     starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
+    reference_board_id: uXjVH27wYU4=
+    reference_frame_title: Strategic classification
+    reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/?moveToWidget=3458764567797029928
+    reference_artifacts_cs:
+    - Model Complexity × Business Differentiation
+    - Core, Supporting a Generic
     shape: hexagon
   - id: connect
     order: 50
@@ -163,6 +198,12 @@ method_flow:
     cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/product/04-synchronizace.md
     method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/07-integration-and-data-ownership.md
     starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
+    reference_board_id: uXjVH27wYU4=
+    reference_frame_title: Context Maps - Examples
+    reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/?moveToWidget=3458764567797253965
+    reference_artifacts_cs:
+    - OHS, Published Language a ACL
+    - Customer/Supplier, Partnership a Separate Ways
     shape: hexagon
   - id: organize
     order: 60
@@ -176,6 +217,12 @@ method_flow:
     cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/01-metodicky-tok-a-gates.md
     method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/10-team-topologies-and-governance.md
     starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
+    reference_board_id: uXjVH27wYU4=
+    reference_frame_title: Starter Modelling Process - Organize
+    reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/
+    reference_artifacts_cs:
+    - bounded context ownership
+    - týmové hranice a interaction modes
     shape: hexagon
   - id: define
     order: 70
@@ -189,6 +236,12 @@ method_flow:
     cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/05-design-level-eventstorming.md
     method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/03-ddd-tactical-design.md
     starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
+    reference_board_id: uXjVH27wYU4=
+    reference_frame_title: Bounded Context Canvas
+    reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/?moveToWidget=3458764567797253947
+    reference_artifacts_cs:
+    - purpose, business decisions a ubiquitous language
+    - inbound/outbound communication
     shape: hexagon
   - id: code
     order: 80
@@ -202,6 +255,12 @@ method_flow:
     cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/product/01-architektura-ddda.md
     method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/03-ddd-tactical-design.md
     starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
+    reference_board_id: uXjVH27wYU4=
+    reference_frame_title: Domain Message Flow Modelling - Example
+    reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/?moveToWidget=3458764567797253946
+    reference_artifacts_cs:
+    - actor, command, event a query
+    - bounded contexts a message flow
     shape: hexagon
 gates:
 - id: G1
@@ -966,6 +1025,9 @@ traceability:
   - ddda.next-actions
   human_acceptance: Uživatel rozumí problému, cíli, scope, aktérům a decision ownerovi.
   reference_visual: vector-situation-card:align
+  reference_board_id: uXjVH27wYU4=
+  reference_frame_title: Business model canvas - exercise
+  reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/
   cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/16-zalozeni-rizeneho-projektu.md
   method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/01-metodicky-tok-a-gates.md
 - starter_step: Discover
@@ -976,6 +1038,9 @@ traceability:
   - discover evidence
   human_acceptance: Big Picture, slovník, hotspoty a otevřené otázky jsou dohledatelné.
   reference_visual: vector-situation-card:discover
+  reference_board_id: uXjVH27wYU4=
+  reference_frame_title: Big Picture organized
+  reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/?moveToWidget=3458764567797029923
   cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/03-big-picture-eventstorming.md
   method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/03-eventstorming-facilitace.md
 - starter_step: Decompose
@@ -986,6 +1051,9 @@ traceability:
   - decomposition candidates
   human_acceptance: Kandidátní hranice mají rationale v jazyku, pravidlech, lifecycle a změnovém couplingu.
   reference_visual: vector-situation-card:decompose
+  reference_board_id: uXjVH27wYU4=
+  reference_frame_title: Finding Domains and subdomains - group 1
+  reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/?moveToWidget=3458764567797029927
   cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/06-stavove-modely.md
   method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/02-ddd-strategic-design.md
 - starter_step: Strategize
@@ -996,6 +1064,9 @@ traceability:
   - subdomain classification
   human_acceptance: Je zřejmé, kde diferencovat a kam investovat.
   reference_visual: vector-situation-card:strategize
+  reference_board_id: uXjVH27wYU4=
+  reference_frame_title: Strategic classification
+  reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/?moveToWidget=3458764567797029928
   cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/01-metodicky-tok-a-gates.md
   method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/02-ddd-strategic-design.md
 - starter_step: Connect
@@ -1006,6 +1077,9 @@ traceability:
   - context map
   human_acceptance: Vztahy BC, data ownership a kontrakty jsou explicitní.
   reference_visual: vector-situation-card:connect
+  reference_board_id: uXjVH27wYU4=
+  reference_frame_title: Context Maps - Examples
+  reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/?moveToWidget=3458764567797253965
   cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/product/04-synchronizace.md
   method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/07-integration-and-data-ownership.md
 - starter_step: Organise
@@ -1016,6 +1090,9 @@ traceability:
   - team topology
   human_acceptance: Ownership je proveditelný pro reálné týmy a cognitive load.
   reference_visual: vector-situation-card:organize
+  reference_board_id: uXjVH27wYU4=
+  reference_frame_title: Starter Modelling Process - Organize
+  reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/
   cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/01-metodicky-tok-a-gates.md
   method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/10-team-topologies-and-governance.md
 - starter_step: Define
@@ -1026,6 +1103,9 @@ traceability:
   - bounded context canvas
   human_acceptance: Vybraný BC je připraven pro detailní návrh včetně invariantů a quality attributes.
   reference_visual: vector-situation-card:define
+  reference_board_id: uXjVH27wYU4=
+  reference_frame_title: Bounded Context Canvas
+  reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/?moveToWidget=3458764567797253947
   cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/05-design-level-eventstorming.md
   method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/03-ddd-tactical-design.md
 - starter_step: Code
@@ -1038,6 +1118,9 @@ traceability:
   - contracts
   human_acceptance: Implementace chrání invarianty a splňuje provozní quality attributes.
   reference_visual: vector-situation-card:code
+  reference_board_id: uXjVH27wYU4=
+  reference_frame_title: Domain Message Flow Modelling - Example
+  reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/?moveToWidget=3458764567797253946
   cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/product/01-architektura-ddda.md
   method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/03-ddd-tactical-design.md
 section_catalog:
@@ -1464,9 +1547,12 @@ section_catalog:
       oblast.
 overlays: []
 visual_contract:
-  render_contract_version: REM-PR8-HVA-CC-002
-  minimum_remote_item_count: 250
+  render_contract_version: REM-PR8-HVA-CC-010
+  minimum_remote_item_count: 280
   overview_frame: method-overview
+  minimum_overview_child_items: 61
+  minimum_starter_reference_captions: 11
+  require_overview_parenting: true
   minimum_stage_card_width: 3200
   minimum_stage_card_height: 1900
   minimum_work_frame_width: 4800
@@ -1487,7 +1573,6 @@ visual_contract:
   require_state_lifecycle_provenance_separation: true
   require_stage_columns: true
   preserved_internal_frames:
-  - method-overview
   - align-intake
   minimum_connector_count: 20
 method_transitions:
@@ -1994,56 +2079,122 @@ example_templates:
       sync_policy: ignore
     connectors: []
   align:
-    title_cs: 'Mini-vzor: problém → rozhodnutí → ownership'
+    title_cs: 'Mini-vzor: Business Model Canvas → rozhodnutí → ownership'
+    reference_kind: ddd_starter_board
+    reference_board_id: uXjVH27wYU4=
+    reference_frame_title: Business model canvas - exercise
+    reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/
+    adaptation_cs: Devět polí Business Model Canvas je zhuštěno do čitelného workshopového mini-vzoru.
+    representation: table_grid
     items:
-    - id: problem
-      label_cs: 'PROBLÉM
+    - id: partners
+      label_cs: 'KEY PARTNERS
 
-        Změna produktu trvá 6 měsíců'
+        likvidátor · autoservis'
       item_type: shape
-      shape: round_rectangle
-      x: 300
+      shape: rectangle
+      x: 0
       y: -650
-      width: 1350
-      height: 700
-      fill_color: '#FDE68A'
-      font_size: 22
-    - id: decision
-      label_cs: 'ROZHODNUTÍ
+      width: 800
+      height: 1500
+      fill_color: '#FFF7ED'
+      font_size: 18
+    - id: activities
+      label_cs: 'KEY ACTIVITIES
 
-        Kde oddělit odpovědnosti?'
+        posoudit claim'
       item_type: shape
-      shape: round_rectangle
-      x: 1500
+      shape: rectangle
+      x: 850
+      y: -1050
+      width: 800
+      height: 700
+      fill_color: '#FEF3C7'
+      font_size: 18
+    - id: resources
+      label_cs: 'KEY RESOURCES
+
+        expert rules'
+      item_type: shape
+      shape: rectangle
+      x: 850
+      y: -250
+      width: 800
+      height: 700
+      fill_color: '#FEF3C7'
+      font_size: 18
+    - id: value
+      label_cs: 'VALUE PROPOSITIONS
+
+        rychlé a vysvětlitelné rozhodnutí'
+      item_type: shape
+      shape: rectangle
+      x: 1700
       y: -650
-      width: 1350
-      height: 700
-      fill_color: '#BFDBFE'
-      font_size: 22
-    - id: owner
-      label_cs: 'OWNER
-
-        Head of Claims'
-      item_type: shape
-      shape: round_rectangle
-      x: 900
-      y: 300
-      width: 1150
-      height: 620
-      fill_color: '#C7D2FE'
-      font_size: 22
-    - id: scope
-      label_cs: 'SCOPE
-
-        Claim intake + adjudication'
-      item_type: shape
-      shape: round_rectangle
-      x: 900
-      y: 1100
-      width: 1500
-      height: 620
+      width: 900
+      height: 1500
       fill_color: '#DDEFA9'
-      font_size: 22
+      font_size: 18
+    - id: relationships
+      label_cs: 'RELATIONSHIPS
+
+        průběžné vysvětlení'
+      item_type: shape
+      shape: rectangle
+      x: 2650
+      y: -1050
+      width: 800
+      height: 700
+      fill_color: '#DBEAFE'
+      font_size: 18
+    - id: channels
+      label_cs: 'CHANNELS
+
+        web · call centre'
+      item_type: shape
+      shape: rectangle
+      x: 2650
+      y: -250
+      width: 800
+      height: 700
+      fill_color: '#DBEAFE'
+      font_size: 18
+    - id: segments
+      label_cs: 'CUSTOMER SEGMENTS
+
+        pojištěný · makléř'
+      item_type: shape
+      shape: rectangle
+      x: 3500
+      y: -650
+      width: 800
+      height: 1500
+      fill_color: '#E0E7FF'
+      font_size: 18
+    - id: costs
+      label_cs: 'COST STRUCTURE
+
+        expert time · integrations'
+      item_type: shape
+      shape: rectangle
+      x: 850
+      y: 550
+      width: 1650
+      height: 650
+      fill_color: '#FEE2E2'
+      font_size: 18
+    - id: revenue
+      label_cs: 'REVENUE STREAMS
+
+        premium retention'
+      item_type: shape
+      shape: rectangle
+      x: 2650
+      y: 550
+      width: 1650
+      height: 650
+      fill_color: '#DCFCE7'
+      font_size: 18
     sync_policy: ignore
     exclude_from_ingestion: true
     panel:
@@ -2053,6 +2204,11 @@ example_templates:
     connectors: []
   big_picture:
     title_cs: 'Mini-vzor: EventStorming Big Picture'
+    reference_kind: ddd_starter_board
+    reference_board_id: uXjVH27wYU4=
+    reference_frame_title: Big Picture organized
+    reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/?moveToWidget=3458764567797029923
+    adaptation_cs: Zachovává event timeline, commands, policies a hotspots ze zdrojového frame.
     items:
     - id: event1
       label_cs: Claim submitted
@@ -2130,6 +2286,11 @@ example_templates:
       shape: elbowed
   evidence:
     title_cs: 'Mini-vzor: zdroj → termín → rozpor → otázka'
+    reference_kind: ddd_starter_board
+    reference_board_id: uXjVH27wYU4=
+    reference_frame_title: Big Picture organized
+    reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/?moveToWidget=3458764567797029923
+    adaptation_cs: Evidence inventory převádí hotspoty a nejasný jazyk Big Picture do dohledatelných otázek.
     items:
     - id: source
       label_cs: 'ZDROJ
@@ -2189,6 +2350,11 @@ example_templates:
     representation: table_grid
   process:
     title_cs: 'Mini-vzor: actor → command → policy → event'
+    reference_kind: ddd_starter_board
+    reference_board_id: uXjVH27wYU4=
+    reference_frame_title: Process Modelling
+    reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/?moveToWidget=3458764567899374144
+    adaptation_cs: Používá stejnou sémantiku actor, command, policy, event a read model.
     items:
     - id: actor
       label_cs: 'ACTOR
@@ -2279,6 +2445,11 @@ example_templates:
       shape: straight
   decompose:
     title_cs: 'Mini-vzor: subdomény a kandidátní hranice'
+    reference_kind: ddd_starter_board
+    reference_board_id: uXjVH27wYU4=
+    reference_frame_title: Finding Domains and subdomains - group 1
+    reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/?moveToWidget=3458764567797029927
+    adaptation_cs: Event clustery přecházejí z Problem Space do subdomén a kandidátních bounded contexts.
     items:
     - id: core
       label_cs: 'CORE
@@ -2328,6 +2499,44 @@ example_templates:
       height: 700
       fill_color: '#BFDBFE'
       font_size: 20
+    - id: problem-space
+      label_cs: 'PROBLEM SPACE
+
+        event clustery → subdomény'
+      item_type: text
+      shape: rectangle
+      x: 200
+      y: -1350
+      width: 1300
+      height: 300
+      fill_color: '#FFFFFF'
+      color: '#365A8C'
+      font_size: 20
+    - id: solution-space
+      label_cs: 'SOLUTION SPACE
+
+        subdomény → bounded contexts'
+      item_type: text
+      shape: rectangle
+      x: 1650
+      y: -1350
+      width: 1450
+      height: 300
+      fill_color: '#FFFFFF'
+      color: '#365A8C'
+      font_size: 20
+    - id: team-boundary
+      label_cs: 'TEAM BOUNDARY?
+
+        ownership nesmí nahrazovat modelovou hranici'
+      item_type: shape
+      shape: round_rectangle
+      x: 950
+      y: 1200
+      width: 1750
+      height: 600
+      fill_color: '#C7D2FE'
+      font_size: 18
     sync_policy: ignore
     exclude_from_ingestion: true
     panel:
@@ -2337,6 +2546,11 @@ example_templates:
     connectors: []
   lifecycle:
     title_cs: 'Mini-vzor: stavový model a zakázaný přechod'
+    reference_kind: ddd_starter_board
+    reference_board_id: uXjVH27wYU4=
+    reference_frame_title: Starter Modelling Process - Decompose
+    reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/
+    adaptation_cs: Rozpad lifecycle doplňuje povolené, guardované a zakázané přechody.
     items:
     - id: new
       label_cs: NEW
@@ -2416,6 +2630,11 @@ example_templates:
       stroke_style: dashed
   strategize:
     title_cs: 'Mini-vzor: diferenciace, komplexita a sourcing'
+    reference_kind: ddd_starter_board
+    reference_board_id: uXjVH27wYU4=
+    reference_frame_title: Strategic classification
+    reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/?moveToWidget=3458764567797029928
+    adaptation_cs: Zachovává osy Model Complexity a Business Differentiation i zóny Core, Supporting a Generic.
     items:
     - id: core
       label_cs: 'CORE
@@ -2465,6 +2684,38 @@ example_templates:
       height: 700
       fill_color: '#BFDBFE'
       font_size: 20
+    - id: axis-y
+      label_cs: 'MODEL COMPLEXITY ↑'
+      item_type: text
+      shape: rectangle
+      x: -650
+      y: -150
+      width: 750
+      height: 260
+      fill_color: '#FFFFFF'
+      color: '#365A8C'
+      font_size: 18
+    - id: axis-x
+      label_cs: 'BUSINESS DIFFERENTIATION →'
+      item_type: text
+      shape: rectangle
+      x: 950
+      y: 1050
+      width: 1700
+      height: 260
+      fill_color: '#FFFFFF'
+      color: '#365A8C'
+      font_size: 18
+    - id: plotted-domain
+      label_cs: 'Claims decisioning'
+      item_type: sticky_note
+      shape: rectangle
+      x: 450
+      y: -450
+      width: 800
+      height: 520
+      fill_color: light_green
+      font_size: 18
     sync_policy: ignore
     exclude_from_ingestion: true
     panel:
@@ -2475,6 +2726,11 @@ example_templates:
     representation: table_grid
   context_map:
     title_cs: 'Mini-vzor: vztah BC, kontrakt a data ownership'
+    reference_kind: ddd_starter_board
+    reference_board_id: uXjVH27wYU4=
+    reference_frame_title: Context Maps - Examples
+    reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/?moveToWidget=3458764567797253965
+    adaptation_cs: Používá zdrojovou notaci upstream/downstream, OHS, Published Language a ACL.
     items:
     - id: upstream
       label_cs: 'POLICY BC
@@ -2528,6 +2784,54 @@ example_templates:
       height: 650
       fill_color: '#FCA5A5'
       font_size: 21
+    - id: legend-ohs
+      label_cs: 'OHS
+
+        Open Host Service'
+      item_type: shape
+      shape: rectangle
+      x: 200
+      y: 1450
+      width: 900
+      height: 500
+      fill_color: '#DBEAFE'
+      font_size: 18
+    - id: legend-pl
+      label_cs: 'PL
+
+        Published Language'
+      item_type: shape
+      shape: rectangle
+      x: 1200
+      y: 1450
+      width: 900
+      height: 500
+      fill_color: '#DBEAFE'
+      font_size: 18
+    - id: legend-acl
+      label_cs: 'ACL
+
+        Anti-Corruption Layer'
+      item_type: shape
+      shape: rectangle
+      x: 2200
+      y: 1450
+      width: 900
+      height: 500
+      fill_color: '#FEF3C7'
+      font_size: 18
+    - id: legend-sk
+      label_cs: 'SK
+
+        Shared Kernel'
+      item_type: shape
+      shape: rectangle
+      x: 3200
+      y: 1450
+      width: 900
+      height: 500
+      fill_color: '#FCE7F3'
+      font_size: 18
     sync_policy: ignore
     exclude_from_ingestion: true
     panel:
@@ -2547,6 +2851,11 @@ example_templates:
       shape: straight
   teams:
     title_cs: 'Mini-vzor: ownership a interaction modes'
+    reference_kind: ddd_starter_board
+    reference_board_id: uXjVH27wYU4=
+    reference_frame_title: Starter Modelling Process - Organize
+    reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/
+    adaptation_cs: Převádí bounded context ownership do týmových hranic a interaction modes.
     items:
     - id: stream
       label_cs: 'STREAM-ALIGNED
@@ -2615,6 +2924,11 @@ example_templates:
       shape: curved
   bc_canvas:
     title_cs: 'Mini-vzor: Bounded Context Canvas'
+    reference_kind: ddd_starter_board
+    reference_board_id: uXjVH27wYU4=
+    reference_frame_title: Bounded Context Canvas
+    reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/?moveToWidget=3458764567797253947
+    adaptation_cs: Zachovává purpose, business decisions, ubiquitous language a inbound/outbound communication.
     items:
     - id: purpose
       label_cs: 'PURPOSE
@@ -2674,6 +2988,11 @@ example_templates:
     representation: table_grid
   design_es:
     title_cs: 'Mini-vzor: command → aggregate → event → projection'
+    reference_kind: ddd_starter_board
+    reference_board_id: uXjVH27wYU4=
+    reference_frame_title: Domain Message Flow Modelling - Example
+    reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/?moveToWidget=3458764567797253946
+    adaptation_cs: Převádí actor/system message flow do command, aggregate, event a query/projection řetězce.
     items:
     - id: command
       label_cs: 'COMMAND

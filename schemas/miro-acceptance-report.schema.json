@@ -16,6 +16,8 @@
     "platform_source_commit",
     "scaffold_sha256",
     "remote_item_count",
+    "overview_child_count",
+    "starter_reference_caption_count",
     "remote_content_digest",
     "review_team_selection_status",
     "utf8_status",
@@ -426,7 +428,7 @@
       ]
     },
     "render_contract_version": {
-      "const": "REM-PR8-HVA-CC-002"
+      "const": "REM-PR8-HVA-CC-010"
     },
     "platform_source_commit": {
       "type": [
@@ -443,6 +445,14 @@
       "pattern": "^[0-9a-f]{64}$"
     },
     "remote_item_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "overview_child_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "starter_reference_caption_count": {
       "type": "integer",
       "minimum": 0
     },
@@ -484,7 +494,13 @@
             "pattern": "^[0-9a-f]{64}$"
           },
           "remote_item_count": {
-            "minimum": 250
+            "minimum": 280
+          },
+          "overview_child_count": {
+            "minimum": 61
+          },
+          "starter_reference_caption_count": {
+            "minimum": 11
           },
           "remote_content_digest": {
             "type": "string",

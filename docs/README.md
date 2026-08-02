@@ -31,8 +31,11 @@
 - [ADR 0001 — Reprodukovatelný lifecycle vývoje platformy](adr/0001-platform-development-lifecycle.md)
 - [ADR 0002 — Project steering a gate semantics](adr/0002-project-steering-and-gate-semantics.md)
 - [ADR 0003 — Control Center, Artifact Registry a kanonický workshop shell](adr/0003-miro-control-center-and-workshop-shell.md)
+- [ADR 0004 — Redline traceability a navigovatelný frame 01](adr/0004-miro-redline-traceability-and-frame-01.md)
 - [PR #8 migration note](migration/pr8-non-breaking-steering-extension.md)
+- [Miro scaffold migration 2.4 → 2.5](migration/miro-scaffold-2.4-to-2.5.md)
 - [Forenzní review REM-PR8-HVA-CC-001](reviews/REM-PR8-HVA-CC-001-forensic-review.md)
+- [REM-PR8-HVA-CC-010 — nová human-review revize](reviews/REM-PR8-HVA-CC-010-gap-analysis.md)
 - [Changelog](../CHANGELOG.md)
 
 ## Metodika

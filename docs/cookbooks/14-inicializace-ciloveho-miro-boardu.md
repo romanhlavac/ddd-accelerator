@@ -201,6 +201,6 @@ Runner vypíše:
 
 Finální lidský reviewer ověřuje `00 – Navigace, legenda a stav artefaktů (Control Center)`, `01 – DDD Starter journey, gates a iterace`, aktuální gate, oddělené legendy Gate State/Lifecycle/Provenance, devítisloupcový Artifact Registry, stage-column layout, třízónový shell `20–82`, čitelnost fontů, mini-vzory, metodické odkazy, nepřekrývání, UTF-8 a zachování ruční workshopové práce. Zároveň ověří, že frames `01` a `10` nebyly interně změněny. Human review se neopakuje po každé automatické opravě; proběhne jednou po zmrazení všech relevantních online změn.
 
-Před lidským review musí report obsahovat `render_contract_status: PASS`, exact `platform_source_commit`, `scaffold_sha256`, alespoň 250 vzdálených items a `remote_content_digest`. Chybějící provenance nebo pouze mapping-based důkaz je acceptance failure.
+Před lidským review musí report obsahovat `render_contract_status: PASS`, exact `platform_source_commit`, `scaffold_sha256`, alespoň 280 vzdálených items, alespoň 61 skutečných child items frame `01`, alespoň 11 viditelných DDD Starter source captions a `remote_content_digest`. Chybějící provenance, parent vazba nebo pouze mapping-based důkaz je acceptance failure.
 
 Traceability je popsána v [Miro DDD Starter traceability](../reference/miro-ddd-starter-traceability.md).

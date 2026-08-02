@@ -1,6 +1,6 @@
 # ADR: Control Center, Artifact Registry a kanonický workshop shell
 
-Status: Accepted
+Status: Superseded in part by [ADR 0004](0004-miro-redline-traceability-and-frame-01.md)
 
 Date: 2026-07-30
 
@@ -37,7 +37,7 @@ method guide | editable work area | VZOR / LEGENDA
 
 Method guide obsahuje účel, start, recept, definition of done, otevřené otázky, heuristiky, anti-patterns, výstupy, artefakty a zdroje. Editovatelná pracovní plocha má `sync_policy: manual`. `VZOR / LEGENDA`, jeho položky a connectors mají `sync_policy: ignore` a `exclude_from_ingestion: true`.
 
-Frames `01` a `10` zůstávají interně nezměněné. Jejich frame position může být součástí celoboardového layoutu, ale renderer jim nepřidává nový shell ani obsah.
+Původní rozhodnutí ponechat frames `01` a `10` interně nezměněné bylo pro frame `01` chybné: odporovalo explicitnímu human-review redline. ADR 0004 ruší tuto část rozhodnutí pro frame `01`. Frame `10` nadále nepoužívá kanonický shell bez samostatného schválení.
 
 Human acceptance vždy probíhá na novém izolovaném boardu vytvořeném z exact candidate SHA.
 
@@ -60,7 +60,7 @@ Negative:
 
 New obligations:
 
-- testy musí dokazovat přesně patnáct shell frames a absenci shellu ve frames `01`/`10`;
+- testy musí dokazovat přesně patnáct shell frames; frame `01` má samostatný parent/child overview kontrakt a frame `10` zůstává bez kanonického shellu;
 - remote validation musí nezávisle na mappingu ověřit oddělené legendy, devět sloupců registru, patnáct viditelných shellů a method-specific guide sekce;
 - acceptance musí svázat board s exact candidate SHA, scaffold hash a render contractem;
 - dokumentace musí používat rozdílné termíny gate state, lifecycle a provenance;

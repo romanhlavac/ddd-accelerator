@@ -58,7 +58,7 @@ $oldMiroToken = $env:MIRO_ACCESS_TOKEN
 $oldMiroTeamIdExists = Test-Path Env:\MIRO_TEAM_ID
 $oldMiroTeamId = if ($oldMiroTeamIdExists) { [string]$env:MIRO_TEAM_ID } else { $null }
 $remoteLayoutStatus = if ($WithMiro) { "FAIL" } else { "NOT_RUN" }
-$renderContractVersion = "REM-PR8-HVA-CC-002"
+$renderContractVersion = "REM-PR8-HVA-CC-010"
 $renderContractStatus = if ($WithMiro) { "FAIL" } else { "NOT_RUN" }
 $platformSourceCommit = $null
 $scaffoldSha256 = $null
@@ -66,6 +66,8 @@ $runtimeProvenanceStatus = if ($WithMiro) { "FAIL" } else { "NOT_RUN" }
 $runtimeProvenanceEvidencePath = Join-Path $reportRoot "runtime-provenance.json"
 $runtimeProvenance = $null
 $remoteItemCount = 0
+$overviewChildCount = 0
+$starterReferenceCaptionCount = 0
 $remoteContentDigest = $null
 $reviewTeamSelectionStatus = if (-not $WithMiro) { "NOT_APPLICABLE" } elseif (-not [string]::IsNullOrWhiteSpace($MiroTeamId)) { "EXPLICIT_TEAM" } else { "DEFAULT_TOKEN_TEAM" }
 $passed = $false
@@ -91,6 +93,8 @@ function Write-AcceptanceReport {
         runtime_provenance_status = $runtimeProvenanceStatus
         runtime_provenance = $runtimeProvenance
         remote_item_count = $remoteItemCount
+        overview_child_count = $overviewChildCount
+        starter_reference_caption_count = $starterReferenceCaptionCount
         remote_content_digest = $remoteContentDigest
         review_team_selection_status = $reviewTeamSelectionStatus
         utf8_status = if ($Status -eq "PASS") { "PASS" } else { "FAIL" }
@@ -314,8 +318,25 @@ intake:
 
         $remoteItems = @(Get-DDDAAllMiroItems -BoardId $boardId -AccessToken $accessToken)
         $remoteItemCount = $remoteItems.Count
-        if ($remoteItemCount -lt 250) {
-            throw "Remote board má pouze $remoteItemCount položek; redesign vyžaduje nejméně 250 a nesmí odpovídat 211položkové baseline."
+        if ($remoteItemCount -lt 280) {
+            throw "Remote board má pouze $remoteItemCount položek; REM-010 vyžaduje nejméně 280 a nesmí odpovídat 262položkovému odmítnutému boardu."
+        }
+        $overviewFrames = @($remoteItems | Where-Object {
+            $itemType = [string](Get-DDDAObjectPropertyValue -InputObject $_ -Name "type" -DefaultValue "")
+            $itemData = Get-DDDAObjectPropertyValue -InputObject $_ -Name "data"
+            $itemTitle = [string](Get-DDDAObjectPropertyValue -InputObject $itemData -Name "title" -DefaultValue "")
+            $itemType -eq "frame" -and $itemTitle -eq "01 – DDD Starter journey, gates a iterace"
+        })
+        if ($overviewFrames.Count -ne 1) {
+            throw "Remote board nemá právě jeden auditovatelný frame 01."
+        }
+        $overviewFrameId = [string](Get-DDDAObjectPropertyValue -InputObject $overviewFrames[0] -Name "id")
+        $overviewChildCount = @($remoteItems | Where-Object {
+            $parent = Get-DDDAObjectPropertyValue -InputObject $_ -Name "parent"
+            [string](Get-DDDAObjectPropertyValue -InputObject $parent -Name "id" -DefaultValue "") -eq $overviewFrameId
+        }).Count
+        if ($overviewChildCount -lt 61) {
+            throw "Frame 01 obsahuje pouze $overviewChildCount navigovatelných child items; REM-010 vyžaduje nejméně 61."
         }
         $visibleRemoteTexts = [System.Collections.Generic.List[string]]::new()
         foreach ($remoteItem in $remoteItems) {
@@ -336,10 +357,33 @@ intake:
             "PROJECT / GATE STATE",
             "ARTIFACT LIFECYCLE",
             "ARTIFACT PROVENANCE",
-            "ARTIFACT REGISTRY"
+            "ARTIFACT REGISTRY",
+            "01 – DDD STARTER JOURNEY: REDLINE REWORKED",
+            "REDLINE SOURCE: uXjVH2vcvRI=",
+            "DDD STARTER SOURCE: uXjVH27wYU4="
         )) {
             if ($visibleBoardText -notmatch [regex]::Escape($marker)) {
                 throw "Remote board neobsahuje povinný viditelný marker '$marker'."
+            }
+        }
+        $starterReferenceCaptionCount = @($visibleRemoteTexts | Where-Object {
+            $_ -match [regex]::Escape("DDD STARTER SOURCE: uXjVH27wYU4=")
+        }).Count
+        if ($starterReferenceCaptionCount -lt 11) {
+            throw "Remote board obsahuje pouze $starterReferenceCaptionCount viditelných vazeb vzorů na DDD Starter board; REM-010 vyžaduje nejméně 11."
+        }
+        foreach ($sourceTitle in @(
+            "Business model canvas - exercise",
+            "Big Picture organized",
+            "Process Modelling",
+            "Finding Domains and subdomains - group 1",
+            "Strategic classification",
+            "Context Maps - Examples",
+            "Bounded Context Canvas",
+            "Domain Message Flow Modelling - Example"
+        )) {
+            if ($visibleBoardText -notmatch [regex]::Escape($sourceTitle)) {
+                throw "Remote board necituje požadovaný DDD Starter artefakt '$sourceTitle'."
             }
         }
         foreach ($heading in @("RECEPT", "HOTOVO KDYŽ", "OTEVŘENÉ OTÁZKY", "HEURISTIKY", "ANTI-PATTERNS")) {

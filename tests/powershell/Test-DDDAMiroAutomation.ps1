@@ -200,9 +200,16 @@ Assert-True -Condition ($scaffoldText -match '(?m)^zone_transitions:\s*$') -Mess
 Assert-True -Condition ($scaffoldText -match '(?m)^stage_columns:\s*$') -Message "Miro scaffold nemá deterministické stage columns."
 Assert-True -Condition ($scaffoldText -match '(?m)^method_transitions:\s*$') -Message "Miro scaffold nemá metodické přechody a feedback loops."
 Assert-True -Condition ($scaffoldText -match '00 – Navigace, legenda a stav artefaktů \(Control Center\)') -Message "Viditelný název frame 00 neodpovídá human-review kontraktu."
-Assert-True -Condition ($scaffoldText -match '(?m)^schema_version:\s*[''"]?2\.4[''"]?\s*$') -Message "Miro scaffold nepoužívá schema 2.4."
-Assert-True -Condition ($scaffoldText -match '(?m)^\s*render_contract_version:\s*REM-PR8-HVA-CC-002\s*$') -Message "Miro scaffold nemá korekční render contract."
-Assert-True -Condition ($scaffoldText -match '(?m)^\s*minimum_remote_item_count:\s*250\s*$') -Message "Miro scaffold neumí odlišit redesign od 211položkové baseline."
+Assert-True -Condition ($scaffoldText -match '(?m)^schema_version:\s*[''"]?2\.5[''"]?\s*$') -Message "Miro scaffold nepoužívá schema 2.5."
+Assert-True -Condition ($scaffoldText -match '(?m)^\s*render_contract_version:\s*REM-PR8-HVA-CC-010\s*$') -Message "Miro scaffold nemá REM-010 render contract."
+Assert-True -Condition ($scaffoldText -match '(?m)^\s*minimum_remote_item_count:\s*280\s*$') -Message "Miro scaffold neumí odlišit REM-010 od 262položkového odmítnutého boardu."
+Assert-True -Condition ($scaffoldText -match '(?m)^\s*minimum_overview_child_items:\s*61\s*$') -Message "Miro scaffold nevynucuje navigovatelný obsah frame 01."
+foreach ($sourceBoardId in @("uXjVH2vcvRI=", "uXjVH27wYU4=")) {
+    Assert-True -Condition ($scaffoldText -match [regex]::Escape($sourceBoardId)) -Message "Miro scaffold nemá exact traceability na zdrojový board $sourceBoardId."
+}
+foreach ($sourceTitle in @("Business model canvas - exercise", "Big Picture organized", "Process Modelling", "Strategic classification", "Context Maps - Examples", "Bounded Context Canvas", "Domain Message Flow Modelling - Example")) {
+    Assert-True -Condition ($scaffoldText -match [regex]::Escape($sourceTitle)) -Message "Miro scaffold necituje DDD Starter artefakt '$sourceTitle'."
+}
 Assert-True -Condition ($scaffoldText -match 'sync_policy:\s*ignore') -Message "Mini-vzory nemají explicitní sync-ignore kontrakt."
 Assert-True -Condition ($scaffoldText -match 'VZOR / LEGENDA') -Message "Pracovní frames nemají oddělený VZOR / LEGENDA panel."
 Assert-True -Condition (@([regex]::Matches($scaffoldText, '(?m)^\s+canonical_workshop_shell:\s*true\s*$')).Count -eq 15) -Message "Kanonický třízónový shell nepokrývá přesně frames 20–82."
@@ -227,6 +234,8 @@ Assert-True -Condition ($renderText -match 'DDDA-PLATFORM-SOURCE') -Message "Ren
 Assert-True -Condition ($renderText -match 'DDDA-SCAFFOLD-SHA256') -Message "Renderer nevkládá hash renderovaného scaffoldingu."
 Assert-True -Condition ($renderText -match 'remote_content_digest') -Message "Renderer neukládá digest skutečně načteného remote obsahu."
 Assert-True -Condition ($renderText -match 'remote board has only') -Message "Renderer nemá regresní guard proti 211položkové baseline."
+Assert-True -Condition ($renderText -match 'not a navigable child of overview frame') -Message "Renderer nekontroluje parent vazbu obsahu frame 01."
+Assert-True -Condition ($renderText -match 'overview_reference_stage') -Message "Renderer nevytváří viditelnou stage-to-source traceability ve frame 01."
 foreach ($visibleMarker in @("EDITOVATELNÁ PRACOVNÍ PLOCHA", "RECEPT", "HOTOVO KDYŽ", "OTEVŘENÉ OTÁZKY", "HEURISTIKY", "ANTI-PATTERNS")) {
     Assert-True -Condition ($renderText -match [regex]::Escape($visibleMarker)) -Message "Renderer neověřuje remote viditelný marker '$visibleMarker'."
 }
@@ -255,6 +264,8 @@ foreach ($field in @(
     "platform_source_commit",
     "scaffold_sha256",
     "remote_item_count",
+    "overview_child_count",
+    "starter_reference_caption_count",
     "remote_content_digest",
     "review_team_selection_status",
     "utf8_status",
@@ -264,7 +275,9 @@ foreach ($field in @(
     Assert-True -Condition ($acceptanceText -match [regex]::Escape($field)) -Message "Acceptance report nemá pole $field."
 }
 Assert-True -Condition ($acceptanceText -match 'Get-DDDAAllMiroItems') -Message "Acceptance runner nečte nezávislý remote board snapshot přes Miro API."
-Assert-True -Condition ($acceptanceText -match 'Remote board má pouze \$remoteItemCount položek') -Message "Acceptance runner neumí odmítnout baseline-like board."
+Assert-True -Condition ($acceptanceText -match 'Remote board má pouze \$remoteItemCount položek') -Message "Acceptance runner neumí odmítnout rejected-board baseline."
+Assert-True -Condition ($acceptanceText -match 'Frame 01 obsahuje pouze \$overviewChildCount navigovatelných child items') -Message "Acceptance runner neověřuje skutečné child items frame 01."
+Assert-True -Condition ($acceptanceText -match 'DDD STARTER SOURCE: uXjVH27wYU4=') -Message "Acceptance runner neověřuje viditelnou vazbu vzorů na DDD Starter board."
 Assert-True -Condition ($acceptanceText -match 'DDDA-PLATFORM-SOURCE:\$platformSourceCommit') -Message "Acceptance runner neověřuje vazbu boardu na exact candidate SHA."
 Assert-True -Condition ($acceptanceText -match 'overall_status = \$overallStatus') -Message "Acceptance report nemá explicitní overall status."
 Assert-True -Condition ($acceptanceText -match 'PENDING_HUMAN_REVIEW') -Message "Acceptance report nerozlišuje pending human review."
