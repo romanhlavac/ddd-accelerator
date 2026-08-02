@@ -105,6 +105,9 @@ jobs:
           $scriptText = $scriptText.Replace($cleanupMarker, $cleanupPatch)
           [System.IO.File]::WriteAllText($script, $scriptText, (New-Object System.Text.UTF8Encoding($true)))
 
+          if ([string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) {
+            $env:LOCALAPPDATA = $env:RUNNER_TEMP
+          }
           & $script -RepositoryRoot $PWD.Path -NoPush
           if ($LASTEXITCODE -ne 0) {
             throw "REM-011 script failed with exit code $LASTEXITCODE."
