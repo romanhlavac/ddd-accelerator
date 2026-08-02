@@ -85,6 +85,24 @@ jobs:
             throw 'REM-011 schema insertion marker is missing.'
           }
           $scriptText = $scriptText.Replace($schemaMarker, $schemaPatch)
+
+          $cleanupMarker = '# Final source-level assertions before tests.'
+          $cleanupPatch = @'
+          for clean_path_str in (
+              "docs/adr/0004-miro-redline-traceability-and-frame-01.md",
+              "docs/reference/miro-ddd-starter-traceability.md",
+              "runtime/miro/tests/test_render.py",
+          ):
+              clean_path = root / clean_path_str
+              clean_text, clean_bom, clean_newline = read_text(clean_path)
+              write_text(clean_path, clean_text.rstrip() + "\n", clean_bom, clean_newline)
+
+          # Final source-level assertions before tests.
+          '@
+          if (-not $scriptText.Contains($cleanupMarker)) {
+            throw 'REM-011 file-ending insertion marker is missing.'
+          }
+          $scriptText = $scriptText.Replace($cleanupMarker, $cleanupPatch)
           [System.IO.File]::WriteAllText($script, $scriptText, (New-Object System.Text.UTF8Encoding($true)))
 
           & $script -RepositoryRoot $PWD.Path -NoPush
