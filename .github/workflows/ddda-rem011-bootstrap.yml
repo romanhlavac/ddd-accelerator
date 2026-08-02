@@ -62,6 +62,10 @@ jobs:
           $scriptText = Get-Content -LiteralPath $scriptSource -Raw -Encoding UTF8
           $scriptText = $scriptText.Replace('if old_contract_count < 2:', 'if old_contract_count < 1:')
           $scriptText = $scriptText.Replace('expected at least 2 occurrences', 'expected at least 1 occurrence')
+          $scriptText = $scriptText.Replace(
+            '& python -m pip install --disable-pip-version-check -e (Join-Path $root "runtime/miro") pytest',
+            '& python -m pip install --disable-pip-version-check -e (Join-Path $root "runtime/miro") pytest jsonschema'
+          )
           [System.IO.File]::WriteAllText($script, $scriptText, (New-Object System.Text.UTF8Encoding($true)))
 
           & $script -RepositoryRoot $PWD.Path -NoPush
