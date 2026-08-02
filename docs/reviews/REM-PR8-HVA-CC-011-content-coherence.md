@@ -1,6 +1,6 @@
 # REM-PR8-HVA-CC-011 — content coherence and traceability hardening
 
-Status: IMPLEMENTED, PENDING_CI_AND_HUMAN_REVIEW
+Status: IMPLEMENTED, PENDING_HUMAN_REVIEW
 
 Date: 2026-08-02
 
@@ -18,7 +18,7 @@ REM-010 opravil parent ownership frame `01` a prokázal technickou reprodukovate
 4. Každý `cookbook_url` míří pod `docs/cookbooks/`; metodika zůstává v `method_url`.
 5. Layout validator fail-closed ověřuje exact source frame, klasifikaci cookbook odkazů a neduplicitní stage role.
 6. Acceptance test ověřuje doménovou koherenci syntetického claims scénáře.
-7. Render contract je `REM-PR8-HVA-CC-011`.
+7. Report schema a runtime používají render contract `REM-PR8-HVA-CC-011`.
 
 ## Exact source frames doplněné v REM-011
 
@@ -27,6 +27,19 @@ REM-010 opravil parent ownership frame `01` a prokázal technickou reprodukovate
 - Lifecycle template — `Starter Modelling Process - Decompose`: `3458764567797029926`.
 
 Ostatní stage odkazy zůstávají vázané na již existující exact source frames z REM-010.
+
+## Implementační evidence
+
+Exact-SHA remediation před push ověřila:
+
+- Python renderer a repository contract tests: `27 passed`;
+- PowerShell Miro automation regression: `PASS`;
+- `git diff --check`: `PASS`;
+- výsledný product delta proti REM-010: 13 souborů, bez jednorázového bootstrap workflow a bez remediation transport skriptu;
+- běžný fast-forward push na `feat/project-steering-and-documentation`;
+- žádný merge, promotion, release, tag ani force-push.
+
+Standardní PR workflow nad aktuálním head SHA zůstávají autoritativním CI gate.
 
 ## Stav akceptace
 
