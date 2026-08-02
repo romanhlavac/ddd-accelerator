@@ -123,6 +123,10 @@ Assert-True -Condition ($projectInitializerText -match '"sync",\s*"--direction",
 Assert-True -Condition ($projectInitializerText -match 'reports/miro-sync/') -Message "Project Miro initializer nepovoluje auditní sync reporty."
 
 Assert-True -Condition ($projectInitializerText -match '\$script:MiroPython\s+-I\s+-X\s+utf8\s+-m\s+ddda_miro') -Message "Project Miro initializer nevynucuje UTF-8 v izolovaném Python procesu pomocí -X utf8."
+Assert-True -Condition ($projectInitializerText -notmatch '@CommandArguments\s+2>&1') -Message "Project Miro initializer nesmí slučovat stderr retry telemetry s JSON stdout."
+Assert-True -Condition ($projectInitializerText -match '@CommandArguments\s+2>\s+\$stderrPath') -Message "Project Miro initializer neodděluje stderr do samostatného diagnostického streamu."
+Assert-True -Condition ($projectInitializerText -match 'Stdout:`n\{1\}`nStderr:') -Message "Project Miro parse failure nerozlišuje stdout a stderr."
+Assert-True -Condition ($projectInitializerText -match '\$stderrRaw\s*=\s*if\s*\(Test-Path') -Message "Project Miro initializer nemá explicitní null-safe mezivýsledek stderr."
 
 $pythonProbeCommand = Resolve-DDDAPythonCommand
 $pythonProbeCode = "import json, sys; print(json.dumps(dict(encoding=sys.stdout.encoding, text='Povinn\u00fd d\u016fkaz: k\u00f3dov\u00e1n\u00ed v\u00fdstup\u016f'), ensure_ascii=False))"
@@ -133,6 +137,25 @@ Assert-Equal -Expected 0 -Actual $pythonProbeExitCode -Message "Python UTF-8 std
 $pythonProbe = $pythonProbeText | ConvertFrom-Json
 Assert-Equal -Expected "Povinný důkaz: kódování výstupů" -Actual ([string]$pythonProbe.text) -Message "Python UTF-8 stdout probe poškodil český výstup."
 Assert-True -Condition (([string]$pythonProbe.encoding).Replace("-", "") -match '^utf8') -Message "Python stdout nepoužívá UTF-8: $($pythonProbe.encoding)"
+
+$retryProbeStderrPath = Join-Path $env:TEMP ("ddda-retry-probe-" + [Guid]::NewGuid().ToString("N") + ".log")
+try {
+    $retryProbeCode = "import json, sys; print('DDDA Miro retry: status=500', file=sys.stderr); print(json.dumps(dict(status='PASS')))"
+    $retryProbeRaw = @(& $pythonProbeCommand -I -X utf8 -c $retryProbeCode 2> $retryProbeStderrPath)
+    $retryProbeExitCode = $LASTEXITCODE
+    $retryProbeText = ($retryProbeRaw | ForEach-Object { $_.ToString() } | Out-String).Trim()
+    $retryProbeStderrRaw = Get-Content -LiteralPath $retryProbeStderrPath -Raw -Encoding UTF8
+    $retryProbeStderrText = ""
+    if ($null -ne $retryProbeStderrRaw) {
+        $retryProbeStderrText = ([string]$retryProbeStderrRaw).Trim()
+    }
+    Assert-Equal -Expected 0 -Actual $retryProbeExitCode -Message "Retry stream probe selhal."
+    Assert-Equal -Expected "PASS" -Actual ([string](($retryProbeText | ConvertFrom-Json).status)) -Message "Retry telemetry kontaminovala JSON stdout."
+    Assert-True -Condition ($retryProbeStderrText -match 'DDDA Miro retry: status=500') -Message "Retry telemetry nebyla zachována v stderr."
+}
+finally {
+    Remove-Item -LiteralPath $retryProbeStderrPath -Force -ErrorAction SilentlyContinue
+}
 
 $smokeText = Get-Content (Join-Path $PlatformPath "scripts/Invoke-DDDAMiroSmokeTest.ps1") -Raw -Encoding UTF8
 Assert-True -Condition ($smokeText -notmatch "romanhlavac/ddd-accelerator") -Message "Smoke runner nesmí být svázán s konkrétním origin remote."
@@ -178,6 +201,7 @@ $scaffoldText = Get-Content -LiteralPath $scaffoldPath -Raw -Encoding UTF8
 $renderText = Get-Content -LiteralPath $renderPath -Raw -Encoding UTF8
 $syncText = Get-Content -LiteralPath $syncPath -Raw -Encoding UTF8
 $acceptanceText = Get-Content -LiteralPath $acceptancePath -Raw -Encoding UTF8
+Assert-True -Condition ($acceptanceText -match '\[System\.Net\.WebUtility\]::HtmlDecode\(\$content\)') -Message "Remote acceptance nedekóduje Miro HTML entity před kontrolou viditelných source markerů."
 
 foreach ($gate in 1..8) {
     Assert-True -Condition ($scaffoldText -match "(?m)^\s+gate:\s*G$gate\s*$") -Message "Traceability nepokrývá G$gate."

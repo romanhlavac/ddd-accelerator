@@ -346,7 +346,7 @@ intake:
                 $content = [string](Get-DDDAObjectPropertyValue -InputObject $data -Name "title" -DefaultValue "")
             }
             if (-not [string]::IsNullOrWhiteSpace($content)) {
-                $visibleRemoteTexts.Add($content)
+                $visibleRemoteTexts.Add([System.Net.WebUtility]::HtmlDecode($content))
             }
         }
         $visibleBoardText = [string]::Join("`n", $visibleRemoteTexts)

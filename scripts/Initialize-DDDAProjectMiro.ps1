@@ -28,27 +28,51 @@ catch {
 function Invoke-ProjectMiroCli {
     param([Parameter(Mandatory = $true)][string[]]$CommandArguments)
 
-    $previousErrorActionPreference = $ErrorActionPreference
+    $stderrPath = Join-Path $env:TEMP ("ddda-project-miro-cli-{0}.stderr.log" -f [Guid]::NewGuid().ToString("N"))
     try {
-        $ErrorActionPreference = "Continue"
-        $raw = @(& $script:MiroPython -I -X utf8 -m ddda_miro --project $script:ProjectRoot --platform $script:PlatformRoot @CommandArguments 2>&1)
-        $exitCode = $LASTEXITCODE
+        $previousErrorActionPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = "Continue"
+            $raw = @(& $script:MiroPython -I -X utf8 -m ddda_miro --project $script:ProjectRoot --platform $script:PlatformRoot @CommandArguments 2> $stderrPath)
+            $exitCode = $LASTEXITCODE
+        }
+        finally {
+            $ErrorActionPreference = $previousErrorActionPreference
+        }
+
+        $rawText = $raw | ForEach-Object { $_.ToString() } | Out-String
+        $text = ""
+        if ($null -ne $rawText) {
+            $text = ([string]$rawText).Trim()
+        }
+        $stderrRaw = if (Test-Path -LiteralPath $stderrPath -PathType Leaf) {
+            Get-Content -LiteralPath $stderrPath -Raw -Encoding UTF8
+        }
+        else {
+            $null
+        }
+        $stderrText = ""
+        if ($null -ne $stderrRaw) {
+            $stderrText = ([string]$stderrRaw).Trim()
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($stderrText)) {
+            Write-Host $stderrText
+        }
+
+        if ($exitCode -ne 0) {
+            throw ("DDDA Miro CLI selhalo: {0}`nExit code: {1}`nStdout:`n{2}`nStderr:`n{3}" -f ($CommandArguments -join " "), $exitCode, $text, $stderrText)
+        }
+
+        try {
+            return ($text | ConvertFrom-Json)
+        }
+        catch {
+            throw ("DDDA Miro CLI nevrátilo platný JSON.`nPříkaz: {0}`nStdout:`n{1}`nStderr:`n{2}" -f ($CommandArguments -join " "), $text, $stderrText)
+        }
     }
     finally {
-        $ErrorActionPreference = $previousErrorActionPreference
-    }
-
-    $text = ($raw | ForEach-Object { $_.ToString() } | Out-String).Trim()
-
-    if ($exitCode -ne 0) {
-        throw ("DDDA Miro CLI selhalo: {0}`nExit code: {1}`n{2}" -f ($CommandArguments -join " "), $exitCode, $text)
-    }
-
-    try {
-        return ($text | ConvertFrom-Json)
-    }
-    catch {
-        throw ("DDDA Miro CLI nevrátilo platný JSON.`nPříkaz: {0}`nVýstup:`n{1}" -f ($CommandArguments -join " "), $text)
+        Remove-Item -LiteralPath $stderrPath -Force -ErrorAction SilentlyContinue
     }
 }
 
