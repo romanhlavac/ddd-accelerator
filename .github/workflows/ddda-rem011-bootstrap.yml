@@ -1,0 +1,113 @@
+name: DDDA REM-011 bootstrap
+
+on:
+  pull_request:
+    types: [synchronize]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: ddda-rem011-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  remediate:
+    if: >-
+      github.event.pull_request.number == 8 &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'feat/project-steering-and-documentation'
+    runs-on: windows-latest
+    timeout-minutes: 150
+
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Execute and validate REM-011
+        id: remediation
+        shell: pwsh
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $actual = (git rev-parse HEAD).Trim()
+          if ($actual -ne $env:EXPECTED_SHA) {
+            throw "Checkout SHA $actual does not match event SHA $env:EXPECTED_SHA."
+          }
+          if (-not [string]::IsNullOrWhiteSpace((git status --porcelain | Out-String))) {
+            throw 'REM-011 bootstrap checkout is not clean.'
+          }
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+          $script = Join-Path $PWD 'scripts/remediation/REM-PR8-HVA-CC-011.ps1'
+          if (-not (Test-Path -LiteralPath $script -PathType Leaf)) {
+            throw 'Allowlisted REM-011 script is missing.'
+          }
+          & $script -RepositoryRoot $PWD.Path -NoPush
+          if ($LASTEXITCODE -ne 0) {
+            throw "REM-011 script failed with exit code $LASTEXITCODE."
+          }
+
+          $implementationSha = (git rev-parse HEAD).Trim()
+          if ([int](git rev-list --count "$env:EXPECTED_SHA..$implementationSha") -ne 1) {
+            throw 'REM-011 must create exactly one implementation commit.'
+          }
+          if (-not [string]::IsNullOrWhiteSpace((git status --porcelain | Out-String))) {
+            throw 'REM-011 implementation left a dirty tree before bootstrap cleanup.'
+          }
+
+          git rm -- '.github/workflows/ddda-rem011-bootstrap.yml'
+          git commit --amend --no-edit
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Unable to amend the implementation commit with bootstrap cleanup.'
+          }
+          $finalSha = (git rev-parse HEAD).Trim()
+          if ([int](git rev-list --count "$env:EXPECTED_SHA..$finalSha") -ne 1) {
+            throw 'Bootstrap cleanup changed the one-commit implementation contract.'
+          }
+          if (-not [string]::IsNullOrWhiteSpace((git status --porcelain | Out-String))) {
+            throw 'REM-011 final tree is not clean.'
+          }
+
+          git push origin "$finalSha:$env:HEAD_REF"
+          if ($LASTEXITCODE -ne 0) {
+            throw 'REM-011 normal fast-forward push failed.'
+          }
+          "final_sha=$finalSha" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Publish completion comment
+        if: always()
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          JOB_STATUS: ${{ job.status }}
+          REQUESTED_SHA: ${{ github.event.pull_request.head.sha }}
+          FINAL_SHA: ${{ steps.remediation.outputs.final_sha }}
+        run: |
+          $body = @"
+          REM-PR8-HVA-CC-011: **$env:JOB_STATUS**
+
+          - bootstrap SHA: $env:REQUESTED_SHA
+          - resulting implementation SHA: $env:FINAL_SHA
+          - workflow run: $env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID
+
+          No merge, tag, release, promotion or force-push was performed.
+          "@
+          gh pr comment $env:PR_NUMBER --repo $env:REPOSITORY --body $body
