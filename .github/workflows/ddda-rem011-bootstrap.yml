@@ -66,6 +66,25 @@ jobs:
             '& python -m pip install --disable-pip-version-check -e (Join-Path $root "runtime/miro") pytest',
             '& python -m pip install --disable-pip-version-check -e (Join-Path $root "runtime/miro") pytest jsonschema'
           )
+          $schemaMarker = '# Replace residual active contract tokens in executable tests/runtime, but preserve historical review documents.'
+          $schemaPatch = @'
+          update(
+              "schemas/miro-acceptance-report.schema.json",
+              lambda text: replace_literal(
+                  text,
+                  "REM-PR8-HVA-CC-010",
+                  "REM-PR8-HVA-CC-011",
+                  expected=1,
+                  label="Miro acceptance schema contract",
+              ),
+          )
+
+          # Replace residual active contract tokens in executable tests/runtime, but preserve historical review documents.
+          '@
+          if (-not $scriptText.Contains($schemaMarker)) {
+            throw 'REM-011 schema insertion marker is missing.'
+          }
+          $scriptText = $scriptText.Replace($schemaMarker, $schemaPatch)
           [System.IO.File]::WriteAllText($script, $scriptText, (New-Object System.Text.UTF8Encoding($true)))
 
           & $script -RepositoryRoot $PWD.Path -NoPush
