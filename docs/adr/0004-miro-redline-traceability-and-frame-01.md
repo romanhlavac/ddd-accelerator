@@ -53,3 +53,7 @@ Negative:
 - online acceptance s nezávislým načtením remote frame `01`, child countem a viditelnými source captions;
 - exact candidate SHA a scaffold SHA-256;
 - samostatný HUMAN REVIEW bez automatického gate decision.
+
+## REM-011 addendum
+
+REM-011 zpřesňuje Decision bez změny základního ownership modelu: source URL musí mířit na konkrétní Miro frame, `cookbook_url` musí být skutečná kuchařka, stage mini-vzory nesmí duplikovat semantic role a syntetický acceptance příklad musí být obsahově koherentní v jedné doméně. Automatická validace těchto pravidel stále nevytváří lidské gate decision.

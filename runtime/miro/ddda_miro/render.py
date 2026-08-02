@@ -18,7 +18,7 @@ MOJIBAKE_MARKERS = ("â€“", "â€”", "Ă", "Ĺ", "Ä", "�")
 GATE_IDS = [f"G{index}" for index in range(1, 9)]
 GATE_STATUS_IDS = ["not_ready", "ready_for_review", "conditional", "rejected", "passed"]
 EXPECTED_STAGES = ["align", "discover", "decompose", "strategize", "connect", "organize", "define", "code"]
-RENDER_CONTRACT_VERSION = "REM-PR8-HVA-CC-010"
+RENDER_CONTRACT_VERSION = "REM-PR8-HVA-CC-011"
 REDLINE_BOARD_ID = "uXjVH2vcvRI="
 STARTER_REFERENCE_BOARD_ID = "uXjVH27wYU4="
 CANONICAL_GUIDE_HEADINGS = (
@@ -243,8 +243,13 @@ def validate_layout_contract(scaffold: dict[str, Any]) -> dict[str, Any]:
             failures.append(f"traceability {gate_id} does not identify the DDD Starter board")
         if not str(row.get("reference_frame_title") or ""):
             failures.append(f"traceability {gate_id} has no source frame title")
-        if STARTER_REFERENCE_BOARD_ID not in str(row.get("reference_frame_url") or ""):
+        source_url = str(row.get("reference_frame_url") or "")
+        if STARTER_REFERENCE_BOARD_ID not in source_url:
             failures.append(f"traceability {gate_id} has no exact source frame URL")
+        if "?moveToWidget=" not in source_url:
+            failures.append(f"traceability {gate_id} must target a concrete DDD Starter frame")
+        if "/docs/cookbooks/" not in str(row.get("cookbook_url") or ""):
+            failures.append(f"traceability {gate_id} cookbook_url must target docs/cookbooks")
 
     resources = scaffold.get("overview_resources") or []
     if len(resources) < int(contract.get("require_overview_resources", 4)):
@@ -301,18 +306,30 @@ def validate_layout_contract(scaffold: dict[str, Any]) -> dict[str, Any]:
         if not work_frame or work_frame not in frame_ids:
             failures.append(f"stage {stage_id} does not reference an existing work frame")
         template = stage_templates.get(str(stage.get("visual_template") or "")) or {}
-        if len(template.get("items") or []) < int(contract.get("minimum_stage_visual_items", 4)):
+        template_items = template.get("items") or []
+        if len(template_items) < int(contract.get("minimum_stage_visual_items", 4)):
             failures.append(f"stage {stage_id} has too few methodological visual items")
+        semantic_ids = [str(item.get("id") or "").strip().casefold() for item in template_items]
+        semantic_labels = [re.sub(r"\s+", " ", str(item.get("label_cs") or "").strip()).casefold() for item in template_items]
+        if len(semantic_ids) != len(set(semantic_ids)):
+            failures.append(f"stage {stage_id} repeats a semantic visual role")
+        if len(semantic_labels) != len(set(semantic_labels)):
+            failures.append(f"stage {stage_id} repeats a semantic visual label")
         for link_name in ("cookbook_url", "method_url", "starter_reference_url"):
             if not str(stage.get(link_name) or "").startswith("https://"):
                 failures.append(f"stage {stage_id} has no usable {link_name}")
+        if "/docs/cookbooks/" not in str(stage.get("cookbook_url") or ""):
+            failures.append(f"stage {stage_id} cookbook_url must target docs/cookbooks")
         if str(stage.get("reference_board_id") or "") != STARTER_REFERENCE_BOARD_ID:
             failures.append(f"stage {stage_id} is not traceable to the DDD Starter source board")
         for field in ("reference_frame_title", "reference_frame_url", "reference_artifacts_cs"):
             if not stage.get(field):
                 failures.append(f"stage {stage_id} is missing source traceability field {field}")
-        if STARTER_REFERENCE_BOARD_ID not in str(stage.get("reference_frame_url") or ""):
+        stage_source_url = str(stage.get("reference_frame_url") or "")
+        if STARTER_REFERENCE_BOARD_ID not in stage_source_url:
             failures.append(f"stage {stage_id} source URL does not target the DDD Starter board")
+        if "?moveToWidget=" not in stage_source_url:
+            failures.append(f"stage {stage_id} source URL must target a concrete DDD Starter frame")
         box = {"id": stage_id, "x": float(stage.get("x", 0)), "y": float(stage.get("y", 0)), "width": stage_width, "height": stage_height}
         stage_boxes.append(box)
         if overview and not _inside(box, overview, margin=300):
@@ -370,6 +387,8 @@ def validate_layout_contract(scaffold: dict[str, Any]) -> dict[str, Any]:
             for field in ("start_cs", "outputs_cs", "cookbook_url", "method_url", "starter_reference_url"):
                 if not guide.get(field):
                     failures.append(f"frame {frame_id} guide is missing {field}")
+            if "/docs/cookbooks/" not in str(guide.get("cookbook_url") or ""):
+                failures.append(f"frame {frame_id} guide cookbook_url must target docs/cookbooks")
             if frame.get("canonical_workshop_shell") is True:
                 for field in (
                     "recipe_cs",
@@ -408,8 +427,11 @@ def validate_layout_contract(scaffold: dict[str, Any]) -> dict[str, Any]:
                     failures.append(f"example template {template_id} has no exact DDD Starter board ID")
                 if str(template.get("reference_frame_title") or "") != REQUIRED_STARTER_EXAMPLES[template_id]:
                     failures.append(f"example template {template_id} has the wrong source frame title")
-                if STARTER_REFERENCE_BOARD_ID not in str(template.get("reference_frame_url") or ""):
+                example_source_url = str(template.get("reference_frame_url") or "")
+                if STARTER_REFERENCE_BOARD_ID not in example_source_url:
                     failures.append(f"example template {template_id} has no exact source frame URL")
+                if "?moveToWidget=" not in example_source_url:
+                    failures.append(f"example template {template_id} must target a concrete DDD Starter frame")
                 if not str(template.get("adaptation_cs") or ""):
                     failures.append(f"example template {template_id} does not explain its adaptation")
             example_layout, _title, panel = _template_layout(frame, template)

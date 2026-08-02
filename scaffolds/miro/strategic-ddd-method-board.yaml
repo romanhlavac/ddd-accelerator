@@ -124,7 +124,7 @@ method_flow:
     starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
     reference_board_id: uXjVH27wYU4=
     reference_frame_title: Business model canvas - exercise
-    reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/
+    reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/?moveToWidget=3458764567890733010
     reference_artifacts_cs:
     - Business Model Canvas
     - zákaznické segmenty a value propositions
@@ -176,7 +176,7 @@ method_flow:
     y: -6200
     work_frame: strategize-classification
     visual_template: strategize
-    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/01-metodicky-tok-a-gates.md
+    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/08-gate-review.md
     method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/02-ddd-strategic-design.md
     starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
     reference_board_id: uXjVH27wYU4=
@@ -195,7 +195,7 @@ method_flow:
     y: -6200
     work_frame: connect-context-map
     visual_template: connect
-    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/product/04-synchronizace.md
+    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/08-gate-review.md
     method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/07-integration-and-data-ownership.md
     starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
     reference_board_id: uXjVH27wYU4=
@@ -214,12 +214,12 @@ method_flow:
     y: -6200
     work_frame: organize-teams
     visual_template: organize
-    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/01-metodicky-tok-a-gates.md
+    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/08-gate-review.md
     method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/10-team-topologies-and-governance.md
     starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
     reference_board_id: uXjVH27wYU4=
     reference_frame_title: Starter Modelling Process - Organize
-    reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/
+    reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/?moveToWidget=3458764567797253955
     reference_artifacts_cs:
     - bounded context ownership
     - týmové hranice a interaction modes
@@ -252,7 +252,7 @@ method_flow:
     y: -6200
     work_frame: code-tactical-model
     visual_template: code
-    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/product/01-architektura-ddda.md
+    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/05-design-level-eventstorming.md
     method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/03-ddd-tactical-design.md
     starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
     reference_board_id: uXjVH27wYU4=
@@ -611,7 +611,7 @@ frames:
     open_questions_cs: 'Co skutečně diferencuje, kde vzniká konkurenční výhoda a jak rychle se capability komoditizuje?'
     heuristics_cs: 'Klasifikaci pravidelně reviduj; odděluj strategickou hodnotu od technické složitosti; pracuj s portfoliem.'
     anti_patterns_cs: 'Všechno je core; core podle množství kódu; build jako výchozí odpověď bez trade-offu.'
-    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/01-metodicky-tok-a-gates.md
+    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/08-gate-review.md
     method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/02-ddd-strategic-design.md
     starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
 - id: connect-context-map
@@ -640,7 +640,7 @@ frames:
     open_questions_cs: 'Kdo může změnit kontrakt, kde probíhá překlad jazyka a co se stane při nedostupnosti upstreamu?'
     heuristics_cs: 'Vztahy pojmenovávej explicitně; rozlišuj data ownership a kopii; používej ACL při významovém nesouladu.'
     anti_patterns_cs: 'Neoznačené šipky; shared database jako neutrální integrace; ownership bez odpovědného týmu.'
-    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/product/04-synchronizace.md
+    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/08-gate-review.md
     method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/07-integration-and-data-ownership.md
     starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
 - id: organize-teams
@@ -668,7 +668,7 @@ frames:
     open_questions_cs: 'Kde tým čeká na jiný tým, co přesahuje cognitive load a která platformní služba chybí?'
     heuristics_cs: 'Optimalizuj pro tok změny; interaction mode je dočasná nebo cílená dohoda; platforma je interní produkt.'
     anti_patterns_cs: 'Context map kopírující org chart; permanentní collaboration všude; platform team jako ticket queue.'
-    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/01-metodicky-tok-a-gates.md
+    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/08-gate-review.md
     method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/10-team-topologies-and-governance.md
     starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
 - id: define-bounded-context
@@ -800,7 +800,7 @@ frames:
     open_questions_cs: 'Jak poznáme degradaci, co musí zůstat dostupné, jaká data nesmí uniknout a jak rychle obnovujeme?'
     heuristics_cs: 'Používej stimulus–response–measure; prioritizuj business dopad; propojuj scénáře s ADR a testy.'
     anti_patterns_cs: 'Vágní „musí být rychlé“; SLA bez workloadu; observability až po implementaci.'
-    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/01-metodicky-tok-a-gates.md
+    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/08-gate-review.md
     method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/05-quality-attributes.md
     starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
 - id: code-tactical-model
@@ -832,7 +832,7 @@ frames:
     open_questions_cs: 'Která konzistence musí být okamžitá, kde stačí eventual consistency a které pravidlo nepatří do agregátu?'
     heuristics_cs: 'Agregáty drž malé; reference mezi agregáty přes identity; aplikační služba orchestruje, doména rozhoduje.'
     anti_patterns_cs: 'Aggregate jako objektový graf celé domény; anemický model; repository pro každou entitu.'
-    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/product/01-architektura-ddda.md
+    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/05-design-level-eventstorming.md
     method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/03-ddd-tactical-design.md
     starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
 - id: code-state-machine
@@ -891,7 +891,7 @@ frames:
     open_questions_cs: 'Které závislosti brání nezávislému nasazení, jak zachováme kompatibilitu a jak ověříme rollback?'
     heuristics_cs: 'Každý pohled má publikum; kontrakty verzuj podle kompatibility; ADR zachycuje kontext, volbu a důsledky.'
     anti_patterns_cs: 'C4 jako deployment inventář bez domény; ADR po rozhodnutí bez alternativ; big-bang migrace bez rollbacku.'
-    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/product/01-architektura-ddda.md
+    cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/05-design-level-eventstorming.md
     method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/04-architecture-decision-making.md
     starter_reference_url: https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work
 cross_frame_links:
@@ -1027,7 +1027,7 @@ traceability:
   reference_visual: vector-situation-card:align
   reference_board_id: uXjVH27wYU4=
   reference_frame_title: Business model canvas - exercise
-  reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/
+  reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/?moveToWidget=3458764567890733010
   cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/16-zalozeni-rizeneho-projektu.md
   method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/01-metodicky-tok-a-gates.md
 - starter_step: Discover
@@ -1067,7 +1067,7 @@ traceability:
   reference_board_id: uXjVH27wYU4=
   reference_frame_title: Strategic classification
   reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/?moveToWidget=3458764567797029928
-  cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/01-metodicky-tok-a-gates.md
+  cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/08-gate-review.md
   method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/02-ddd-strategic-design.md
 - starter_step: Connect
   stage: connect
@@ -1080,7 +1080,7 @@ traceability:
   reference_board_id: uXjVH27wYU4=
   reference_frame_title: Context Maps - Examples
   reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/?moveToWidget=3458764567797253965
-  cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/product/04-synchronizace.md
+  cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/08-gate-review.md
   method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/07-integration-and-data-ownership.md
 - starter_step: Organise
   stage: organize
@@ -1092,8 +1092,8 @@ traceability:
   reference_visual: vector-situation-card:organize
   reference_board_id: uXjVH27wYU4=
   reference_frame_title: Starter Modelling Process - Organize
-  reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/
-  cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/methodology/01-metodicky-tok-a-gates.md
+  reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/?moveToWidget=3458764567797253955
+  cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/08-gate-review.md
   method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/10-team-topologies-and-governance.md
 - starter_step: Define
   stage: define
@@ -1121,7 +1121,7 @@ traceability:
   reference_board_id: uXjVH27wYU4=
   reference_frame_title: Domain Message Flow Modelling - Example
   reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/?moveToWidget=3458764567797253946
-  cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/product/01-architektura-ddda.md
+  cookbook_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/cookbooks/05-design-level-eventstorming.md
   method_url: https://github.com/romanhlavac/ddd-accelerator/blob/main/knowledge/03-ddd-tactical-design.md
 section_catalog:
   board_index:
@@ -1547,7 +1547,7 @@ section_catalog:
       oblast.
 overlays: []
 visual_contract:
-  render_contract_version: REM-PR8-HVA-CC-010
+  render_contract_version: REM-PR8-HVA-CC-011
   minimum_remote_item_count: 280
   overview_frame: method-overview
   minimum_overview_child_items: 61
@@ -1943,35 +1943,35 @@ stage_visual_templates:
       height: 440
       fill_color: '#DDEFA9'
       font_size: 24
-    - id: language
-      label_cs: LANGUAGE
+    - id: business-decisions
+      label_cs: BUSINESS DECISIONS
       item_type: shape
       shape: round_rectangle
       x: -550
       y: 520
       width: 900
       height: 440
-      fill_color: '#FDE68A'
+      fill_color: '#C7D2FE'
       font_size: 24
-    - id: invariants
-      label_cs: INVARIANTY
+    - id: language
+      label_cs: UBIQUITOUS LANGUAGE
       item_type: shape
       shape: round_rectangle
       x: 550
       y: 520
       width: 900
       height: 440
-      fill_color: '#F8E58C'
+      fill_color: '#FDE68A'
       font_size: 24
-    - id: invariant
-      label_cs: INVARIANT
+    - id: communication
+      label_cs: INBOUND / OUTBOUND
       item_type: shape
       shape: round_rectangle
       x: 1650
       y: 520
       width: 900
       height: 440
-      fill_color: '#F8E58C'
+      fill_color: '#BFDBFE'
       font_size: 24
     sync_policy: ignore
     connectors: []
@@ -2083,7 +2083,7 @@ example_templates:
     reference_kind: ddd_starter_board
     reference_board_id: uXjVH27wYU4=
     reference_frame_title: Business model canvas - exercise
-    reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/
+    reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/?moveToWidget=3458764567890733010
     adaptation_cs: Devět polí Business Model Canvas je zhuštěno do čitelného workshopového mini-vzoru.
     representation: table_grid
     items:
@@ -2549,7 +2549,7 @@ example_templates:
     reference_kind: ddd_starter_board
     reference_board_id: uXjVH27wYU4=
     reference_frame_title: Starter Modelling Process - Decompose
-    reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/
+    reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/?moveToWidget=3458764567797029926
     adaptation_cs: Rozpad lifecycle doplňuje povolené, guardované a zakázané přechody.
     items:
     - id: new
@@ -2854,7 +2854,7 @@ example_templates:
     reference_kind: ddd_starter_board
     reference_board_id: uXjVH27wYU4=
     reference_frame_title: Starter Modelling Process - Organize
-    reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/
+    reference_frame_url: https://miro.com/app/board/uXjVH27wYU4=/?moveToWidget=3458764567797253955
     adaptation_cs: Převádí bounded context ownership do týmových hranic a interaction modes.
     items:
     - id: stream

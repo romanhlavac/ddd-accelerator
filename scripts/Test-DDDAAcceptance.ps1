@@ -58,7 +58,7 @@ $oldMiroToken = $env:MIRO_ACCESS_TOKEN
 $oldMiroTeamIdExists = Test-Path Env:\MIRO_TEAM_ID
 $oldMiroTeamId = if ($oldMiroTeamIdExists) { [string]$env:MIRO_TEAM_ID } else { $null }
 $remoteLayoutStatus = if ($WithMiro) { "FAIL" } else { "NOT_RUN" }
-$renderContractVersion = "REM-PR8-HVA-CC-010"
+$renderContractVersion = "REM-PR8-HVA-CC-011"
 $renderContractStatus = if ($WithMiro) { "FAIL" } else { "NOT_RUN" }
 $platformSourceCommit = $null
 $scaffoldSha256 = $null
@@ -189,7 +189,7 @@ intake:
   project_id: acceptance-claims-modernization
   name: Acceptance Claims Modernization
   type: legacy-modernization
-  business_problem: Vendor lock-in zpomaluje změny a přesouvá znalost mimo organizaci.
+  business_problem: Legacy vyhodnocování pojistných událostí skrývá rozhodovací pravidla, zpomaluje vysvětlitelné rozhodnutí a prodražuje bezpečnou změnu.
   decision_to_enable: Potvrdit cílové doménové hranice a bezpečný první migrační řez.
   goal: Umožnit inkrementální modernizaci bez výpadku provozu.
   scope:

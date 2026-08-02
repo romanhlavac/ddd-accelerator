@@ -232,7 +232,7 @@ Assert-True -Condition ($scaffoldText -match '(?m)^stage_columns:\s*$') -Message
 Assert-True -Condition ($scaffoldText -match '(?m)^method_transitions:\s*$') -Message "Miro scaffold nemá metodické přechody a feedback loops."
 Assert-True -Condition ($scaffoldText -match '00 – Navigace, legenda a stav artefaktů \(Control Center\)') -Message "Viditelný název frame 00 neodpovídá human-review kontraktu."
 Assert-True -Condition ($scaffoldText -match '(?m)^schema_version:\s*[''"]?2\.5[''"]?\s*$') -Message "Miro scaffold nepoužívá schema 2.5."
-Assert-True -Condition ($scaffoldText -match '(?m)^\s*render_contract_version:\s*REM-PR8-HVA-CC-010\s*$') -Message "Miro scaffold nemá REM-010 render contract."
+Assert-True -Condition ($scaffoldText -match '(?m)^\s*render_contract_version:\s*REM-PR8-HVA-CC-011\s*$') -Message "Miro scaffold nemá REM-010 render contract."
 Assert-True -Condition ($scaffoldText -match '(?m)^\s*minimum_remote_item_count:\s*280\s*$') -Message "Miro scaffold neumí odlišit REM-010 od 262položkového odmítnutého boardu."
 Assert-True -Condition ($scaffoldText -match '(?m)^\s*minimum_overview_child_items:\s*61\s*$') -Message "Miro scaffold nevynucuje navigovatelný obsah frame 01."
 foreach ($sourceBoardId in @("uXjVH2vcvRI=", "uXjVH27wYU4=")) {

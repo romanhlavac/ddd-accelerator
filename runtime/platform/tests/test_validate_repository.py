@@ -239,7 +239,7 @@ def test_miro_acceptance_schema_accepts_preserved_review_board() -> None:
         "layout_contract_status": "PASS",
         "remote_layout_status": "PASS",
         "render_contract_status": "PASS",
-        "render_contract_version": "REM-PR8-HVA-CC-010",
+        "render_contract_version": "REM-PR8-HVA-CC-011",
         "platform_source_commit": "a" * 40,
         "scaffold_sha256": "b" * 64,
         "remote_item_count": 281,

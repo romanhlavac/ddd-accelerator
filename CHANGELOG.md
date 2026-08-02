@@ -31,6 +31,7 @@ Změny pro další verzi se během vývoje zapisují sem. Před promotion se vš
 
 ### Changed
 
+- corrective remediation `REM-PR8-HVA-CC-011`: syntetický claims scénář používá jednotný business problém a ubiquitous language; všechny povinné DDD Starter vazby míří na exact `moveToWidget` frame, G7 overview odpovídá Bounded Context Canvasu a odkazy označené jako kuchařka míří výhradně pod `docs/cookbooks/`;
 - corrective remediation `REM-PR8-HVA-CC-010`: frame `01` vlastní nejméně 61 navigovatelných child items a zobrazuje exact redline/DDD Starter traceability; workshopové vzory citují konkrétní source frames a rozpoznatelně adaptují Business Model Canvas, EventStorming, Process Modelling, Strategic Classification, Context Map, Bounded Context Canvas a Domain Message Flow;
 - Miro scaffold schema `2.5`, remote acceptance a content digest kontrolují parent vazby frame `01`, nejméně 280 remote items a nejméně 11 viditelných DDD Starter source captions; HUMAN REVIEW zůstává `PENDING`;
 - korekce `REM-PR8-HVA-CC-002`: Miro scaffold schema `2.4` používá deterministické stage columns a ve frames `20–82` kanonický shell `method guide | editable work area | VZOR / LEGENDA`; frames `01` a `10` zůstávají interně beze změny;

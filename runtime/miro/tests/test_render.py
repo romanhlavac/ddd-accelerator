@@ -501,3 +501,47 @@ def test_control_center_separates_gate_state_lifecycle_and_provenance(tmp_path):
         assert provenance_id in provenance
     assert "PASSED" not in lifecycle
     assert "ACCEPTED" not in provenance
+
+
+def test_rem_011_hardens_content_coherence_and_exact_traceability():
+    source = Path(__file__).resolve().parents[3]
+    scaffold = load_yaml(source / "scaffolds" / "miro" / "strategic-ddd-method-board.yaml")
+
+    stages = scaffold["method_flow"]["stages"]
+    assert [stage["id"] for stage in stages] == [
+        "align", "discover", "decompose", "strategize", "connect", "organize", "define", "code",
+    ]
+    for stage in stages:
+        assert "?moveToWidget=" in stage["reference_frame_url"]
+        assert "/docs/cookbooks/" in stage["cookbook_url"]
+
+    for row in scaffold["traceability"]:
+        assert "?moveToWidget=" in row["reference_frame_url"]
+        assert "/docs/cookbooks/" in row["cookbook_url"]
+
+    required_examples = {
+        "align", "big_picture", "evidence", "process", "decompose", "lifecycle",
+        "strategize", "context_map", "teams", "bc_canvas", "design_es",
+    }
+    for template_id in required_examples:
+        template = scaffold["example_templates"][template_id]
+        assert "?moveToWidget=" in template["reference_frame_url"]
+
+    for frame in scaffold["frames"]:
+        guide = frame.get("guide") or {}
+        if guide:
+            assert "/docs/cookbooks/" in guide["cookbook_url"]
+
+    define_items = scaffold["stage_visual_templates"]["define"]["items"]
+    assert [item["id"] for item in define_items] == [
+        "purpose", "business-decisions", "language", "communication",
+    ]
+    assert [item["label_cs"] for item in define_items] == [
+        "PURPOSE", "BUSINESS DECISIONS", "UBIQUITOUS LANGUAGE", "INBOUND / OUTBOUND",
+    ]
+    assert len({item["label_cs"].casefold() for item in define_items}) == len(define_items)
+
+    acceptance_source = (source / "scripts" / "Test-DDDAAcceptance.ps1").read_text(encoding="utf-8-sig")
+    assert "Vendor lock-in zpomaluje změny" not in acceptance_source
+    assert "Legacy vyhodnocování pojistných událostí skrývá rozhodovací pravidla" in acceptance_source
+    assert scaffold["visual_contract"]["render_contract_version"] == "REM-PR8-HVA-CC-011"

@@ -117,3 +117,15 @@ Reviewer ověřuje:
 - použitelnost method guides, editovatelných pracovních ploch, resources a Artifact Registry;
 - nepřekrývání, přiměřenou hustotu a české znaky;
 - že board nevytváří dojem automatického gate approval.
+
+## REM-011 content coherence hardening
+
+Nad rámec parent a layout kontrol z REM-010 platí fail-closed pravidla:
+
+- každý stage a traceability source URL obsahuje konkrétní `moveToWidget`;
+- každý povinný DDD Starter example template odkazuje na konkrétní source frame;
+- `cookbook_url` smí mířit pouze pod `docs/cookbooks/`, zatímco metodické a knowledge odkazy patří do `method_url`;
+- stage mini-vzor nesmí opakovat semantic ID ani normalizovaný label;
+- syntetický acceptance projekt musí držet claims-specific business problém, jazyk a artefakty.
+
+G7 overview používá `PURPOSE`, `BUSINESS DECISIONS`, `UBIQUITOUS LANGUAGE` a `INBOUND / OUTBOUND`; invarianty se validují v detailním Design-Level EventStormingu a taktickém návrhu, nikoli jako duplicitní role Bounded Context Canvasu.

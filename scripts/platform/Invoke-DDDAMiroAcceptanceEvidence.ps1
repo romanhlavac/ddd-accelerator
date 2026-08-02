@@ -91,7 +91,7 @@ function New-DDDAFallbackAcceptanceReport {
         layout_contract_status = "FAIL"
         remote_layout_status = "FAIL"
         render_contract_status = "FAIL"
-        render_contract_version = "REM-PR8-HVA-CC-010"
+        render_contract_version = "REM-PR8-HVA-CC-011"
         platform_source_commit = $null
         scaffold_sha256 = $null
         remote_item_count = 0

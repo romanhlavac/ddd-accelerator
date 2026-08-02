@@ -36,6 +36,7 @@
 - [Miro scaffold migration 2.4 → 2.5](migration/miro-scaffold-2.4-to-2.5.md)
 - [Forenzní review REM-PR8-HVA-CC-001](reviews/REM-PR8-HVA-CC-001-forensic-review.md)
 - [REM-PR8-HVA-CC-010 — nová human-review revize](reviews/REM-PR8-HVA-CC-010-gap-analysis.md)
+- [REM-PR8-HVA-CC-011 — content coherence and traceability hardening](reviews/REM-PR8-HVA-CC-011-content-coherence.md)
 - [Changelog](../CHANGELOG.md)
 
 ## Metodika
