@@ -2,7 +2,7 @@
 
 ## Začít zde
 
-1. [Chat/Work-only operating model](developer-guide/chat-work-operating-model.md)
+1. [Operating model: Chat/Work platform development a Cursor project runtime](developer-guide/chat-work-operating-model.md)
 2. [Clone, smoke testy, workspace a example projekt](getting-started/01-clone-smoke-example.md)
 3. [Validace a promotion platformního PR](user-guide/validate-and-promote-pr.md)
 4. [Testování řiditelnosti projektu](getting-started/02-testovani-pr8.md)
@@ -24,7 +24,7 @@
 
 ## Developer guide
 
-- [Chat/Work-only operating model](developer-guide/chat-work-operating-model.md)
+- [Operating model: Chat/Work pro platformu, Cursor pro projekt](developer-guide/chat-work-operating-model.md)
 - [Vývojový lifecycle DDDA platformy](developer-guide/platform-development-lifecycle.md)
 - [Testovací strategie DDDA platformy](developer-guide/testing-strategy.md)
 - [Remote validation a remediation broker](developer-guide/remote-validation-broker.md)
@@ -35,7 +35,7 @@
 - [ADR 0002 — Project steering a gate semantics](adr/0002-project-steering-and-gate-semantics.md)
 - [ADR 0003 — Control Center, Artifact Registry a kanonický workshop shell](adr/0003-miro-control-center-and-workshop-shell.md)
 - [ADR 0004 — Redline traceability a navigovatelný frame 01](adr/0004-miro-redline-traceability-and-frame-01.md)
-- [ADR 0005 — Chat/Work-only operating model](adr/0005-chat-work-only-development-operating-model.md)
+- [ADR 0005 — Chat/Work platform development a Cursor project runtime](adr/0005-chat-work-only-development-operating-model.md)
 - [PR #8 migration note](migration/pr8-non-breaking-steering-extension.md)
 - [Miro scaffold migration 2.4 → 2.5](migration/miro-scaffold-2.4-to-2.5.md)
 - [Forenzní review REM-PR8-HVA-CC-001](reviews/REM-PR8-HVA-CC-001-forensic-review.md)
