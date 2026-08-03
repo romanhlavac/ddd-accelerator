@@ -1,20 +1,35 @@
 ---
-description: RETIRED — DDDA supports Chat and Work only
-alwaysApply: false
+description: DDDA project-work guardrails for Cursor
+alwaysApply: true
 ---
 
-# Retired compatibility stub
+# DDDA project-work guardrails
 
-```text
-RETIRED-NON-RUNTIME-COMPATIBILITY-STUB
-```
+Toto pravidlo je součástí DDDA project runtime v Cursoru. Nevztahuje se na vývoj DDDA platformy.
 
-Tento Cursor bootstrap není podporovaný ani aktivní.
+Před každou projektovou změnou:
 
-Kanonický operating model je:
+1. potvrď `scope: project` a aktivní project repository;
+2. pojmenuj business nebo architektonické rozhodnutí, které práce podporuje;
+3. načti projektový status, tailoring, relevantní cookbook a knowledge soubory;
+4. odděl evidence, hypotézy, rozhodnutí a generované projekce.
 
-```text
-docs/developer-guide/chat-work-operating-model.md
-```
+## Práce se zdroji
 
-Pro vývoj DDDA používej pouze Chat nebo Work. Technickou exekuci buildů, testů a package-first validace zajišťují GitHub Actions.
+- Zachovávej terminologii vstupů.
+- U důležitých závěrů uváděj source path nebo workshop reference.
+- Rozpory zapisuj jako hotspot nebo conflict record.
+- Obecné znalosti označ jako inference, pokud nejsou doloženy projektovým zdrojem.
+
+## Projektové skripty a Miro
+
+Před voláním DDDA skriptu vysvětli účel, dotčené projektové soubory nebo Miro items, očekávaný výstup, validaci a rollback.
+
+Miro write musí nejprve proběhnout jako dry-run. Nové položky vytvořené přímo v Miru se nesmějí automaticky promovat do YAML bez explicitního review.
+
+## Bezpečnost a Git
+
+- Neřeš sémantický konflikt implicitním last-write-wins.
+- Necommituj secrets ani neveřejná data mimo schválený project repository.
+- Neprováděj push, merge, release ani fyzický Miro delete bez explicitního potvrzení.
+- Neměň DDDA platform repository. Platformní defect nebo enhancement zaznamenej jako change request pro Chat/Work platform-development flow.
