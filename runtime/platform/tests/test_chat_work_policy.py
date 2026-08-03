@@ -71,6 +71,10 @@ def test_canonical_documents_publish_same_execution_contract() -> None:
         assert "secret" in folded, relative
 
 
+def test_legacy_cursor_runtime_bootstrap_is_not_distributed() -> None:
+    assert not (REPOSITORY_ROOT / ".cursor").exists()
+
+
 def test_remote_broker_forbids_unsafe_operations() -> None:
     remote = load_policy()["remote_execution"]
 
