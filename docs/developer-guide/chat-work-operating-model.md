@@ -33,7 +33,7 @@ Zakázaná rozhraní pro změnu platformy:
 
 GitHub Actions je autoritativní execution plane pro shell, build, testy, candidate package a package-first validation.
 
-### Rozdęlení odpovědností
+### Rozdělení odpovědností
 
 | Oblast | Chat | Work | GitHub Actions | Člověk |
 |---|---|---|---|---|

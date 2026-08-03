@@ -19,6 +19,27 @@ REQUIRED_GOVERNANCE_DOCUMENTS = {
     "docs/adr/0005-chat-work-only-development-operating-model.md",
     "docs/developer-guide/chat-work-operating-model.md",
 }
+
+
+GOVERNANCE_TEXT_PATHS = {
+    "CHANGELOG.md",
+    "config/platform/development-policy.yaml",
+    "docs/adr/0006-chat-atomic-platform-implementation.md",
+    "docs/developer-guide/chat-work-operating-model.md",
+    "docs/developer-guide/remote-validation-broker.md",
+    "knowledge/ddda-platform-development-skill.md",
+    "runtime/platform/tests/test_chat_work_policy.py",
+}
+MOJIBAKE_FRAGMENTS = (
+    "\ufeff",
+    "\ufffd",
+    "b" + chr(0x0118) + "hem",
+    "Rozd" + chr(0x0119) + "lení",
+    chr(0x00C3),
+    chr(0x00C2),
+    chr(0x00E2) + chr(0x20AC),
+)
+
 EXPECTED_CURSOR_ASSETS = {
     ".cursor/rules/010-ddda-project-steering.mdc",
     ".cursor/rules/ddda-chat-first.mdc",
@@ -165,4 +186,16 @@ def test_governance_documents_describe_work_preferred_chat_atomic_fallback() -> 
     assert "Chat direct multi-file Contents API writes are prohibited" in skill
     assert "chat-atomic" in adr
     assert "non-force fast-forward" in adr
+
+def test_rem012_governance_files_are_utf8_lf_without_mojibake() -> None:
+    for relative in sorted(GOVERNANCE_TEXT_PATHS):
+        path = REPOSITORY_ROOT / relative
+        raw = path.read_bytes()
+
+        assert not raw.startswith(b"\xef\xbb\xbf"), relative
+        assert b"\r" not in raw, relative
+
+        text = raw.decode("utf-8")
+        for fragment in MOJIBAKE_FRAGMENTS:
+            assert fragment not in text, f"{relative}: {fragment!r}"
 
