@@ -59,10 +59,11 @@ Responsibility boundary:
 
 ```text
 Chat
-  consultation, scope, design, authorization, evidence review and human decisions.
+  consultation, scope, design, authorization, evidence review and human decisions;
+  when Work is unavailable, one exact-SHA-bound atomic Git tree commit through the approved GitHub connector.
 
 Work
-  multi-step orchestration over approved GitHub, Miro and document Apps;
+  preferred implementation mode; multi-step orchestration over approved GitHub, Miro and document Apps;
   bounded writes to an explicitly declared PR branch.
 
 GitHub Actions
@@ -126,9 +127,10 @@ CI/test pipeline
 18. Work writes only to an explicitly declared PR branch and only within authorized paths.
 19. GitHub Actions is the authoritative execution plane for build and test evidence.
 20. Secrets never enter Chat or Work context; secret-bearing operations stay in GitHub Actions or source-system secret stores.
-21. A Work write must be followed by standard CI against the resulting exact SHA.
-22. Missing connector access, missing board visibility or insufficient permissions are blocking conditions that must be reported explicitly.
-23. Structural Miro validation cannot satisfy human visual acceptance.
+21. A Work or Chat-atomic write must be followed by standard CI against the resulting exact SHA.
+22. Chat direct multi-file Contents API writes are prohibited; Chat implementation must use one atomic Git tree commit with exact-base and fast-forward guards.
+23. Missing connector access, missing board visibility or insufficient permissions are blocking conditions that must be reported explicitly.
+24. Structural Miro validation cannot satisfy human visual acceptance.
 
 ## 4. Change classification
 
@@ -166,8 +168,8 @@ The classification determines tests, ADR, migration and review obligations.
 change request in Chat or Work
 → impact analysis
 → feature/fix branch
-→ Work implementation through approved Apps
-→ commit
+→ Work implementation through approved Apps (preferred) or Chat-atomic implementation when Work is unavailable
+→ one scoped commit
 → GitHub Actions exact-SHA validation
 → push/PR CI
 → validate-pr
@@ -223,6 +225,23 @@ A “remediation test” is not a separate test type. The correct term is **reme
 Tests that mutate repository state must run in an isolated clone, worktree or fixture. Do not assert that the developer working tree is clean while intentionally using it as the mutable test subject.
 
 On the Chat/Work-only path, commands are executed by standard GitHub Actions workflows. Documentation may show local PowerShell commands as the stable platform contract, but Work must not pretend it executed those commands locally.
+
+## 7.1 Chat atomic implementation fallback
+
+Work remains the preferred implementation mode. When Work is unavailable, Chat may write the platform PR branch only by constructing one complete Git tree from an exact-SHA source snapshot, creating one commit whose parent is the authorized SHA, and moving the same PR branch by a non-force fast-forward update.
+
+Required controls:
+
+- exact PR head SHA captured before preparation;
+- immutable source snapshot matching that SHA;
+- declared paths and reviewable full-file content;
+- one atomic commit, never sequential multi-file Contents API commits;
+- no `main` write and no force update;
+- standard PR CI on the resulting exact SHA;
+- corrective commit or revert after failure, never automatic history rewrite;
+- no secrets or secret-bearing operations in Chat.
+
+A control-plane bootstrap requires explicit human authorization and a self-removing staging artefact.
 
 ## 8. Stable command flow
 

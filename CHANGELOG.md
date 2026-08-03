@@ -6,12 +6,15 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 ## [Unreleased]
 
-Změny pro další verzi se během vývoje zapisují sem. Před promotion se všechny položky přesunou do jediné verze `X.Y.Z` s ISO datem a tato sekce zůstane bez release položek.
+Změny pro další verzi se bĘhem vývoje zapisují sem. Před promotion se všechny položky přesunou do jediné verze `X.Y.Z` s ISO datem a tato sekce zůstane bez release položek.
+
 
 ## [0.1.0] - 2026-07-28
 
 ### Added
 
+- `chat-atomic` implementační fallback pro vývoj DDDA platformy při nedostupném Work: exact-SHA source snapshot, jeden Git tree commit, non-force fast-forward update PR branche a povinné standardní CI;
+- ADR `0006` a policy guardrails pro jednorázový self-removing bootstrap control-plane změn;
 - chat-first project intake, lifecycle tailoring, current status a next actions;
 - evidence-driven gate records G1–G8 s explicitním lidským rozhodnutím;
 - strukturovaný human gate decision contract vázaný na project ID, scope, Git commit, decision ownera a SHA-256 relevantních evidence artefaktů;
@@ -34,6 +37,8 @@ Změny pro další verzi se během vývoje zapisují sem. Před promotion se vš
 
 ### Changed
 
+- Work zůstává preferovaným implementačním režimem, ale Chat může bezpečně realizovat atomickou platformní změnu bez sekvenčních multi-file Contents API commitů;
+- `issue_comment` broker se nepovažuje za dostupný bootstrap mechanismus, dokud jeho workflow není na default branchi;
 - vývoj DDDA platformy používá pouze Chat a Work; GitHub Actions je autoritativní execution plane pro shell, build, testy, candidate package a package-first acceptance, secrets zůstávají mimo Chat/Work runtime a Work zapisuje pouze na explicitní platformní PR branch;
 - vlastní práce architekta v konkrétním DDDA projektu probíhá v Cursoru, který poskytuje chat, agentic práci s projektovými soubory, artefakty a kódem; Cursor nesmí měnit DDDA platform repository;
 - platformní defect nebo obecný enhancement nalezený při projektové práci se předává jako change request do Chat/Work platform-development flow;

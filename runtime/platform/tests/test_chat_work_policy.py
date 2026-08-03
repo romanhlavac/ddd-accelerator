@@ -37,7 +37,8 @@ def test_platform_development_allows_only_chat_and_work() -> None:
     assert platform["allowed"] == ["chat", "work"]
     assert set(platform["forbidden"]) >= {"codex", "cursor", "agent"}
     assert platform["default_mode"] == "chat"
-    assert platform["implementation_mode"] == "work"
+    assert platform["preferred_implementation_mode"] == "work"
+    assert platform["allowed_implementation_modes"] == ["work", "chat-atomic"]
 
 
 def test_github_actions_is_platform_execution_plane() -> None:
@@ -129,3 +130,39 @@ def test_remote_broker_forbids_unsafe_operations() -> None:
     }
     assert remote["exact_sha_required"] is True
     assert remote["same_repository_only"] is True
+
+def test_chat_atomic_implementation_is_guarded() -> None:
+    platform = load_policy()["execution_interfaces"]["platform_development"]
+    atomic = platform["chat_atomic_implementation"]
+
+    assert atomic["enabled"] is True
+    assert atomic["transport"] == "github-git-data-api"
+    assert atomic["exact_base_sha_required"] is True
+    assert atomic["atomic_tree_commit_required"] is True
+    assert atomic["direct_contents_api_multi_file_write_allowed"] is False
+    assert atomic["target_scope"] == "platform-pr-branch-only"
+    assert atomic["maximum_commits_per_change"] == 1
+    assert atomic["force_update_allowed"] is False
+    assert atomic["prewrite_source_snapshot_required"] is True
+    assert atomic["standard_ci_after_write_required"] is True
+    assert atomic["evidence_required"] is True
+
+    bootstrap = atomic["bootstrap_exception"]
+    assert bootstrap["change_id"] == "REM-PR8-HVA-CC-012.1A"
+    assert bootstrap["explicit_authorization_required"] is True
+    assert bootstrap["maximum_staging_commits"] == 1
+    assert bootstrap["maximum_final_commits"] == 1
+    assert bootstrap["self_removing_script_required"] is True
+
+
+def test_governance_documents_describe_work_preferred_chat_atomic_fallback() -> None:
+    operating = OPERATING_MODEL_PATH.read_text(encoding="utf-8")
+    skill = (REPOSITORY_ROOT / "knowledge/ddda-platform-development-skill.md").read_text(encoding="utf-8")
+    adr = (REPOSITORY_ROOT / "docs/adr/0006-chat-atomic-platform-implementation.md").read_text(encoding="utf-8")
+
+    assert "Work zůstává preferovaným implementačním režimem" in operating
+    assert "jeden atomický Git tree commit" in operating
+    assert "Chat direct multi-file Contents API writes are prohibited" in skill
+    assert "chat-atomic" in adr
+    assert "non-force fast-forward" in adr
+

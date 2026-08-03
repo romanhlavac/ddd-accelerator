@@ -33,13 +33,13 @@ Zakázaná rozhraní pro změnu platformy:
 
 GitHub Actions je autoritativní execution plane pro shell, build, testy, candidate package a package-first validation.
 
-### Rozdělení odpovědností
+### Rozdęlení odpovědností
 
 | Oblast | Chat | Work | GitHub Actions | Člověk |
 |---|---|---|---|---|
 | návrh, scope a trade-offy | ano | ano | ne | review |
 | klasifikace změny a acceptance criteria | ano | ano | kontrola kontraktů | schválení scope |
-| změny PR branche přes schválené konektory | ne jako výchozí režim | ano | ověření exact SHA | kontrola diffu |
+| změny PR branche přes schválené konektory | ano, pouze atomickým Git tree commitem a při nedostupném Work | ano, preferovaný režim | ověření exact SHA | kontrola diffu |
 | shell, build, testy a packaging | ne | ne | **autoritativně** | posouzení evidence |
 | secrets | nikdy | nikdy | pouze secret-bearing job | správa a rotace |
 | merge, promotion, release a tag | pouze návrh | jen po samostatné autorizaci | guardrails | explicitní rozhodnutí |
@@ -55,6 +55,24 @@ Work musí:
 5. při nedostupném konektoru nebo boardu zastavit a omezení explicitně oznámit;
 6. po změně vyžadovat standardní CI nad výsledným SHA;
 7. nerozšiřovat autorizaci na merge, release, tag, promotion nebo force-push.
+
+### Chat atomic guardrails
+
+Work zůstává preferovaným implementačním režimem. Pokud Work není dostupný, Chat smí provést změnu platformy pouze jako jeden atomický Git tree commit přes schválený GitHub konektor.
+
+Chat atomic změna musí:
+
+1. načíst a zafixovat exact PR head SHA před sestavením změny;
+2. použít immutable candidate package nebo jiný exact-SHA source snapshot pro přípravu a lokální statické ověření změny;
+3. vytvořit celý nový Git tree bez sekvenčních více-souborových Contents API commitů;
+4. vytvořit právě jeden commit s rodičem rovným autorizovanému SHA;
+5. aktualizovat pouze deklarovanou PR branch a pouze fast-forward, nikdy `main`;
+6. po zápisu vyžadovat standardní exact-SHA CI; technický PASS vzniká až po jeho dokončení;
+7. při selhání CI nepřepisovat historii, ale použít opravný commit nebo revert;
+8. nevkládat secrets do Chat kontextu, stromu, commitu ani evidence;
+9. nerozšiřovat autorizaci na merge, promotion, release, tag nebo force-push.
+
+Přímé sekvenční multi-file zápisy přes GitHub Contents API jsou zakázané. Jednorázový bootstrap control-plane změny vyžaduje explicitní autorizaci, self-removing staging artefakt a samostatnou evidenci.
 
 ## 2. Používání DDDA v projektu
 
@@ -116,7 +134,7 @@ Cursor nesmí provést cross-repository commit, automatický gate approval, impl
 
 - source of truth pro DDDA produkt;
 - změny pouze přes platformní PR;
-- implementace přes Work;
+- implementace preferenčně přes Work; při nedostupném Work je povolen Chat atomic transport podle exact-SHA guardrails;
 - validace přes GitHub Actions;
 - Cursor write zakázán.
 

@@ -17,14 +17,45 @@
         "agent"
       ],
       "default_mode": "chat",
-      "implementation_mode": "work",
       "authoritative_execution_plane": "github-actions",
       "operator_local_shell_required": false,
       "assistant_runtime_secret_access": false,
       "repository_write_scope": "platform-pr-branch-only",
       "main_branch_write_allowed": false,
       "require_transparent_access_failure": true,
-      "require_standard_ci_after_write": true
+      "require_standard_ci_after_write": true,
+      "preferred_implementation_mode": "work",
+      "allowed_implementation_modes": [
+        "work",
+        "chat-atomic"
+      ],
+      "chat_atomic_implementation": {
+        "enabled": true,
+        "transport": "github-git-data-api",
+        "exact_base_sha_required": true,
+        "atomic_tree_commit_required": true,
+        "direct_contents_api_multi_file_write_allowed": false,
+        "target_scope": "platform-pr-branch-only",
+        "maximum_commits_per_change": 1,
+        "force_update_allowed": false,
+        "prewrite_source_snapshot_required": true,
+        "standard_ci_after_write_required": true,
+        "evidence_required": true,
+        "protected_paths": [
+          "config/platform/development-policy.yaml",
+          "docs/adr/",
+          "docs/developer-guide/",
+          "knowledge/ddda-platform-development-skill.md",
+          ".github/workflows/"
+        ],
+        "bootstrap_exception": {
+          "change_id": "REM-PR8-HVA-CC-012.1A",
+          "explicit_authorization_required": true,
+          "maximum_staging_commits": 1,
+          "maximum_final_commits": 1,
+          "self_removing_script_required": true
+        }
+      }
     },
     "ddda_project_runtime": {
       "required_system": "cursor",
@@ -55,7 +86,8 @@
     "docs/adr/0002-project-steering-and-gate-semantics.md",
     "docs/adr/0005-chat-work-only-development-operating-model.md",
     "docs/developer-guide/chat-work-operating-model.md",
-    "docs/migration/pr8-non-breaking-steering-extension.md"
+    "docs/migration/pr8-non-breaking-steering-extension.md",
+    "docs/adr/0006-chat-atomic-platform-implementation.md"
   ],
   "remote_execution": {
     "schema_version": 1,

@@ -110,3 +110,13 @@ Pokud zdroj nelze načíst:
 Remote broker nikdy automaticky neprovádí merge, tag, release ani promotion. Human visual acceptance a release decision zůstávají samostatnými lidskými kroky.
 
 Technický PASS dokládá pouze provedené mechanické kontroly. Vizuální Miro acceptance vyžaduje skutečné načtení reference i cíle, side-by-side posouzení a explicitní lidské rozhodnutí.
+
+## Chat atomic implementation před aktivací default-branch brokeru
+
+Work je preferovaný implementační režim. Pokud Work není dostupný a `issue_comment` broker ještě není aktivní na default branchi, může Chat použít schválený GitHub Git Data API transport.
+
+Tento transport není sekvence Contents API zápisů. Chat musí z exact-SHA source snapshotu sestavit celý nový Git tree, vytvořit jediný commit s autorizovaným PR HEAD jako rodičem a provést pouze ne-force fast-forward aktualizaci stejné PR branche. Bezprostředně potom musí proběhnout standardní PR CI nad výsledným exact SHA.
+
+Chat atomic transport nesmí provádět secret-bearing online operace. Online Miro acceptance a další secret-bearing validace zůstávají v GitHub Actions. Selhání CI se neopravuje přepisem historie; následuje korektivní commit nebo revert.
+
+Workflow založený na `issue_comment` se spouští pouze tehdy, když je jeho workflow definice dostupná na default branchi. Existence workflow pouze v dosud nemergované PR branchi proto není dostatečný bootstrap mechanismus.
