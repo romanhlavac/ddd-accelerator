@@ -18,18 +18,61 @@ knowledge/ddda-platform-development-skill.md
 For ChatGPT/project execution, the skill must also be registered as mandatory in at least one runtime routing surface:
 
 - `knowledge/00-knowledge-index.md`, or
-- the ChatGPT Project Instructions / equivalent agent bootstrap instructions.
+- the ChatGPT Project Instructions / equivalent Work bootstrap instructions.
 
-Registration is not optional. Keeping the file only in Git provides versioning, but does not guarantee that a chat or agent loads it. At the beginning of DDDA platform-development work, verify that the active runtime has loaded this skill and the developer lifecycle documentation referenced below.
+Registration is not optional. Keeping the file only in Git provides versioning, but does not guarantee that Chat or Work loads it. At the beginning of DDDA platform-development work, verify that the active runtime has loaded this skill and the developer lifecycle documentation referenced below.
 
 Canonical supporting documentation:
 
+- `docs/developer-guide/chat-work-operating-model.md`
 - `docs/developer-guide/platform-development-lifecycle.md`
 - `docs/developer-guide/testing-strategy.md`
+- `docs/developer-guide/remote-validation-broker.md`
 - `docs/user-guide/validate-and-promote-pr.md`
 - `docs/adr/0001-platform-development-lifecycle.md`
+- `docs/adr/0005-chat-work-only-development-operating-model.md`
 
 If this skill and a supporting document conflict, fail closed and resolve the inconsistency in Git before relying on either rule.
+
+### 1.1 Chat/Work-only execution policy
+
+```text
+DDDA-EXECUTION-MODE: CHAT-WORK-ONLY
+```
+
+Only these ChatGPT interfaces are supported for DDDA platform development:
+
+```text
+Chat
+Work
+```
+
+These interfaces and modes are prohibited:
+
+```text
+Codex
+legacy /agent mode
+any other cloud coding agent without separate security approval
+```
+
+Responsibility boundary:
+
+```text
+Chat
+  consultation, scope, design, authorization, evidence review and human decisions.
+
+Work
+  multi-step orchestration over approved GitHub, Miro and document Apps;
+  bounded writes to an explicitly declared PR branch.
+
+GitHub Actions
+  authoritative execution plane for shell, build, tests, candidate packages,
+  package-first validation and secret-bearing online acceptance.
+```
+
+Work is not a local developer workstation. It must not claim a local build or test unless the operation was actually executed by GitHub Actions or another explicitly approved execution plane.
+
+Work must disclose connector, permission and visual-access limitations immediately. It must not silently substitute structural metadata for visual analysis or state that a reference board was reviewed when the relevant board/frame was not actually loaded.
 
 ## 2. Product boundary
 
@@ -78,6 +121,14 @@ CI/test pipeline
 13. Chat output is advisory; technical guarantees live in Git, CI, schemas, scripts and tests.
 14. Merge, tag, release and promotion require a separate explicit governance action.
 15. Validation evidence must identify the exact commit SHA and candidate-package hash.
+16. Chat and Work are the only supported ChatGPT interfaces for DDDA platform development.
+17. Codex and `/agent` are prohibited by the active development policy.
+18. Work writes only to an explicitly declared PR branch and only within authorized paths.
+19. GitHub Actions is the authoritative execution plane for build and test evidence.
+20. Secrets never enter Chat or Work context; secret-bearing operations stay in GitHub Actions or source-system secret stores.
+21. A Work write must be followed by standard CI against the resulting exact SHA.
+22. Missing connector access, missing board visibility or insufficient permissions are blocking conditions that must be reported explicitly.
+23. Structural Miro validation cannot satisfy human visual acceptance.
 
 ## 4. Change classification
 
@@ -112,15 +163,13 @@ The classification determines tests, ADR, migration and review obligations.
 ## 5. Standard lifecycle
 
 ```text
-change request
+change request in Chat or Work
 → impact analysis
 → feature/fix branch
-→ implementation
-→ precommit validation
+→ Work implementation through approved Apps
 → commit
-→ exact-SHA validation
-→ push
-→ PR CI
+→ GitHub Actions exact-SHA validation
+→ push/PR CI
 → validate-pr
 → human review
 → promotion dry-run
@@ -173,6 +222,8 @@ A “remediation test” is not a separate test type. The correct term is **reme
 
 Tests that mutate repository state must run in an isolated clone, worktree or fixture. Do not assert that the developer working tree is clean while intentionally using it as the mutable test subject.
 
+On the Chat/Work-only path, commands are executed by standard GitHub Actions workflows. Documentation may show local PowerShell commands as the stable platform contract, but Work must not pretend it executed those commands locally.
+
 ## 8. Stable command flow
 
 Prefer the stable entry point:
@@ -185,6 +236,8 @@ Prefer the stable entry point:
 ```
 
 A real merge/promotion requires explicit confirmation and all required evidence for the same SHA.
+
+In Chat/Work-only operation, standard GitHub Actions workflows invoke these contracts. One-off bootstrap workflows are not a normal implementation mechanism and must not be introduced when an existing self-service workflow can be extended.
 
 ## 9. Remediation terminology
 
@@ -320,6 +373,8 @@ Automation verifies syntax, schemas, paths, package contents, generated structur
 
 Humans judge methodology, architecture, domain boundaries, gate semantics, visual usability, risk acceptance and release readiness.
 
+For Miro visual review, Work must actually load the relevant reference and target frames. Human review covers images, font size, geometry, hierarchy, overlap, information density, first-viewer usability and fidelity to the approved redline/template.
+
 Automation must never create a production human decision such as `passed` merely because technical tests passed.
 
 ## 14. Definition of Done
@@ -335,23 +390,30 @@ A platform change is done only when:
 - changelog, ADR and migration note obligations are satisfied;
 - no client data, secret or path leakage exists;
 - mandatory human review is complete;
+- connector/access limitations were disclosed;
+- no prohibited execution interface was used;
 - merge/promotion was not performed without explicit authorization.
 
 ## 15. Runtime registration rule
 
 Repository versioning and runtime activation are separate controls.
 
-For every ChatGPT project, custom GPT, agent runtime or comparable development environment used to change DDDA:
+For every ChatGPT project, Chat or Work runtime used to change DDDA:
 
-1. register this skill in the knowledge index or project/agent instructions as **mandatory for DDDA platform development**;
+1. register this skill in the knowledge index or Project/Work instructions as **mandatory for DDDA platform development**;
 2. ensure the runtime can read the current repository version;
 3. load it before proposing or applying platform changes;
 4. record the skill path/version or source SHA in substantial implementation evidence when practical;
-5. treat a missing or stale registration as a governance defect and stop before high-impact changes.
+5. treat a missing or stale registration as a governance defect and stop before high-impact changes;
+6. verify that `config/platform/development-policy.yaml` allows only `chat` and `work` and forbids `codex` and `agent`.
 
 Target operating principle:
 
 ```text
+Chat for understanding and decisions.
+Work for approved multi-step orchestration.
+GitHub Actions for authoritative execution.
+Secrets stay outside Chat and Work.
 Automated first.
 Manual only for judgment.
 PR is the unit of change.
