@@ -1,161 +1,162 @@
-# Chat/Work-only operating model pro vývoj DDDA
+# DDDA operating model: Chat/Work pro platformu, Cursor pro projekt
 
 ## Status a rozsah
 
-Tento dokument je závazný pro vývoj DDDA platformy v prostředí ChatGPT.
+DDDA má dvě odlišné execution roviny, které se nesmějí zaměňovat:
 
 ```text
-DDDA-EXECUTION-MODE: CHAT-WORK-ONLY
+A. Vývoj DDDA platformy
+   Chat + Work + GitHub Actions
+
+B. Používání DDDA v architektonickém projektu
+   Cursor jako základní agentic systém
 ```
 
-Povolená uživatelská rozhraní:
+Tento rozdíl je závazný.
+
+## 1. Vývoj DDDA platformy
+
+```text
+DDDA-PLATFORM-DEVELOPMENT-MODE: CHAT-WORK-ONLY
+```
+
+Povolená rozhraní:
 
 - **Chat**;
 - **Work**.
 
-Zakázaná rozhraní a vývojové režimy:
+Zakázaná rozhraní pro změnu platformy:
 
 - **Codex**;
-- legacy příkaz nebo režim **`/agent`**;
-- jakýkoli jiný cloudový vývojový agent, který nebyl samostatně schválen bezpečnostní politikou.
+- **Cursor**;
+- legacy nebo jiný samostatný coding-agent režim.
 
-Zákaz Codexu je governance constraint, nikoli preference. Návrh řešení jej nesmí obcházet přejmenováním nástroje nebo přesunem stejné činnosti do jiného neschváleného agenta.
+GitHub Actions je autoritativní execution plane pro shell, build, testy, candidate package a package-first validation.
 
-## Rozdělení odpovědností
+### Rozdělení odpovědností
 
 | Oblast | Chat | Work | GitHub Actions | Člověk |
 |---|---|---|---|---|
-| vysvětlení, návrh a trade-offy | ano | ano | ne | review |
+| návrh, scope a trade-offy | ano | ano | ne | review |
 | klasifikace změny a acceptance criteria | ano | ano | kontrola kontraktů | schválení scope |
-| vícekroková práce s GitHubem, Miro a dokumenty | ne jako výchozí režim | ano | technická exekuce | autorizace rizikových zápisů |
-| editace PR branche přes schválené konektory | ne | ano | ověření exact SHA | kontrola diffu |
-| shell, build, testy a package-first validace | ne | ne | **autoritativní execution plane** | posouzení výsledku |
+| změny PR branche přes schválené konektory | ne jako výchozí režim | ano | ověření exact SHA | kontrola diffu |
+| shell, build, testy a packaging | ne | ne | **autoritativně** | posouzení evidence |
 | secrets | nikdy | nikdy | pouze secret-bearing job | správa a rotace |
-| merge, promotion, release a tag | pouze návrh | pouze po zvláštní autorizaci | guardrails a evidence | explicitní rozhodnutí |
-| vizuální metodické review Miro | konzultace | načtení a porovnání boardů | strukturální kontroly | finální acceptance |
+| merge, promotion, release a tag | pouze návrh | jen po samostatné autorizaci | guardrails | explicitní rozhodnutí |
 
-## Chat
+### Work guardrails
 
-Chat je výchozí pro:
-
-- konzultace;
-- návrh změny;
-- doménovou a architektonickou analýzu;
-- přípravu REM/change requestu;
-- vyhodnocení evidence;
-- autorizaci ohraničeného zápisu;
-- lidské review a rozhodnutí.
-
-Chat se nepoužívá k předstírání dlouhého implementačního běhu. Pokud úloha vyžaduje více konektorových operací, změny souborů, opakované ověření nebo koordinaci Miro a GitHubu, přepne se do Work.
-
-## Work
-
-Work je povolený orchestration mode pro:
-
-- čtení a porovnání GitHub, Miro a dalších schválených zdrojů;
-- přípravu a provedení ohraničených změn na PR branchi;
-- sledování CI;
-- vyhodnocení logs, reports a exact-SHA evidence;
-- tvorbu dokumentace a review artefaktů;
-- práci s Miro pouze v rozsahu schváleném uživatelem a source-system oprávněními.
-
-Work není lokální developer workstation. Nesmí tvrdit, že provedl lokální shell, build nebo test, pokud je skutečně nespustil GitHub Actions nebo jiný explicitně schválený execution plane.
-
-Work musí fail-closed:
+Work musí:
 
 1. před změnou načíst aktuální PR head SHA;
-2. pracovat jen proti deklarované branchi a allowed paths;
-3. nepoužívat `main` jako write target;
-4. neposílat secrets do chatu, commitů, logů nebo argumentů;
-5. při nedostupném konektoru nebo boardu zastavit a explicitně popsat omezení;
+2. zapisovat jen do deklarované platformní PR branche a allowed paths;
+3. nikdy nepoužít `main` jako write target;
+4. nepřenášet secrets do chatu, commitů, logů nebo argumentů;
+5. při nedostupném konektoru nebo boardu zastavit a omezení explicitně oznámit;
 6. po změně vyžadovat standardní CI nad výsledným SHA;
-7. nerozšiřovat autorizaci zápisu na merge, release, tag, promotion nebo force-push.
+7. nerozšiřovat autorizaci na merge, release, tag, promotion nebo force-push.
 
-## GitHub Actions jako autoritativní execution plane
-
-Bez Codexu zajišťuje GitHub Actions technickou exekuci:
+## 2. Používání DDDA v projektu
 
 ```text
-Work připraví nebo zapíše reviewovatelnou změnu na PR branch
-→ GitHub Actions checkoutne exact SHA
-→ spustí ddda.ps1 a požadované suites
-→ vytvoří candidate package
-→ provede package-first validation
-→ publikuje machine-readable evidence
-→ Work a člověk vyhodnotí výsledek
+DDDA-PROJECT-RUNTIME: CURSOR
 ```
 
-GitHub Actions musí být self-service a reprodukovatelné. Povinné schopnosti:
+Cursor je základní a povinný agentic systém, ve kterém architekt realizuje vlastní DDDA práci nad konkrétním project workspace.
 
-- jeden stabilní entry point `ddda.ps1`;
-- standardní PR workflows bez jednorázových bootstrap workflow;
-- exact-SHA binding;
-- package-first smoke, integration, E2E a acceptance;
-- izolovaný workspace;
-- artifact retention a dohledatelné logs;
-- oddělený secret-bearing online Miro acceptance;
-- fail-closed výsledek.
+Cursor zajišťuje:
 
-Lokální PowerShell příkazy v dokumentaci definují platformní kontrakt a mohou je používat schválení lokální operátoři. Uživatel DDDA na Chat/Work-only cestě není povinen používat Codex ani poskytovat Work přístup k lokálnímu shellu.
+- chat nad projektovým workspace;
+- agentic práci se soubory a projektovými artefakty;
+- analýzu business a technických vstupů;
+- vytváření a aktualizaci DDD artefaktů;
+- práci s projektovým Git repository;
+- spouštění projektových DDDA příkazů a validací;
+- práci s projektovou dokumentací, rozhodnutími, workshopovými výstupy a projektovým kódem.
 
-## Git a zápisová pravidla
+Aktivní Cursor runtime assets:
 
-- Git je source of truth.
-- PR je jednotka změny.
-- Work zapisuje pouze na explicitně deklarovanou feature/fix/docs branch.
-- Každý zápis musí být dohledatelný v Git historii.
-- Přímý zápis na `main` je zakázán.
-- Force-push je zakázán, pokud samostatná policy výslovně neurčí jinak.
-- Neúspěšná validace se opravuje následným korektivním commitem; sdílená historie se automaticky nepřepisuje.
-- Merge, promotion, release a tag jsou oddělené governance akce.
+```text
+.cursor/rules/010-ddda-project-steering.mdc
+.cursor/rules/ddda-chat-first.mdc
+.cursor/rules/ddda-repository-scope.mdc
+.cursor/skills.md
+```
 
-## Miro a vizuální acceptance
+Tyto soubory jsou produktové runtime artefakty DDDA, nikoli development bootstrapy platformy.
 
-Strukturální Miro kontrola není vizuální acceptance.
+### Cursor scope
 
-Před implementací změny odvozené z referenčního boardu musí Work:
+Cursor smí měnit pouze aktivní project repository a jeho projektové artefakty. Nesmí měnit DDDA platform repository.
 
-1. skutečně otevřít referenční board přes Miro connector;
-2. načíst konkrétní source frames a jejich children;
-3. ověřit obrázky, geometrii, hierarchii, fonty, překryvy a informační hustotu;
-4. porovnat reference a implementaci side-by-side;
-5. explicitně oznámit, pokud některý board nebo vizuální prvek nelze načíst.
+Při nálezu platformního defectu nebo potřeby obecného enhancementu Cursor:
 
-Human review hodnotí minimálně:
+1. zachytí problém a evidence;
+2. oddělí projektový workaround od platformního návrhu;
+3. vytvoří change request;
+4. předá jej do Chat/Work platform-development flow.
 
-- čitelnost při `Fit to frame`;
-- first-viewer srozumitelnost;
-- vizuální hierarchii;
-- nepřekrývání frames a items;
-- přiměřené využití plochy;
-- přítomnost požadovaných obrázků a examples;
-- věrnost schválenému redline/template;
-- metodickou a doménovou koherenci.
+Cursor nesmí provést cross-repository commit, automatický gate approval, implicitní last-write-wins konflikt, neautorizovaný push nebo merge.
 
-Technický PASS nesmí změnit `human_review_status` na `ACCEPTED`.
+## 3. Hranice mezi rovinami
 
-## Bezpečnostní podmínky
+| Otázka | Správná rovina |
+|---|---|
+| měním obecný DDDA runtime, CLI, schema, template nebo release lifecycle | Chat/Work platform development |
+| opravuji bug použitelný pro všechny DDDA projekty | Chat/Work platform development |
+| analyzuji konkrétní doménu klienta | Cursor project runtime |
+| vytvářím glossary, context map, ADR nebo workshop artifacts konkrétního projektu | Cursor project runtime |
+| měním projektový kód nebo project-owned dokumentaci | Cursor project runtime |
+| validuji platformní candidate package | GitHub Actions |
+| rozhoduji gate nebo přijímám riziko | člověk |
 
-Použití Work je povolené pouze tehdy, když:
+## 4. Git a ownership
 
-- firemní policy povoluje ChatGPT Work pro danou klasifikaci dat;
-- GitHub, Miro a další Apps jsou schválené;
-- oprávnění Apps odpovídají least privilege;
-- neveřejná nebo korporátní data smějí být zpracována v použitém ChatGPT workspace/tarifu;
-- secrets zůstávají ve source-system secret store nebo GitHub environmentu;
-- klientská data nejsou použita jako platformní fixture.
+### Platform repository
 
-Pokud tato podmínka není doložená, Work smí připravit návrh nebo offline change package, ale nesmí načítat ani zapisovat dotčená chráněná data.
+- source of truth pro DDDA produkt;
+- změny pouze přes platformní PR;
+- implementace přes Work;
+- validace přes GitHub Actions;
+- Cursor write zakázán.
 
-## Definition of Done pro Chat/Work-only změnu
+### Project repository
 
-- změna je na PR branchi;
-- diff je reviewovatelný;
-- standardní CI běží nad výsledným exact SHA;
-- required suites jsou PASS;
-- package-first evidence je dostupná, pokud ji change class vyžaduje;
-- žádný secret nebyl předán Chat/Work runtime;
+- source of truth pro konkrétní DDDA projekt;
+- Cursor je hlavní pracovní prostředí;
+- obsahuje project intake, tailoring, artefakty, rozhodnutí, evidence, Miro mapping a případně projektový kód;
+- platformní obecné změny se do něj nesmějí maskovat jako project customization.
+
+## 5. Miro a human review
+
+V platform-development flow Work provádí strukturální a referenční kontrolu platformních Miro šablon; technický PASS nenahrazuje human visual acceptance.
+
+V project runtime Cursor pracuje s project-owned boardem a artefakty podle project rules. Gate decisions a významné metodické nebo architektonické závěry zůstávají lidské.
+
+## 6. Bezpečnostní podmínky
+
+- ChatGPT Work musí být schválen pro klasifikaci dat používanou při platformním vývoji.
+- Cursor musí být schválen pro data konkrétního DDDA projektu.
+- GitHub, Miro a další Apps používají least privilege.
+- Secrets zůstávají v source-system secret store nebo GitHub environmentu.
+- Client data se nepoužívají jako platformní fixture.
+- Projektová data se nesmějí přenést do platformního repository.
+
+## 7. Definition of Done
+
+### Platformní změna
+
+- změna je na platformní PR branchi;
+- Chat/Work-only boundary je dodržena;
+- standardní exact-SHA CI a package-first validace jsou PASS;
 - human review je odděleno od technického PASS;
-- Work transparentně uvedl všechna omezení přístupu;
-- nebyl použit Codex ani `/agent`;
-- neproběhl merge, promotion, release, tag ani force-push bez samostatné autorizace.
+- nebyl použit Cursor ani Codex pro změnu platformy.
+
+### Projektová DDDA práce
+
+- práce proběhla v Cursor project runtime;
+- aktivní project repository a scope byly explicitní;
+- fakta, hypotézy, rozhodnutí a projekce jsou oddělené;
+- změny mají project-level traceability a validaci;
+- platform repository nebylo změněno;
+- lidská rozhodnutí a gate approvals zůstala explicitní.
