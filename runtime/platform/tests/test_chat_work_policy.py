@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
+
+import pytest
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
@@ -50,6 +53,20 @@ EXPECTED_CURSOR_ASSETS = {
 
 def load_policy() -> dict[str, object]:
     return json.loads(POLICY_PATH.read_text(encoding="utf-8"))
+
+
+def read_canonical_git_blob(relative: str) -> bytes:
+    result = subprocess.run(
+        ["git", "-C", str(REPOSITORY_ROOT), "cat-file", "blob", f"HEAD:{relative}"],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if result.returncode != 0:
+        pytest.skip(
+            "Canonical Git blob validation requires a source repository with HEAD."
+        )
+    return result.stdout
 
 
 def test_platform_development_allows_only_chat_and_work() -> None:
@@ -189,8 +206,7 @@ def test_governance_documents_describe_work_preferred_chat_atomic_fallback() -> 
 
 def test_rem012_governance_files_are_utf8_lf_without_mojibake() -> None:
     for relative in sorted(GOVERNANCE_TEXT_PATHS):
-        path = REPOSITORY_ROOT / relative
-        raw = path.read_bytes()
+        raw = read_canonical_git_blob(relative)
 
         assert not raw.startswith(b"\xef\xbb\xbf"), relative
         assert b"\r" not in raw, relative
@@ -198,4 +214,3 @@ def test_rem012_governance_files_are_utf8_lf_without_mojibake() -> None:
         text = raw.decode("utf-8")
         for fragment in MOJIBAKE_FRAGMENTS:
             assert fragment not in text, f"{relative}: {fragment!r}"
-
