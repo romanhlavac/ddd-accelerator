@@ -2,15 +2,16 @@
 
 ## Začít zde
 
-1. [Clone, smoke testy, workspace a example projekt](getting-started/01-clone-smoke-example.md)
-2. [Validace a promotion platformního PR](user-guide/validate-and-promote-pr.md)
-3. [Testování řiditelnosti projektu](getting-started/02-testovani-pr8.md)
-4. [README platformy](../README.md)
-5. [Úplný chat-first provozní návod](../USAGE.md)
-6. [Katalog funkcionalit](capabilities/README.md)
-7. [Řízené založení vlastního projektu](cookbooks/16-zalozeni-rizeneho-projektu.md)
-8. [Current status, gaty a další krok](cookbooks/17-status-gates-a-dalsi-krok.md)
-9. [Referenční projekt životní pojišťovny](../examples/life-insurance-greenfield/README.md)
+1. [Chat/Work-only operating model](developer-guide/chat-work-operating-model.md)
+2. [Clone, smoke testy, workspace a example projekt](getting-started/01-clone-smoke-example.md)
+3. [Validace a promotion platformního PR](user-guide/validate-and-promote-pr.md)
+4. [Testování řiditelnosti projektu](getting-started/02-testovani-pr8.md)
+5. [README platformy](../README.md)
+6. [Úplný chat-first provozní návod](../USAGE.md)
+7. [Katalog funkcionalit](capabilities/README.md)
+8. [Řízené založení vlastního projektu](cookbooks/16-zalozeni-rizeneho-projektu.md)
+9. [Current status, gaty a další krok](cookbooks/17-status-gates-a-dalsi-krok.md)
+10. [Referenční projekt životní pojišťovny](../examples/life-insurance-greenfield/README.md)
 
 ## Getting started
 
@@ -23,8 +24,10 @@
 
 ## Developer guide
 
+- [Chat/Work-only operating model](developer-guide/chat-work-operating-model.md)
 - [Vývojový lifecycle DDDA platformy](developer-guide/platform-development-lifecycle.md)
 - [Testovací strategie DDDA platformy](developer-guide/testing-strategy.md)
+- [Remote validation a remediation broker](developer-guide/remote-validation-broker.md)
 
 ## Architektonická rozhodnutí a migrace
 
@@ -32,6 +35,7 @@
 - [ADR 0002 — Project steering a gate semantics](adr/0002-project-steering-and-gate-semantics.md)
 - [ADR 0003 — Control Center, Artifact Registry a kanonický workshop shell](adr/0003-miro-control-center-and-workshop-shell.md)
 - [ADR 0004 — Redline traceability a navigovatelný frame 01](adr/0004-miro-redline-traceability-and-frame-01.md)
+- [ADR 0005 — Chat/Work-only operating model](adr/0005-chat-work-only-development-operating-model.md)
 - [PR #8 migration note](migration/pr8-non-breaking-steering-extension.md)
 - [Miro scaffold migration 2.4 → 2.5](migration/miro-scaffold-2.4-to-2.5.md)
 - [Forenzní review REM-PR8-HVA-CC-001](reviews/REM-PR8-HVA-CC-001-forensic-review.md)
