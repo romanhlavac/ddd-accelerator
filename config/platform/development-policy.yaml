@@ -5,27 +5,46 @@
   "minimum_approvals": 0,
   "require_explicit_confirmation": true,
   "execution_interfaces": {
-    "schema_version": 1,
-    "allowed": [
-      "chat",
-      "work"
-    ],
-    "forbidden": [
-      "codex",
-      "agent",
-      "cursor"
-    ],
-    "default_mode": "chat",
-    "implementation_mode": "work",
-    "authoritative_execution_plane": "github-actions",
-    "operator_local_shell_required": false,
-    "assistant_runtime_secret_access": false,
-    "repository_write_scope": "pr-branch-only",
-    "main_branch_write_allowed": false,
-    "require_transparent_access_failure": true,
-    "require_standard_ci_after_write": true,
+    "schema_version": 2,
+    "platform_development": {
+      "allowed": [
+        "chat",
+        "work"
+      ],
+      "forbidden": [
+        "codex",
+        "cursor",
+        "agent"
+      ],
+      "default_mode": "chat",
+      "implementation_mode": "work",
+      "authoritative_execution_plane": "github-actions",
+      "operator_local_shell_required": false,
+      "assistant_runtime_secret_access": false,
+      "repository_write_scope": "platform-pr-branch-only",
+      "main_branch_write_allowed": false,
+      "require_transparent_access_failure": true,
+      "require_standard_ci_after_write": true
+    },
+    "ddda_project_runtime": {
+      "required_system": "cursor",
+      "primary_interaction": "cursor-chat",
+      "agentic_execution_enabled": true,
+      "project_artifact_management_enabled": true,
+      "project_repository_write_allowed": true,
+      "platform_repository_write_allowed": false,
+      "cross_repository_commit_allowed": false,
+      "human_gate_decision_required": true,
+      "cursor_runtime_assets_required": [
+        ".cursor/rules/010-ddda-project-steering.mdc",
+        ".cursor/rules/ddda-chat-first.mdc",
+        ".cursor/rules/ddda-repository-scope.mdc",
+        ".cursor/skills.md"
+      ]
+    },
     "security_preconditions": [
-      "corporate-policy-allows-chatgpt-work",
+      "corporate-policy-allows-chatgpt-work-for-platform-development",
+      "cursor-is-approved-for-ddda-project-data",
       "connected-apps-approved-for-data-classification",
       "least-privilege-app-permissions"
     ]
