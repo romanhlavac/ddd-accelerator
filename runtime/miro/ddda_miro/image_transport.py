@@ -104,7 +104,7 @@ def reconcile(client: MiroClient, board: str, frame_ids: dict[str, str], manifes
             "_ddda_bounds_geometry": {"width": width, "height": height},
             "parent": {"id": frame_ids[target["frame_id"]]},
         }
-        prepared = client._prepare_item_payload(board, "text", payload)
+        prepared = client._prepare_item_payload(board, "image", payload)
         prefix = title.rsplit("sha256=", 1)[0]
         found = [i for i in images if str((i.get("data") or {}).get("title") or "").startswith(prefix)]
         if len(found) > 1:

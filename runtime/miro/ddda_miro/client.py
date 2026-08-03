@@ -200,6 +200,7 @@ class MiroClient:
 
     def _prepare_item_payload(self, board_id: str, item_type: str, payload: dict[str, Any]) -> dict[str, Any]:
         prepared = deepcopy(payload)
+        bounds_geometry = dict(prepared.pop("_ddda_bounds_geometry", {}) or {})
         if item_type == "frame":
             return prepared
         style = prepared.get("style")
@@ -211,7 +212,7 @@ class MiroClient:
             prepared["position"] = frame_center_to_parent_position(
                 dict(position),
                 self._frame_geometry(board_id, parent_id),
-                child_geometry=dict(prepared.get("geometry") or {}),
+                child_geometry=bounds_geometry or dict(prepared.get("geometry") or {}),
                 label=f"{item_type} child of {parent_id}",
             )
         return prepared

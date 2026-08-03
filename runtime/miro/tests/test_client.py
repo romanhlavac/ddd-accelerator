@@ -40,6 +40,26 @@ def test_client_converts_child_position_using_cached_parent_geometry(monkeypatch
     assert not any(method == "GET" for method, _, _ in calls)
 
 
+
+
+def test_client_consumes_private_bounds_geometry_before_api_payload():
+    client = MiroClient("token")
+    client._frame_geometry_cache[("board-1", "frame-1")] = {"width": 2800, "height": 1900}
+    authored = {
+        "data": {"title": "Managed image"},
+        "position": {"x": 0, "y": 0, "origin": "center"},
+        "geometry": {"width": 2200},
+        "_ddda_bounds_geometry": {"width": 2200, "height": 1100},
+        "parent": {"id": "frame-1"},
+    }
+
+    prepared = client._prepare_item_payload("board-1", "image", authored)
+
+    assert "_ddda_bounds_geometry" not in prepared
+    assert prepared["position"] == {"x": 1400.0, "y": 950.0, "origin": "center"}
+    assert authored["_ddda_bounds_geometry"] == {"width": 2200, "height": 1100}
+
+
 def test_client_fetches_parent_geometry_when_cache_is_empty(monkeypatch):
     calls = []
 
