@@ -1,0 +1,174 @@
+name: DDDA exact-code Miro image probe
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - synchronize
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ddda-miro-image-probe-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  image-probe:
+    name: Exact-code Miro image probe
+    if: >-
+      github.event.pull_request.number == 8 &&
+      github.actor == 'romanhlavac' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      MIRO_TEAM_ID: "3458764678971681560"
+
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.SOURCE_SHA }}
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Verify exact source and online secret
+        shell: pwsh
+        env:
+          MIRO_ACCESS_TOKEN: ${{ secrets.MIRO_ACCESS_TOKEN }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $actual = (git rev-parse HEAD).Trim()
+          if ($actual -ne $env:SOURCE_SHA) {
+            throw "Checkout SHA '$actual' neodpovídá PR head '$env:SOURCE_SHA'."
+          }
+          if ([string]::IsNullOrWhiteSpace($env:MIRO_ACCESS_TOKEN)) {
+            throw 'MIRO_ACCESS_TOKEN is required for REM-012.1C exact-code image probe.'
+          }
+
+      - name: Build exact-SHA candidate package
+        id: package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version = 'image-probe.' + $env:GITHUB_RUN_ID + '.' + $env:SOURCE_SHA.Substring(0, 12)
+          $output = Join-Path $env:RUNNER_TEMP ('ddda-image-probe-' + $env:SOURCE_SHA.Substring(0, 12) + '.zip')
+          $json = .\scripts\platform\New-DDDAPlatformPackage.ps1 `
+            -PlatformPath $PWD.Path `
+            -Kind candidate `
+            -Version $version `
+            -SourceRef $env:SOURCE_SHA `
+            -OutputPath $output `
+            -Json | Out-String
+          $package = $json.Trim() | ConvertFrom-Json
+          if ([string]$package.source_commit -ne $env:SOURCE_SHA) {
+            throw 'Candidate package source_commit does not match exact PR head.'
+          }
+          "package_path=$($package.path)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "package_sha256=$($package.sha256)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Run exact-code image probe from candidate package
+        shell: pwsh
+        env:
+          MIRO_ACCESS_TOKEN: ${{ secrets.MIRO_ACCESS_TOKEN }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $evidenceRoot = Join-Path $env:RUNNER_TEMP 'online-miro-image-probe'
+          New-Item -ItemType Directory -Path $evidenceRoot -Force | Out-Null
+          $reportPath = Join-Path $evidenceRoot 'result.json'
+          $stderrPath = Join-Path $evidenceRoot 'stderr.log'
+
+          $candidate = '${{ steps.package.outputs.package_path }}'
+          .\scripts\platform\Test-DDDAPlatformPackage.ps1 `
+            -PackagePath $candidate `
+            -ExpectedCommit $env:SOURCE_SHA `
+            -ExpectedKind candidate
+
+          $packageRoot = Join-Path $env:RUNNER_TEMP 'miro-image-probe-package'
+          if (Test-Path -LiteralPath $packageRoot) {
+            Remove-Item -LiteralPath $packageRoot -Recurse -Force
+          }
+          Expand-Archive -LiteralPath $candidate -DestinationPath $packageRoot -Force
+
+          $packageManifestPath = Join-Path $packageRoot 'ddda-package.json'
+          $packageManifest = Get-Content -LiteralPath $packageManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+          if ([string]$packageManifest.source_commit -ne $env:SOURCE_SHA -or [string]$packageManifest.kind -ne 'candidate') {
+            throw 'Expanded package provenance does not match the exact PR head.'
+          }
+
+          $projectRoot = Join-Path $env:RUNNER_TEMP 'miro-image-probe-project'
+          New-Item -ItemType Directory -Path $projectRoot -Force | Out-Null
+          @(
+            'project:'
+            '  id: rem-012-1c-image-probe'
+            '  name: REM-012.1C exact-code image probe'
+            'artifacts:'
+            '  root: artifacts'
+            'miro:'
+            '  access_token_env: MIRO_ACCESS_TOKEN'
+            "  team_id: '$env:MIRO_TEAM_ID'"
+            '  synchronization: disabled'
+          ) | Set-Content -LiteralPath (Join-Path $projectRoot 'project.yaml') -Encoding UTF8
+
+          $env:PYTHONPATH = Join-Path $packageRoot 'runtime\miro'
+          $manifestPath = Join-Path $packageRoot 'scaffolds\miro\image-transport-probe.yaml'
+          $output = & python -m ddda_miro.image_probe `
+            --project $projectRoot `
+            --platform $packageRoot `
+            --manifest $manifestPath 2> $stderrPath
+          $exitCode = $LASTEXITCODE
+          $output | Set-Content -LiteralPath $reportPath -Encoding UTF8
+          if ($exitCode -ne 0) {
+            Get-Content -LiteralPath $stderrPath -ErrorAction SilentlyContinue
+            throw "Exact-code image probe failed with exit code $exitCode."
+          }
+
+          $report = Get-Content -LiteralPath $reportPath -Raw -Encoding UTF8 | ConvertFrom-Json
+          if ($report.status -ne 'PASS') { throw 'Image probe status is not PASS.' }
+          if ([int]$report.asset_count -ne 3) { throw 'Image probe did not verify exactly three assets.' }
+          if (-not [bool]$report.stable_item_ids) { throw 'Image target IDs were not stable.' }
+          if (-not [bool]$report.zero_mutation_second_run) { throw 'Second reconcile was not zero mutation.' }
+          if ([int]$report.second_run.created -ne 0 -or [int]$report.second_run.updated -ne 0 -or [int]$report.second_run.unchanged -ne 3) {
+            throw 'Second reconcile operation counts are invalid.'
+          }
+          if ($report.remote_verification.status -ne 'PASS') { throw 'Remote image verification is not PASS.' }
+          if (@($report.remote_verification.items).Count -ne 3) { throw 'Remote verification did not return three items.' }
+          foreach ($item in @($report.remote_verification.items)) {
+            if ([string]$item.remote_type -ne 'image') { throw "Remote item '$($item.target_item_id)' is not an image." }
+            if ([string]::IsNullOrWhiteSpace([string]$item.source_board_id) -or
+                [string]::IsNullOrWhiteSpace([string]$item.source_frame_id) -or
+                [string]::IsNullOrWhiteSpace([string]$item.source_item_id)) {
+              throw "Remote item '$($item.target_item_id)' has incomplete source provenance."
+            }
+            if ([string]$item.sha256 -notmatch '^[0-9a-f]{64}$' -or [string]$item.semantic_title -notmatch [regex]::Escape([string]$item.sha256)) {
+              throw "Remote item '$($item.target_item_id)' has invalid digest evidence."
+            }
+          }
+          if ($report.cleanup.state -ne 'deleted' -or -not [bool]$report.cleanup.verified) {
+            throw 'Diagnostic board cleanup was not remotely verified.'
+          }
+
+          @(
+            "Exact source SHA: $env:SOURCE_SHA"
+            "Candidate SHA-256: ${{ steps.package.outputs.package_sha256 }}"
+            "Assets: $($report.asset_count)"
+            "Second-run mutations: created=$($report.second_run.created), updated=$($report.second_run.updated)"
+            "Cleanup: $($report.cleanup.state), verified=$($report.cleanup.verified)"
+          ) | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
+
+      - name: Upload exact-code image-probe evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: online-miro-image-probe-${{ env.PR_NUMBER }}-${{ env.SOURCE_SHA }}
+          path: ${{ runner.temp }}/online-miro-image-probe/**
+          if-no-files-found: error
+          retention-days: 14
