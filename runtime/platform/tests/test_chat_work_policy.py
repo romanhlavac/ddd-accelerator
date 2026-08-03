@@ -7,6 +7,7 @@ from pathlib import Path
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 POLICY_PATH = REPOSITORY_ROOT / "config" / "platform" / "development-policy.yaml"
 CHAT_WORK_MARKER = "DDDA-EXECUTION-MODE: CHAT-WORK-ONLY"
+RETIRED_CURSOR_MARKER = "RETIRED-NON-RUNTIME-COMPATIBILITY-STUB"
 CANONICAL_DOCUMENTS = (
     "knowledge/ddda-platform-development-skill.md",
     "docs/developer-guide/chat-work-operating-model.md",
@@ -17,6 +18,11 @@ CANONICAL_DOCUMENTS = (
 REQUIRED_GOVERNANCE_DOCUMENTS = {
     "docs/adr/0005-chat-work-only-development-operating-model.md",
     "docs/developer-guide/chat-work-operating-model.md",
+}
+EXPECTED_CURSOR_STUBS = {
+    ".cursor/rules/ddda-chat-first.mdc",
+    ".cursor/rules/ddda-repository-scope.mdc",
+    ".cursor/skills.md",
 }
 
 
@@ -29,7 +35,7 @@ def test_repository_allows_only_chat_and_work() -> None:
     interfaces = policy["execution_interfaces"]
 
     assert interfaces["allowed"] == ["chat", "work"]
-    assert set(interfaces["forbidden"]) >= {"codex", "agent"}
+    assert set(interfaces["forbidden"]) >= {"codex", "agent", "cursor"}
     assert interfaces["default_mode"] == "chat"
     assert interfaces["implementation_mode"] == "work"
 
@@ -71,19 +77,21 @@ def test_canonical_documents_publish_same_execution_contract() -> None:
         assert "secret" in folded, relative
 
 
-def test_legacy_cursor_runtime_bootstrap_is_not_distributed() -> None:
+def test_cursor_files_are_inert_retired_compatibility_stubs() -> None:
     cursor_root = REPOSITORY_ROOT / ".cursor"
-    residual_files = (
-        sorted(
-            path.relative_to(REPOSITORY_ROOT).as_posix()
-            for path in cursor_root.rglob("*")
-            if path.is_file()
-        )
-        if cursor_root.exists()
-        else []
-    )
+    observed = {
+        path.relative_to(REPOSITORY_ROOT).as_posix()
+        for path in cursor_root.rglob("*")
+        if path.is_file()
+    }
 
-    assert residual_files == [], residual_files
+    assert observed == EXPECTED_CURSOR_STUBS
+    for relative in sorted(observed):
+        text = (REPOSITORY_ROOT / relative).read_text(encoding="utf-8")
+        assert RETIRED_CURSOR_MARKER in text, relative
+        assert "alwaysApply: true" not in text, relative
+        if relative.endswith(".mdc"):
+            assert "alwaysApply: false" in text, relative
 
 
 def test_remote_broker_forbids_unsafe_operations() -> None:
