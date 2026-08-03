@@ -4,10 +4,37 @@
   "merge_method": "squash",
   "minimum_approvals": 0,
   "require_explicit_confirmation": true,
+  "execution_interfaces": {
+    "schema_version": 1,
+    "allowed": [
+      "chat",
+      "work"
+    ],
+    "forbidden": [
+      "codex",
+      "agent"
+    ],
+    "default_mode": "chat",
+    "implementation_mode": "work",
+    "authoritative_execution_plane": "github-actions",
+    "operator_local_shell_required": false,
+    "assistant_runtime_secret_access": false,
+    "repository_write_scope": "pr-branch-only",
+    "main_branch_write_allowed": false,
+    "require_transparent_access_failure": true,
+    "require_standard_ci_after_write": true,
+    "security_preconditions": [
+      "corporate-policy-allows-chatgpt-work",
+      "connected-apps-approved-for-data-classification",
+      "least-privilege-app-permissions"
+    ]
+  },
   "required_documents": [
     "CHANGELOG.md",
     "docs/adr/0001-platform-development-lifecycle.md",
     "docs/adr/0002-project-steering-and-gate-semantics.md",
+    "docs/adr/0005-chat-work-only-development-operating-model.md",
+    "docs/developer-guide/chat-work-operating-model.md",
     "docs/migration/pr8-non-breaking-steering-extension.md"
   ],
   "remote_execution": {
