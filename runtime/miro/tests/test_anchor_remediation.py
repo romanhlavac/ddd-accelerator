@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from ddda_miro.anchor_contract import canonical_miro_text
 from ddda_miro.anchor_remediation import (
     _deletion_candidates,
     _image_manifest,
@@ -53,6 +54,26 @@ def frame(item_id, x, y, width, height):
         "position": {"x": x, "y": y, "origin": "center"},
         "geometry": {"width": width, "height": height},
     }
+
+
+def test_anchor_remediation_module_imports():
+    import ddda_miro.anchor_remediation as module
+
+    assert callable(module.main)
+
+
+def test_canonical_miro_text_normalizes_html_entities_and_whitespace():
+    assert canonical_miro_text(None) == ""
+    assert canonical_miro_text("<p>INSPIRACE&nbsp; PRO</p><div>TEST<br/>line</div>") == "INSPIRACE PRO TEST line"
+    assert canonical_miro_text("  INSPIRACE\tPRO\nTEST  ") == "INSPIRACE PRO TEST"
+
+
+def test_item_matches_treats_equivalent_miro_html_as_equal():
+    remote = {"data": {"content": "<p>Domain&nbsp; discovery</p>"}}
+    payload = {"data": {"content": "Domain discovery"}}
+
+    assert _item_matches(remote, payload)
+    assert not _item_matches(remote, {"data": {"content": "Domain design"}})
 
 
 def test_manifest_is_pinned_and_scoped_to_three_anchor_frames():

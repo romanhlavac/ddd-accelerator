@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from .anchor_contract import (
     _frame_matches, _get_frame, _get_item, _item_matches, _patch, _target_payload, _writable,
+    canonical_miro_text,
 )
-from .image_transport import canonical_miro_text
 
 
 def _apply_update(client, board, update, frame_ids, snapshots):
@@ -102,5 +102,3 @@ def _park_dynamic_obsolete_items(client, manifest, state, snapshots):
     if result["updated"] + result["unchanged"] != expected:
         raise ValueError(f"obsolete parking count mismatch: {result}")
     return result
-
-

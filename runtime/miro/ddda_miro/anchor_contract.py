@@ -1,18 +1,32 @@
 from __future__ import annotations
 
 import hashlib
+import html
 import json
+import re
 import urllib.parse
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
 from .client import MiroClient
-from .image_transport import canonical_miro_text
 from .yamlio import load_yaml
 
 ENDPOINT = {"frame": "frames", "shape": "shapes", "text": "texts", "sticky_note": "sticky_notes"}
 VOLATILE = {"createdAt", "modifiedAt", "createdBy", "modifiedBy", "links"}
+_MIRO_BLOCK_BOUNDARY = re.compile(r"</?(?:p|div|li|ul|ol|h[1-6]|br)\b[^>]*>", re.IGNORECASE)
+_MIRO_HTML_TAG = re.compile(r"<[^>]+>")
+_MIRO_WHITESPACE = re.compile(r"\s+")
+
+
+def canonical_miro_text(value: Any) -> str:
+    """Return a stable text representation for Miro HTML-backed fields."""
+    if value is None:
+        return ""
+    text = html.unescape(str(value)).replace("\u00a0", " ")
+    text = _MIRO_BLOCK_BOUNDARY.sub(" ", text)
+    text = _MIRO_HTML_TAG.sub("", text)
+    return _MIRO_WHITESPACE.sub(" ", text).strip()
 
 
 def load_manifest(path: Path) -> dict[str, Any]:
@@ -142,5 +156,3 @@ def _target_payload(remote: dict[str, Any], update: dict[str, Any], frame_id: st
     if geometry:
         payload["geometry"] = geometry
     return payload
-
-

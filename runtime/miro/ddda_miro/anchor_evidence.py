@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from .anchor_contract import _close, _get_frame, _get_item, _patch, _writable
+from .anchor_contract import _close, _get_frame, _get_item, _patch, _writable, canonical_miro_text
 from .client import MiroApiError
-from .image_transport import canonical_miro_text
 
 
 def _image_manifest(manifest):
@@ -97,5 +96,3 @@ def _rollback(client, board, frames, items, images_before, manifest_id):
     except Exception as exc:  # noqa: BLE001
         errors.append(f"managed images: {exc}")
     return {"status": "PASS" if not errors else "PARTIAL", "errors": errors}
-
-
