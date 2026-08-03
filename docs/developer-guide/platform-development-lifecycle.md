@@ -23,15 +23,15 @@ Kanonický a verzovaný operating contract pro vývoj platformy je:
 knowledge/ddda-platform-development-skill.md
 ```
 
-Každý ChatGPT projekt, custom GPT, agent nebo jiný runtime používaný pro změny DDDA platformy musí tento skill registrovat jako **povinný pro vývoj DDDA** alespoň jedním z těchto mechanismů:
+Každý ChatGPT projekt, Chat nebo Work runtime používaný pro změny DDDA platformy musí tento skill registrovat jako **povinný pro vývoj DDDA** alespoň jedním z těchto mechanismů:
 
 1. položkou v `knowledge/00-knowledge-index.md`;
-2. explicitním odkazem v ChatGPT Project Instructions nebo ekvivalentních agent bootstrap instructions.
+2. explicitním odkazem v ChatGPT Project Instructions nebo Work bootstrap instructions.
 
 Git a runtime activation jsou dva oddělené kontrolní mechanismy:
 
 - soubor v Gitu zajišťuje versioning, review a traceability;
-- knowledge index nebo project/agent instructions zajišťují, že jej konkrétní chat či agent skutečně načte.
+- knowledge index nebo Project/Work Instructions zajišťují, že jej konkrétní Chat či Work skutečně načte.
 
 Před návrhem nebo aplikací změny platformy se musí ověřit:
 
@@ -39,18 +39,45 @@ Před návrhem nebo aplikací změny platformy se musí ověřit:
 - runtime načetl aktuální repository verzi skillu;
 - skill odpovídá aktivní branch/SHA;
 - tento developer lifecycle a testing strategy jsou dostupné;
+- Chat/Work policy odpovídá config/platform/development-policy.yaml;
 - případný rozpor mezi skillem a dokumentací je vyřešen v Gitu.
 ```
 
 Chybějící nebo zastaralá registrace je governance defect. U změn s dopadem `HIGH` nebo `BREAKING` se pokračování zastaví, dokud není routing opraven. Samotná existence skillu v repozitáři není důkazem, že jej runtime používá.
 
+## Povolený Chat/Work operating model
+
+```text
+DDDA-EXECUTION-MODE: CHAT-WORK-ONLY
+```
+
+Povolená rozhraní:
+
+- **Chat** pro analýzu, návrh, rozhodnutí, autorizaci a review;
+- **Work** pro vícekrokovou práci se schválenými GitHub/Miro Apps a ohraničené zápisy na PR branch.
+
+Zakázáno:
+
+- **Codex**;
+- legacy **`/agent`**;
+- jiný neschválený cloudový coding agent.
+
+GitHub Actions je autoritativní execution plane pro shell, build, testy, candidate package a package-first acceptance. Work nesmí tvrdit, že provedl lokální příkaz, pokud jej ve skutečnosti nespustil schválený execution plane.
+
+Kanonická pravidla jsou v:
+
+```text
+docs/developer-guide/chat-work-operating-model.md
+docs/adr/0005-chat-work-only-development-operating-model.md
+```
+
 ## Kanonický tok
 
 ```text
-change request
+change request v Chat nebo Work
 → branch
-→ implementation
-→ CI
+→ Work implementation přes schválené Apps
+→ standardní GitHub Actions nad exact SHA
 → validate-pr
 → human review
 → promote-pr
@@ -72,7 +99,9 @@ Každá behaviorální změna musí určit:
 - acceptance criteria;
 - test suites;
 - dokumentační dopad;
-- potřebu ADR nebo migration note.
+- potřebu ADR nebo migration note;
+- povolený write scope pro Work;
+- bezpečnostní a datovou klasifikaci připojených Apps.
 
 Hlavní klasifikace:
 
@@ -95,7 +124,19 @@ release/<version>
 
 Behaviorální změna bez testu je neúplná. Změna kontraktu bez dokumentace a compatibility rozhodnutí je neúplná.
 
-## 3. Lokální test suites
+Work před prvním zápisem ověří:
+
+- aktuální PR head SHA;
+- deklarovanou target branch;
+- allowed paths;
+- že autorizace neobsahuje merge, promotion, release, tag ani force-push;
+- že požadovaný GitHub/Miro connector je skutečně dostupný.
+
+Pokud connector, board nebo oprávnění nejsou dostupné, Work zastaví a omezení oznámí. Nesmí je tiše nahradit předpokladem.
+
+## 3. Test suites a execution plane
+
+Stabilní platformní kontrakt:
 
 ```powershell
 .\ddda.ps1 doctor
@@ -106,6 +147,8 @@ Behaviorální změna bez testu je neúplná. Změna kontraktu bez dokumentace a
 .\ddda.ps1 test -Suite regression
 .\ddda.ps1 test -Suite security
 ```
+
+Na Chat/Work-only cestě tyto příkazy spouštějí standardní GitHub Actions workflows. Uživatel nemusí poskytovat Work lokální shell a nesmí být směrován do Codexu.
 
 Package-dependent suites dostávají `-PackagePath` a používají nově rozbalený balíček.
 
@@ -130,6 +173,8 @@ uživatelské absolutní cesty
 
 ## 5. Validace PR
 
+Stabilní kontrakt:
+
 ```powershell
 .\ddda.ps1 validate-pr -Pr 8
 ```
@@ -139,6 +184,8 @@ S Miro:
 ```powershell
 .\ddda.ps1 validate-pr -Pr 8 -WithMiro -Full -CleanupOnFailure
 ```
+
+V Chat/Work-only režimu jej spouští standardní PR workflow nebo remote validation broker.
 
 Příkaz:
 
@@ -170,6 +217,28 @@ PASS automaticky uklidí pracovní clone a workspaces, pokud není použito `-Ke
 
 Syntax, schémata, cesty, packaging, idempotence a absence secrets kontroluje automatizace.
 
+### Miro visual review
+
+Před tvrzením, že implementace odpovídá redline nebo referenčnímu boardu, musí Work skutečně načíst:
+
+- referenční board;
+- konkrétní source frames;
+- relevantní children, images a geometry;
+- cílové frames pro side-by-side porovnání.
+
+Vizuální acceptance hodnotí minimálně:
+
+- čitelnost při `Fit to frame`;
+- first-viewer srozumitelnost;
+- fonty a vizuální hierarchii;
+- překryvy frames/items;
+- využití plochy;
+- přítomnost požadovaných obrázků a examples;
+- věrnost schválenému template;
+- metodickou a doménovou koherenci.
+
+Item count, parent ownership, schema PASS a idempotence nejsou visual acceptance. Technický PASS ponechává `human_review_status=PENDING`, dokud člověk výsledek nepřijme.
+
 ## 7. GitHub autentizace a release dokumentace
 
 `promote-pr` používá GitHub REST API. GitHub CLI není povinná závislost. Implementace i dokumentace používají stejné pořadí providerů:
@@ -179,7 +248,7 @@ Syntax, schémata, cesty, packaging, idempotence a absence secrets kontroluje au
 3. `gh auth token`;
 4. Git credential helper.
 
-Token se nikdy nepředává jako CLI argument a nesmí se objevit v logu, reportu ani shell history.
+Token se nikdy nepředává jako CLI argument a nesmí se objevit v logu, reportu, Chat/Work kontextu ani shell history.
 
 Během vývoje se změny zapisují pod `## [Unreleased]`. Před promotion se všechny release položky přesunou pod právě jednu sekci `## [X.Y.Z] - YYYY-MM-DD`, `Unreleased` zůstane bez release položek a stejná verze se předá jako `-Version X.Y.Z`. Tag je deterministicky `vX.Y.Z`.
 
@@ -228,6 +297,15 @@ release-reports/
 
 Při FAIL zůstávají logy a diagnostický workspace. Miro board lze při testu odstranit přes `-CleanupOnFailure`.
 
+Work musí rozlišit:
+
+- connector/access failure;
+- implementation failure;
+- CI/test failure;
+- human review rejection.
+
+Nesmí je sloučit do neurčitého statusu ani prezentovat nedokončenou práci jako PASS.
+
 ## 10. Definition of Done
 
 PR je hotový, když:
@@ -243,4 +321,8 @@ PR je hotový, když:
 - dlouhodobé rozhodnutí má ADR;
 - changelog je aktualizován;
 - povinný platform-development skill je verzovaný a runtime routing jej skutečně načítá;
+- Chat/Work-only policy je splněna;
+- connector a visual-access omezení byla transparentně uvedena;
+- secrets nevstoupily do Chat nebo Work kontextu;
+- Codex ani `/agent` nebyly použity;
 - merge nebyl proveden bez explicitního lidského rozhodnutí.
