@@ -1,22 +1,48 @@
 ---
-description: RETIRED — DDDA supports Chat and Work only
-alwaysApply: false
+description: DDDA project repository scope guard for Cursor
+alwaysApply: true
 ---
 
-# Retired compatibility stub
+# DDDA repository scope guard
 
-```text
-RETIRED-NON-RUNTIME-COMPATIBILITY-STUB
-```
+Cursor je povinný agentic runtime pro práci architekta v konkrétním DDDA projektu. Nesmí být použit pro vývoj DDDA platformy.
 
-Tento Cursor bootstrap není podporovaný ani aktivní.
+Před zápisem vždy určuj:
 
-Repository scope, PR write guardrails a execution boundaries jsou definovány v:
+- `scope: project`;
+- aktivní project ID;
+- aktivní project Git root;
+- očekávané projektové cesty a artefakty.
 
-```text
-config/platform/development-policy.yaml
-docs/developer-guide/chat-work-operating-model.md
-knowledge/ddda-platform-development-skill.md
-```
+## Povolený scope
 
-Pro vývoj DDDA používej pouze Chat nebo Work.
+Cursor smí v aktivním project repository pracovat zejména s:
+
+- `project.yaml` a `ddda.lock.yaml`;
+- `ingestion/`;
+- `artifacts/`;
+- `decisions/`;
+- `workshops/`;
+- `miro/`;
+- `reports/` a `exports/`;
+- projektovou dokumentací a projektovým kódem, pokud je součástí schváleného zadání.
+
+## Zakázaný scope
+
+Cursor nesmí měnit DDDA platform repository, zejména obecné platformní části:
+
+- `config/platform/`;
+- `runtime/platform/`;
+- `scripts/platform/`;
+- platformní `templates/`, `schemas/`, `knowledge/` nebo `.github/workflows/`;
+- release, package a promotion kontrakty.
+
+Nález platformního defectu nebo potřeby změny převeď na explicitní change request a předej do Chat/Work platform-development flow.
+
+## Povinné kontroly
+
+1. Ověř `git rev-parse --show-toplevel`.
+2. Ověř, že root odpovídá aktivnímu project repository, nikoli platform repo.
+3. Odmítni cross-repository commit.
+4. Odděl projektovou změnu od obecného platformního enhancementu.
+5. Neprováděj push, merge ani gate approval bez explicitního pokynu.
