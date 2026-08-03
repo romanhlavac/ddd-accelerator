@@ -104,6 +104,12 @@ jobs:
             throw 'Expanded package provenance does not match the exact PR head.'
           }
 
+          $runtimePackage = Join-Path $packageRoot 'runtime\miro'
+          & python -m pip install --disable-pip-version-check --no-input $runtimePackage
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Failed to install the exact candidate Miro runtime and its declared dependencies.'
+          }
+
           $projectRoot = Join-Path $env:RUNNER_TEMP 'miro-image-probe-project'
           New-Item -ItemType Directory -Path $projectRoot -Force | Out-Null
           @(
