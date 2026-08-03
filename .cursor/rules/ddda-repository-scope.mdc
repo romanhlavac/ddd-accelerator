@@ -1,56 +1,22 @@
 ---
-description: Oddělení platformních a projektových změn v DDDA
-alwaysApply: true
+description: RETIRED — DDDA supports Chat and Work only
+alwaysApply: false
 ---
 
-# DDDA Repository Scope Guard
+# Retired compatibility stub
 
-Před jakýmkoli zápisem, commitem nebo návrhem PR explicitně určuj:
+```text
+RETIRED-NON-RUNTIME-COMPATIBILITY-STUB
+```
 
-- `scope: platform`, nebo
-- `scope: project`,
-- aktivní Git root,
-- aktivní projekt, pokud je scope `project`.
+Tento Cursor bootstrap není podporovaný ani aktivní.
 
-## Platform scope
+Repository scope, PR write guardrails a execution boundaries jsou definovány v:
 
-Povoleno měnit obecné části DDDA, například:
+```text
+config/platform/development-policy.yaml
+docs/developer-guide/chat-work-operating-model.md
+knowledge/ddda-platform-development-skill.md
+```
 
-- `.cursor/`,
-- `.github/`,
-- `docs/`,
-- `schemas/`,
-- `scripts/`,
-- `templates/`,
-- `migrations/`,
-- obecné scaffoldy a synchronizační runtime.
-
-Zakázáno zahrnout ingestion, artefakty, ADR nebo klientská data konkrétního projektu.
-
-## Project scope
-
-Povoleno měnit pouze aktivní projektový repozitář, zejména:
-
-- `project.yaml`,
-- `ddda.lock.yaml`,
-- `ingestion/`,
-- `artifacts/`,
-- `decisions/`,
-- `workshops/`,
-- `miro/`,
-- `reports/`,
-- `exports/`.
-
-Zakázáno měnit platformní repozitář DDDA.
-
-## Povinné kontroly
-
-Před commitem:
-
-1. ověř `git rev-parse --show-toplevel`,
-2. ověř `git status --short` v platformě i aktivním projektu,
-3. odmítni cross-repository commit,
-4. odděl obecné zlepšení DDDA od jeho použití v projektu do dvou PR,
-5. nepushuj ani nemerguj bez explicitního pokynu uživatele.
-
-Když scope není z požadavku jednoznačný, navrhni scope a vyžádej potvrzení před zápisem. Při read-only analýze potvrzení nepotřebuješ.
+Pro vývoj DDDA používej pouze Chat nebo Work.
