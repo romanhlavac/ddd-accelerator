@@ -179,6 +179,7 @@ def run_probe(config: ProjectConfig, client: MiroClient, path: Path, *, keep_boa
             "second_run": second,
             "remote_verification": {
                 "status": "PASS",
+                "items": second_remote["items"],
                 "first_run": first_remote,
                 "second_run": second_remote,
             },
