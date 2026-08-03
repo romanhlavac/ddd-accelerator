@@ -24,7 +24,9 @@ jobs:
     timeout-minutes: 90
     env:
       TRANSPORT_SHA: ${{ github.event.pull_request.head.sha }}
-      TARGET_SOURCE_SHA: cccfa7d4cf999a3c9bb011f9125144e30f94f995
+      TARGET_SOURCE_SHA: 65709005ca721202679241d6e33bd875e9c93a6e
+      TARGET_PARENT_SHA: 640a344ad1bd638535d30f3e3a3217c2c66ce381
+      CANONICAL_SOURCE_SHA: cccfa7d4cf999a3c9bb011f9125144e30f94f995
       IMPLEMENTATION_SHA: c7750543237506bb43e268e6523c72eba84d2ed9
       AUTHORIZED_BASE_SHA: 7badffb6ef6f3364569e68926eb511600eed38d3
       PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -53,6 +55,7 @@ jobs:
             pr = [int]$env:PR_NUMBER
             transport_sha = $env:TRANSPORT_SHA
             target_source_sha = $env:TARGET_SOURCE_SHA
+            canonical_source_sha = $env:CANONICAL_SOURCE_SHA
             implementation_sha = $env:IMPLEMENTATION_SHA
             authorized_base_sha = $env:AUTHORIZED_BASE_SHA
             board_id = 'uXjVH1phki0='
@@ -63,7 +66,7 @@ jobs:
           } | ConvertTo-Json -Depth 10 |
             Set-Content -LiteralPath (Join-Path $root 'identity.json') -Encoding utf8
 
-      - name: Verify product source and transport boundary
+      - name: Verify immutable product source and transport-only lineage
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -73,35 +76,48 @@ jobs:
             if ([string]::IsNullOrWhiteSpace($line)) { return @() }
             return @($line.Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries))
           }
+
           function ExactPaths([string]$base, [string]$head, [string[]]$expected, [string]$label) {
             $actual = @((git diff --name-only $base $head) | Where-Object { $_ })
             $unexpected = @($actual | Where-Object { $_ -notin $expected })
             $missing = @($expected | Where-Object { $_ -notin $actual })
             if ($unexpected.Count -or $missing.Count -or $actual.Count -ne $expected.Count) {
-              throw "$label path mismatch. Unexpected: $($unexpected -join ', '); missing: $($missing -join ', ')."
+              throw "$label path mismatch. Unexpected: $($unexpected -join ', '); missing: $($missing -join ', '); actual=$($actual.Count), expected=$($expected.Count)."
             }
+          }
+
+          function WorkflowOnlyCommits([string]$base, [string]$head, [string]$label) {
+            git merge-base --is-ancestor $base $head
+            if ($LASTEXITCODE -ne 0) { throw "$label head is not descended from base." }
+            $commits = @((git rev-list --reverse "$base..$head") | Where-Object { $_ })
+            foreach ($commit in $commits) {
+              if (@(Parents $commit).Count -ne 1) { throw "$label commit '$commit' is not linear." }
+              $paths = @((git diff-tree --no-commit-id --name-only -r $commit) | Where-Object { $_ })
+              if ($paths.Count -ne 1 -or $paths[0] -ne '.github/workflows/miro-anchor-remediation.yml') {
+                throw "$label commit '$commit' changes unauthorized paths: $($paths -join ', ')."
+              }
+            }
+            return $commits
           }
 
           if ((git rev-parse HEAD).Trim() -ne $env:TRANSPORT_SHA) { throw 'Transport checkout mismatch.' }
-          git merge-base --is-ancestor $env:TARGET_SOURCE_SHA $env:TRANSPORT_SHA
-          if ($LASTEXITCODE -ne 0) { throw 'Transport is not descended from target source.' }
 
-          $transportCommits = @((git rev-list --reverse "$($env:TARGET_SOURCE_SHA)..$($env:TRANSPORT_SHA)") | Where-Object { $_ })
-          if ($transportCommits.Count -lt 1) { throw 'No transport-only commits found.' }
-          foreach ($commit in $transportCommits) {
-            if (@(Parents $commit).Count -ne 1) { throw "Transport commit '$commit' is not linear." }
-            $paths = @((git diff-tree --no-commit-id --name-only -r $commit) | Where-Object { $_ })
-            if ($paths.Count -ne 1 -or $paths[0] -ne '.github/workflows/miro-anchor-remediation.yml') {
-              throw "Transport commit '$commit' changes unauthorized paths."
-            }
-          }
+          $transportCommits = @(WorkflowOnlyCommits $env:TARGET_SOURCE_SHA $env:TRANSPORT_SHA 'Post-target transport')
+          if ($transportCommits.Count -lt 1) { throw 'At least one post-target workflow-only transport commit is required.' }
 
           $targetParents = @(Parents $env:TARGET_SOURCE_SHA)
+          if ($targetParents.Count -ne 1 -or $targetParents[0] -ne $env:TARGET_PARENT_SHA) { throw 'Target source parent mismatch.' }
+          if ((git show -s --format=%s $env:TARGET_SOURCE_SHA).Trim() -ne 'fix(miro): align protected frame IDs with review board') { throw 'Target source identity mismatch.' }
+          ExactPaths $env:TARGET_PARENT_SHA $env:TARGET_SOURCE_SHA @('scaffolds/miro/rem-012-2-anchor-frames.yaml') 'Remote-contract correction'
+
+          $preTargetTransport = @(WorkflowOnlyCommits $env:CANONICAL_SOURCE_SHA $env:TARGET_PARENT_SHA 'Pre-target transport')
+
+          $canonicalParents = @(Parents $env:CANONICAL_SOURCE_SHA)
           $implementationParents = @(Parents $env:IMPLEMENTATION_SHA)
-          if ($targetParents.Count -ne 1 -or $targetParents[0] -ne $env:IMPLEMENTATION_SHA) { throw 'Target parent mismatch.' }
+          if ($canonicalParents.Count -ne 1 -or $canonicalParents[0] -ne $env:IMPLEMENTATION_SHA) { throw 'Canonical source parent mismatch.' }
           if ($implementationParents.Count -ne 1 -or $implementationParents[0] -ne $env:AUTHORIZED_BASE_SHA) { throw 'Implementation parent mismatch.' }
           if ((git show -s --format=%s $env:IMPLEMENTATION_SHA).Trim() -ne 'feat(miro): remediate anchor frames for human review') { throw 'Implementation identity mismatch.' }
-          if ((git show -s --format=%s $env:TARGET_SOURCE_SHA).Trim() -ne 'fix(miro): restore anchor text canonicalization') { throw 'Corrective identity mismatch.' }
+          if ((git show -s --format=%s $env:CANONICAL_SOURCE_SHA).Trim() -ne 'fix(miro): restore anchor text canonicalization') { throw 'Canonical corrective identity mismatch.' }
 
           $implementationPaths = @(
             '.github/workflows/miro-anchor-remediation.yml'
@@ -114,23 +130,27 @@ jobs:
             'scaffolds/miro/rem-012-2-anchor-frames.yaml'
             'schemas/miro-anchor-remediation.schema.json'
           )
-          $correctivePaths = @(
+          $canonicalCorrectivePaths = @(
             'runtime/miro/ddda_miro/anchor_contract.py'
             'runtime/miro/ddda_miro/anchor_evidence.py'
             'runtime/miro/ddda_miro/anchor_plan.py'
             'runtime/miro/tests/test_anchor_remediation.py'
           )
           ExactPaths $env:AUTHORIZED_BASE_SHA $env:IMPLEMENTATION_SHA $implementationPaths 'Implementation'
-          ExactPaths $env:IMPLEMENTATION_SHA $env:TARGET_SOURCE_SHA $correctivePaths 'Corrective'
+          ExactPaths $env:IMPLEMENTATION_SHA $env:CANONICAL_SOURCE_SHA $canonicalCorrectivePaths 'Canonical corrective'
 
           [ordered]@{
             status = 'PASS'
             transport_sha = $env:TRANSPORT_SHA
-            transport_commits = $transportCommits
+            post_target_transport_commits = $transportCommits
             target_source_sha = $env:TARGET_SOURCE_SHA
+            target_parent_sha = $env:TARGET_PARENT_SHA
+            remote_contract_correction_path = 'scaffolds/miro/rem-012-2-anchor-frames.yaml'
+            pre_target_transport_commits = $preTargetTransport
+            canonical_source_sha = $env:CANONICAL_SOURCE_SHA
             implementation_sha = $env:IMPLEMENTATION_SHA
             authorized_base_sha = $env:AUTHORIZED_BASE_SHA
-          } | ConvertTo-Json -Depth 10 |
+          } | ConvertTo-Json -Depth 20 |
             Set-Content -LiteralPath (Join-Path $env:EVIDENCE_ROOT 'source-contract.json') -Encoding utf8
 
       - name: Wait for exact-SHA CI gates
@@ -174,7 +194,7 @@ jobs:
             }
             throw "$label CI did not reach PASS."
           }
-          WaitSet $env:TARGET_SOURCE_SHA 'target-source' 8
+          WaitSet $env:TARGET_SOURCE_SHA 'target-source' 220
           WaitSet $env:TRANSPORT_SHA 'transport' 220
 
       - name: Verify Miro secret
