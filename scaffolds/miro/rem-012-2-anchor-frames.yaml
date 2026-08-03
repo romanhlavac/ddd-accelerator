@@ -1,0 +1,105 @@
+schema_version: 1
+remediation_id: REM-PR8-HVA-CC-012.2
+authorized_base_sha: 7badffb6ef6f3364569e68926eb511600eed38d3
+board_id: uXjVH1phki0=
+redline_board_id: uXjVH2vcvRI=
+starter_board_id: uXjVH27wYU4=
+table_item_id: '3458764679854203923'
+obsolete_table_item_id: '3458764679853742787'
+table_target: {x: 3500, y: 4050}
+frames:
+  control:
+    id: '3458764679756478046'
+    expected_current: {x: -17000, y: 1000, width: 9000, height: 8000}
+    target: {x: -16427.6455, y: 372.9065, width: 7000, height: 4914.42}
+  journey:
+    id: '3458764679756478059'
+    expected_current: {x: 8000, y: -7500, width: 58000, height: 13000}
+    target: {x: 9076.7807, y: -8458.9227, width: 58008.9, height: 10144.3}
+  align:
+    id: '3458764679756478064'
+    expected_current: {x: -17000, y: 8000, width: 6000, height: 4800}
+    target: {x: -16927.6455, y: 6006.3133, width: 6000, height: 4800}
+protected_frames:
+  - '3458764679756478069'
+  - '3458764679756478086'
+  - '3458764679756478168'
+  - '3458764679756478259'
+  - '3458764679756478321'
+  - '3458764679756478410'
+  - '3458764679756478516'
+  - '3458764679756478576'
+  - '3458764679756478655'
+  - '3458764679756478717'
+  - '3458764679756478776'
+  - '3458764679756478888'
+  - '3458764679756478941'
+  - '3458764679756479002'
+  - '3458764679756479065'
+updates:
+  - {id: '3458764679756505802', type: text, frame: control, x: 1100, y: 650, width: 1800, font_size: 24, content: '<p><strong>CONTROL CENTER</strong></p><p>Začněte zde: ověřte cíl, ownera, aktuální gate a další krok. Git/YAML je autorita; Miro je řízená projekce.</p>'}
+  - {id: '3458764679756505810', type: text, frame: control, x: 3600, y: 650, width: 2600, font_size: 18, content: '<p><strong>Jak board použít</strong></p><p>1. Otevřete aktuální fázi v journey. 2. Doplňte evidence. 3. Proveďte lidské gate rozhodnutí. 4. Zapište změnu do Git.</p>'}
+  - {id: '3458764679756523198', type: text, frame: control, x: 3500, y: 2050, width: 6200, font_size: 24, content: '<p><strong>PROJECT / GATE STATE — kompaktní legenda</strong></p>'}
+  - {id: '3458764679756523206', type: shape, frame: control, x: 700, y: 2450, width: 1200, height: 400, font_size: 36}
+  - {id: '3458764679756523207', type: shape, frame: control, x: 2100, y: 2450, width: 1200, height: 400, font_size: 36}
+  - {id: '3458764679756523209', type: shape, frame: control, x: 3500, y: 2450, width: 1200, height: 400, font_size: 36}
+  - {id: '3458764679756523211', type: shape, frame: control, x: 4900, y: 2450, width: 1200, height: 400, font_size: 36}
+  - {id: '3458764679756523216', type: shape, frame: control, x: 6300, y: 2450, width: 1200, height: 400, font_size: 36}
+  - {id: '3458764679756523217', type: shape, frame: control, x: 1750, y: 3100, width: 3000, height: 450, font_size: 18, content: '<p><strong>ARTIFACT LIFECYCLE</strong> · SCAFFOLD → WORKING → CANDIDATE → VALIDATED → ACCEPTED → SUPERSEDED</p>'}
+  - {id: '3458764679756523219', type: shape, frame: control, x: 5250, y: 3100, width: 3000, height: 450, font_size: 18, content: '<p><strong>PROVENANCE</strong> · GENERATED · WORKSHOP · IMPORTED · MANUAL</p>'}
+  - {id: '3458764679756523220', type: text, frame: control, x: 3500, y: 3550, width: 6200, font_size: 24, content: '<p><strong>ARTIFACT REGISTRY — nativní Miro tabulka</strong></p>'}
+  - {id: '3458764679756548469', type: sticky_note, frame: control, x: 1800, y: 1500, width: 1050}
+  - {id: '3458764679756548472', type: sticky_note, frame: control, x: 3500, y: 1500, width: 1200}
+  - {id: '3458764679756548475', type: sticky_note, frame: control, x: 5200, y: 1500, width: 1200}
+  - {id: '3458764679756523140', type: text, frame: journey, x: 1500, y: 750, width: 2200, font_size: 24, content: '<p><strong>01 – DDD STARTER JOURNEY</strong></p><p>Redline: uXjVH2vcvRI= · Starter: uXjVH27wYU4=</p><p><strong>Čtěte zleva doprava.</strong> Obrázek ukazuje fázi; karta gate ukazuje rozhodnutí; spodní prvky ukazují pracovní jazyk.</p>'}
+  - {id: '3458764679756478099', type: text, frame: align, x: 1080, y: 305, width: 2040, font_size: 36}
+  - {id: '3458764679756478101', type: shape, frame: align, x: 4800, y: 1750, width: 2100, height: 2450}
+  - {id: '3458764679756478103', type: text, frame: align, x: 4800, y: 250, width: 2000, font_size: 18, content: '<p><strong>REFERENCE · Business Model Canvas</strong></p><p>Restored Strategic DDD · exact source visual</p>'}
+  - {id: '3458764679756478104', type: shape, frame: align, x: 4050, y: 650, width: 420, height: 260, font_size: 24, content: '<p><strong>PROBLÉM</strong></p>'}
+  - {id: '3458764679756478105', type: shape, frame: align, x: 4550, y: 650, width: 420, height: 260, font_size: 24, content: '<p><strong>ROZHODNUTÍ</strong></p>'}
+  - {id: '3458764679756478111', type: shape, frame: align, x: 5050, y: 650, width: 420, height: 260, font_size: 24, content: '<p><strong>OWNER</strong></p>'}
+  - {id: '3458764679756478112', type: shape, frame: align, x: 5550, y: 650, width: 420, height: 260, font_size: 24, content: '<p><strong>SCOPE</strong></p>'}
+journey:
+  stage_ids: ['3458764679756505818','3458764679756505863','3458764679756505903','3458764679756522937','3458764679756522972','3458764679756523017','3458764679756523057','3458764679756523095']
+  gate_ids: ['3458764679756505827','3458764679756505869','3458764679756505905','3458764679756522941','3458764679756522978','3458764679756523019','3458764679756523061','3458764679756523098']
+  zone_ids: ['3458764679756523146','3458764679756523154','3458764679756523158','3458764679756523160']
+  semantic_shape_ids: ['3458764679756505851','3458764679756505920','3458764679756505925','3458764679756505927','3458764679756505928','3458764679756522947','3458764679756522961','3458764679756522964','3458764679756522966','3458764679756522992','3458764679756522994','3458764679756522996','3458764679756523007','3458764679756523025','3458764679756523030','3458764679756523033','3458764679756523035','3458764679756523072','3458764679756523077','3458764679756523081','3458764679756523086','3458764679756523111','3458764679756523112','3458764679756523113','3458764679756523116']
+  semantic_sticky_ids: ['3458764679756505837','3458764679756505843','3458764679756505855','3458764679756505876','3458764679756505879','3458764679756505882','3458764679756505884']
+  stage_x: [4250,8750,13250,17750,22250,26750,31250,35750]
+  lower_x_shift: -1000
+  zone_x_shift: -1000
+  stage_y: 5300
+  gate_y: 7324.13
+  lower_y: 8436
+  zone_y: 1862.31
+  stage_font: 144
+  gate_font: 144
+  lower_font: 80
+  zone_font: 144
+delete_exact_ids: ['3458764679756478114','3458764679756478120','3458764679756478123','3458764679756478126','3458764679756478127']
+delete_dynamic:
+  control_shape_y_at_least: 6400
+  expected_control_shape_count: 45
+  journey_content_contains: 'INSPIRACE PRO'
+  expected_journey_shape_count: 8
+images:
+  manifest_id: rem-012-2-anchor-frames
+  diagnostic_only: false
+  assets:
+    - {id: phase-align-base, source_board_id: 'uXjVH2vcvRI=', source_frame_id: '3458764679531716415', source_item_id: '3458764679531716416', expected_sha256: '4ef989128feb63c579ae9a4edb99a14752c3796ad323ad6b74c38aafb879f940', target_frame: journey, x: 4250, y: 3400, width: 1568.47}
+    - {id: phase-align-pin, source_board_id: 'uXjVH2vcvRI=', source_frame_id: '3458764679531716415', source_item_id: '3458764679531716417', expected_sha256: '27f5b8a6f60597a9ce41012f721e982ec429746fbfbe7758f5aa7aaa19224132', target_frame: journey, x: 3599.43, y: 3222.38, width: 195.98}
+    - {id: phase-discover-base, source_board_id: 'uXjVH2vcvRI=', source_frame_id: '3458764679532531400', source_item_id: '3458764679532531401', expected_sha256: '4ef989128feb63c579ae9a4edb99a14752c3796ad323ad6b74c38aafb879f940', target_frame: journey, x: 8750, y: 3400, width: 1568.47}
+    - {id: phase-discover-pin, source_board_id: 'uXjVH2vcvRI=', source_frame_id: '3458764679532531400', source_item_id: '3458764679532531402', expected_sha256: '27f5b8a6f60597a9ce41012f721e982ec429746fbfbe7758f5aa7aaa19224132', target_frame: journey, x: 8322.19, y: 3240.76, width: 195.98}
+    - {id: phase-decompose-base, source_board_id: 'uXjVH2vcvRI=', source_frame_id: '3458764679532531576', source_item_id: '3458764679532531577', expected_sha256: '4ef989128feb63c579ae9a4edb99a14752c3796ad323ad6b74c38aafb879f940', target_frame: journey, x: 13250, y: 3400, width: 1568.47}
+    - {id: phase-decompose-pin, source_board_id: 'uXjVH2vcvRI=', source_frame_id: '3458764679532531576', source_item_id: '3458764679532531578', expected_sha256: '27f5b8a6f60597a9ce41012f721e982ec429746fbfbe7758f5aa7aaa19224132', target_frame: journey, x: 13081.18, y: 3102.18, width: 195.98}
+    - {id: phase-strategize-base, source_board_id: 'uXjVH2vcvRI=', source_frame_id: '3458764679532531636', source_item_id: '3458764679532531637', expected_sha256: '4ef989128feb63c579ae9a4edb99a14752c3796ad323ad6b74c38aafb879f940', target_frame: journey, x: 17750, y: 3400, width: 1568.47}
+    - {id: phase-strategize-pin, source_board_id: 'uXjVH2vcvRI=', source_frame_id: '3458764679532531636', source_item_id: '3458764679532531638', expected_sha256: '27f5b8a6f60597a9ce41012f721e982ec429746fbfbe7758f5aa7aaa19224132', target_frame: journey, x: 17841.26, y: 3084.37, width: 195.98}
+    - {id: phase-connect-base, source_board_id: 'uXjVH2vcvRI=', source_frame_id: '3458764679532834577', source_item_id: '3458764679532834578', expected_sha256: '4ef989128feb63c579ae9a4edb99a14752c3796ad323ad6b74c38aafb879f940', target_frame: journey, x: 22250, y: 3400, width: 1568.47}
+    - {id: phase-connect-pin, source_board_id: 'uXjVH2vcvRI=', source_frame_id: '3458764679532834577', source_item_id: '3458764679532834579', expected_sha256: '27f5b8a6f60597a9ce41012f721e982ec429746fbfbe7758f5aa7aaa19224132', target_frame: journey, x: 22145.28, y: 3400, width: 195.98}
+    - {id: phase-organize-base, source_board_id: 'uXjVH2vcvRI=', source_frame_id: '3458764679532834532', source_item_id: '3458764679532834533', expected_sha256: '4ef989128feb63c579ae9a4edb99a14752c3796ad323ad6b74c38aafb879f940', target_frame: journey, x: 26750, y: 3400, width: 1568.47}
+    - {id: phase-organize-pin, source_board_id: 'uXjVH2vcvRI=', source_frame_id: '3458764679532834532', source_item_id: '3458764679532834534', expected_sha256: '27f5b8a6f60597a9ce41012f721e982ec429746fbfbe7758f5aa7aaa19224132', target_frame: journey, x: 26889.13, y: 3368.08, width: 195.98}
+    - {id: phase-define-base, source_board_id: 'uXjVH2vcvRI=', source_frame_id: '3458764679532834637', source_item_id: '3458764679532834638', expected_sha256: '4ef989128feb63c579ae9a4edb99a14752c3796ad323ad6b74c38aafb879f940', target_frame: journey, x: 31250, y: 3400, width: 1568.47}
+    - {id: phase-define-pin, source_board_id: 'uXjVH2vcvRI=', source_frame_id: '3458764679532834637', source_item_id: '3458764679532834639', expected_sha256: '27f5b8a6f60597a9ce41012f721e982ec429746fbfbe7758f5aa7aaa19224132', target_frame: journey, x: 31585.11, y: 3231.19, width: 195.98}
+    - {id: phase-code-base, source_board_id: 'uXjVH2vcvRI=', source_frame_id: '3458764679532834681', source_item_id: '3458764679532834682', expected_sha256: '4ef989128feb63c579ae9a4edb99a14752c3796ad323ad6b74c38aafb879f940', target_frame: journey, x: 35750, y: 3400, width: 1568.47}
+    - {id: phase-code-pin, source_board_id: 'uXjVH2vcvRI=', source_frame_id: '3458764679532834681', source_item_id: '3458764679532834683', expected_sha256: '27f5b8a6f60597a9ce41012f721e982ec429746fbfbe7758f5aa7aaa19224132', target_frame: journey, x: 36390.24, y: 3224.80, width: 195.98}
+    - {id: align-bmc, source_board_id: 'uXjVH27wYU4=', source_frame_id: '3458764567890733009', source_item_id: '3458764567890733049', expected_sha256: '18d82268341240c56f7f950a99b5064907247e1ef31a91443d59dc298404ee62', target_frame: align, x: 4800, y: 1900, width: 1800}

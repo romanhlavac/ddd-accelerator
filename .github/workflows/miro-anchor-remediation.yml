@@ -1,0 +1,185 @@
+name: DDDA REM-012.2 anchor remediation
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - synchronize
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ddda-rem-012-2-anchor-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  anchor-remediation:
+    name: Exact-code anchor remediation
+    if: >-
+      github.event.pull_request.number == 8 &&
+      github.actor == 'romanhlavac' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+      AUTHORIZED_BASE_SHA: 7badffb6ef6f3364569e68926eb511600eed38d3
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.SOURCE_SHA }}
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Verify exact source, parent, allowlist and secret
+        shell: pwsh
+        env:
+          MIRO_ACCESS_TOKEN: ${{ secrets.MIRO_ACCESS_TOKEN }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $actual = (git rev-parse HEAD).Trim()
+          if ($actual -ne $env:SOURCE_SHA) {
+            throw "Checkout SHA '$actual' neodpovídá PR head '$env:SOURCE_SHA'."
+          }
+          $parents = @((git show -s --format=%P HEAD).Trim().Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries))
+          if ($parents.Count -ne 1 -or $parents[0] -ne $env:AUTHORIZED_BASE_SHA) {
+            throw "REM-012.2 requires one parent equal to exact authorized base '$env:AUTHORIZED_BASE_SHA'."
+          }
+          $allowed = @(
+            '.github/workflows/miro-anchor-remediation.yml'
+            'docs/reviews/REM-PR8-HVA-CC-012-2-anchor-frames.md'
+            'runtime/miro/ddda_miro/anchor_contract.py'
+            'runtime/miro/ddda_miro/anchor_plan.py'
+            'runtime/miro/ddda_miro/anchor_evidence.py'
+            'runtime/miro/ddda_miro/anchor_remediation.py'
+            'runtime/miro/tests/test_anchor_remediation.py'
+            'scaffolds/miro/rem-012-2-anchor-frames.yaml'
+            'schemas/miro-anchor-remediation.schema.json'
+          )
+          $changed = @((git diff --name-only $env:AUTHORIZED_BASE_SHA $env:SOURCE_SHA) | Where-Object { $_ })
+          $unexpected = @($changed | Where-Object { $_ -notin $allowed })
+          $missing = @($allowed | Where-Object { $_ -notin $changed })
+          if ($unexpected.Count -or $missing.Count) {
+            throw "REM-012.2 allowlist mismatch. Unexpected: $($unexpected -join ', '); missing: $($missing -join ', ')."
+          }
+          if ([string]::IsNullOrWhiteSpace($env:MIRO_ACCESS_TOKEN)) {
+            throw 'MIRO_ACCESS_TOKEN is required for REM-012.2 brokered implementation.'
+          }
+
+      - name: Build exact-SHA candidate package
+        id: package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version = 'rem-012-2.' + $env:GITHUB_RUN_ID + '.' + $env:SOURCE_SHA.Substring(0, 12)
+          $output = Join-Path $env:RUNNER_TEMP ('ddda-rem-012-2-' + $env:SOURCE_SHA.Substring(0, 12) + '.zip')
+          $json = .\scripts\platform\New-DDDAPlatformPackage.ps1 `
+            -PlatformPath $PWD.Path `
+            -Kind candidate `
+            -Version $version `
+            -SourceRef $env:SOURCE_SHA `
+            -OutputPath $output `
+            -Json | Out-String
+          $package = $json.Trim() | ConvertFrom-Json
+          if ([string]$package.source_commit -ne $env:SOURCE_SHA) {
+            throw 'Candidate package source_commit does not match exact PR head.'
+          }
+          "package_path=$($package.path)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "package_sha256=$($package.sha256)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Run exact-code REM-012.2 from candidate package
+        shell: pwsh
+        env:
+          MIRO_ACCESS_TOKEN: ${{ secrets.MIRO_ACCESS_TOKEN }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $evidenceRoot = Join-Path $env:RUNNER_TEMP 'rem-012-2-anchor-remediation'
+          New-Item -ItemType Directory -Path $evidenceRoot -Force | Out-Null
+          $reportPath = Join-Path $evidenceRoot 'result.json'
+          $stderrPath = Join-Path $evidenceRoot 'stderr.log'
+
+          $candidate = '${{ steps.package.outputs.package_path }}'
+          .\scripts\platform\Test-DDDAPlatformPackage.ps1 `
+            -PackagePath $candidate `
+            -ExpectedCommit $env:SOURCE_SHA `
+            -ExpectedKind candidate
+
+          $packageRoot = Join-Path $env:RUNNER_TEMP 'rem-012-2-package'
+          if (Test-Path -LiteralPath $packageRoot) {
+            Remove-Item -LiteralPath $packageRoot -Recurse -Force
+          }
+          Expand-Archive -LiteralPath $candidate -DestinationPath $packageRoot -Force
+          $packageManifest = Get-Content -LiteralPath (Join-Path $packageRoot 'ddda-package.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+          if ([string]$packageManifest.source_commit -ne $env:SOURCE_SHA -or [string]$packageManifest.kind -ne 'candidate') {
+            throw 'Expanded package provenance does not match the exact PR head.'
+          }
+
+          $runtimePackage = Join-Path $packageRoot 'runtime\miro'
+          & python -m pip install --disable-pip-version-check --no-input $runtimePackage
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Failed to install exact candidate Miro runtime.'
+          }
+
+          $env:PYTHONPATH = Join-Path $packageRoot 'runtime\miro'
+          $manifestPath = Join-Path $packageRoot 'scaffolds\miro\rem-012-2-anchor-frames.yaml'
+          & python -m ddda_miro.anchor_remediation `
+            --manifest $manifestPath `
+            --report $reportPath `
+            --source-sha $env:SOURCE_SHA `
+            --apply 2> $stderrPath
+          $exitCode = $LASTEXITCODE
+          if ($exitCode -ne 0) {
+            Get-Content -LiteralPath $stderrPath -ErrorAction SilentlyContinue
+            throw "REM-012.2 failed with exit code $exitCode."
+          }
+
+          $report = Get-Content -LiteralPath $reportPath -Raw -Encoding UTF8 | ConvertFrom-Json
+          if ($report.status -ne 'PASS') { throw 'REM-012.2 report status is not PASS.' }
+          if ([string]$report.source_sha -ne $env:SOURCE_SHA) { throw 'Report source SHA mismatch.' }
+          if ([string]$report.board_id -ne 'uXjVH1phki0=') { throw 'Report board ID mismatch.' }
+          if ([int]$report.images.asset_count -ne 17) { throw 'Expected exactly 17 managed image assets.' }
+          if ([int]$report.images.second_run.created -ne 0 -or [int]$report.images.second_run.updated -ne 0 -or [int]$report.images.second_run.unchanged -ne 17) {
+            throw 'Second managed-image reconcile is not zero mutation.'
+          }
+          if (@($report.images.remote_verification.items).Count -ne 17) { throw 'Remote image verification count mismatch.' }
+          foreach ($item in @($report.images.remote_verification.items)) {
+            if ([string]$item.remote_type -ne 'image') { throw "Remote item '$($item.target_item_id)' is not an image." }
+            if ([string]$item.sha256 -notmatch '^[0-9a-f]{64}$') { throw "Remote item '$($item.target_item_id)' has invalid digest evidence." }
+          }
+          if ($report.native_table.status -ne 'PASS' -or [string]$report.native_table.type -ne 'data_table_format') {
+            throw 'Native artifact registry table verification failed.'
+          }
+          if ([int]$report.geometry.collision_count -ne 0) { throw 'Anchor-frame overlap remains.' }
+          if (-not [bool]$report.protected_frames.unchanged -or [int]$report.protected_frames.count -ne 15) {
+            throw 'Protected frames 20+ changed.'
+          }
+          if ([string]$report.human_review_status -ne 'PENDING' -or [string]$report.overall_status -ne 'READY_FOR_HUMAN_REVIEW') {
+            throw 'REM-012.2 must stop at the human-review checkpoint.'
+          }
+
+          @(
+            "Exact source SHA: $env:SOURCE_SHA"
+            "Candidate SHA-256: ${{ steps.package.outputs.package_sha256 }}"
+            "Anchor frames: updated=$($report.frames.updated), unchanged=$($report.frames.unchanged)"
+            "Managed images: $($report.images.asset_count); second-run mutations=0"
+            "Protected 20+ frames: $($report.protected_frames.count), unchanged=$($report.protected_frames.unchanged)"
+            "Human review: $($report.human_review_status)"
+          ) | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
+
+      - name: Upload REM-012.2 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rem-012-2-anchor-remediation-${{ env.PR_NUMBER }}-${{ env.SOURCE_SHA }}
+          path: ${{ runner.temp }}/rem-012-2-anchor-remediation/**
+          if-no-files-found: error
+          retention-days: 30

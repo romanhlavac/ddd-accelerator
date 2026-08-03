@@ -1,0 +1,180 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ddda.local/schemas/miro-anchor-remediation.schema.json",
+  "title": "DDDA Miro anchor remediation manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "remediation_id",
+    "authorized_base_sha",
+    "board_id",
+    "redline_board_id",
+    "starter_board_id",
+    "table_item_id",
+    "obsolete_table_item_id",
+    "table_target",
+    "frames",
+    "protected_frames",
+    "updates",
+    "journey",
+    "delete_exact_ids",
+    "delete_dynamic",
+    "images"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "remediation_id": {"const": "REM-PR8-HVA-CC-012.2"},
+    "authorized_base_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "board_id": {"const": "uXjVH1phki0="},
+    "redline_board_id": {"const": "uXjVH2vcvRI="},
+    "starter_board_id": {"const": "uXjVH27wYU4="},
+    "table_item_id": {"type": "string", "pattern": "^[0-9]+$"},
+    "obsolete_table_item_id": {"type": "string", "pattern": "^[0-9]+$"},
+    "table_target": {"$ref": "#/$defs/point"},
+    "frames": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["control", "journey", "align"],
+      "properties": {
+        "control": {"$ref": "#/$defs/frame"},
+        "journey": {"$ref": "#/$defs/frame"},
+        "align": {"$ref": "#/$defs/frame"}
+      }
+    },
+    "protected_frames": {
+      "type": "array",
+      "minItems": 15,
+      "maxItems": 15,
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^[0-9]+$"}
+    },
+    "updates": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/update"}
+    },
+    "journey": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stage_ids", "gate_ids", "zone_ids", "semantic_shape_ids", "semantic_sticky_ids",
+        "stage_x", "lower_x_shift", "zone_x_shift", "stage_y", "gate_y", "lower_y", "zone_y",
+        "stage_font", "gate_font", "lower_font", "zone_font"
+      ],
+      "properties": {
+        "stage_ids": {"$ref": "#/$defs/eightIds"},
+        "gate_ids": {"$ref": "#/$defs/eightIds"},
+        "zone_ids": {"type": "array", "minItems": 4, "maxItems": 4, "items": {"type": "string", "pattern": "^[0-9]+$"}},
+        "semantic_shape_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "pattern": "^[0-9]+$"}},
+        "semantic_sticky_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "pattern": "^[0-9]+$"}},
+        "stage_x": {"type": "array", "minItems": 8, "maxItems": 8, "items": {"type": "number"}},
+        "lower_x_shift": {"type": "number"},
+        "zone_x_shift": {"type": "number"},
+        "stage_y": {"type": "number"},
+        "gate_y": {"type": "number"},
+        "lower_y": {"type": "number"},
+        "zone_y": {"type": "number"},
+        "stage_font": {"const": 144},
+        "gate_font": {"const": 144},
+        "lower_font": {"const": 80},
+        "zone_font": {"const": 144}
+      }
+    },
+    "delete_exact_ids": {"type": "array", "minItems": 5, "uniqueItems": true, "items": {"type": "string", "pattern": "^[0-9]+$"}},
+    "delete_dynamic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["control_shape_y_at_least", "expected_control_shape_count", "journey_content_contains", "expected_journey_shape_count"],
+      "properties": {
+        "control_shape_y_at_least": {"type": "number"},
+        "expected_control_shape_count": {"const": 45},
+        "journey_content_contains": {"const": "INSPIRACE PRO"},
+        "expected_journey_shape_count": {"const": 8}
+      }
+    },
+    "images": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["manifest_id", "diagnostic_only", "assets"],
+      "properties": {
+        "manifest_id": {"const": "rem-012-2-anchor-frames"},
+        "diagnostic_only": {"const": false},
+        "assets": {
+          "type": "array",
+          "minItems": 17,
+          "maxItems": 17,
+          "items": {"$ref": "#/$defs/imageAsset"}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "point": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y"],
+      "properties": {"x": {"type": "number"}, "y": {"type": "number"}}
+    },
+    "geometry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "width", "height"],
+      "properties": {
+        "x": {"type": "number"},
+        "y": {"type": "number"},
+        "width": {"type": "number", "exclusiveMinimum": 0},
+        "height": {"type": "number", "exclusiveMinimum": 0}
+      }
+    },
+    "frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "expected_current", "target"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[0-9]+$"},
+        "expected_current": {"$ref": "#/$defs/geometry"},
+        "target": {"$ref": "#/$defs/geometry"}
+      }
+    },
+    "update": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "frame", "x", "y"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[0-9]+$"},
+        "type": {"enum": ["text", "shape", "sticky_note"]},
+        "frame": {"enum": ["control", "journey", "align"]},
+        "x": {"type": "number"},
+        "y": {"type": "number"},
+        "width": {"type": "number", "exclusiveMinimum": 0},
+        "height": {"type": "number", "exclusiveMinimum": 0},
+        "font_size": {"enum": [18, 24, 36, 80, 144]},
+        "content": {"type": "string", "minLength": 1}
+      }
+    },
+    "eightIds": {
+      "type": "array",
+      "minItems": 8,
+      "maxItems": 8,
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^[0-9]+$"}
+    },
+    "imageAsset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "source_board_id", "source_frame_id", "source_item_id", "expected_sha256", "target_frame", "x", "y", "width"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "source_board_id": {"enum": ["uXjVH2vcvRI=", "uXjVH27wYU4="]},
+        "source_frame_id": {"type": "string", "pattern": "^[0-9]+$"},
+        "source_item_id": {"type": "string", "pattern": "^[0-9]+$"},
+        "expected_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "target_frame": {"enum": ["journey", "align"]},
+        "x": {"type": "number"},
+        "y": {"type": "number"},
+        "width": {"type": "number", "exclusiveMinimum": 0}
+      }
+    }
+  }
+}
