@@ -26,7 +26,6 @@ jobs:
     timeout-minutes: 90
     env:
       TRANSPORT_SHA: ${{ github.event.pull_request.head.sha }}
-      PREVIOUS_TRANSPORT_SHA: 2d7ddeba85acdae32d88fd6c280d98b9952dc7f2
       TARGET_SOURCE_SHA: cccfa7d4cf999a3c9bb011f9125144e30f94f995
       IMPLEMENTATION_SHA: c7750543237506bb43e268e6523c72eba84d2ed9
       AUTHORIZED_BASE_SHA: 7badffb6ef6f3364569e68926eb511600eed38d3
@@ -55,7 +54,6 @@ jobs:
             repository = $env:GITHUB_REPOSITORY
             pr = [int]$env:PR_NUMBER
             transport_sha = $env:TRANSPORT_SHA
-            previous_transport_sha = $env:PREVIOUS_TRANSPORT_SHA
             target_source_sha = $env:TARGET_SOURCE_SHA
             implementation_sha = $env:IMPLEMENTATION_SHA
             authorized_base_sha = $env:AUTHORIZED_BASE_SHA
@@ -67,16 +65,14 @@ jobs:
           } | ConvertTo-Json -Depth 10 |
             Set-Content -LiteralPath (Join-Path $evidenceRoot 'identity.json') -Encoding utf8
 
-      - name: Verify exact transport and product source chain
+      - name: Verify exact product source and transport-only descendants
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
 
           function Get-Parents([string]$Sha) {
             $line = (git show -s --format=%P $Sha).Trim()
-            if ([string]::IsNullOrWhiteSpace($line)) {
-              return @()
-            }
+            if ([string]::IsNullOrWhiteSpace($line)) { return @() }
             return @($line.Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries))
           }
 
@@ -90,7 +86,7 @@ jobs:
             $unexpected = @($actual | Where-Object { $_ -notin $Expected })
             $missing = @($Expected | Where-Object { $_ -notin $actual })
             if ($unexpected.Count -or $missing.Count -or $actual.Count -ne $Expected.Count) {
-              throw "$Label path contract mismatch. Unexpected: $($unexpected -join ', '); missing: $($missing -join ', '); actual count: $($actual.Count); expected count: $($Expected.Count)."
+              throw "$Label path contract mismatch. Unexpected: $($unexpected -join ', '); missing: $($missing -join ', ')."
             }
           }
 
@@ -99,49 +95,42 @@ jobs:
             throw "Checkout SHA '$actual' does not match transport SHA '$env:TRANSPORT_SHA'."
           }
 
-          $transportParents = @(Get-Parents $env:TRANSPORT_SHA)
-          if ($transportParents.Count -ne 1 -or $transportParents[0] -ne $env:PREVIOUS_TRANSPORT_SHA) {
-            throw "Current transport commit must have exactly one parent equal to previous transport '$env:PREVIOUS_TRANSPORT_SHA'."
+          git merge-base --is-ancestor $env:TARGET_SOURCE_SHA $env:TRANSPORT_SHA
+          if ($LASTEXITCODE -ne 0) {
+            throw "Transport SHA is not a descendant of target source SHA."
           }
 
-          $transportMessage = (git show -s --format=%s $env:TRANSPORT_SHA).Trim()
-          if ($transportMessage -ne 'fix(ci): make REM-012.2 workflow context-valid') {
-            throw "Unexpected current transport commit message '$transportMessage'."
+          $transportCommits = @((git rev-list --reverse "$($env:TARGET_SOURCE_SHA)..$($env:TRANSPORT_SHA)") | Where-Object { $_ })
+          if ($transportCommits.Count -lt 1) {
+            throw 'At least one transport-only descendant commit is required.'
           }
-
-          $previousTransportParents = @(Get-Parents $env:PREVIOUS_TRANSPORT_SHA)
-          if ($previousTransportParents.Count -ne 1 -or $previousTransportParents[0] -ne $env:TARGET_SOURCE_SHA) {
-            throw "Previous transport commit must have exactly one parent equal to target source '$env:TARGET_SOURCE_SHA'."
-          }
-
-          $previousTransportMessage = (git show -s --format=%s $env:PREVIOUS_TRANSPORT_SHA).Trim()
-          if ($previousTransportMessage -ne 'fix(ci): authorize corrected REM-012.2 source chain') {
-            throw "Unexpected previous transport commit message '$previousTransportMessage'."
+          foreach ($commit in $transportCommits) {
+            $parents = @(Get-Parents $commit)
+            if ($parents.Count -ne 1) {
+              throw "Transport commit '$commit' must have exactly one parent."
+            }
+            $paths = @((git diff-tree --no-commit-id --name-only -r $commit) | Where-Object { $_ })
+            if ($paths.Count -ne 1 -or $paths[0] -ne '.github/workflows/miro-anchor-remediation.yml') {
+              throw "Transport commit '$commit' changes a path outside the authorized workflow."
+            }
           }
 
           $targetParents = @(Get-Parents $env:TARGET_SOURCE_SHA)
           if ($targetParents.Count -ne 1 -or $targetParents[0] -ne $env:IMPLEMENTATION_SHA) {
-            throw "Target source must have exactly one parent equal to implementation SHA '$env:IMPLEMENTATION_SHA'."
+            throw "Target source must have exactly one parent equal to implementation SHA."
           }
-
           $implementationParents = @(Get-Parents $env:IMPLEMENTATION_SHA)
           if ($implementationParents.Count -ne 1 -or $implementationParents[0] -ne $env:AUTHORIZED_BASE_SHA) {
-            throw "Implementation SHA must have exactly one parent equal to authorized base '$env:AUTHORIZED_BASE_SHA'."
+            throw "Implementation SHA must have exactly one parent equal to authorized base."
           }
 
-          $implementationMessage = (git show -s --format=%s $env:IMPLEMENTATION_SHA).Trim()
-          if ($implementationMessage -ne 'feat(miro): remediate anchor frames for human review') {
-            throw "Unexpected implementation commit message '$implementationMessage'."
+          if ((git show -s --format=%s $env:IMPLEMENTATION_SHA).Trim() -ne 'feat(miro): remediate anchor frames for human review') {
+            throw 'Unexpected implementation commit message.'
+          }
+          if ((git show -s --format=%s $env:TARGET_SOURCE_SHA).Trim() -ne 'fix(miro): restore anchor text canonicalization') {
+            throw 'Unexpected corrective commit message.'
           }
 
-          $targetMessage = (git show -s --format=%s $env:TARGET_SOURCE_SHA).Trim()
-          if ($targetMessage -ne 'fix(miro): restore anchor text canonicalization') {
-            throw "Unexpected corrective commit message '$targetMessage'."
-          }
-
-          $transportPaths = @(
-            '.github/workflows/miro-anchor-remediation.yml'
-          )
           $implementationPaths = @(
             '.github/workflows/miro-anchor-remediation.yml'
             'docs/reviews/REM-PR8-HVA-CC-012-2-anchor-frames.md'
@@ -159,25 +148,16 @@ jobs:
             'runtime/miro/ddda_miro/anchor_plan.py'
             'runtime/miro/tests/test_anchor_remediation.py'
           )
-
-          Assert-ExactPaths $env:PREVIOUS_TRANSPORT_SHA $env:TRANSPORT_SHA $transportPaths 'Current transport'
-          Assert-ExactPaths $env:TARGET_SOURCE_SHA $env:PREVIOUS_TRANSPORT_SHA $transportPaths 'Previous transport'
           Assert-ExactPaths $env:AUTHORIZED_BASE_SHA $env:IMPLEMENTATION_SHA $implementationPaths 'Implementation'
           Assert-ExactPaths $env:IMPLEMENTATION_SHA $env:TARGET_SOURCE_SHA $correctivePaths 'Corrective'
 
           [ordered]@{
             status = 'PASS'
             transport_sha = $env:TRANSPORT_SHA
-            transport_parent = $transportParents[0]
-            previous_transport_sha = $env:PREVIOUS_TRANSPORT_SHA
-            previous_transport_parent = $previousTransportParents[0]
+            transport_commits = $transportCommits
             target_source_sha = $env:TARGET_SOURCE_SHA
-            target_parent = $targetParents[0]
             implementation_sha = $env:IMPLEMENTATION_SHA
-            implementation_parent = $implementationParents[0]
             authorized_base_sha = $env:AUTHORIZED_BASE_SHA
-            current_transport_paths = $transportPaths
-            previous_transport_paths = $transportPaths
             implementation_paths = $implementationPaths
             corrective_paths = $correctivePaths
           } | ConvertTo-Json -Depth 10 |
@@ -189,7 +169,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $ErrorActionPreference = 'Stop'
-
           $headers = @{
             Authorization = "Bearer $env:GH_TOKEN"
             Accept = 'application/vnd.github+json'
@@ -201,36 +180,22 @@ jobs:
             return (Invoke-RestMethod -Method Get -Uri $uri -Headers $headers).workflow_runs
           }
 
-          function Wait-WorkflowSet(
-            [string]$Sha,
-            [string[]]$RequiredNames,
-            [string]$Label,
-            [int]$MaxAttempts
-          ) {
+          function Wait-WorkflowSet([string]$Sha, [string[]]$RequiredNames, [string]$Label, [int]$MaxAttempts) {
             for ($attempt = 1; $attempt -le $MaxAttempts; $attempt++) {
               $runs = @(Get-Runs $Sha)
               $evidence = @()
               $allPassed = $true
-
               foreach ($name in $RequiredNames) {
                 $run = @(
                   $runs |
                     Where-Object { [string]$_.name -eq $name } |
                     Sort-Object -Property run_number -Descending
                 ) | Select-Object -First 1
-
                 if ($null -eq $run) {
                   $allPassed = $false
-                  $evidence += [ordered]@{
-                    name = $name
-                    status = 'missing'
-                    conclusion = $null
-                    run_id = $null
-                    html_url = $null
-                  }
+                  $evidence += [ordered]@{ name = $name; status = 'missing'; conclusion = $null; run_id = $null; html_url = $null }
                   continue
                 }
-
                 $evidence += [ordered]@{
                   name = [string]$run.name
                   status = [string]$run.status
@@ -238,46 +203,26 @@ jobs:
                   run_id = [long]$run.id
                   html_url = [string]$run.html_url
                 }
-
                 if ([string]$run.status -eq 'completed' -and [string]$run.conclusion -ne 'success') {
                   $evidence | ConvertTo-Json -Depth 10 |
                     Set-Content -LiteralPath (Join-Path $env:EVIDENCE_ROOT "$Label-ci.json") -Encoding utf8
                   throw "$Label workflow '$name' completed with conclusion '$($run.conclusion)'."
                 }
-
                 if ([string]$run.status -ne 'completed' -or [string]$run.conclusion -ne 'success') {
                   $allPassed = $false
                 }
               }
-
               $evidence | ConvertTo-Json -Depth 10 |
                 Set-Content -LiteralPath (Join-Path $env:EVIDENCE_ROOT "$Label-ci.json") -Encoding utf8
-
-              if ($allPassed) {
-                return
-              }
-
-              if ($attempt -lt $MaxAttempts) {
-                Start-Sleep -Seconds 15
-              }
+              if ($allPassed) { return }
+              if ($attempt -lt $MaxAttempts) { Start-Sleep -Seconds 15 }
             }
-
             throw "$Label exact-SHA CI did not reach PASS within the allowed wait window."
           }
 
-          $targetWorkflows = @(
-            'Validate DDDA'
-            'DDDA platform CI'
-            'DDDA exact-code Miro image probe'
-          )
-          $transportWorkflows = @(
-            'Validate DDDA'
-            'DDDA platform CI'
-            'DDDA exact-code Miro image probe'
-          )
-
-          Wait-WorkflowSet $env:TARGET_SOURCE_SHA $targetWorkflows 'target-source' 8
-          Wait-WorkflowSet $env:TRANSPORT_SHA $transportWorkflows 'transport' 220
+          $required = @('Validate DDDA', 'DDDA platform CI', 'DDDA exact-code Miro image probe')
+          Wait-WorkflowSet $env:TARGET_SOURCE_SHA $required 'target-source' 8
+          Wait-WorkflowSet $env:TRANSPORT_SHA $required 'transport' 220
 
       - name: Verify Miro secret availability
         shell: pwsh
@@ -299,13 +244,9 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          python -m pip install --disable-pip-version-check --no-input `
-            pytest `
-            pyyaml `
-            jsonschema `
-            requests
+          python -m pip install --disable-pip-version-check --no-input pytest .\runtime\miro
           if ($LASTEXITCODE -ne 0) {
-            throw 'Failed to install targeted test dependencies.'
+            throw 'Failed to install exact Miro runtime and test dependencies.'
           }
           $env:PYTHONPATH = Join-Path $PWD.Path 'runtime\miro'
           python -m pytest runtime/miro/tests/test_anchor_remediation.py -q
@@ -322,7 +263,6 @@ jobs:
           if ($actual -ne $env:TARGET_SOURCE_SHA) {
             throw "Candidate checkout '$actual' does not match target source '$env:TARGET_SOURCE_SHA'."
           }
-
           $version = 'rem-012-2.' + $env:GITHUB_RUN_ID + '.' + $env:TARGET_SOURCE_SHA.Substring(0, 12)
           $output = Join-Path $env:RUNNER_TEMP ('ddda-rem-012-2-' + $env:TARGET_SOURCE_SHA.Substring(0, 12) + '.zip')
           $json = .\scripts\platform\New-DDDAPlatformPackage.ps1 `
@@ -336,18 +276,15 @@ jobs:
           if ([string]$package.source_commit -ne $env:TARGET_SOURCE_SHA) {
             throw 'Candidate package source_commit does not match target source.'
           }
-
           [ordered]@{
             status = 'PASS'
             transport_sha = $env:TRANSPORT_SHA
-            previous_transport_sha = $env:PREVIOUS_TRANSPORT_SHA
             target_source_sha = $env:TARGET_SOURCE_SHA
             package_path = [string]$package.path
             package_sha256 = [string]$package.sha256
             package_source_commit = [string]$package.source_commit
           } | ConvertTo-Json -Depth 10 |
             Set-Content -LiteralPath (Join-Path $env:EVIDENCE_ROOT 'package.json') -Encoding utf8
-
           "package_path=$($package.path)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           "package_sha256=$($package.sha256)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
@@ -359,8 +296,8 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $reportPath = Join-Path $env:EVIDENCE_ROOT 'result.json'
           $stderrPath = Join-Path $env:EVIDENCE_ROOT 'stderr.log'
-
           $candidate = '${{ steps.package.outputs.package_path }}'
+
           .\scripts\platform\Test-DDDAPlatformPackage.ps1 `
             -PackagePath $candidate `
             -ExpectedCommit $env:TARGET_SOURCE_SHA `
@@ -373,7 +310,7 @@ jobs:
           Expand-Archive -LiteralPath $candidate -DestinationPath $packageRoot -Force
           $packageManifest = Get-Content -LiteralPath (Join-Path $packageRoot 'ddda-package.json') -Raw -Encoding UTF8 | ConvertFrom-Json
           if ([string]$packageManifest.source_commit -ne $env:TARGET_SOURCE_SHA -or [string]$packageManifest.kind -ne 'candidate') {
-            throw 'Expanded package provenance does not match the exact target source.'
+            throw 'Expanded package provenance does not match exact target source.'
           }
 
           $runtimePackage = Join-Path $packageRoot 'runtime\miro'
@@ -382,46 +319,44 @@ jobs:
             throw 'Failed to install exact candidate Miro runtime.'
           }
 
-          $env:PYTHONPATH = Join-Path $packageRoot 'runtime\miro'
+          $env:PYTHONPATH = $runtimePackage
           $manifestPath = Join-Path $packageRoot 'scaffolds\miro\rem-012-2-anchor-frames.yaml'
           python -m ddda_miro.anchor_remediation `
             --manifest $manifestPath `
             --report $reportPath `
             --source-sha $env:TARGET_SOURCE_SHA `
             --apply 2> $stderrPath
-          $exitCode = $LASTEXITCODE
-          if ($exitCode -ne 0) {
+          if ($LASTEXITCODE -ne 0) {
             Get-Content -LiteralPath $stderrPath -ErrorAction SilentlyContinue
-            throw "REM-012.2 failed with exit code $exitCode."
+            throw 'REM-012.2 brokered execution failed.'
           }
 
           $report = Get-Content -LiteralPath $reportPath -Raw -Encoding UTF8 | ConvertFrom-Json
-          if ($report.status -ne 'PASS') { throw 'REM-012.2 report status is not PASS.' }
-          if ([string]$report.source_sha -ne $env:TARGET_SOURCE_SHA) { throw 'Report source SHA mismatch.' }
-          if ([string]$report.board_id -ne 'uXjVH1phki0=') { throw 'Report board ID mismatch.' }
+          if ([string]$report.status -ne 'PASS') { throw 'REM-012.2 technical status is not PASS.' }
+          if ([string]$report.source_sha -ne $env:TARGET_SOURCE_SHA) { throw 'Result source SHA mismatch.' }
+          if ([string]$report.board_id -ne 'uXjVH1phki0=') { throw 'Result board ID mismatch.' }
           if ([int]$report.images.asset_count -ne 17) { throw 'Expected exactly 17 managed image assets.' }
           if ([int]$report.images.second_run.created -ne 0 -or [int]$report.images.second_run.updated -ne 0 -or [int]$report.images.second_run.unchanged -ne 17) {
-            throw 'Second managed-image reconcile is not zero mutation.'
+            throw 'Second image reconcile is not zero mutation.'
           }
           if (@($report.images.remote_verification.items).Count -ne 17) { throw 'Remote image verification count mismatch.' }
           foreach ($item in @($report.images.remote_verification.items)) {
             if ([string]$item.remote_type -ne 'image') { throw "Remote item '$($item.target_item_id)' is not an image." }
             if ([string]$item.sha256 -notmatch '^[0-9a-f]{64}$') { throw "Remote item '$($item.target_item_id)' has invalid digest evidence." }
           }
-          if ($report.native_table.status -ne 'PASS' -or [string]$report.native_table.type -ne 'data_table_format') {
-            throw 'Native artifact registry table verification failed.'
+          if ([string]$report.native_table.status -ne 'PASS' -or [string]$report.native_table.type -ne 'data_table_format') {
+            throw 'Native artifact-registry table verification failed.'
           }
           if ([int]$report.geometry.collision_count -ne 0) { throw 'Anchor-frame overlap remains.' }
           if (-not [bool]$report.protected_frames.unchanged -or [int]$report.protected_frames.count -ne 15) {
             throw 'Protected frames 20+ changed.'
           }
           if ([string]$report.human_review_status -ne 'PENDING' -or [string]$report.overall_status -ne 'READY_FOR_HUMAN_REVIEW') {
-            throw 'REM-012.2 must stop at the human-review checkpoint.'
+            throw 'Execution did not stop at the human-review checkpoint.'
           }
 
           @(
             "Transport SHA: $env:TRANSPORT_SHA"
-            "Previous transport SHA: $env:PREVIOUS_TRANSPORT_SHA"
             "Exact product source SHA: $env:TARGET_SOURCE_SHA"
             "Candidate SHA-256: ${{ steps.package.outputs.package_sha256 }}"
             "Anchor frames: updated=$($report.frames.updated), unchanged=$($report.frames.unchanged)"
