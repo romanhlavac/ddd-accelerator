@@ -72,7 +72,18 @@ def test_canonical_documents_publish_same_execution_contract() -> None:
 
 
 def test_legacy_cursor_runtime_bootstrap_is_not_distributed() -> None:
-    assert not (REPOSITORY_ROOT / ".cursor").exists()
+    cursor_root = REPOSITORY_ROOT / ".cursor"
+    residual_files = (
+        sorted(
+            path.relative_to(REPOSITORY_ROOT).as_posix()
+            for path in cursor_root.rglob("*")
+            if path.is_file()
+        )
+        if cursor_root.exists()
+        else []
+    )
+
+    assert residual_files == [], residual_files
 
 
 def test_remote_broker_forbids_unsafe_operations() -> None:
