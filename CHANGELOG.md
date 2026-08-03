@@ -28,11 +28,15 @@ Změny pro další verzi se během vývoje zapisují sem. Před promotion se vš
 - GitHub REST promotion klient s autentizací přes `GH_TOKEN`, `GITHUB_TOKEN`, `gh auth token` nebo existující Git credential helper, bez povinné instalace GitHub CLI;
 - deterministický changelog release cut a promotion preflight ověřující shodu `-Version`, changelog verze a tagu `vX.Y.Z`;
 - kanonický `knowledge/ddda-platform-development-skill.md` s povinnými pravidly pro platformní vývoj, transakční remediation workflow, exact-SHA validaci a oddělení technického a lidského rozhodování;
-- kanonický Chat/Work-only operating model, ADR 0005 a CI contract test zakazující Codex a legacy `/agent`.
+- kanonický dvourovinný operating model: Chat/Work pro vývoj platformy a Cursor jako povinný agentic runtime konkrétního DDDA projektu;
+- aktivní Cursor runtime assets `.cursor/rules/*.mdc` a `.cursor/skills.md` s project-only a no-platform-write guardrails;
+- CI contract test oddělující platform-development policy od Cursor project runtime policy.
 
 ### Changed
 
-- vývoj DDDA v ChatGPT používá pouze Chat a Work; GitHub Actions je autoritativní execution plane pro shell, build, testy, candidate package a package-first acceptance, secrets zůstávají mimo Chat/Work runtime a Work zapisuje pouze na explicitní PR branch;
+- vývoj DDDA platformy používá pouze Chat a Work; GitHub Actions je autoritativní execution plane pro shell, build, testy, candidate package a package-first acceptance, secrets zůstávají mimo Chat/Work runtime a Work zapisuje pouze na explicitní platformní PR branch;
+- vlastní práce architekta v konkrétním DDDA projektu probíhá v Cursoru, který poskytuje chat, agentic práci s projektovými soubory, artefakty a kódem; Cursor nesmí měnit DDDA platform repository;
+- platformní defect nebo obecný enhancement nalezený při projektové práci se předává jako change request do Chat/Work platform-development flow;
 - Miro visual acceptance vyžaduje skutečné načtení referenčních a cílových framů, side-by-side porovnání, obrázky, fonty, geometrii, překryvy, využití plochy a first-viewer usability; strukturální PASS zůstává oddělen od human review;
 - corrective remediation `REM-PR8-HVA-CC-011`: syntetický claims scénář používá jednotný business problém a ubiquitous language; všechny povinné DDD Starter vazby míří na exact `moveToWidget` frame, G7 overview odpovídá Bounded Context Canvasu a odkazy označené jako kuchařka míří výhradně pod `docs/cookbooks/`;
 - corrective remediation `REM-PR8-HVA-CC-010`: frame `01` vlastní nejméně 61 navigovatelných child items a zobrazuje exact redline/DDD Starter traceability; workshopové vzory citují konkrétní source frames a rozpoznatelně adaptují Business Model Canvas, EventStorming, Process Modelling, Strategic Classification, Context Map, Bounded Context Canvas a Domain Message Flow;
@@ -53,6 +57,7 @@ Změny pro další verzi se během vývoje zapisují sem. Před promotion se vš
 
 ### Fixed
 
+- opravena chybná plošná interpretace „Chat/Work-only“, která dočasně deaktivovala Cursor i pro vlastní DDDA project runtime; zákaz Cursoru nyní platí pouze pro vývoj platformy;
 - candidate-package validation sanitizuje ambientní `PYTHONPATH`, `PYTHONHOME` a DDDA root proměnné před spuštěním child procesů;
 - Miro CLI běží v Python isolated mode a před prvním vzdáleným zápisem ověřuje skutečně importovaný modul, jeho SHA-256 a render contract;
 - GitHub Actions remote-execution broker umožňuje oprávněnému actorovi spouštět exact-SHA validation/acceptance bez předání Miro tokenu do ChatGPT runtime;
@@ -82,6 +87,7 @@ Změny pro další verzi se během vývoje zapisují sem. Před promotion se vš
 ### Compatibility
 
 - změna zachovává kanonický tok `Align → Discover → Decompose → Strategize → Connect → Organize → Define → Code` a gaty G1–G8;
+- Cursor zůstává základním project runtime a existující Cursor-oriented pracovní postupy nejsou považovány za platformní development;
 - existující workspace a projektové repozitáře nevyžadují automatickou migraci;
 - starší `passed` záznam bez strukturované human provenance není považován za platné schválení a dotčená gate vyžaduje nové lidské review;
 - existující specializované PowerShell skripty zůstávají compatibility entry points.
