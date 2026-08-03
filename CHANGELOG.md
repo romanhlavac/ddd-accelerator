@@ -27,10 +27,13 @@ Změny pro další verzi se během vývoje zapisují sem. Před promotion se vš
 - GitHub Actions CI, které na přesném source SHA provádí source-level i package-first validaci a publikuje krátkodobý candidate package jako build artifact;
 - GitHub REST promotion klient s autentizací přes `GH_TOKEN`, `GITHUB_TOKEN`, `gh auth token` nebo existující Git credential helper, bez povinné instalace GitHub CLI;
 - deterministický changelog release cut a promotion preflight ověřující shodu `-Version`, changelog verze a tagu `vX.Y.Z`;
-- kanonický `knowledge/ddda-platform-development-skill.md` s povinnými pravidly pro platformní vývoj, transakční remediation workflow, exact-SHA validaci a oddělení technického a lidského rozhodování.
+- kanonický `knowledge/ddda-platform-development-skill.md` s povinnými pravidly pro platformní vývoj, transakční remediation workflow, exact-SHA validaci a oddělení technického a lidského rozhodování;
+- kanonický Chat/Work-only operating model, ADR 0005 a CI contract test zakazující Codex a legacy `/agent`.
 
 ### Changed
 
+- vývoj DDDA v ChatGPT používá pouze Chat a Work; GitHub Actions je autoritativní execution plane pro shell, build, testy, candidate package a package-first acceptance, secrets zůstávají mimo Chat/Work runtime a Work zapisuje pouze na explicitní PR branch;
+- Miro visual acceptance vyžaduje skutečné načtení referenčních a cílových framů, side-by-side porovnání, obrázky, fonty, geometrii, překryvy, využití plochy a first-viewer usability; strukturální PASS zůstává oddělen od human review;
 - corrective remediation `REM-PR8-HVA-CC-011`: syntetický claims scénář používá jednotný business problém a ubiquitous language; všechny povinné DDD Starter vazby míří na exact `moveToWidget` frame, G7 overview odpovídá Bounded Context Canvasu a odkazy označené jako kuchařka míří výhradně pod `docs/cookbooks/`;
 - corrective remediation `REM-PR8-HVA-CC-010`: frame `01` vlastní nejméně 61 navigovatelných child items a zobrazuje exact redline/DDD Starter traceability; workshopové vzory citují konkrétní source frames a rozpoznatelně adaptují Business Model Canvas, EventStorming, Process Modelling, Strategic Classification, Context Map, Bounded Context Canvas a Domain Message Flow;
 - Miro scaffold schema `2.5`, remote acceptance a content digest kontrolují parent vazby frame `01`, nejméně 280 remote items a nejméně 11 viditelných DDD Starter source captions; HUMAN REVIEW zůstává `PENDING`;
@@ -46,7 +49,7 @@ Změny pro další verzi se během vývoje zapisují sem. Před promotion se vš
 - povinné managed steering artefakty mají explicitní `control-center` placement a stabilní souřadnice;
 - `conditional` a `rejected` nejsou completed gates; `conditional` vyžaduje ownera a termín podmínek;
 - veškerá release dokumentace používá stejný GitHub auth kontrakt a stejné pořadí providerů jako implementace;
-- knowledge index a developer lifecycle vyžadují explicitní runtime registraci platform-development skillu v knowledge routingu nebo Project/Agent Instructions; samotná existence souboru v Gitu není považována za aktivaci instrukcí.
+- knowledge index a developer lifecycle vyžadují explicitní runtime registraci platform-development skillu v knowledge routingu nebo Project/Work Instructions; samotná existence souboru v Gitu není považována za aktivaci instrukcí.
 
 ### Fixed
 
