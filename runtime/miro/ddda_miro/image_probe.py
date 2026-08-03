@@ -69,7 +69,17 @@ def _verify_remote_images(
         if remote_parent != expected_parent:
             raise ValueError(f"remote target parent mismatch for {asset_id}")
         if remote_title != expected_title:
-            raise ValueError(f"remote semantic title/digest mismatch for {asset_id}")
+            observed = {
+                "top_level_title": remote.get("title"),
+                "data": remote.get("data"),
+                "parent": remote.get("parent"),
+                "position": remote.get("position"),
+                "geometry": remote.get("geometry"),
+            }
+            raise ValueError(
+                f"remote semantic title/digest mismatch for {asset_id}: "
+                f"expected={expected_title!r}, observed={json.dumps(observed, ensure_ascii=False, sort_keys=True)}"
+            )
         if (
             str(evidence["source_board_id"]) != str(source["board_id"])
             or str(evidence["source_frame_id"]) != str(source["frame_id"])
