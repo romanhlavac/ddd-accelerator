@@ -26,11 +26,11 @@ jobs:
     timeout-minutes: 90
     env:
       TRANSPORT_SHA: ${{ github.event.pull_request.head.sha }}
+      PREVIOUS_TRANSPORT_SHA: 2d7ddeba85acdae32d88fd6c280d98b9952dc7f2
       TARGET_SOURCE_SHA: cccfa7d4cf999a3c9bb011f9125144e30f94f995
       IMPLEMENTATION_SHA: c7750543237506bb43e268e6523c72eba84d2ed9
       AUTHORIZED_BASE_SHA: 7badffb6ef6f3364569e68926eb511600eed38d3
       PR_NUMBER: ${{ github.event.pull_request.number }}
-      EVIDENCE_ROOT: ${{ runner.temp }}/rem-012-2-anchor-remediation
 
     steps:
       - name: Checkout exact transport commit
@@ -48,11 +48,14 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          New-Item -ItemType Directory -Path $env:EVIDENCE_ROOT -Force | Out-Null
+          $evidenceRoot = Join-Path $env:RUNNER_TEMP 'rem-012-2-anchor-remediation'
+          New-Item -ItemType Directory -Path $evidenceRoot -Force | Out-Null
+          "EVIDENCE_ROOT=$evidenceRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           [ordered]@{
             repository = $env:GITHUB_REPOSITORY
             pr = [int]$env:PR_NUMBER
             transport_sha = $env:TRANSPORT_SHA
+            previous_transport_sha = $env:PREVIOUS_TRANSPORT_SHA
             target_source_sha = $env:TARGET_SOURCE_SHA
             implementation_sha = $env:IMPLEMENTATION_SHA
             authorized_base_sha = $env:AUTHORIZED_BASE_SHA
@@ -62,7 +65,7 @@ jobs:
             release_allowed = $false
             human_review_status = 'PENDING'
           } | ConvertTo-Json -Depth 10 |
-            Set-Content -LiteralPath (Join-Path $env:EVIDENCE_ROOT 'identity.json') -Encoding utf8
+            Set-Content -LiteralPath (Join-Path $evidenceRoot 'identity.json') -Encoding utf8
 
       - name: Verify exact transport and product source chain
         shell: pwsh
@@ -97,13 +100,23 @@ jobs:
           }
 
           $transportParents = @(Get-Parents $env:TRANSPORT_SHA)
-          if ($transportParents.Count -ne 1 -or $transportParents[0] -ne $env:TARGET_SOURCE_SHA) {
-            throw "Transport commit must have exactly one parent equal to target source '$env:TARGET_SOURCE_SHA'."
+          if ($transportParents.Count -ne 1 -or $transportParents[0] -ne $env:PREVIOUS_TRANSPORT_SHA) {
+            throw "Current transport commit must have exactly one parent equal to previous transport '$env:PREVIOUS_TRANSPORT_SHA'."
           }
 
           $transportMessage = (git show -s --format=%s $env:TRANSPORT_SHA).Trim()
-          if ($transportMessage -ne 'fix(ci): authorize corrected REM-012.2 source chain') {
-            throw "Unexpected transport commit message '$transportMessage'."
+          if ($transportMessage -ne 'fix(ci): make REM-012.2 workflow context-valid') {
+            throw "Unexpected current transport commit message '$transportMessage'."
+          }
+
+          $previousTransportParents = @(Get-Parents $env:PREVIOUS_TRANSPORT_SHA)
+          if ($previousTransportParents.Count -ne 1 -or $previousTransportParents[0] -ne $env:TARGET_SOURCE_SHA) {
+            throw "Previous transport commit must have exactly one parent equal to target source '$env:TARGET_SOURCE_SHA'."
+          }
+
+          $previousTransportMessage = (git show -s --format=%s $env:PREVIOUS_TRANSPORT_SHA).Trim()
+          if ($previousTransportMessage -ne 'fix(ci): authorize corrected REM-012.2 source chain') {
+            throw "Unexpected previous transport commit message '$previousTransportMessage'."
           }
 
           $targetParents = @(Get-Parents $env:TARGET_SOURCE_SHA)
@@ -147,7 +160,8 @@ jobs:
             'runtime/miro/tests/test_anchor_remediation.py'
           )
 
-          Assert-ExactPaths $env:TARGET_SOURCE_SHA $env:TRANSPORT_SHA $transportPaths 'Transport'
+          Assert-ExactPaths $env:PREVIOUS_TRANSPORT_SHA $env:TRANSPORT_SHA $transportPaths 'Current transport'
+          Assert-ExactPaths $env:TARGET_SOURCE_SHA $env:PREVIOUS_TRANSPORT_SHA $transportPaths 'Previous transport'
           Assert-ExactPaths $env:AUTHORIZED_BASE_SHA $env:IMPLEMENTATION_SHA $implementationPaths 'Implementation'
           Assert-ExactPaths $env:IMPLEMENTATION_SHA $env:TARGET_SOURCE_SHA $correctivePaths 'Corrective'
 
@@ -155,12 +169,15 @@ jobs:
             status = 'PASS'
             transport_sha = $env:TRANSPORT_SHA
             transport_parent = $transportParents[0]
+            previous_transport_sha = $env:PREVIOUS_TRANSPORT_SHA
+            previous_transport_parent = $previousTransportParents[0]
             target_source_sha = $env:TARGET_SOURCE_SHA
             target_parent = $targetParents[0]
             implementation_sha = $env:IMPLEMENTATION_SHA
             implementation_parent = $implementationParents[0]
             authorized_base_sha = $env:AUTHORIZED_BASE_SHA
-            transport_paths = $transportPaths
+            current_transport_paths = $transportPaths
+            previous_transport_paths = $transportPaths
             implementation_paths = $implementationPaths
             corrective_paths = $correctivePaths
           } | ConvertTo-Json -Depth 10 |
@@ -323,6 +340,7 @@ jobs:
           [ordered]@{
             status = 'PASS'
             transport_sha = $env:TRANSPORT_SHA
+            previous_transport_sha = $env:PREVIOUS_TRANSPORT_SHA
             target_source_sha = $env:TARGET_SOURCE_SHA
             package_path = [string]$package.path
             package_sha256 = [string]$package.sha256
@@ -403,6 +421,7 @@ jobs:
 
           @(
             "Transport SHA: $env:TRANSPORT_SHA"
+            "Previous transport SHA: $env:PREVIOUS_TRANSPORT_SHA"
             "Exact product source SHA: $env:TARGET_SOURCE_SHA"
             "Candidate SHA-256: ${{ steps.package.outputs.package_sha256 }}"
             "Anchor frames: updated=$($report.frames.updated), unchanged=$($report.frames.unchanged)"
@@ -416,6 +435,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: rem-012-2-anchor-remediation-${{ env.PR_NUMBER }}-${{ env.TARGET_SOURCE_SHA }}
-          path: ${{ env.EVIDENCE_ROOT }}/**
+          path: ${{ runner.temp }}/rem-012-2-anchor-remediation/**
           if-no-files-found: error
           retention-days: 30
