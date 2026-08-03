@@ -12,7 +12,8 @@
     ],
     "forbidden": [
       "codex",
-      "agent"
+      "agent",
+      "cursor"
     ],
     "default_mode": "chat",
     "implementation_mode": "work",
