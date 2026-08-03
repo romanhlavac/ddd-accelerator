@@ -48,10 +48,23 @@ def test_upload_image_resource_uses_official_multipart_file_contract(monkeypatch
     assert b'name="data"' in body
     assert b"application/json; charset=utf-8" in body
     assert b'"title":"Managed image"' in body
+    assert b'{"data":' not in body
     assert b'"url"' not in body
     assert b'name="resource"; filename="managed-image.png"' in body
     assert b"Content-Type: image/png" in body
     assert b"png-bytes" in body
+
+
+def test_upload_image_resource_rejects_unmapped_nested_image_data_fields(monkeypatch):
+    monkeypatch.setattr("urllib.request.urlopen", lambda *args, **kwargs: pytest.fail("network must not be called"))
+    with pytest.raises(ValueError, match="Unsupported Miro multipart image data fields"):
+        upload_image_resource(
+            MiroClient("token"),
+            "board-1",
+            {"data": {"title": "x", "altText": "not-supported"}},
+            b"x",
+            "image/png",
+        )
 
 
 def test_upload_image_resource_rejects_unsupported_type_before_network(monkeypatch):

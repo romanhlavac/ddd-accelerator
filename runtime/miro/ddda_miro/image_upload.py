@@ -50,9 +50,13 @@ def upload_image_resource(
         raise ValueError(f"Unsupported Miro image content type: {content_type!r}")
 
     data = deepcopy(prepared_payload)
-    image_data = dict(data.get("data") or {})
+    image_data = dict(data.pop("data", {}) or {})
     image_data.pop("url", None)
-    data["data"] = image_data
+    title = str(image_data.pop("title", "") or "")
+    if image_data:
+        raise ValueError(f"Unsupported Miro multipart image data fields: {sorted(image_data)}")
+    if title:
+        data["title"] = title
 
     boundary = f"ddda-miro-{uuid.uuid4().hex}"
     filename = f"managed-image{_SUFFIX_BY_TYPE[normalized_type]}"
