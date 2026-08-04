@@ -24,8 +24,8 @@ jobs:
     timeout-minutes: 120
     env:
       TRANSPORT_SHA: ${{ github.event.pull_request.head.sha }}
-      TARGET_SOURCE_SHA: a520137b005e401be120d2a7932f84d2efc7f4de
-      AUTHORIZED_PREDECESSOR_SHA: d74fa081efdc3b406e709255157fcc17d81e6ee9
+      TARGET_SOURCE_SHA: 94b1923213cb5b0208e6867a0a97bf518321968f
+      AUTHORIZED_PREDECESSOR_SHA: 13c52fc7eb04f9d92608de41db96a07f02bfafec
       GH_TOKEN: ${{ github.token }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
 
@@ -83,7 +83,7 @@ jobs:
               raise SystemExit('transport parent is not the exact corrective product source')
           if git('rev-parse', f'{target}^') != predecessor:
               raise SystemExit('corrective product parent mismatch')
-          if git('show', '-s', '--format=%s', target) != 'fix(miro): replace incompatible instruction text update':
+          if git('show', '-s', '--format=%s', target) != 'fix(miro): replace non-resizable managed sticky notes':
               raise SystemExit('corrective product message mismatch')
           product_paths = sorted(filter(None, git('diff-tree', '--no-commit-id', '--name-only', '-r', target).splitlines()))
           expected_product_paths = sorted([
@@ -92,7 +92,7 @@ jobs:
           ])
           if product_paths != expected_product_paths:
               raise SystemExit(f'corrective product allowlist mismatch: {product_paths}')
-          if git('show', '-s', '--format=%s', transport) != 'fix(ci): authorize REM-012.3 text replacement retry':
+          if git('show', '-s', '--format=%s', transport) != 'fix(ci): authorize REM-012.3 sticky replacement retry':
               raise SystemExit('transport message mismatch')
           transport_paths = filter(None, git('diff-tree', '--no-commit-id', '--name-only', '-r', transport).splitlines())
           if list(transport_paths) != [workflow]:
