@@ -12,7 +12,7 @@ artifact_registry:
   content: '<p><strong>ARTIFACT HEALTH</strong> · 3 managed artifacts</p><p>SCAFFOLD: 1 · WORKING: 2 · ATTENTION: 1</p><p><strong>ATTENTION</strong> · Human visual review of frames 00, 01 and 10 is pending. No gate is approved by this projection.</p><p><a href="https://github.com/romanhlavac/ddd-accelerator/blob/feat/project-steering-and-documentation/docs/artifacts/index.md">OPEN FULL GITHUB ARTIFACT REGISTRY →</a></p><p>Git/YAML is source of truth · GitHub Markdown is a read-only projection.</p>'
   markdown_path: docs/artifacts/index.md
   github_url: https://github.com/romanhlavac/ddd-accelerator/blob/feat/project-steering-and-documentation/docs/artifacts/index.md
-  markdown_sha256: 1038635b54d5a6a2f015ba0f9b3920038a56fe15ab29fbbd1efaf8c1128fd62c
+  markdown_sha256: 20c02db2f3efbf4376e85571193b59d7b56918392ba5558e925418b562e0b3e3
   source_of_truth_text: Git/YAML is source of truth
   expected_artifact_ids:
     - project-charter
