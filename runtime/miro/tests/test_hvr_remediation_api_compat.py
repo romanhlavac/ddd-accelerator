@@ -3,6 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 
 from ddda_miro.hvr_remediation_api_compat import (
+    ALIGN_ONBOARDING_NATIVE_COUNT,
+    ALIGN_ONBOARDING_PINNED_IMAGE_ID,
+    ALIGN_ONBOARDING_PINNED_SOURCE_ITEM_ID,
     REPLACED_ITEM_TYPES,
     REPLACED_STICKY_ITEM_TOKENS,
     REPLACED_TEXT_ITEM_ID,
@@ -26,6 +29,20 @@ def test_compat_contract_replaces_only_known_incompatible_items():
         assert updates[item_id]["type"] == item_type
         assert updates[item_id]["replace_by_create"] is True
         assert manifest["cleanup_ids"].count(item_id) == 1
+
+
+def test_effective_onboarding_contract_is_seven_native_plus_one_pinned_image():
+    manifest = _compat_load(MANIFEST)
+    clones = {str(item["name"]): item for item in manifest["native_clones"]}
+    assert int(clones["align-onboarding"]["expected_supported_count"]) == ALIGN_ONBOARDING_NATIVE_COUNT == 7
+    assert int(clones["filled-bmc-example"]["expected_supported_count"]) == 121
+    assert sum(int(item["expected_supported_count"]) for item in manifest["native_clones"]) == 128
+
+    images = {str(item["id"]): item for item in manifest["images"]["assets"]}
+    pinned = images[ALIGN_ONBOARDING_PINNED_IMAGE_ID]
+    assert pinned["source_item_id"] == ALIGN_ONBOARDING_PINNED_SOURCE_ITEM_ID
+    assert pinned["source_frame_id"] == clones["align-onboarding"]["source_frame_id"]
+    assert pinned["target_frame"] == "align"
 
 
 def test_text_replacement_payload_is_readable_and_frame_scoped():

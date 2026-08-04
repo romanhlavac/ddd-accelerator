@@ -17,7 +17,7 @@ The prior technical evidence remained valid for lineage, image provenance, idemp
 
 ## Target
 
-Frame `00` explains project purpose, current decision, decision owner, next action, ATTENTION, and explicit blockers. Frame `01` contains readable phase references and the gate-state legend. Frame `10` deterministically clones the eight supported onboarding items from source frame `3458764567890733009` and all 121 supported native items from filled-example frame `3458764567890733010`.
+Frame `00` explains project purpose, current decision, decision owner, next action, ATTENTION, and explicit blockers. Frame `01` contains readable phase references and the gate-state legend. Frame `10` deterministically transfers eight onboarding reference elements from source frame `3458764567890733009`: seven supported native items plus the separately pinned `align-bmc` image from source item `3458764567890733049`. It also clones all 121 supported native items from filled-example frame `3458764567890733010`.
 
 Project registry data are stored under:
 

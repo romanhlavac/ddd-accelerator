@@ -1,14 +1,19 @@
 from __future__ import annotations
 
-"""Compatibility entry point for deterministic Miro item update defects.
+"""Compatibility entry point for deterministic Miro item and source-contract defects.
 
 Miro currently returns HTTP 500 when fontSize is changed on the existing
 Control Center instruction text item. It also accepts width updates for
 existing sticky notes but keeps their original width on read-back. Creating
-replacement items with the intended REST representation succeeds. This module
-keeps the REM-012.3 product contract unchanged while replacing only those
-known incompatible items through create/verify/cleanup semantics. The original
-implementation remains the canonical broker.
+replacement items with the intended REST representation succeeds.
+
+The source onboarding frame contains seven supported native child items and
+four images. One of those images is already transported independently as the
+pinned ``align-bmc`` asset. The original REM-012.3 manifest counted that image
+as an eighth native item. This module validates the exact source identity and
+normalizes the effective native-clone contract to seven items.
+
+The original implementation remains the canonical broker.
 """
 
 from copy import deepcopy
@@ -29,6 +34,9 @@ REPLACED_ITEM_TYPES = {
     REPLACED_TEXT_ITEM_ID: "text",
     **{item_id: "sticky_note" for item_id in REPLACED_STICKY_ITEM_TOKENS},
 }
+ALIGN_ONBOARDING_NATIVE_COUNT = 7
+ALIGN_ONBOARDING_PINNED_IMAGE_ID = "align-bmc"
+ALIGN_ONBOARDING_PINNED_SOURCE_ITEM_ID = "3458764567890733049"
 REPLACEMENT_STYLE = {
     "fillColor": "#ffffff",
     "fillOpacity": "0.0",
@@ -58,6 +66,28 @@ def _compat_load(path: Path) -> dict[str, Any]:
         if item_id not in cleanup:
             cleanup.append(item_id)
     manifest["cleanup_ids"] = cleanup
+
+    clones = {str(item.get("name") or ""): item for item in manifest["native_clones"]}
+    align_clone = clones.get("align-onboarding")
+    if not isinstance(align_clone, dict):
+        raise ValueError("REM-012.3 align-onboarding clone is missing")
+    declared_count = int(align_clone.get("expected_supported_count") or 0)
+    if declared_count not in {ALIGN_ONBOARDING_NATIVE_COUNT, ALIGN_ONBOARDING_NATIVE_COUNT + 1}:
+        raise ValueError(f"unexpected align-onboarding declared count: {declared_count}")
+    align_clone["expected_supported_count"] = ALIGN_ONBOARDING_NATIVE_COUNT
+
+    images = {
+        str(item.get("id") or ""): item
+        for item in (manifest.get("images") or {}).get("assets") or []
+    }
+    pinned = images.get(ALIGN_ONBOARDING_PINNED_IMAGE_ID)
+    if (
+        not isinstance(pinned, dict)
+        or str(pinned.get("source_item_id") or "") != ALIGN_ONBOARDING_PINNED_SOURCE_ITEM_ID
+        or str(pinned.get("source_frame_id") or "") != str(align_clone.get("source_frame_id") or "")
+        or str(pinned.get("target_frame") or "") != "align"
+    ):
+        raise ValueError("REM-012.3 align onboarding pinned-image identity mismatch")
     return manifest
 
 
