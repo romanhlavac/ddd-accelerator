@@ -1,12 +1,14 @@
 from __future__ import annotations
 
-"""Compatibility entry point for a deterministic Miro text-item update defect.
+"""Compatibility entry point for deterministic Miro item update defects.
 
 Miro currently returns HTTP 500 when fontSize is changed on the existing
-Control Center instruction text item. Creating an equivalent text item with the
-same REST representation succeeds. This module keeps the REM-012.3 product
-contract unchanged while replacing only that one item through create/verify/
-cleanup semantics. The original implementation remains the canonical broker.
+Control Center instruction text item. It also accepts width updates for
+existing sticky notes but keeps their original width on read-back. Creating
+replacement items with the intended REST representation succeeds. This module
+keeps the REM-012.3 product contract unchanged while replacing only those
+known incompatible items through create/verify/cleanup semantics. The original
+implementation remains the canonical broker.
 """
 
 from copy import deepcopy
@@ -14,10 +16,19 @@ from pathlib import Path
 from typing import Any
 
 from . import hvr_remediation as base
-from .anchor_contract import _get_item, _seg
+from .anchor_contract import _close, _get_item, _seg, canonical_miro_text
 from .client import MiroApiError
 
 REPLACED_TEXT_ITEM_ID = "3458764679756505810"
+REPLACED_STICKY_ITEM_TOKENS = {
+    "3458764679756548469": "acceptance-claims-modernization.project-charter",
+    "3458764679756548472": "ddda.current-status",
+    "3458764679756548475": "ddda.next-actions",
+}
+REPLACED_ITEM_TYPES = {
+    REPLACED_TEXT_ITEM_ID: "text",
+    **{item_id: "sticky_note" for item_id in REPLACED_STICKY_ITEM_TOKENS},
+}
 REPLACEMENT_STYLE = {
     "fillColor": "#ffffff",
     "fillOpacity": "0.0",
@@ -34,31 +45,72 @@ _ORIGINAL_ROLLBACK = base._rollback
 
 def _compat_load(path: Path) -> dict[str, Any]:
     manifest = _ORIGINAL_LOAD(path)
-    matches = [item for item in manifest["updates"] if str(item.get("id") or "") == REPLACED_TEXT_ITEM_ID]
-    if len(matches) != 1 or str(matches[0].get("type") or "") != "text":
+    updates = {str(item.get("id") or ""): item for item in manifest["updates"]}
+    if set(REPLACED_ITEM_TYPES) - set(updates):
         raise ValueError("REM-012.3 compatibility replacement identity mismatch")
-    matches[0]["replace_by_create"] = True
+    for item_id, item_type in REPLACED_ITEM_TYPES.items():
+        update = updates[item_id]
+        if str(update.get("type") or "") != item_type:
+            raise ValueError(f"REM-012.3 replacement type mismatch for {item_id}")
+        update["replace_by_create"] = True
     cleanup = [str(item) for item in manifest.get("cleanup_ids") or []]
-    if REPLACED_TEXT_ITEM_ID not in cleanup:
-        cleanup.append(REPLACED_TEXT_ITEM_ID)
+    for item_id in REPLACED_ITEM_TYPES:
+        if item_id not in cleanup:
+            cleanup.append(item_id)
     manifest["cleanup_ids"] = cleanup
     return manifest
 
 
-def _replacement_payload(target_frame_id: str, update: dict[str, Any]) -> dict[str, Any]:
-    style = deepcopy(REPLACEMENT_STYLE)
-    style["fontSize"] = int(update["font_size"])
-    return {
-        "data": {"content": str(update["content"])},
-        "style": style,
-        "geometry": {"width": float(update["width"])},
-        "position": {
-            "x": float(update["x"]),
-            "y": float(update["y"]),
-            "origin": "center",
-        },
-        "parent": {"id": str(target_frame_id)},
+def _replacement_payload(
+    target_frame_id: str,
+    update: dict[str, Any],
+    original: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    item_type = str(update["type"])
+    if item_type == "text":
+        style = deepcopy(REPLACEMENT_STYLE)
+        style["fontSize"] = int(update["font_size"])
+        return {
+            "data": {"content": str(update["content"])},
+            "style": style,
+            "geometry": {"width": float(update["width"])},
+            "position": {
+                "x": float(update["x"]),
+                "y": float(update["y"]),
+                "origin": "center",
+            },
+            "parent": {"id": str(target_frame_id)},
+        }
+    if item_type != "sticky_note" or original is None:
+        raise ValueError(f"replacement source is required for {item_type}")
+    payload = base._writable(original)
+    payload["parent"] = {"id": str(target_frame_id)}
+    payload["position"] = {
+        "x": float(update["x"]),
+        "y": float(update["y"]),
+        "origin": "center",
     }
+    payload["geometry"] = {"width": float(update["width"])}
+    return payload
+
+
+def _sticky_replacement_matches(
+    remote: dict[str, Any],
+    target_frame_id: str,
+    update: dict[str, Any],
+    identity_token: str,
+) -> bool:
+    position = remote.get("position") or {}
+    geometry = remote.get("geometry") or {}
+    content = canonical_miro_text((remote.get("data") or {}).get("content"))
+    return (
+        str(remote.get("type") or "") == "sticky_note"
+        and str((remote.get("parent") or {}).get("id") or "") == str(target_frame_id)
+        and _close(position.get("x"), update["x"])
+        and _close(position.get("y"), update["y"])
+        and _close(geometry.get("width"), update["width"])
+        and identity_token in content
+    )
 
 
 def _compat_apply_update(
@@ -71,36 +123,52 @@ def _compat_apply_update(
     if not bool(update.get("replace_by_create")):
         return _ORIGINAL_APPLY_UPDATE(client, board, frames, update, snapshots)
 
+    item_id = str(update["id"])
+    item_type = str(update["type"])
     target_frame_id = str(frames[str(update["frame"])])
-    payload = _replacement_payload(target_frame_id, update)
-    exact = [
-        item
-        for item in client.list_items(board, "text")
-        if str(item.get("id") or "") != REPLACED_TEXT_ITEM_ID
-        and base._same_item(item, payload)
-    ]
-    if len(exact) > 1:
-        raise ValueError("duplicate REM-012.3 replacement instruction texts")
-    if exact:
-        return "unchanged"
-
     try:
-        original = _get_item(client, board, REPLACED_TEXT_ITEM_ID)
+        original = _get_item(client, board, item_id)
     except MiroApiError as exc:
         if exc.status != 404:
             raise
         original = None
-    if original is None:
-        raise ValueError("replacement instruction text is absent and no exact replacement exists")
-    if str((original.get("parent") or {}).get("id") or "") != target_frame_id:
-        raise ValueError("replacement instruction source is outside the authorized Control Center")
 
-    created = client._request("POST", f"boards/{_seg(board)}/texts", body=payload)
+    if original is not None and str((original.get("parent") or {}).get("id") or "") != target_frame_id:
+        raise ValueError(f"replacement source {item_id} is outside the authorized Control Center")
+
+    candidates = [
+        item
+        for item in client.list_items(board, item_type)
+        if str(item.get("id") or "") != item_id
+    ]
+    if item_type == "sticky_note" and original is None:
+        identity_token = REPLACED_STICKY_ITEM_TOKENS[item_id]
+        exact = [
+            item
+            for item in candidates
+            if _sticky_replacement_matches(item, target_frame_id, update, identity_token)
+        ]
+        if len(exact) > 1:
+            raise ValueError(f"duplicate REM-012.3 sticky replacement for {item_id}")
+        if exact:
+            return "unchanged"
+        raise ValueError(f"replacement sticky {item_id} is absent and no exact replacement exists")
+
+    payload = _replacement_payload(target_frame_id, update, original)
+    exact = [item for item in candidates if base._same_item(item, payload)]
+    if len(exact) > 1:
+        raise ValueError(f"duplicate REM-012.3 replacement for {item_id}")
+    if exact:
+        return "unchanged"
+    if original is None:
+        raise ValueError(f"replacement source {item_id} is absent and no exact replacement exists")
+
+    created = client._request("POST", f"boards/{_seg(board)}/{base.ENDPOINT[item_type]}", body=payload)
     if not base._same_item(created, payload):
         try:
             client.delete_item(board, str(created.get("id") or ""))
         finally:
-            raise ValueError("created replacement instruction text did not reach target")
+            raise ValueError(f"created replacement {item_id} did not reach target")
     created_id = str(created["id"])
     _CREATED_REPLACEMENT_IDS.append(created_id)
     return "updated"
@@ -127,7 +195,7 @@ def _compat_rollback(
         try:
             client.delete_item(board, item_id)
         except Exception as exc:  # noqa: BLE001
-            errors.append(f"replacement text {item_id}: {exc}")
+            errors.append(f"replacement item {item_id}: {exc}")
     _CREATED_REPLACEMENT_IDS.clear()
     return {"status": "PASS" if not errors else "PARTIAL", "errors": errors}
 
