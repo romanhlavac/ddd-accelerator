@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import hashlib
+from pathlib import Path
+
 from .anchor_contract import _close, _get_frame, _get_item, _patch, _writable, canonical_miro_text
 from .client import MiroApiError
 
@@ -51,12 +54,68 @@ def _verify_no_anchor_overlap(client, manifest):
     return {"status": "PASS", "collision_count": 0}
 
 
-def _verify_table(client, manifest):
-    item = _get_item(client, str(manifest["board_id"]), str(manifest["table_item_id"]))
-    position, target = item.get("position") or {}, manifest["table_target"]
-    if item.get("type") != "data_table_format" or str((item.get("parent") or {}).get("id") or "") != str(manifest["frames"]["control"]["id"]) or not _close(position.get("x"), target["x"]) or not _close(position.get("y"), target["y"]):
-        raise ValueError(f"native artifact registry table contract mismatch: {item}")
-    return {"status": "PASS", "item_id": str(item["id"]), "type": "data_table_format", "parent_id": str((item.get("parent") or {}).get("id") or ""), "position": {"x": float(position["x"]), "y": float(position["y"])}}
+def _verify_registry_markdown(manifest):
+    registry = manifest["artifact_registry"]
+    path = Path(str(manifest["_source_root"])) / str(registry["markdown_path"])
+    if not path.is_file():
+        raise ValueError(f"GitHub Markdown Artifact Registry is missing: {path}")
+    raw = path.read_bytes()
+    digest = hashlib.sha256(raw).hexdigest()
+    if digest != str(registry["markdown_sha256"]):
+        raise ValueError(f"GitHub Markdown Artifact Registry digest mismatch: {digest}")
+    text = raw.decode("utf-8")
+    if str(registry["source_of_truth_text"]) not in text or "read-only projection" not in text:
+        raise ValueError("GitHub Markdown Artifact Registry authority statement is missing")
+    rows = [line for line in text.splitlines() if line.startswith("| `")]
+    expected_ids = [str(item) for item in registry["expected_artifact_ids"]]
+    if len(rows) != int(registry["expected_total"]):
+        raise ValueError(f"GitHub Markdown Artifact Registry row count mismatch: {len(rows)}")
+    for artifact_id in expected_ids:
+        if sum(1 for row in rows if row.startswith(f"| `{artifact_id}` |")) != 1:
+            raise ValueError(f"GitHub Markdown Artifact Registry is missing artifact {artifact_id}")
+    for lifecycle, expected in registry["expected_lifecycle_counts"].items():
+        actual = sum(1 for row in rows if f"| `{lifecycle}` |" in row)
+        if actual != int(expected):
+            raise ValueError(f"GitHub Markdown Artifact Registry lifecycle count mismatch for {lifecycle}: {actual}")
+    if f"| Attention items | {int(registry['expected_attention_count'])} |" not in text:
+        raise ValueError("GitHub Markdown Artifact Registry attention count mismatch")
+    if f"backlog issue `#{int(registry['pages_backlog_issue'])}`" not in text:
+        raise ValueError("GitHub Pages backlog linkage is missing from Artifact Registry")
+    return {
+        "status": "PASS",
+        "mode": "github_markdown",
+        "markdown_path": str(registry["markdown_path"]),
+        "github_url": str(registry["github_url"]),
+        "markdown_sha256": digest,
+        "artifact_count": int(registry["expected_total"]),
+        "lifecycle_counts": {str(key): int(value) for key, value in registry["expected_lifecycle_counts"].items()},
+        "attention_count": int(registry["expected_attention_count"]),
+        "pages_backlog_issue": int(registry["pages_backlog_issue"]),
+    }
+
+
+def _verify_registry_item(client, manifest, *, target: bool):
+    registry = manifest["artifact_registry"]
+    item = _get_item(client, str(manifest["board_id"]), str(registry["miro_item_id"]))
+    parent_id = str((item.get("parent") or {}).get("id") or "")
+    expected_parent = str(manifest["frames"][str(registry["frame"])]["id"])
+    if item.get("type") != "text" or parent_id != expected_parent:
+        raise ValueError(f"Artifact Registry Miro projection scope mismatch: {item}")
+    if target:
+        position, geometry = item.get("position") or {}, item.get("geometry") or {}
+        if not _close(position.get("x"), registry["x"]) or not _close(position.get("y"), registry["y"]):
+            raise ValueError("Artifact Registry Miro projection position mismatch")
+        if not _close(geometry.get("width"), registry["width"]):
+            raise ValueError("Artifact Registry Miro projection width mismatch")
+        if canonical_miro_text((item.get("data") or {}).get("content")) != canonical_miro_text(registry["content"]):
+            raise ValueError("Artifact Registry Miro projection content mismatch")
+    return {
+        "status": "PASS",
+        "item_id": str(item["id"]),
+        "type": "text",
+        "parent_id": parent_id,
+        "target_verified": bool(target),
+    }
 
 
 def _delete_if_present(client, board, item_id):

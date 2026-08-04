@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import json
 from copy import deepcopy
 from pathlib import Path
 
+import jsonschema
 import pytest
 
 from ddda_miro.anchor_contract import canonical_miro_text
@@ -13,12 +15,18 @@ from ddda_miro.anchor_remediation import (
     _protected_snapshot,
     _target_payload,
     _verify_no_anchor_overlap,
+    _verify_registry_item,
+    _verify_registry_markdown,
     detect_board_state,
     load_manifest,
 )
+from ddda_miro.yamlio import load_yaml
 
 
-MANIFEST_PATH = Path(__file__).resolve().parents[3] / "scaffolds" / "miro" / "rem-012-2-anchor-frames.yaml"
+ROOT = Path(__file__).resolve().parents[3]
+MANIFEST_PATH = ROOT / "scaffolds" / "miro" / "rem-012-2-anchor-frames.yaml"
+REGISTRY_OVERLAY_PATH = ROOT / "scaffolds" / "miro" / "rem-012-2-artifact-registry-gh-md.yaml"
+REGISTRY_SCHEMA_PATH = ROOT/"schemas"/"miro-artifact-registry-projection.schema.json"
 
 
 class FakeClient:
@@ -84,6 +92,63 @@ def test_manifest_is_pinned_and_scoped_to_three_anchor_frames():
     assert len(manifest["protected_frames"]) == 15
     assert len(manifest["images"]["assets"]) == 17
     assert all(len(asset["expected_sha256"]) == 64 for asset in manifest["images"]["assets"])
+    assert manifest["artifact_registry"]["mode"] == "github_markdown"
+    assert manifest["artifact_registry"]["pages_backlog_issue"] == 45
+    assert "table_item_id" not in manifest
+    assert "table_target" not in manifest
+
+
+def test_registry_overlay_conforms_to_schema():
+    schema = json.loads(REGISTRY_SCHEMA_PATH.read_text(encoding="utf-8"))
+    overlay = load_yaml(REGISTRY_OVERLAY_PATH)
+
+    jsonschema.validate(overlay, schema, format_checker=jsonschema.FormatChecker())
+
+
+def test_github_markdown_registry_and_miro_projection_contract():
+    manifest = load_manifest(MANIFEST_PATH)
+    markdown = _verify_registry_markdown(manifest)
+    registry = manifest["artifact_registry"]
+    control_id = manifest["frames"]["control"]["id"]
+    registry_item = {
+        "id": registry["miro_item_id"],
+        "type": "text",
+        "data": {"content": registry["content"]},
+        "position": {
+            "x": registry["x"],
+            "y": registry["y"],
+            "origin": "center",
+            "relativeTo": "parent_top_left",
+        },
+        "geometry": {"width": registry["width"]},
+        "parent": {"id": control_id},
+    }
+    client = FakeClient(items=[registry_item])
+
+    assert markdown["status"] == "PASS"
+    assert markdown["mode"] == "github_markdown"
+    assert markdown["artifact_count"] == 3
+    assert markdown["lifecycle_counts"] == {
+        "scaffold": 1,
+        "working": 2,
+        "candidate": 0,
+        "validated": 0,
+        "accepted": 0,
+        "superseded": 0,
+    }
+    assert markdown["pages_backlog_issue"] == 45
+    assert _verify_registry_item(client, manifest, target=False)["target_verified"] is False
+    assert _verify_registry_item(client, manifest, target=True)["target_verified"] is True
+
+    invalid_manifest = deepcopy(manifest)
+    invalid_manifest["artifact_registry"]["markdown_sha256"] = "0" * 64
+    with pytest.raises(ValueError, match="digest mismatch"):
+        _verify_registry_markdown(invalid_manifest)
+
+    invalid_item = deepcopy(registry_item)
+    invalid_item["data"]["content"] = "native table"
+    with pytest.raises(ValueError, match="content mismatch"):
+        _verify_registry_item(FakeClient(items=[invalid_item]), manifest, target=True)
 
 
 def test_image_manifest_converts_top_left_targets_to_frame_center_coordinates():

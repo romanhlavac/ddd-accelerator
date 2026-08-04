@@ -14,9 +14,12 @@ from .yamlio import load_yaml
 
 ENDPOINT = {"frame": "frames", "shape": "shapes", "text": "texts", "sticky_note": "sticky_notes"}
 VOLATILE = {"createdAt", "modifiedAt", "createdBy", "modifiedBy", "links"}
+REGISTRY_OVERLAY_NAME = "rem-012-2-artifact-registry-gh-md.yaml"
+REGISTRY_PROJECTION_ID = "REM-PR8-HVA-CC-012.2-gh-md-v1"
 _MIRO_BLOCK_BOUNDARY = re.compile(r"</?(?:p|div|li|ul|ol|h[1-6]|br)\b[^>]*>", re.IGNORECASE)
 _MIRO_HTML_TAG = re.compile(r"<[^>]+>")
 _MIRO_WHITESPACE = re.compile(r"\s+")
+_SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
 
 def canonical_miro_text(value: Any) -> str:
@@ -29,7 +32,45 @@ def canonical_miro_text(value: Any) -> str:
     return _MIRO_WHITESPACE.sub(" ", text).strip()
 
 
+def _load_registry_overlay(manifest_path: Path) -> tuple[Path, dict[str, Any]]:
+    overlay_path = manifest_path.with_name(REGISTRY_OVERLAY_NAME)
+    overlay = load_yaml(overlay_path)
+    if not isinstance(overlay, dict):
+        raise ValueError(f"missing or invalid Artifact Registry overlay: {overlay_path}")
+    if int(overlay.get("schema_version") or 0) != 1 or str(overlay.get("projection_id") or "") != REGISTRY_PROJECTION_ID:
+        raise ValueError("Artifact Registry overlay identity mismatch")
+    registry = overlay.get("artifact_registry")
+    if not isinstance(registry, dict) or str(registry.get("mode") or "") != "github_markdown":
+        raise ValueError("Artifact Registry overlay must use github_markdown mode")
+    required = {
+        "miro_item_id", "frame", "x", "y", "width", "font_size", "title", "content",
+        "markdown_path", "github_url", "markdown_sha256", "source_of_truth_text",
+        "expected_artifact_ids", "expected_total", "expected_lifecycle_counts",
+        "expected_attention_count", "pages_backlog_issue",
+    }
+    missing = sorted(required - set(registry))
+    if missing:
+        raise ValueError(f"Artifact Registry overlay is missing fields: {missing}")
+    if str(registry["frame"]) != "control" or str(registry["title"]) != "ARTIFACT HEALTH":
+        raise ValueError("Artifact Registry Miro projection identity mismatch")
+    if not str(registry["github_url"]).startswith("https://github.com/"):
+        raise ValueError("Artifact Registry github_url must target GitHub")
+    if not _SHA256.fullmatch(str(registry["markdown_sha256"])):
+        raise ValueError("Artifact Registry markdown_sha256 is invalid")
+    artifact_ids = [str(item) for item in registry.get("expected_artifact_ids") or []]
+    if len(artifact_ids) != len(set(artifact_ids)) or int(registry["expected_total"]) != len(artifact_ids):
+        raise ValueError("Artifact Registry expected artifact identity/count mismatch")
+    lifecycle_counts = registry.get("expected_lifecycle_counts") or {}
+    lifecycle_names = {"scaffold", "working", "candidate", "validated", "accepted", "superseded"}
+    if set(lifecycle_counts) != lifecycle_names or sum(int(value) for value in lifecycle_counts.values()) != int(registry["expected_total"]):
+        raise ValueError("Artifact Registry lifecycle counts do not match expected_total")
+    if int(registry["pages_backlog_issue"]) != 45:
+        raise ValueError("Artifact Registry GitHub Pages backlog issue mismatch")
+    return overlay_path, dict(registry)
+
+
 def load_manifest(path: Path) -> dict[str, Any]:
+    path = path.resolve()
     data = load_yaml(path)
     if not isinstance(data, dict):
         raise ValueError("anchor remediation manifest must be a mapping")
@@ -46,6 +87,30 @@ def load_manifest(path: Path) -> dict[str, Any]:
         digest = str(asset.get("expected_sha256") or "")
         if len(digest) != 64 or any(char not in "0123456789abcdef" for char in digest):
             raise ValueError(f"asset {asset.get('id')} has no pinned SHA-256")
+
+    overlay_path, registry = _load_registry_overlay(path)
+    registry_item_id = str(registry["miro_item_id"])
+    matching_updates = [item for item in data["updates"] if str(item.get("id") or "") == registry_item_id]
+    if len(matching_updates) != 1:
+        raise ValueError("Artifact Registry projection item must match exactly one managed update")
+    registry_update = matching_updates[0]
+    if str(registry_update.get("type") or "") != "text" or str(registry_update.get("frame") or "") != "control":
+        raise ValueError("Artifact Registry projection must reuse the authorized Control Center text item")
+    registry_update.update({
+        "x": float(registry["x"]),
+        "y": float(registry["y"]),
+        "width": float(registry["width"]),
+        "font_size": int(registry["font_size"]),
+        "content": str(registry["content"]),
+    })
+
+    # The original manifest carried a proposed native-table item that never existed on the board.
+    # Remove it from the effective runtime contract while retaining obsolete_table_item_id for cleanup.
+    data.pop("table_item_id", None)
+    data.pop("table_target", None)
+    data["artifact_registry"] = registry
+    data["_source_root"] = str(path.parents[2])
+    data["_registry_overlay_path"] = str(overlay_path)
     return data
 
 

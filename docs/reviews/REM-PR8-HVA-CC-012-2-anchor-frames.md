@@ -5,7 +5,7 @@
 - Authorized exact base: `7badffb6ef6f3364569e68926eb511600eed38d3`.
 - Target branch: `feat/project-steering-and-documentation`.
 - Target review board: `uXjVH1phki0=`.
-- Writable scope: frames `00`, `01`, and `10`, their existing children, managed images, and the native artifact-registry table.
+- Writable scope: frames `00`, `01`, and `10`, their existing children, managed images, and the compact Artifact Registry projection in frame `00`.
 - Protected scope: all fifteen frames `20+`; their frame, child-item, and connector snapshot digest must remain byte-equivalent after canonical removal of Miro audit timestamps.
 - Explicitly excluded: merge, promotion, release, tag, force-push, and any write to `main`.
 
@@ -13,13 +13,29 @@
 
 The prior human review failed because the board was technically traceable but visually unusable: frame overlap, unreadable journey typography, zero real image items, dominant legends in frame `00`, and a synthetic BMC in frame `10`. REM-012.2 repairs only the three anchor frames and stops before propagating the pattern to frames `20+`.
 
+A proposed native Miro table was removed from the target design after the first exact-code run proved that it did not exist remotely and would not scale to a larger artifact catalog. The target architecture is now:
+
+```text
+Git/YAML source of truth
+→ GitHub-rendered Markdown Artifact Registry
+→ compact Miro health/attention projection + link
+```
+
+GitHub Pages is deliberately deferred to backlog issue `#45`; it is not part of this remediation or the current PR #8 merge decision.
+
 ## Deterministic target
 
 ### Frame 00 — Control Center
 
 - Redline-aligned compact geometry: `7000 × 4914.42`.
 - Compact summary, usage guide, five gate-state cards, lifecycle and provenance semantics.
-- Native Miro data table `3458764679854203923` containing the three managed artifact projections.
+- Existing authorized text item `3458764679756523220` becomes a compact `ARTIFACT HEALTH` projection containing:
+  - total managed artifact count;
+  - lifecycle counts;
+  - current attention count and review warning;
+  - explicit `Git/YAML is source of truth` statement;
+  - direct link to `docs/artifacts/index.md` rendered by GitHub.
+- The full registry remains outside Miro and can scale independently of the frame.
 - The former 45-shape simulated table and temporary table `3458764679853742787` are removed only after all reversible checks pass.
 
 ### Frame 01 — DDD Starter journey
@@ -37,6 +53,32 @@ The prior human review failed because the board was technically traceable but vi
 - Four compact concepts: `PROBLÉM`, `ROZHODNUTÍ`, `OWNER`, and `SCOPE`.
 - Five surplus synthetic BMC shapes are removed.
 
+## GitHub Markdown Artifact Registry
+
+Authoritative projection file:
+
+```text
+docs/artifacts/index.md
+```
+
+Registry contract overlay:
+
+```text
+scaffolds/miro/rem-012-2-artifact-registry-gh-md.yaml
+```
+
+The overlay pins:
+
+- the existing Miro text item and target geometry;
+- exact GitHub Markdown path and URL;
+- exact SHA-256 of the Markdown file;
+- expected artifact IDs and lifecycle counts;
+- attention count;
+- source-of-truth wording;
+- GitHub Pages backlog issue `#45`.
+
+The technical run verifies both the committed Markdown content and the final Miro projection. A changed registry file changes its SHA-256 and invalidates prior technical evidence.
+
 ## Pinned visual provenance
 
 | Asset | Source | SHA-256 |
@@ -51,14 +93,16 @@ Every production image is identified by `source board → frame → item`, a pin
 
 The broker:
 
-1. validates exact commit parent and changed-path allowlist;
+1. validates exact commit lineage and changed-path allowlists;
 2. validates the remote board is entirely in either the expected pre-remediation state or the final target state;
 3. snapshots all protected frames `20+`, their children, and relevant connectors;
-4. applies reversible item and frame updates;
-5. imports and verifies 17 managed image items twice;
-6. verifies native table, frame geometry, zero overlap, and protected-frame digest;
-7. only then removes obsolete shapes and the temporary table;
-8. publishes `result.json` as a GitHub Actions artifact.
+4. verifies the committed GitHub Markdown registry, exact digest, expected rows and authority wording;
+5. verifies the existing Miro registry projection item is inside the authorized Control Center frame;
+6. applies reversible item and frame updates;
+7. imports and verifies 17 managed image items twice;
+8. verifies the final Miro Artifact Registry projection, frame geometry, zero overlap, and protected-frame digest;
+9. only then removes obsolete shapes and the temporary legacy table;
+10. publishes `result.json` as a GitHub Actions artifact.
 
 A failure before irreversible cleanup triggers best-effort rollback of frames, items, and newly created managed images. Mixed/partial remote state is rejected fail-closed.
 
