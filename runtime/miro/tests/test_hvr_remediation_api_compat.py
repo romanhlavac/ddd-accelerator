@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
+import ddda_miro.hvr_remediation_api_compat as compat
 from ddda_miro.hvr_remediation_api_compat import (
     ALIGN_ONBOARDING_NATIVE_COUNT,
     ALIGN_ONBOARDING_PINNED_IMAGE_ID,
@@ -9,7 +12,9 @@ from ddda_miro.hvr_remediation_api_compat import (
     REPLACED_ITEM_TYPES,
     REPLACED_STICKY_ITEM_TOKENS,
     REPLACED_TEXT_ITEM_ID,
+    _compat_clone_native_set,
     _compat_load,
+    _compat_same_item,
     _replacement_payload,
     _sticky_replacement_matches,
 )
@@ -43,6 +48,86 @@ def test_effective_onboarding_contract_is_seven_native_plus_one_pinned_image():
     assert pinned["source_item_id"] == ALIGN_ONBOARDING_PINNED_SOURCE_ITEM_ID
     assert pinned["source_frame_id"] == clones["align-onboarding"]["source_frame_id"]
     assert pinned["target_frame"] == "align"
+
+
+def test_native_clone_readback_normalizes_numeric_style_wire_values():
+    expected = {
+        "data": {"shape": "rectangle", "content": ""},
+        "style": {
+            "fillColor": "#ffffff",
+            "fillOpacity": 1.0,
+            "fontFamily": "open_sans",
+            "fontSize": 10,
+            "borderColor": "#1a1a1a",
+            "borderWidth": 2.0,
+            "borderOpacity": 1.0,
+            "borderStyle": "normal",
+            "textAlign": "center",
+            "textAlignVertical": "middle",
+            "color": "#1a1a1a",
+        },
+        "geometry": {"width": 443.647385164374, "height": 127.0344010467848},
+        "position": {"x": 1016.9127484844867, "y": 1092.502978996201, "origin": "center"},
+        "parent": {"id": "align-frame"},
+    }
+    remote = {
+        "data": {"shape": "rectangle", "content": ""},
+        "style": {
+            **expected["style"],
+            "fillOpacity": "1.0",
+            "fontSize": "10",
+            "borderWidth": "2.0",
+            "borderOpacity": "1.0",
+        },
+        "geometry": expected["geometry"],
+        "position": {
+            **expected["position"],
+            "relativeTo": "parent_top_left",
+        },
+        "parent": {"id": "align-frame"},
+    }
+    assert _compat_same_item(remote, expected)
+    remote["style"]["borderWidth"] = "3.0"
+    assert not _compat_same_item(remote, expected)
+
+
+def test_failed_native_clone_removes_items_created_before_verification(monkeypatch):
+    class FakeClient:
+        def __init__(self):
+            self.read_count = 0
+            self.deleted: list[tuple[str, str]] = []
+
+        def list_items(self, board: str):
+            self.read_count += 1
+            original = {
+                "id": "existing",
+                "type": "shape",
+                "parent": {"id": "align-frame"},
+            }
+            orphan = {
+                "id": "orphan",
+                "type": "shape",
+                "parent": {"id": "align-frame"},
+            }
+            return [original] if self.read_count == 1 else [original, orphan]
+
+        def delete_item(self, board: str, item_id: str):
+            self.deleted.append((board, item_id))
+
+    def fail_after_create(client, manifest, clone):
+        raise ValueError("created item did not reach target")
+
+    monkeypatch.setattr(compat, "_ORIGINAL_CLONE_NATIVE_SET", fail_after_create)
+    client = FakeClient()
+    manifest = {
+        "board_id": "target-board",
+        "frames": {"align": {"id": "align-frame"}},
+        "cleanup_ids": [],
+    }
+    clone = {"target_frame": "align"}
+    with pytest.raises(ValueError, match="did not reach target"):
+        _compat_clone_native_set(client, manifest, clone)
+    assert client.deleted == [("target-board", "orphan")]
 
 
 def test_text_replacement_payload_is_readable_and_frame_scoped():

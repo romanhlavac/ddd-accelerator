@@ -13,6 +13,11 @@ pinned ``align-bmc`` asset. The original REM-012.3 manifest counted that image
 as an eighth native item. This module validates the exact source identity and
 normalizes the effective native-clone contract to seven items.
 
+Miro REST also serializes some numeric style values (for example borderWidth)
+as strings in create/read responses. Native-clone comparison normalizes those
+wire values, and failed clone sets remove any items created before a read-back
+verification error.
+
 The original implementation remains the canonical broker.
 """
 
@@ -37,6 +42,16 @@ REPLACED_ITEM_TYPES = {
 ALIGN_ONBOARDING_NATIVE_COUNT = 7
 ALIGN_ONBOARDING_PINNED_IMAGE_ID = "align-bmc"
 ALIGN_ONBOARDING_PINNED_SOURCE_ITEM_ID = "3458764567890733049"
+NUMERIC_READBACK_KEYS = {
+    "x",
+    "y",
+    "width",
+    "height",
+    "fontSize",
+    "borderWidth",
+    "fillOpacity",
+    "borderOpacity",
+}
 REPLACEMENT_STYLE = {
     "fillColor": "#ffffff",
     "fillOpacity": "0.0",
@@ -47,6 +62,8 @@ REPLACEMENT_STYLE = {
 }
 _CREATED_REPLACEMENT_IDS: list[str] = []
 _ORIGINAL_LOAD = base._load
+_ORIGINAL_SAME_ITEM = base._same_item
+_ORIGINAL_CLONE_NATIVE_SET = base._clone_native_set
 _ORIGINAL_APPLY_UPDATE = base._apply_update
 _ORIGINAL_ROLLBACK = base._rollback
 
@@ -89,6 +106,65 @@ def _compat_load(path: Path) -> dict[str, Any]:
     ):
         raise ValueError("REM-012.3 align onboarding pinned-image identity mismatch")
     return manifest
+
+
+def _compat_same_item(remote: dict[str, Any], expected: dict[str, Any]) -> bool:
+    if str((remote.get("parent") or {}).get("id") or "") != str(
+        (expected.get("parent") or {}).get("id") or ""
+    ):
+        return False
+    for key, value in (expected.get("data") or {}).items():
+        actual = (remote.get("data") or {}).get(key)
+        if key in {"content", "title"}:
+            if canonical_miro_text(actual) != canonical_miro_text(value):
+                return False
+        elif actual != value:
+            return False
+    for section in ("position", "geometry", "style"):
+        actual = remote.get(section) or {}
+        for key, value in (expected.get(section) or {}).items():
+            if key in NUMERIC_READBACK_KEYS:
+                if not _close(actual.get(key), value):
+                    return False
+            elif actual.get(key) != value:
+                return False
+    return True
+
+
+def _target_native_ids(client: Any, manifest: dict[str, Any], clone: dict[str, Any]) -> set[str]:
+    board = str(manifest["board_id"])
+    frame_id = str(manifest["frames"][str(clone["target_frame"])]["id"])
+    cleanup_ids = {str(item) for item in manifest.get("cleanup_ids") or []}
+    return {
+        str(item.get("id") or "")
+        for item in client.list_items(board)
+        if str((item.get("parent") or {}).get("id") or "") == frame_id
+        and str(item.get("type") or "") in base.SUPPORTED_NATIVE_TYPES
+        and str(item.get("id") or "") not in cleanup_ids
+    }
+
+
+def _compat_clone_native_set(
+    client: Any,
+    manifest: dict[str, Any],
+    clone: dict[str, Any],
+) -> dict[str, Any]:
+    before = _target_native_ids(client, manifest, clone)
+    try:
+        return _ORIGINAL_CLONE_NATIVE_SET(client, manifest, clone)
+    except Exception as exc:
+        after = _target_native_ids(client, manifest, clone)
+        cleanup_errors: list[str] = []
+        for item_id in sorted(after - before):
+            try:
+                client.delete_item(str(manifest["board_id"]), item_id)
+            except Exception as cleanup_exc:  # noqa: BLE001
+                cleanup_errors.append(f"{item_id}: {cleanup_exc}")
+        if cleanup_errors:
+            raise RuntimeError(
+                f"{exc}; native clone orphan cleanup failed: {cleanup_errors}"
+            ) from exc
+        raise
 
 
 def _replacement_payload(
@@ -232,12 +308,16 @@ def _compat_rollback(
 
 def main(argv: list[str] | None = None) -> int:
     base._load = _compat_load
+    base._same_item = _compat_same_item
+    base._clone_native_set = _compat_clone_native_set
     base._apply_update = _compat_apply_update
     base._rollback = _compat_rollback
     try:
         return base.main(argv)
     finally:
         base._load = _ORIGINAL_LOAD
+        base._same_item = _ORIGINAL_SAME_ITEM
+        base._clone_native_set = _ORIGINAL_CLONE_NATIVE_SET
         base._apply_update = _ORIGINAL_APPLY_UPDATE
         base._rollback = _ORIGINAL_ROLLBACK
         _CREATED_REPLACEMENT_IDS.clear()
