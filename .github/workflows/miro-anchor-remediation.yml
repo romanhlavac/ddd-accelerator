@@ -24,8 +24,8 @@ jobs:
     timeout-minutes: 120
     env:
       TRANSPORT_SHA: ${{ github.event.pull_request.head.sha }}
-      TARGET_SOURCE_SHA: 036e5f7396134d93cb8ba2acdcc58bb31aa373f8
-      AUTHORIZED_PREDECESSOR_SHA: a9793c08dde0b13461a75810dd68963da9c561bf
+      TARGET_SOURCE_SHA: c7be9b51206e52b5ef0c88e725bccb0c0384f32b
+      AUTHORIZED_PREDECESSOR_SHA: 957c8d2205795fefc226778d325d412f89d2b919
       GH_TOKEN: ${{ github.token }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
 
@@ -83,27 +83,27 @@ jobs:
               raise SystemExit('transport parent is not the exact corrective product source')
           if git('rev-parse', f'{target}^') != predecessor:
               raise SystemExit('corrective product parent mismatch')
-          if git('show', '-s', '--format=%s', target) != 'fix(miro): normalize native clone readback values':
+          if git('show', '-s', '--format=%s', target) != 'fix(miro): align filled BMC count with source inventory':
               raise SystemExit('corrective product message mismatch')
           product_paths = sorted(filter(None, git('diff-tree', '--no-commit-id', '--name-only', '-r', target).splitlines()))
           expected_product_paths = sorted([
-              'runtime/miro/ddda_miro/hvr_remediation_api_compat.py',
-              'runtime/miro/tests/test_hvr_remediation_api_compat.py',
+              'runtime/miro/ddda_miro/hvr_remediation_inventory_compat.py',
+              'runtime/miro/tests/test_hvr_remediation_inventory_compat.py',
           ])
           if product_paths != expected_product_paths:
               raise SystemExit(f'corrective product allowlist mismatch: {product_paths}')
-          if git('show', '-s', '--format=%s', transport) != 'fix(ci): authorize REM-012.3 native readback retry':
+          if git('show', '-s', '--format=%s', transport) != 'fix(ci): authorize REM-012.3 filled BMC inventory retry':
               raise SystemExit('transport message mismatch')
-          transport_paths = filter(None, git('diff-tree', '--no-commit-id', '--name-only', '-r', transport).splitlines())
-          if list(transport_paths) != [workflow]:
-              raise SystemExit('transport is not workflow-only')
+          transport_paths = list(filter(None, git('diff-tree', '--no-commit-id', '--name-only', '-r', transport).splitlines()))
+          if transport_paths != [workflow]:
+              raise SystemExit(f'transport is not workflow-only: {transport_paths}')
           Path(os.environ['EVIDENCE_ROOT'], 'source-contract.json').write_text(json.dumps({
               'status': 'PASS',
               'target_source_sha': target,
               'authorized_predecessor_sha': predecessor,
               'transport_sha': transport,
               'product_paths': product_paths,
-              'transport_paths': [workflow],
+              'transport_paths': transport_paths,
           }, indent=2) + '\n', encoding='utf-8')
           '@ | python -
 
@@ -116,7 +116,11 @@ jobs:
 
           repo = os.environ['GITHUB_REPOSITORY']
           token = os.environ['GH_TOKEN']
-          headers = {'Authorization': f'Bearer {token}', 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28'}
+          headers = {
+              'Authorization': f'Bearer {token}',
+              'Accept': 'application/vnd.github+json',
+              'X-GitHub-Api-Version': '2022-11-28',
+          }
           def get(url):
               with urllib.request.urlopen(urllib.request.Request(url, headers=headers)) as response:
                   return json.load(response)
@@ -171,7 +175,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           python -m pip install --disable-pip-version-check --no-input pytest 'ruamel.yaml>=0.18,<0.19' requests pyyaml
           $env:PYTHONPATH = Join-Path $PWD.Path 'runtime\miro'
-          python -m pytest runtime/miro/tests/test_hvr_remediation_api_compat.py runtime/miro/tests/test_hvr_remediation.py runtime/miro/tests/test_anchor_remediation.py -q
+          python -m pytest runtime/miro/tests/test_hvr_remediation_inventory_compat.py runtime/miro/tests/test_hvr_remediation_api_compat.py runtime/miro/tests/test_hvr_remediation.py runtime/miro/tests/test_anchor_remediation.py -q
           if ($LASTEXITCODE -ne 0) { throw 'Targeted REM-012.3 tests failed.' }
           git reset --hard $env:TARGET_SOURCE_SHA
           git clean -ffdx
@@ -204,7 +208,7 @@ jobs:
           $env:PYTHONPATH = $runtime
           $env:GITHUB_SHA = $env:TARGET_SOURCE_SHA
           $remediationManifest = Join-Path $packageRoot 'scaffolds\miro\rem-012-3-hvr-remediation.yaml'
-          python -m ddda_miro.hvr_remediation_api_compat --manifest $remediationManifest --report $reportPath --source-sha $env:TARGET_SOURCE_SHA --apply 2> $stderrPath
+          python -m ddda_miro.hvr_remediation_inventory_compat --manifest $remediationManifest --report $reportPath --source-sha $env:TARGET_SOURCE_SHA --apply 2> $stderrPath
           if ($LASTEXITCODE -ne 0) { Get-Content $stderrPath -ErrorAction SilentlyContinue; throw 'REM-012.3 execution failed.' }
 
           $report = Get-Content $reportPath -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -214,7 +218,7 @@ jobs:
           if ([int]$report.images.second_run.created -ne 0 -or [int]$report.images.second_run.updated -ne 0 -or [int]$report.images.second_run.unchanged -ne 17) { throw 'Second image reconcile is not zero mutation.' }
           if (-not [bool]$report.native_clones.zero_mutation_second_run) { throw 'Native clone second reconcile mutated board.' }
           $nativeCount = (@($report.native_clones.first_run | ForEach-Object { @($_.item_ids).Count }) | Measure-Object -Sum).Sum
-          if ([int]$nativeCount -ne 128) { throw "Native clone count mismatch: $nativeCount" }
+          if ([int]$nativeCount -ne 127) { throw "Native clone count mismatch: $nativeCount" }
           if ([string]$report.artifact_registry.status -ne 'PASS' -or [string]$report.artifact_registry.project_id -ne 'acceptance-claims-modernization') { throw 'Project registry verification failed.' }
           if ([int]$report.geometry.collision_count -ne 0) { throw 'Anchor overlap remains.' }
           if (-not [bool]$report.protected_frames.unchanged -or [int]$report.protected_frames.count -ne 15) { throw 'Protected frames changed.' }
@@ -226,7 +230,7 @@ jobs:
             "Product SHA: $env:TARGET_SOURCE_SHA"
             "Candidate SHA-256: ${{ steps.package.outputs.package_sha256 }}"
             "Managed images: 17; second reconcile mutations=0"
-            "Native reference items: 128; onboarding references=7 native + pinned align-bmc image; second reconcile mutations=0"
+            "Native reference items: 127; onboarding references=7 native + pinned align-bmc image; filled BMC references=120 native; second reconcile mutations=0"
             "Project registry: $($report.artifact_registry.project_id)"
             "Protected frames: 15; unchanged=$($report.protected_frames.unchanged)"
             "Human review: $($report.human_review_status)"
