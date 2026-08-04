@@ -24,8 +24,8 @@ jobs:
     timeout-minutes: 120
     env:
       TRANSPORT_SHA: ${{ github.event.pull_request.head.sha }}
-      TARGET_SOURCE_SHA: 94b1923213cb5b0208e6867a0a97bf518321968f
-      AUTHORIZED_PREDECESSOR_SHA: 13c52fc7eb04f9d92608de41db96a07f02bfafec
+      TARGET_SOURCE_SHA: 6d4878daac07b3694100d46ecdc89b960139c8cd
+      AUTHORIZED_PREDECESSOR_SHA: f6cc263eeb17fd70eacca9e42f2761ba02d3e63d
       GH_TOKEN: ${{ github.token }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
 
@@ -83,16 +83,17 @@ jobs:
               raise SystemExit('transport parent is not the exact corrective product source')
           if git('rev-parse', f'{target}^') != predecessor:
               raise SystemExit('corrective product parent mismatch')
-          if git('show', '-s', '--format=%s', target) != 'fix(miro): replace non-resizable managed sticky notes':
+          if git('show', '-s', '--format=%s', target) != 'fix(miro): align onboarding count with source inventory':
               raise SystemExit('corrective product message mismatch')
           product_paths = sorted(filter(None, git('diff-tree', '--no-commit-id', '--name-only', '-r', target).splitlines()))
           expected_product_paths = sorted([
+              'docs/reviews/REM-PR8-HVA-CC-012-3-hvr-remediation.md',
               'runtime/miro/ddda_miro/hvr_remediation_api_compat.py',
               'runtime/miro/tests/test_hvr_remediation_api_compat.py',
           ])
           if product_paths != expected_product_paths:
               raise SystemExit(f'corrective product allowlist mismatch: {product_paths}')
-          if git('show', '-s', '--format=%s', transport) != 'fix(ci): authorize REM-012.3 sticky replacement retry':
+          if git('show', '-s', '--format=%s', transport) != 'fix(ci): authorize REM-012.3 source inventory retry':
               raise SystemExit('transport message mismatch')
           transport_paths = filter(None, git('diff-tree', '--no-commit-id', '--name-only', '-r', transport).splitlines())
           if list(transport_paths) != [workflow]:
@@ -214,7 +215,7 @@ jobs:
           if ([int]$report.images.second_run.created -ne 0 -or [int]$report.images.second_run.updated -ne 0 -or [int]$report.images.second_run.unchanged -ne 17) { throw 'Second image reconcile is not zero mutation.' }
           if (-not [bool]$report.native_clones.zero_mutation_second_run) { throw 'Native clone second reconcile mutated board.' }
           $nativeCount = (@($report.native_clones.first_run | ForEach-Object { @($_.item_ids).Count }) | Measure-Object -Sum).Sum
-          if ([int]$nativeCount -ne 129) { throw "Native clone count mismatch: $nativeCount" }
+          if ([int]$nativeCount -ne 128) { throw "Native clone count mismatch: $nativeCount" }
           if ([string]$report.artifact_registry.status -ne 'PASS' -or [string]$report.artifact_registry.project_id -ne 'acceptance-claims-modernization') { throw 'Project registry verification failed.' }
           if ([int]$report.geometry.collision_count -ne 0) { throw 'Anchor overlap remains.' }
           if (-not [bool]$report.protected_frames.unchanged -or [int]$report.protected_frames.count -ne 15) { throw 'Protected frames changed.' }
@@ -226,7 +227,7 @@ jobs:
             "Product SHA: $env:TARGET_SOURCE_SHA"
             "Candidate SHA-256: ${{ steps.package.outputs.package_sha256 }}"
             "Managed images: 17; second reconcile mutations=0"
-            "Native reference items: 129; second reconcile mutations=0"
+            "Native reference items: 128; onboarding references=7 native + pinned align-bmc image; second reconcile mutations=0"
             "Project registry: $($report.artifact_registry.project_id)"
             "Protected frames: 15; unchanged=$($report.protected_frames.unchanged)"
             "Human review: $($report.human_review_status)"
