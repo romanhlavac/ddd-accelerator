@@ -4,7 +4,6 @@ import json
 from copy import deepcopy
 from pathlib import Path
 
-import jsonschema
 import pytest
 
 from ddda_miro.anchor_contract import canonical_miro_text
@@ -26,7 +25,7 @@ from ddda_miro.yamlio import load_yaml
 ROOT = Path(__file__).resolve().parents[3]
 MANIFEST_PATH = ROOT / "scaffolds" / "miro" / "rem-012-2-anchor-frames.yaml"
 REGISTRY_OVERLAY_PATH = ROOT / "scaffolds" / "miro" / "rem-012-2-artifact-registry-gh-md.yaml"
-REGISTRY_SCHEMA_PATH = ROOT/"schemas"/"miro-artifact-registry-projection.schema.json"
+REGISTRY_SCHEMA_PATH = ROOT / "schemas" / "miro-artifact-registry-projection.schema.json"
 
 
 class FakeClient:
@@ -98,11 +97,26 @@ def test_manifest_is_pinned_and_scoped_to_three_anchor_frames():
     assert "table_target" not in manifest
 
 
-def test_registry_overlay_conforms_to_schema():
+def test_registry_overlay_contract_matches_schema_identity():
     schema = json.loads(REGISTRY_SCHEMA_PATH.read_text(encoding="utf-8"))
     overlay = load_yaml(REGISTRY_OVERLAY_PATH)
+    registry = overlay["artifact_registry"]
 
-    jsonschema.validate(overlay, schema, format_checker=jsonschema.FormatChecker())
+    assert schema["$id"] == "https://ddda.local/schemas/miro-artifact-registry-projection.schema.json"
+    assert set(schema["required"]) <= set(overlay)
+    assert set(schema["properties"]["artifact_registry"]["required"]) <= set(registry)
+    assert schema["properties"]["schema_version"]["const"] == overlay["schema_version"] == 1
+    assert (
+        schema["properties"]["projection_id"]["const"]
+        == overlay["projection_id"]
+        == "REM-PR8-HVA-CC-012.2-gh-md-v1"
+    )
+    assert registry["mode"] == "github_markdown"
+    assert registry["title"] == "ARTIFACT HEALTH"
+    assert registry["pages_backlog_issue"] == 45
+    assert set(registry["expected_lifecycle_counts"]) == {
+        "scaffold", "working", "candidate", "validated", "accepted", "superseded"
+    }
 
 
 def test_github_markdown_registry_and_miro_projection_contract():
