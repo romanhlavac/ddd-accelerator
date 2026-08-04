@@ -24,7 +24,7 @@ jobs:
     timeout-minutes: 90
     env:
       TRANSPORT_SHA: ${{ github.event.pull_request.head.sha }}
-      TARGET_SOURCE_SHA: c5f13714ec91b6e794eea068e1773b630218534b
+      TARGET_SOURCE_SHA: 87a4a3855e968fb13cf126f09d5103ce559aad6e
       GH_TOKEN: ${{ github.token }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
 
@@ -107,7 +107,15 @@ jobs:
               raise SystemExit('transport checkout mismatch')
 
           post_target = workflow_only(target, transport, 'post-target transport')
-          exact(target, 'b70bf2fcb24ca0f5b9bfaf7357145fc6f5492af1',
+          exact(target, 'd7699bcd0c512676e9173b8453bada5b7072af57',
+                'fix(miro): omit read-only position fields from PATCH',
+                ['runtime/miro/ddda_miro/anchor_contract.py'],
+                'Miro PATCH contract correction')
+          workflow_only('c5f13714ec91b6e794eea068e1773b630218534b',
+                        'd7699bcd0c512676e9173b8453bada5b7072af57',
+                        'previous post-target transport')
+          exact('c5f13714ec91b6e794eea068e1773b630218534b',
+                'b70bf2fcb24ca0f5b9bfaf7357145fc6f5492af1',
                 'fix(miro): normalize registry markdown line endings',
                 ['.gitattributes', 'scaffolds/miro/rem-012-2-artifact-registry-gh-md.yaml'],
                 'line-ending normalization')
