@@ -24,8 +24,8 @@ jobs:
     timeout-minutes: 120
     env:
       TRANSPORT_SHA: ${{ github.event.pull_request.head.sha }}
-      TARGET_SOURCE_SHA: 69381e7e4207903cf08217eb0edd79ee35e920a6
-      AUTHORIZED_PREDECESSOR_SHA: 562787796b7a60a1988f4b10247396900ce59bc4
+      TARGET_SOURCE_SHA: a520137b005e401be120d2a7932f84d2efc7f4de
+      AUTHORIZED_PREDECESSOR_SHA: d74fa081efdc3b406e709255157fcc17d81e6ee9
       GH_TOKEN: ${{ github.token }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
 
@@ -63,7 +63,7 @@ jobs:
             human_review_status = 'PENDING'
           } | ConvertTo-Json | Set-Content (Join-Path $root 'identity.json') -Encoding utf8
 
-      - name: Verify product chain and workflow-only transport
+      - name: Verify exact corrective source and workflow transport
         shell: pwsh
         run: |
           @'
@@ -79,64 +79,31 @@ jobs:
           workflow = '.github/workflows/miro-anchor-remediation.yml'
           if git('rev-parse', 'HEAD') != transport:
               raise SystemExit('transport checkout mismatch')
-          subprocess.check_call(['git', 'merge-base', '--is-ancestor', predecessor, target])
-          subprocess.check_call(['git', 'merge-base', '--is-ancestor', target, transport])
-
-          product_commits = git('rev-list', '--reverse', f'{predecessor}..{target}').splitlines()
-          messages = [git('show', '-s', '--format=%s', sha) for sha in product_commits]
-          if len(product_commits) != 3:
-              raise SystemExit(f'expected 3 product commits, got {product_commits}')
-          if messages[0] != 'fix(miro): remediate HVR usability and project registry ownership':
-              raise SystemExit(f'first product message mismatch: {messages[0]}')
-          if messages[-1] != 'fix(miro): pin project registry markdown line endings':
-              raise SystemExit(f'last product message mismatch: {messages[-1]}')
-          if not all(message.startswith('fix(miro): ') for message in messages):
-              raise SystemExit(f'unauthorized product messages: {messages}')
-
-          expected_paths = sorted([
-              '.gitattributes',
-              'docs/artifacts/index.md',
-              'docs/artifacts/rem-012-2-legacy-index.md',
-              'docs/reviews/REM-PR8-HVA-CC-012-3-hvr-remediation.md',
-              'examples/minimal/projects/acceptance-claims-modernization/artifacts/registry.yaml',
-              'examples/minimal/projects/acceptance-claims-modernization/docs/artifacts/index.md',
-              'runtime/miro/ddda_miro/hvr_remediation.py',
-              'runtime/miro/tests/test_hvr_remediation.py',
-              'scaffolds/miro/rem-012-2-artifact-registry-gh-md.yaml',
-              'scaffolds/miro/rem-012-3-hvr-remediation.yaml',
+          if git('rev-parse', f'{transport}^') != target:
+              raise SystemExit('transport parent is not the exact corrective product source')
+          if git('rev-parse', f'{target}^') != predecessor:
+              raise SystemExit('corrective product parent mismatch')
+          if git('show', '-s', '--format=%s', target) != 'fix(miro): replace incompatible instruction text update':
+              raise SystemExit('corrective product message mismatch')
+          product_paths = sorted(filter(None, git('diff-tree', '--no-commit-id', '--name-only', '-r', target).splitlines()))
+          expected_product_paths = sorted([
+              'runtime/miro/ddda_miro/hvr_remediation_api_compat.py',
+              'runtime/miro/tests/test_hvr_remediation_api_compat.py',
           ])
-          actual_paths = sorted(filter(None, git('diff', '--name-only', predecessor, target).splitlines()))
-          if actual_paths != expected_paths:
-              raise SystemExit(f'product allowlist mismatch: {actual_paths}')
-          for sha in product_commits:
-              changed = git('diff-tree', '--no-commit-id', '--name-only', '-r', sha).splitlines()
-              if workflow in changed or any(path not in expected_paths for path in changed):
-                  raise SystemExit(f'unauthorized product paths in {sha}: {changed}')
-
-          transports = git('rev-list', '--reverse', f'{target}..{transport}').splitlines()
-          if not transports or len(transports) > 2:
-              raise SystemExit(f'expected one or two workflow transport commits, got {transports}')
-          transport_messages = []
-          for sha in transports:
-              changed = git('diff-tree', '--no-commit-id', '--name-only', '-r', sha).splitlines()
-              if changed != [workflow]:
-                  raise SystemExit(f'transport changed unauthorized paths in {sha}: {changed}')
-              transport_messages.append(git('show', '-s', '--format=%s', sha))
-          if transport_messages[0] != 'fix(ci): authorize REM-012.3 HVR remediation':
-              raise SystemExit(f'first transport message mismatch: {transport_messages}')
-          if transport_messages[-1] not in {
-              'fix(ci): authorize REM-012.3 HVR remediation',
-              'fix(ci): tolerate superseded product CI cancellation',
-          }:
-              raise SystemExit(f'last transport message mismatch: {transport_messages}')
-
+          if product_paths != expected_product_paths:
+              raise SystemExit(f'corrective product allowlist mismatch: {product_paths}')
+          if git('show', '-s', '--format=%s', transport) != 'fix(ci): authorize REM-012.3 text replacement retry':
+              raise SystemExit('transport message mismatch')
+          transport_paths = filter(None, git('diff-tree', '--no-commit-id', '--name-only', '-r', transport).splitlines())
+          if list(transport_paths) != [workflow]:
+              raise SystemExit('transport is not workflow-only')
           Path(os.environ['EVIDENCE_ROOT'], 'source-contract.json').write_text(json.dumps({
               'status': 'PASS',
-              'product_commits': product_commits,
-              'product_messages': messages,
-              'product_paths': actual_paths,
-              'transport_commits': transports,
-              'transport_messages': transport_messages,
+              'target_source_sha': target,
+              'authorized_predecessor_sha': predecessor,
+              'transport_sha': transport,
+              'product_paths': product_paths,
+              'transport_paths': [workflow],
           }, indent=2) + '\n', encoding='utf-8')
           '@ | python -
 
@@ -169,7 +136,7 @@ jobs:
                           complete = False
                           continue
                       state.append({key: run.get(key) for key in ('id', 'name', 'status', 'conclusion', 'html_url')})
-                      if run['status'] == 'completed' and run['conclusion'] not in ('success',):
+                      if run['status'] == 'completed' and run['conclusion'] != 'success':
                           raise SystemExit(f'{label} workflow {name} failed: {run["conclusion"]}')
                       if run['status'] != 'completed' or run['conclusion'] != 'success':
                           complete = False
@@ -204,7 +171,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           python -m pip install --disable-pip-version-check --no-input pytest 'ruamel.yaml>=0.18,<0.19' requests pyyaml
           $env:PYTHONPATH = Join-Path $PWD.Path 'runtime\miro'
-          python -m pytest runtime/miro/tests/test_hvr_remediation.py runtime/miro/tests/test_anchor_remediation.py -q
+          python -m pytest runtime/miro/tests/test_hvr_remediation_api_compat.py runtime/miro/tests/test_hvr_remediation.py runtime/miro/tests/test_anchor_remediation.py -q
           if ($LASTEXITCODE -ne 0) { throw 'Targeted REM-012.3 tests failed.' }
           git reset --hard $env:TARGET_SOURCE_SHA
           git clean -ffdx
@@ -237,7 +204,7 @@ jobs:
           $env:PYTHONPATH = $runtime
           $env:GITHUB_SHA = $env:TARGET_SOURCE_SHA
           $remediationManifest = Join-Path $packageRoot 'scaffolds\miro\rem-012-3-hvr-remediation.yaml'
-          python -m ddda_miro.hvr_remediation --manifest $remediationManifest --report $reportPath --source-sha $env:TARGET_SOURCE_SHA --apply 2> $stderrPath
+          python -m ddda_miro.hvr_remediation_api_compat --manifest $remediationManifest --report $reportPath --source-sha $env:TARGET_SOURCE_SHA --apply 2> $stderrPath
           if ($LASTEXITCODE -ne 0) { Get-Content $stderrPath -ErrorAction SilentlyContinue; throw 'REM-012.3 execution failed.' }
 
           $report = Get-Content $reportPath -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -270,6 +237,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: rem-012-3-hvr-remediation-${{ env.PR_NUMBER }}-${{ env.TARGET_SOURCE_SHA }}
-          path: ${{ runner.temp }}/rem-012-3-hvr-remediation/**
+          path: ${{ env.EVIDENCE_ROOT }}/**
           if-no-files-found: error
           retention-days: 30
