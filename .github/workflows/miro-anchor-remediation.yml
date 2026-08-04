@@ -24,7 +24,7 @@ jobs:
     timeout-minutes: 90
     env:
       TRANSPORT_SHA: ${{ github.event.pull_request.head.sha }}
-      TARGET_SOURCE_SHA: 87a4a3855e968fb13cf126f09d5103ce559aad6e
+      TARGET_SOURCE_SHA: 5a9cd256a75c2dea44cc67ceb101fd7afc91eb29
       GH_TOKEN: ${{ github.token }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
 
@@ -107,7 +107,15 @@ jobs:
               raise SystemExit('transport checkout mismatch')
 
           post_target = workflow_only(target, transport, 'post-target transport')
-          exact(target, 'd7699bcd0c512676e9173b8453bada5b7072af57',
+          exact(target, '40e9cfbadf3032eed4b6141733b9ae150f40ba1c',
+                'fix(miro): sanitize writable item payloads',
+                ['runtime/miro/ddda_miro/anchor_contract.py'],
+                'Miro writable-payload correction')
+          workflow_only('87a4a3855e968fb13cf126f09d5103ce559aad6e',
+                        '40e9cfbadf3032eed4b6141733b9ae150f40ba1c',
+                        'previous PATCH transport')
+          exact('87a4a3855e968fb13cf126f09d5103ce559aad6e',
+                'd7699bcd0c512676e9173b8453bada5b7072af57',
                 'fix(miro): omit read-only position fields from PATCH',
                 ['runtime/miro/ddda_miro/anchor_contract.py'],
                 'Miro PATCH contract correction')
