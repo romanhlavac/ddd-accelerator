@@ -128,8 +128,10 @@ def _get_frame(client: MiroClient, board: str, frame: str) -> dict[str, Any]:
 
 def _writable(remote: dict[str, Any], frame: bool = False) -> dict[str, Any]:
     result = {key: deepcopy(remote[key]) for key in ("data", "style", "geometry", "position") if remote.get(key) is not None}
-    if not frame and remote.get("parent") is not None:
-        result["parent"] = deepcopy(remote["parent"])
+    if not frame and isinstance(remote.get("parent"), dict):
+        parent_id = str((remote.get("parent") or {}).get("id") or "")
+        if parent_id:
+            result["parent"] = {"id": parent_id}
     return result
 
 
@@ -186,9 +188,30 @@ def _patch(client: MiroClient, board: str, item_type: str, item_id: str, payload
     if item_type not in ENDPOINT:
         raise ValueError(f"unsupported managed item type: {item_type}")
     request_payload = deepcopy(payload)
+
     position = request_payload.get("position")
     if isinstance(position, dict):
         position.pop("relativeTo", None)
+
+    parent = request_payload.get("parent")
+    if isinstance(parent, dict):
+        parent_id = str(parent.get("id") or "")
+        if parent_id:
+            request_payload["parent"] = {"id": parent_id}
+        else:
+            request_payload.pop("parent", None)
+
+    # Sticky notes have a fixed aspect ratio in the Miro API. Sending both dimensions,
+    # even when copied from a GET response, is rejected; width is the canonical write dimension.
+    geometry = request_payload.get("geometry")
+    if item_type == "sticky_note" and isinstance(geometry, dict):
+        if geometry.get("width") is not None:
+            request_payload["geometry"] = {"width": geometry["width"]}
+        elif geometry.get("height") is not None:
+            request_payload["geometry"] = {"height": geometry["height"]}
+        else:
+            request_payload.pop("geometry", None)
+
     return client._request("PATCH", f"boards/{_seg(board)}/{ENDPOINT[item_type]}/{_seg(item_id)}", body=request_payload)
 
 
