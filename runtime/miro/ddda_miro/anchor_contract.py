@@ -185,7 +185,11 @@ def _protected_snapshot(client: MiroClient, board: str, frame_ids: list[str]):
 def _patch(client: MiroClient, board: str, item_type: str, item_id: str, payload: dict[str, Any]):
     if item_type not in ENDPOINT:
         raise ValueError(f"unsupported managed item type: {item_type}")
-    return client._request("PATCH", f"boards/{_seg(board)}/{ENDPOINT[item_type]}/{_seg(item_id)}", body=payload)
+    request_payload = deepcopy(payload)
+    position = request_payload.get("position")
+    if isinstance(position, dict):
+        position.pop("relativeTo", None)
+    return client._request("PATCH", f"boards/{_seg(board)}/{ENDPOINT[item_type]}/{_seg(item_id)}", body=request_payload)
 
 
 def _item_matches(remote: dict[str, Any], payload: dict[str, Any]) -> bool:
