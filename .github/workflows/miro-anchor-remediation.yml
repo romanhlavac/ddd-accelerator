@@ -24,8 +24,8 @@ jobs:
     timeout-minutes: 120
     env:
       TRANSPORT_SHA: ${{ github.event.pull_request.head.sha }}
-      TARGET_SOURCE_SHA: 6d4878daac07b3694100d46ecdc89b960139c8cd
-      AUTHORIZED_PREDECESSOR_SHA: f6cc263eeb17fd70eacca9e42f2761ba02d3e63d
+      TARGET_SOURCE_SHA: 036e5f7396134d93cb8ba2acdcc58bb31aa373f8
+      AUTHORIZED_PREDECESSOR_SHA: a9793c08dde0b13461a75810dd68963da9c561bf
       GH_TOKEN: ${{ github.token }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
 
@@ -83,17 +83,16 @@ jobs:
               raise SystemExit('transport parent is not the exact corrective product source')
           if git('rev-parse', f'{target}^') != predecessor:
               raise SystemExit('corrective product parent mismatch')
-          if git('show', '-s', '--format=%s', target) != 'fix(miro): align onboarding count with source inventory':
+          if git('show', '-s', '--format=%s', target) != 'fix(miro): normalize native clone readback values':
               raise SystemExit('corrective product message mismatch')
           product_paths = sorted(filter(None, git('diff-tree', '--no-commit-id', '--name-only', '-r', target).splitlines()))
           expected_product_paths = sorted([
-              'docs/reviews/REM-PR8-HVA-CC-012-3-hvr-remediation.md',
               'runtime/miro/ddda_miro/hvr_remediation_api_compat.py',
               'runtime/miro/tests/test_hvr_remediation_api_compat.py',
           ])
           if product_paths != expected_product_paths:
               raise SystemExit(f'corrective product allowlist mismatch: {product_paths}')
-          if git('show', '-s', '--format=%s', transport) != 'fix(ci): authorize REM-012.3 source inventory retry':
+          if git('show', '-s', '--format=%s', transport) != 'fix(ci): authorize REM-012.3 native readback retry':
               raise SystemExit('transport message mismatch')
           transport_paths = filter(None, git('diff-tree', '--no-commit-id', '--name-only', '-r', transport).splitlines())
           if list(transport_paths) != [workflow]:
