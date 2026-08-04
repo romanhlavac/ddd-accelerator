@@ -1,44 +1,25 @@
-# DDDA Artifact Registry
+# Artifact Registry capability
 
-> **Authority:** Git/YAML is source of truth. This Markdown document is a read-only projection for navigation and review; it cannot approve a gate or change artifact lifecycle.
+The DDDA platform owns the **contract, template, generator, and validators** for project Artifact Registries. It does not own one global registry containing artifacts from unrelated projects.
 
-## Registry identity
+## Ownership model
 
-- Registry contract: `REM-PR8-HVA-CC-012.2-gh-md-v1`
-- Projection: GitHub-rendered Markdown
-- Scope: managed steering artifacts shown in Miro Control Center frame `00`
-- Product source: bound to the exact candidate SHA in the REM-012.2 `result.json`
-- GitHub Pages evolution: backlog issue `#45`; not part of the current remediation
+```text
+DDDA platform repository
+├── schemas and templates
+├── registry projection generator
+└── validation and publishing automation
 
-## Artifact health
+project repository or project workspace
+├── artifacts/registry.yaml       # project-owned source of truth
+└── docs/artifacts/index.md        # generated read-only projection
+```
 
-| Measure | Value |
-|---|---:|
-| Managed artifacts | 3 |
-| Scaffold | 1 |
-| Working | 2 |
-| Candidate | 0 |
-| Validated | 0 |
-| Accepted | 0 |
-| Superseded | 0 |
-| Attention items | 1 |
+A project Miro board links to the registry inside that project's workspace. This prevents cross-project data conflicts and gives each project an explicit owner, lifecycle, provenance, and revision boundary.
 
-## Attention required
+The minimal acceptance example is located at:
 
-1. Human visual review of Miro frames `00`, `01`, and `10` remains pending. Technical completion must not be interpreted as gate approval.
+- [`examples/minimal/projects/acceptance-claims-modernization/artifacts/registry.yaml`](../../examples/minimal/projects/acceptance-claims-modernization/artifacts/registry.yaml)
+- [`examples/minimal/projects/acceptance-claims-modernization/docs/artifacts/index.md`](../../examples/minimal/projects/acceptance-claims-modernization/docs/artifacts/index.md)
 
-## Managed artifacts
-
-| Artifact | Type | Stage | Lifecycle | Provenance | Owner | Revision | Last sync | Detail |
-|---|---|---|---|---|---|---|---|---|
-| `project-charter` | `project-charter` | Align | `scaffold` | `generated` | Project decision owner from workspace | Exact candidate source | On demand | [`project-intake.template.yaml`](../../templates/project/project-intake.template.yaml) |
-| `ddda.current-status` | `project-status` | Control | `working` | `generated` | DDDA steering runtime | Exact candidate source | On demand | [`Get-DDDAProjectStatus.ps1`](../../scripts/Get-DDDAProjectStatus.ps1) |
-| `ddda.next-actions` | `next-actions` | Control | `working` | `generated` | DDDA steering runtime | Exact candidate source | On demand | [`Get-DDDAProjectStatus.ps1`](../../scripts/Get-DDDAProjectStatus.ps1) |
-
-## Projection rules
-
-- The registry may grow to hundreds of rows without expanding the Miro frame.
-- Miro displays only aggregate health, up to five attention items, the registry contract, and a link to this document.
-- Lifecycle and provenance are separate dimensions.
-- `accepted` and gate `passed` require explicit human decisions outside this projection.
-- A changed registry file changes its SHA-256 and invalidates prior REM-012.2 technical evidence.
+GitHub Pages remains a later projection option tracked by backlog issue `#45`. A rendered page remains read-only and cannot approve a gate.

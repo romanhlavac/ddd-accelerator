@@ -1,0 +1,31 @@
+schema_version: 1
+project_id: acceptance-claims-modernization
+authority: project-owned-git-yaml
+artifacts:
+  - id: project-charter
+    type: project-charter
+    stage: align
+    lifecycle: scaffold
+    provenance: generated
+    owner: Acceptance Business Owner
+    attention: true
+    blocking: false
+    detail: ../../../../../templates/project/project-intake.template.yaml
+  - id: ddda.current-status
+    type: project-status
+    stage: control
+    lifecycle: working
+    provenance: generated
+    owner: DDDA steering runtime
+    attention: false
+    blocking: false
+    detail: ../../../../../scripts/Get-DDDAProjectStatus.ps1
+  - id: ddda.next-actions
+    type: next-actions
+    stage: control
+    lifecycle: working
+    provenance: generated
+    owner: DDDA steering runtime
+    attention: false
+    blocking: false
+    detail: ../../../../../scripts/Get-DDDAProjectStatus.ps1
