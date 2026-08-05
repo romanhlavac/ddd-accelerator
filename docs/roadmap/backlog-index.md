@@ -67,6 +67,26 @@ Child Change Requests:
 - #41 — synthetic multi-agent reference workflow and package-first acceptance
 - #46 — end-to-end first-user target/as-built documentation
 
+## WP-10 → WP-11 authority hand-off
+
+```text
+#27–#33 registered source evidence
+→ #36–#40 analytical and orchestration capabilities
+→ #34 EventStorming session artifacts
+→ #35 Miro workshop seed and governed round-trip
+→ #47 cross-Work-Package integration
+→ #41 package-first reference acceptance
+→ #46 as-built first-user documentation
+```
+
+Ownership rules:
+
+- WP-10 owns source ingestion, normalized evidence, Markdown evidence and YAML evidence registration.
+- #34 is the only EventStorming session and item contract owner.
+- #35 is the only EventStorming Miro seed, mapping, layout-ownership and synchronization owner.
+- #47 composes existing contracts; it does not create a second ingestion, artifact, agent or Miro subsystem.
+- #46 describes the complete target/as-built user workflow and closes only after #47 and #41 are verified.
+
 ## Update rule
 
 Update this index when:
