@@ -165,7 +165,7 @@ native_sub_issue_mapping:
     children: [27, 28, 29, 30, 31, 32, 33]
   WP-11:
     parent_issue: 20
-    children: [34, 35, 36, 37, 38, 39, 40, 41]
+    children: [34, 35, 36, 37, 38, 39, 40, 47, 41, 46]
 
 dependency_edges:
   WP-08:
@@ -278,6 +278,46 @@ dependency_edges:
       blocked: 41
       rationale: final E2E includes failure, retry, resume and observability
 
+
+    - blocking: 27
+      blocked: 47
+      rationale: cross-WP integration consumes the canonical ingestion and evidence materialization contract
+    - blocking: 31
+      blocked: 47
+      rationale: integration preserves security, classification and isolation boundaries
+    - blocking: 32
+      blocked: 47
+      rationale: integration consumes incremental evidence lifecycle and traceability
+    - blocking: 34
+      blocked: 47
+      rationale: integration materializes results through the EventStorming session contract
+    - blocking: 35
+      blocked: 47
+      rationale: integration reuses the Miro seed and governed round-trip contract
+    - blocking: 36
+      blocked: 47
+      rationale: integration invokes versioned analytical capability contracts
+    - blocking: 37
+      blocked: 47
+      rationale: integration composes the bounded orchestration runtime
+    - blocking: 38
+      blocked: 47
+      rationale: integration reuses fan-in, alternatives and conflict records
+    - blocking: 39
+      blocked: 47
+      rationale: integration stops at explicit human checkpoints
+    - blocking: 40
+      blocked: 47
+      rationale: integration preserves failure, retry, resume and observability contracts
+    - blocking: 47
+      blocked: 41
+      rationale: final package-first E2E consumes the evidence-to-workshop integration flow
+    - blocking: 47
+      blocked: 46
+      rationale: final documentation requires the implemented integration flow for as-built validation
+    - blocking: 41
+      blocked: 46
+      rationale: final documentation requires package-first acceptance for as-built closure
 priority_semantics:
   P0: release_safety_or_data_integrity_blocker
   P1: highest_active_product_priority
@@ -355,13 +395,13 @@ work_packages:
     title: Enterprise ingestion
     state: backlog
     target_release: TBD
-    outcome_summary: Secure and auditable Office, PDF and ArchiMate ingestion with source provenance.
+    outcome_summary: Secure and auditable ingestion with normalized evidence, Markdown materialization, YAML registration and source provenance.
     start_date: null
     target_date: null
   WP-11:
     title: EventStorming and multi-agent orchestration
     state: backlog
     target_release: TBD
-    outcome_summary: Executable EventStorming and bounded multi-agent workflows with explicit human checkpoints.
+    outcome_summary: Executable EventStorming, evidence-to-workshop integration and bounded multi-agent workflows with explicit human checkpoints.
     start_date: null
     target_date: null

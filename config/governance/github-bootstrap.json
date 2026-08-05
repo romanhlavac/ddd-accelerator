@@ -7,142 +7,528 @@
   "project_visibility": "PUBLIC",
   "api_version": "2026-03-10",
   "hierarchy": [
-    { "parent": 17, "children": [9, 10, 11, 12, 13, 14, 15] },
-    { "parent": 18, "children": [21, 22, 23, 24, 25, 26] },
-    { "parent": 19, "children": [27, 28, 29, 30, 31, 32, 33] },
-    { "parent": 20, "children": [34, 35, 36, 37, 38, 39, 40, 41] }
+    {
+      "parent": 17,
+      "children": [
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ]
+    },
+    {
+      "parent": 18,
+      "children": [
+        21,
+        22,
+        23,
+        24,
+        25,
+        26
+      ]
+    },
+    {
+      "parent": 19,
+      "children": [
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33
+      ]
+    },
+    {
+      "parent": 20,
+      "children": [
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        47,
+        41,
+        46
+      ]
+    }
   ],
   "dependencies": [
-    { "blocked": 14, "blocked_by": [13] },
-    { "blocked": 12, "blocked_by": [14] },
-    { "blocked": 11, "blocked_by": [12] },
-    { "blocked": 10, "blocked_by": [11] },
-    { "blocked": 9, "blocked_by": [10] },
-
-    { "blocked": 23, "blocked_by": [21, 22] },
-    { "blocked": 24, "blocked_by": [22, 23] },
-    { "blocked": 25, "blocked_by": [21, 24] },
-    { "blocked": 26, "blocked_by": [25] },
-
-    { "blocked": 28, "blocked_by": [27, 31] },
-    { "blocked": 29, "blocked_by": [27, 31] },
-    { "blocked": 30, "blocked_by": [27, 31] },
-    { "blocked": 32, "blocked_by": [27] },
-    { "blocked": 33, "blocked_by": [28, 29, 30, 31, 32] },
-
-    { "blocked": 35, "blocked_by": [34] },
-    { "blocked": 37, "blocked_by": [36] },
-    { "blocked": 38, "blocked_by": [37] },
-    { "blocked": 39, "blocked_by": [36, 37, 38] },
-    { "blocked": 40, "blocked_by": [37, 38, 39] },
-    { "blocked": 41, "blocked_by": [35, 40] }
+    {
+      "blocked": 14,
+      "blocked_by": [
+        13
+      ]
+    },
+    {
+      "blocked": 12,
+      "blocked_by": [
+        14
+      ]
+    },
+    {
+      "blocked": 11,
+      "blocked_by": [
+        12
+      ]
+    },
+    {
+      "blocked": 10,
+      "blocked_by": [
+        11
+      ]
+    },
+    {
+      "blocked": 9,
+      "blocked_by": [
+        10
+      ]
+    },
+    {
+      "blocked": 23,
+      "blocked_by": [
+        21,
+        22
+      ]
+    },
+    {
+      "blocked": 24,
+      "blocked_by": [
+        22,
+        23
+      ]
+    },
+    {
+      "blocked": 25,
+      "blocked_by": [
+        21,
+        24
+      ]
+    },
+    {
+      "blocked": 26,
+      "blocked_by": [
+        25
+      ]
+    },
+    {
+      "blocked": 28,
+      "blocked_by": [
+        27,
+        31
+      ]
+    },
+    {
+      "blocked": 29,
+      "blocked_by": [
+        27,
+        31
+      ]
+    },
+    {
+      "blocked": 30,
+      "blocked_by": [
+        27,
+        31
+      ]
+    },
+    {
+      "blocked": 32,
+      "blocked_by": [
+        27
+      ]
+    },
+    {
+      "blocked": 33,
+      "blocked_by": [
+        28,
+        29,
+        30,
+        31,
+        32
+      ]
+    },
+    {
+      "blocked": 35,
+      "blocked_by": [
+        34
+      ]
+    },
+    {
+      "blocked": 37,
+      "blocked_by": [
+        36
+      ]
+    },
+    {
+      "blocked": 38,
+      "blocked_by": [
+        37
+      ]
+    },
+    {
+      "blocked": 39,
+      "blocked_by": [
+        36,
+        37,
+        38
+      ]
+    },
+    {
+      "blocked": 40,
+      "blocked_by": [
+        37,
+        38,
+        39
+      ]
+    },
+    {
+      "blocked": 41,
+      "blocked_by": [
+        35,
+        40,
+        47
+      ]
+    },
+    {
+      "blocked": 47,
+      "blocked_by": [
+        27,
+        31,
+        32,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40
+      ]
+    },
+    {
+      "blocked": 46,
+      "blocked_by": [
+        47,
+        41
+      ]
+    }
   ],
   "fields": [
     {
       "name": "Status",
       "type": "SINGLE_SELECT",
       "options": [
-        { "name": "Backlog", "color": "GRAY", "description": "Recorded and not yet triaged." },
-        { "name": "Discovery", "color": "PURPLE", "description": "Problem discovery and option analysis." },
-        { "name": "Triaged", "color": "BLUE", "description": "Classified but not yet Ready." },
-        { "name": "Ready", "color": "GREEN", "description": "Meets entry criteria for implementation." },
-        { "name": "In progress", "color": "YELLOW", "description": "Active branch or implementation work exists." },
-        { "name": "In review", "color": "ORANGE", "description": "Technical or human review is active." },
-        { "name": "Blocked", "color": "RED", "description": "Cannot progress until a named condition is met." },
-        { "name": "Done", "color": "GREEN", "description": "Definition of Done is satisfied." },
-        { "name": "Cancelled", "color": "GRAY", "description": "Closed without implementation." }
+        {
+          "name": "Backlog",
+          "color": "GRAY",
+          "description": "Recorded and not yet triaged."
+        },
+        {
+          "name": "Discovery",
+          "color": "PURPLE",
+          "description": "Problem discovery and option analysis."
+        },
+        {
+          "name": "Triaged",
+          "color": "BLUE",
+          "description": "Classified but not yet Ready."
+        },
+        {
+          "name": "Ready",
+          "color": "GREEN",
+          "description": "Meets entry criteria for implementation."
+        },
+        {
+          "name": "In progress",
+          "color": "YELLOW",
+          "description": "Active branch or implementation work exists."
+        },
+        {
+          "name": "In review",
+          "color": "ORANGE",
+          "description": "Technical or human review is active."
+        },
+        {
+          "name": "Blocked",
+          "color": "RED",
+          "description": "Cannot progress until a named condition is met."
+        },
+        {
+          "name": "Done",
+          "color": "GREEN",
+          "description": "Definition of Done is satisfied."
+        },
+        {
+          "name": "Cancelled",
+          "color": "GRAY",
+          "description": "Closed without implementation."
+        }
       ]
     },
     {
       "name": "Priority",
       "type": "SINGLE_SELECT",
       "options": [
-        { "name": "P0", "color": "RED", "description": "Release, safety or data-integrity blocker." },
-        { "name": "P1", "color": "ORANGE", "description": "Highest active product priority." },
-        { "name": "P2", "color": "YELLOW", "description": "Important planned increment." },
-        { "name": "P3", "color": "GRAY", "description": "Long-term or opportunistic backlog." }
+        {
+          "name": "P0",
+          "color": "RED",
+          "description": "Release, safety or data-integrity blocker."
+        },
+        {
+          "name": "P1",
+          "color": "ORANGE",
+          "description": "Highest active product priority."
+        },
+        {
+          "name": "P2",
+          "color": "YELLOW",
+          "description": "Important planned increment."
+        },
+        {
+          "name": "P3",
+          "color": "GRAY",
+          "description": "Long-term or opportunistic backlog."
+        }
       ]
     },
     {
       "name": "Work Package",
       "type": "SINGLE_SELECT",
       "options": [
-        { "name": "WP-08", "color": "BLUE", "description": "Platform lifecycle and project steering." },
-        { "name": "WP-09", "color": "PURPLE", "description": "Strategy, portfolio and program lifecycle." },
-        { "name": "WP-10", "color": "GREEN", "description": "Enterprise ingestion." },
-        { "name": "WP-11", "color": "ORANGE", "description": "EventStorming and multi-agent orchestration." },
-        { "name": "Other", "color": "GRAY", "description": "Cross-cutting governance or uncategorized work." }
+        {
+          "name": "WP-08",
+          "color": "BLUE",
+          "description": "Platform lifecycle and project steering."
+        },
+        {
+          "name": "WP-09",
+          "color": "PURPLE",
+          "description": "Strategy, portfolio and program lifecycle."
+        },
+        {
+          "name": "WP-10",
+          "color": "GREEN",
+          "description": "Enterprise ingestion."
+        },
+        {
+          "name": "WP-11",
+          "color": "ORANGE",
+          "description": "EventStorming and multi-agent orchestration."
+        },
+        {
+          "name": "Other",
+          "color": "GRAY",
+          "description": "Cross-cutting governance or uncategorized work."
+        }
       ]
     },
     {
       "name": "Item Type",
       "type": "SINGLE_SELECT",
       "options": [
-        { "name": "GAP", "color": "PURPLE", "description": "Idea or discovered capability gap." },
-        { "name": "Work Package", "color": "BLUE", "description": "Parent roadmap outcome." },
-        { "name": "Change Request", "color": "GREEN", "description": "Concrete implementable delivery slice." },
-        { "name": "Defect", "color": "RED", "description": "Incorrect existing behavior." },
-        { "name": "Risk", "color": "ORANGE", "description": "Risk requiring treatment or decision." },
-        { "name": "Enabler", "color": "YELLOW", "description": "Administrative or technical enabling work." }
+        {
+          "name": "GAP",
+          "color": "PURPLE",
+          "description": "Idea or discovered capability gap."
+        },
+        {
+          "name": "Work Package",
+          "color": "BLUE",
+          "description": "Parent roadmap outcome."
+        },
+        {
+          "name": "Change Request",
+          "color": "GREEN",
+          "description": "Concrete implementable delivery slice."
+        },
+        {
+          "name": "Defect",
+          "color": "RED",
+          "description": "Incorrect existing behavior."
+        },
+        {
+          "name": "Risk",
+          "color": "ORANGE",
+          "description": "Risk requiring treatment or decision."
+        },
+        {
+          "name": "Enabler",
+          "color": "YELLOW",
+          "description": "Administrative or technical enabling work."
+        }
       ]
     },
     {
       "name": "Platform Area",
       "type": "SINGLE_SELECT",
       "options": [
-        { "name": "DOC", "color": "GRAY", "description": "Documentation." },
-        { "name": "METHODOLOGY", "color": "PURPLE", "description": "DDD and architecture methodology." },
-        { "name": "TEMPLATE", "color": "BLUE", "description": "Templates and scaffolds." },
-        { "name": "SCHEMA", "color": "GREEN", "description": "Machine-readable contracts." },
-        { "name": "ORCHESTRATION", "color": "ORANGE", "description": "Runtime and workflow orchestration." },
-        { "name": "INGESTION", "color": "YELLOW", "description": "Source ingestion and provenance." },
-        { "name": "CLI", "color": "BLUE", "description": "Command-line interface." },
-        { "name": "WORKSPACE-GENERATOR", "color": "GREEN", "description": "Workspace creation and upgrades." },
-        { "name": "EXAMPLE", "color": "PURPLE", "description": "Reference examples and fixtures." },
-        { "name": "TESTING", "color": "YELLOW", "description": "Test infrastructure and evidence." },
-        { "name": "RELEASE", "color": "ORANGE", "description": "Packaging, promotion and release." },
-        { "name": "SECURITY-GOVERNANCE", "color": "RED", "description": "Security and governance controls." }
+        {
+          "name": "DOC",
+          "color": "GRAY",
+          "description": "Documentation."
+        },
+        {
+          "name": "METHODOLOGY",
+          "color": "PURPLE",
+          "description": "DDD and architecture methodology."
+        },
+        {
+          "name": "TEMPLATE",
+          "color": "BLUE",
+          "description": "Templates and scaffolds."
+        },
+        {
+          "name": "SCHEMA",
+          "color": "GREEN",
+          "description": "Machine-readable contracts."
+        },
+        {
+          "name": "ORCHESTRATION",
+          "color": "ORANGE",
+          "description": "Runtime and workflow orchestration."
+        },
+        {
+          "name": "INGESTION",
+          "color": "YELLOW",
+          "description": "Source ingestion and provenance."
+        },
+        {
+          "name": "CLI",
+          "color": "BLUE",
+          "description": "Command-line interface."
+        },
+        {
+          "name": "WORKSPACE-GENERATOR",
+          "color": "GREEN",
+          "description": "Workspace creation and upgrades."
+        },
+        {
+          "name": "EXAMPLE",
+          "color": "PURPLE",
+          "description": "Reference examples and fixtures."
+        },
+        {
+          "name": "TESTING",
+          "color": "YELLOW",
+          "description": "Test infrastructure and evidence."
+        },
+        {
+          "name": "RELEASE",
+          "color": "ORANGE",
+          "description": "Packaging, promotion and release."
+        },
+        {
+          "name": "SECURITY-GOVERNANCE",
+          "color": "RED",
+          "description": "Security and governance controls."
+        }
       ]
     },
     {
       "name": "Impact",
       "type": "SINGLE_SELECT",
       "options": [
-        { "name": "LOW", "color": "GRAY", "description": "Localized low-risk change." },
-        { "name": "MEDIUM", "color": "YELLOW", "description": "Material but controlled change." },
-        { "name": "HIGH", "color": "ORANGE", "description": "Broad or high-risk change." },
-        { "name": "BREAKING", "color": "RED", "description": "Breaking compatibility impact." }
+        {
+          "name": "LOW",
+          "color": "GRAY",
+          "description": "Localized low-risk change."
+        },
+        {
+          "name": "MEDIUM",
+          "color": "YELLOW",
+          "description": "Material but controlled change."
+        },
+        {
+          "name": "HIGH",
+          "color": "ORANGE",
+          "description": "Broad or high-risk change."
+        },
+        {
+          "name": "BREAKING",
+          "color": "RED",
+          "description": "Breaking compatibility impact."
+        }
       ]
     },
     {
       "name": "Blocked",
       "type": "SINGLE_SELECT",
       "options": [
-        { "name": "No", "color": "GREEN", "description": "No active blocker." },
-        { "name": "Yes", "color": "RED", "description": "A named blocker or unblock condition exists." }
+        {
+          "name": "No",
+          "color": "GREEN",
+          "description": "No active blocker."
+        },
+        {
+          "name": "Yes",
+          "color": "RED",
+          "description": "A named blocker or unblock condition exists."
+        }
       ]
     },
     {
       "name": "Human Review",
       "type": "SINGLE_SELECT",
       "options": [
-        { "name": "Not required", "color": "GRAY", "description": "No special human judgment beyond normal review." },
-        { "name": "Pending", "color": "YELLOW", "description": "Human review is required and not final." },
-        { "name": "PASS", "color": "GREEN", "description": "Explicit human review passed." },
-        { "name": "FAIL", "color": "RED", "description": "Explicit human review failed." },
-        { "name": "Accepted risks", "color": "ORANGE", "description": "Human decision accepted documented residual risks." }
+        {
+          "name": "Not required",
+          "color": "GRAY",
+          "description": "No special human judgment beyond normal review."
+        },
+        {
+          "name": "Pending",
+          "color": "YELLOW",
+          "description": "Human review is required and not final."
+        },
+        {
+          "name": "PASS",
+          "color": "GREEN",
+          "description": "Explicit human review passed."
+        },
+        {
+          "name": "FAIL",
+          "color": "RED",
+          "description": "Explicit human review failed."
+        },
+        {
+          "name": "Accepted risks",
+          "color": "ORANGE",
+          "description": "Human decision accepted documented residual risks."
+        }
       ]
     },
-    { "name": "Target Release", "type": "TEXT" },
-    { "name": "Start date", "type": "DATE" },
-    { "name": "Target date", "type": "DATE" },
-    { "name": "Outcome summary", "type": "TEXT" },
-    { "name": "Dependency", "type": "TEXT" }
+    {
+      "name": "Target Release",
+      "type": "TEXT"
+    },
+    {
+      "name": "Start date",
+      "type": "DATE"
+    },
+    {
+      "name": "Target date",
+      "type": "DATE"
+    },
+    {
+      "name": "Outcome summary",
+      "type": "TEXT"
+    },
+    {
+      "name": "Dependency",
+      "type": "TEXT"
+    }
   ],
   "item_groups": [
     {
       "kind": "issue",
-      "numbers": [17],
+      "numbers": [
+        17
+      ],
       "metadata": {
         "Status": "Blocked",
         "Work Package": "WP-08",
@@ -155,7 +541,9 @@
     },
     {
       "kind": "issue",
-      "numbers": [18],
+      "numbers": [
+        18
+      ],
       "metadata": {
         "Status": "Backlog",
         "Work Package": "WP-09",
@@ -168,7 +556,9 @@
     },
     {
       "kind": "issue",
-      "numbers": [19],
+      "numbers": [
+        19
+      ],
       "metadata": {
         "Status": "Backlog",
         "Work Package": "WP-10",
@@ -181,7 +571,9 @@
     },
     {
       "kind": "issue",
-      "numbers": [20],
+      "numbers": [
+        20
+      ],
       "metadata": {
         "Status": "Backlog",
         "Work Package": "WP-11",
@@ -194,7 +586,13 @@
     },
     {
       "kind": "issue",
-      "numbers": [9, 10, 11, 12, 14],
+      "numbers": [
+        9,
+        10,
+        11,
+        12,
+        14
+      ],
       "metadata": {
         "Status": "Blocked",
         "Work Package": "WP-08",
@@ -206,7 +604,10 @@
     },
     {
       "kind": "issue",
-      "numbers": [13, 15],
+      "numbers": [
+        13,
+        15
+      ],
       "metadata": {
         "Status": "In progress",
         "Work Package": "WP-08",
@@ -218,7 +619,14 @@
     },
     {
       "kind": "issue",
-      "numbers": [21, 22, 23, 24, 25, 26],
+      "numbers": [
+        21,
+        22,
+        23,
+        24,
+        25,
+        26
+      ],
       "metadata": {
         "Status": "Backlog",
         "Work Package": "WP-09",
@@ -230,7 +638,15 @@
     },
     {
       "kind": "issue",
-      "numbers": [27, 28, 29, 30, 31, 32, 33],
+      "numbers": [
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33
+      ],
       "metadata": {
         "Status": "Backlog",
         "Work Package": "WP-10",
@@ -242,7 +658,16 @@
     },
     {
       "kind": "issue",
-      "numbers": [34, 35, 36, 37, 38, 39, 40, 41],
+      "numbers": [
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41
+      ],
       "metadata": {
         "Status": "Backlog",
         "Work Package": "WP-11",
@@ -254,7 +679,9 @@
     },
     {
       "kind": "pull",
-      "numbers": [8],
+      "numbers": [
+        8
+      ],
       "metadata": {
         "Status": "Blocked",
         "Work Package": "WP-08",
@@ -266,7 +693,9 @@
     },
     {
       "kind": "issue",
-      "numbers": [16],
+      "numbers": [
+        16
+      ],
       "metadata": {
         "Status": "In progress",
         "Work Package": "Other",
@@ -278,7 +707,9 @@
     },
     {
       "kind": "issue",
-      "numbers": [42],
+      "numbers": [
+        42
+      ],
       "metadata": {
         "Status": "In progress",
         "Work Package": "Other",
@@ -290,7 +721,9 @@
     },
     {
       "kind": "pull",
-      "numbers": [43],
+      "numbers": [
+        43
+      ],
       "metadata": {
         "Status": "Blocked",
         "Work Package": "Other",
@@ -302,7 +735,9 @@
     },
     {
       "kind": "issue",
-      "numbers": [44],
+      "numbers": [
+        44
+      ],
       "metadata": {
         "Status": "Backlog",
         "Work Package": "Other",
@@ -311,23 +746,84 @@
         "Blocked": "No",
         "Human Review": "Not required"
       }
+    },
+    {
+      "kind": "issue",
+      "numbers": [
+        46,
+        47
+      ],
+      "metadata": {
+        "Status": "Backlog",
+        "Work Package": "WP-11",
+        "Item Type": "Change Request",
+        "Target Release": "TBD",
+        "Blocked": "Yes",
+        "Human Review": "Not required"
+      }
     }
   ],
   "views": [
-    { "name": "Work Packages", "layout": "table", "filter": "Item Type:\"Work Package\"" },
-    { "name": "WP hierarchy", "layout": "table", "filter": "" },
-    { "name": "Delivery board", "layout": "board", "filter": "" },
-    { "name": "Roadmap by Work Package", "layout": "roadmap", "filter": "-status:Cancelled" },
-    { "name": "Release scope", "layout": "table", "filter": "-Target Release:TBD" },
-    { "name": "Blocked and P0", "layout": "table", "filter": "Blocked:Yes" },
-    { "name": "Human review queue", "layout": "table", "filter": "Human Review:Pending" },
-    { "name": "Ready without owner", "layout": "table", "filter": "status:Ready no:assignee" },
-    { "name": "Recently completed", "layout": "table", "filter": "status:Done" }
+    {
+      "name": "Work Packages",
+      "layout": "table",
+      "filter": "Item Type:\"Work Package\""
+    },
+    {
+      "name": "WP hierarchy",
+      "layout": "table",
+      "filter": ""
+    },
+    {
+      "name": "Delivery board",
+      "layout": "board",
+      "filter": ""
+    },
+    {
+      "name": "Roadmap by Work Package",
+      "layout": "roadmap",
+      "filter": "-status:Cancelled"
+    },
+    {
+      "name": "Release scope",
+      "layout": "table",
+      "filter": "-Target Release:TBD"
+    },
+    {
+      "name": "Blocked and P0",
+      "layout": "table",
+      "filter": "Blocked:Yes"
+    },
+    {
+      "name": "Human review queue",
+      "layout": "table",
+      "filter": "Human Review:Pending"
+    },
+    {
+      "name": "Ready without owner",
+      "layout": "table",
+      "filter": "status:Ready no:assignee"
+    },
+    {
+      "name": "Recently completed",
+      "layout": "table",
+      "filter": "status:Done"
+    }
   ],
   "milestone": {
     "title": "DDDA 0.1.0",
     "description": "First validated DDDA platform release with lifecycle and project-steering foundation. Milestone membership is release scope, not release approval.",
-    "issues": [9, 10, 11, 12, 13, 14, 15],
-    "pulls": [8]
+    "issues": [
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "pulls": [
+      8
+    ]
   }
 }

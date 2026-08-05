@@ -42,7 +42,7 @@ Parent Issue: #19
 
 Child Change Requests:
 
-- #27 — enterprise manifest, provenance and normalized ingestion core
+- #27 — enterprise manifest, normalized evidence, Markdown materialization and YAML registration
 - #28 — Office ingestion adapters for DOCX, XLSX and PPTX
 - #29 — PDF ingestion and explicit OCR fallback
 - #30 — ArchiMate ingestion and supported-subset coverage report
@@ -63,7 +63,9 @@ Child Change Requests:
 - #38 — fan-in evidence merge, alternatives and conflict records
 - #39 — human checkpoints, authorization and safety boundaries
 - #40 — failure/timeout/retry/replay/resume and observability/cost governance
+- #47 — evidence-to-workshop integration orchestration
 - #41 — synthetic multi-agent reference workflow and package-first acceptance
+- #46 — end-to-end first-user target/as-built documentation
 
 ## Update rule
 
