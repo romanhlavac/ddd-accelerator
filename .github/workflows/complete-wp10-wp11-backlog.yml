@@ -1,0 +1,370 @@
+name: Complete WP-10 WP-11 backlog alignment
+
+on:
+  push:
+    branches:
+      - feature/github-native-backlog-governance
+    paths:
+      - .github/workflows/complete-wp10-wp11-backlog.yml
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  align:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/github-native-backlog-governance
+          fetch-depth: 0
+
+      - name: Align versioned governance sources
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          root = Path('.')
+
+          # github-bootstrap.json
+          bootstrap_path = root / 'config/governance/github-bootstrap.json'
+          data = json.loads(bootstrap_path.read_text(encoding='utf-8-sig'))
+          desired_children = [34, 35, 36, 37, 38, 39, 40, 47, 41, 46]
+          for rel in data['hierarchy']:
+              if rel['parent'] == 20:
+                  rel['children'] = desired_children
+                  break
+          else:
+              data['hierarchy'].append({'parent': 20, 'children': desired_children})
+
+          desired_deps = {
+              47: [27, 31, 32, 34, 35, 36, 37, 38, 39, 40],
+              41: [35, 40, 47],
+              46: [47, 41],
+          }
+          dep_map = {d['blocked']: d for d in data['dependencies']}
+          for blocked, blockers in desired_deps.items():
+              if blocked in dep_map:
+                  dep_map[blocked]['blocked_by'] = blockers
+              else:
+                  data['dependencies'].append({'blocked': blocked, 'blocked_by': blockers})
+
+          covered = {n for group in data['item_groups'] if group.get('kind') == 'issue' for n in group.get('numbers', [])}
+          if not {46, 47}.issubset(covered):
+              data['item_groups'].append({
+                  'kind': 'issue',
+                  'numbers': [46, 47],
+                  'metadata': {
+                      'Status': 'Backlog',
+                      'Work Package': 'WP-11',
+                      'Item Type': 'Change Request',
+                      'Target Release': 'TBD',
+                      'Blocked': 'Yes',
+                      'Human Review': 'Not required'
+                  }
+              })
+          bootstrap_path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          # backlog-policy.yaml: preserve the complete policy and patch authoritative lists/edges.
+          policy_path = root / 'config/governance/backlog-policy.yaml'
+          policy = policy_path.read_text(encoding='utf-8-sig')
+          policy = policy.replace(
+              'children: [34, 35, 36, 37, 38, 39, 40, 41]',
+              'children: [34, 35, 36, 37, 38, 39, 40, 47, 41, 46]'
+          )
+          if 'blocked: 47\n      rationale: cross-WP integration' not in policy:
+              marker = '\npriority_semantics:'
+              addition = '''
+              - blocking: 27
+                blocked: 47
+                rationale: cross-WP integration consumes the canonical ingestion and evidence materialization contract
+              - blocking: 31
+                blocked: 47
+                rationale: evidence-to-workshop integration must preserve security, classification and isolation boundaries
+              - blocking: 32
+                blocked: 47
+                rationale: integration consumes incremental evidence lifecycle and source-to-artifact traceability
+              - blocking: 34
+                blocked: 47
+                rationale: integration materializes analytical results through the executable EventStorming session contract
+              - blocking: 35
+                blocked: 47
+                rationale: integration reuses the EventStorming Miro seed and governed round-trip contract
+              - blocking: 36
+                blocked: 47
+                rationale: integration invokes versioned analytical capability contracts
+              - blocking: 37
+                blocked: 47
+                rationale: integration composes the bounded orchestration runtime
+              - blocking: 38
+                blocked: 47
+                rationale: integration reuses fan-in, alternatives and conflict records
+              - blocking: 39
+                blocked: 47
+                rationale: integration must stop at explicit human checkpoints
+              - blocking: 40
+                blocked: 47
+                rationale: integration must preserve failure, retry, replay, resume and observability contracts
+              - blocking: 47
+                blocked: 41
+                rationale: final package-first E2E consumes the evidence-to-workshop integration flow
+              - blocking: 47
+                blocked: 46
+                rationale: final user documentation requires the implemented integration flow for as-built validation
+              - blocking: 41
+                blocked: 46
+                rationale: final user documentation requires the package-first reference acceptance for as-built closure
+          '''
+              if marker not in policy:
+                  raise SystemExit('priority_semantics marker not found in backlog-policy.yaml')
+              policy = policy.replace(marker, '\n' + addition.rstrip() + marker, 1)
+          policy = policy.replace(
+              'Secure and auditable Office, PDF and ArchiMate ingestion with source provenance.',
+              'Secure and auditable ingestion with normalized evidence, Markdown materialization, YAML registration and source provenance.'
+          )
+          policy = policy.replace(
+              'Executable EventStorming and bounded multi-agent workflows with explicit human checkpoints.',
+              'Executable EventStorming, evidence-to-workshop integration and bounded multi-agent workflows with explicit human checkpoints.'
+          )
+          policy_path.write_text(policy, encoding='utf-8')
+
+          wp10 = '''# WP-10 — Enterprise ingestion
+
+## Outcome
+
+DDDA získá bezpečnou, manifest-driven a auditovatelnou ingestion pipeline:
+
+```text
+source document/model
+→ normalized evidence fragments
+→ Markdown evidence projection
+→ YAML evidence/artifact registration
+→ downstream reviewed interpretation
+```
+
+Ingestion vytváří evidence, nikoli schválený doménový model, architektonické rozhodnutí nebo gate approval.
+
+## Capability ownership
+
+- #27 — manifest, source catalog, normalized evidence, Markdown materialization, YAML registration a common core;
+- #28 — Office adapters;
+- #29 — PDF a explicitní OCR fallback;
+- #30 — ArchiMate;
+- #31 — security, privacy, classification a isolation;
+- #32 — incremental lifecycle, reconciliation, tombstones, resume a traceability;
+- #33 — synthetic corpus a package-first acceptance.
+
+## Authority boundary
+
+```text
+source
+→ extracted evidence
+→ Markdown evidence
+→ YAML registration
+→ reviewed interpretation
+→ candidate/validated artifact
+→ human decision
+```
+
+Markdown je lidsky čitelná evidence projection. YAML registration je strojový katalog, hash binding a traceability record. Ani jedna vrstva sama nevytváří approval.
+
+## In scope
+
+- source manifest/catalog, stable identity, checksums a provenance;
+- Office/PDF/ArchiMate adapters a explicitní supported subsets;
+- normalized fragments a source locations;
+- Markdown evidence s limitations a provenance;
+- YAML evidence/artifact registration s SHA-256 Markdown obsahu;
+- classification, redaction, no-path-escape a package guards;
+- deduplication, update detection, tombstones, resume a partial failure;
+- machine-readable a human-readable reports;
+- source → evidence → registration → downstream artifact traceability;
+- synthetic package-first E2E.
+
+## Child Issues
+
+- #27 — enterprise manifest, provenance, normalized evidence and canonical materialization
+- #28 — Office ingestion adapters
+- #29 — PDF ingestion and OCR fallback
+- #30 — ArchiMate ingestion
+- #31 — security, privacy and isolation
+- #32 — incremental lifecycle, tombstones, resume and traceability
+- #33 — synthetic corpus and package-first acceptance
+
+## Acceptance criteria
+
+- every source and fragment retains stable provenance;
+- supported evidence units produce Markdown evidence and YAML registration;
+- registration binds to the Markdown content hash and detects drift;
+- unchanged reruns are idempotent;
+- changed/deleted sources use reconciliation and tombstones;
+- unsupported content and extraction limitations are explicit;
+- no adapter reads/writes outside allowed boundaries;
+- evidence cannot create approved DDD/architecture decisions;
+- examples and packages contain no client data or secrets;
+- package-first E2E covers add/change/delete/failure/resume and materialization.
+
+## Dependencies
+
+WP-08 provides validation, packaging and security boundaries. WP-11 #47 consumes the registered evidence but does not reimplement ingestion.
+
+## Exit criteria
+
+#27–#33 contracts are compatible; Markdown/YAML materialization, idempotence, reconciliation, security and package-first acceptance pass; roadmap and native backlog governance are current.
+'''
+          (root / 'docs/roadmap/work-packages/WP-10-enterprise-ingestion.md').write_text(wp10, encoding='utf-8')
+
+          wp11 = '''# WP-11 — EventStorming & multi-agent orchestration
+
+## Outcome
+
+DDDA propojí evidence z WP-10 s řízenou analytickou interpretací, executable EventStorming session, workshop-ready Miro projekcí, governed round-tripem a explicitním lidským rozhodnutím.
+
+```text
+WP-10 registered evidence
+→ analytical capabilities
+→ #34 EventStorming session
+→ #35 Miro workshop
+→ governed round-trip
+→ Control Center and artifacts
+→ human decision
+```
+
+## Capability ownership
+
+- #34 — EventStorming session/item contracts;
+- #35 — Miro seeding, mapping, layout ownership and round-trip;
+- #36 — agent/capability contracts;
+- #37 — bounded orchestration/fan-out;
+- #38 — fan-in, alternatives and conflicts;
+- #39 — human checkpoints and authorization;
+- #40 — failure/retry/replay/resume and observability;
+- #47 — integration-only evidence-to-workshop orchestration;
+- #41 — final synthetic package-first E2E;
+- #46 — first-user target/as-built documentation.
+
+WP-10 #27–#33 remain the sole owners of source ingestion, normalized/Markdown evidence and YAML evidence registration.
+
+## Core principles
+
+- source, evidence, interpretation, candidate artifact and human decision are separate authority levels;
+- #34 is the sole EventStorming artifact model;
+- #35 is the sole Miro seed/sync/layout contract;
+- #47 composes existing contracts and does not create parallel models;
+- Git/YAML owns semantics and provenance; Miro owns workshop placement;
+- fan-in preserves alternatives and conflicts;
+- automation may create `ready_for_review`, never human `passed`;
+- no implicit Git push, merge, release or destructive Miro action.
+
+## Child Issues and order
+
+```text
+#34 → #35
+#36 → #37 → #38
+#36/#37/#38 → #39
+#37/#38/#39 → #40
+#27/#31/#32 + #34–#40 → #47
+#35/#40/#47 → #41
+#47/#41 → final as-built closure #46
+```
+
+Children: #34, #35, #36, #37, #38, #39, #40, #47, #41 and #46.
+
+## Acceptance criteria
+
+- registered evidence is consumed through WP-10 contracts;
+- analytical output materializes only through #34;
+- Miro seed/round-trip uses only #35;
+- manual layout survives semantic refresh;
+- Miro-created items require explicit promotion;
+- conflicts never use semantic last-write-wins;
+- source/evidence is traceable through task, session and workshop delta;
+- #47 contains no duplicate ingestion, artifact, agent or sync subsystem;
+- #41 proves the integrated package-first flow;
+- #46 matches as-built behavior and passes first-user acceptance;
+- no automated approval path exists.
+
+## Exit criteria
+
+EventStorming, agent and recovery contracts are stable; #47 demonstrates the integration without duplicate models; #41 passes synthetic package-first and human acceptance; #46 is as-built validated; native hierarchy and dependency graph are current.
+'''
+          (root / 'docs/roadmap/work-packages/WP-11-eventstorming-multi-agent-orchestration.md').write_text(wp11, encoding='utf-8')
+
+          index_path = root / 'docs/roadmap/backlog-index.md'
+          index = index_path.read_text(encoding='utf-8-sig')
+          index = index.replace(
+              '- #27 — enterprise manifest, provenance and normalized ingestion core',
+              '- #27 — enterprise manifest, normalized evidence, Markdown materialization and YAML registration'
+          )
+          if '- #47 — evidence-to-workshop integration orchestration' not in index:
+              index = index.replace(
+                  '- #40 — failure/timeout/retry/replay/resume and observability/cost governance\n- #41 — synthetic multi-agent reference workflow and package-first acceptance',
+                  '- #40 — failure/timeout/retry/replay/resume and observability/cost governance\n- #47 — evidence-to-workshop integration orchestration\n- #41 — synthetic multi-agent reference workflow and package-first acceptance\n- #46 — end-to-end first-user target/as-built documentation'
+              )
+          index_path.write_text(index, encoding='utf-8')
+
+          # Guardrails
+          assert desired_children == next(x['children'] for x in data['hierarchy'] if x['parent'] == 20)
+          assert '#47 — evidence-to-workshop integration orchestration' in index_path.read_text(encoding='utf-8')
+          assert 'Markdown evidence projection' in (root / 'docs/roadmap/work-packages/WP-10-enterprise-ingestion.md').read_text(encoding='utf-8')
+          assert 'integration-only' in (root / 'docs/roadmap/work-packages/WP-11-eventstorming-multi-agent-orchestration.md').read_text(encoding='utf-8')
+          PY
+
+          rm .github/workflows/complete-wp10-wp11-backlog.yml
+
+          python -m json.tool config/governance/github-bootstrap.json >/dev/null
+          grep -F 'children: [34, 35, 36, 37, 38, 39, 40, 47, 41, 46]' config/governance/backlog-policy.yaml
+          grep -F '#47 — evidence-to-workshop integration orchestration' docs/roadmap/backlog-index.md
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add config/governance docs/roadmap .github/workflows/complete-wp10-wp11-backlog.yml
+          git commit -m 'docs(governance): align WP-10 and WP-11 backlog contracts (#16)'
+          git push origin HEAD:feature/github-native-backlog-governance
+
+      - name: Apply native hierarchy and dependencies
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: romanhlavac/ddd-accelerator
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          issue_id() {
+            gh api "repos/$GH_REPO/issues/$1" --jq '.id'
+          }
+
+          add_subissue() {
+            local parent="$1" child="$2"
+            if gh api "repos/$GH_REPO/issues/$parent/sub_issues?per_page=100" --jq '.[].number' | grep -qx "$child"; then
+              echo "sub-issue $child already under $parent"
+              return
+            fi
+            gh api --method POST "repos/$GH_REPO/issues/$parent/sub_issues" -F sub_issue_id="$(issue_id "$child")" >/dev/null
+            echo "added sub-issue $child under $parent"
+          }
+
+          add_dependency() {
+            local blocked="$1" blocker="$2"
+            if gh api "repos/$GH_REPO/issues/$blocked/dependencies/blocked_by?per_page=100" --jq '.[].number' | grep -qx "$blocker"; then
+              echo "dependency $blocked <- $blocker already exists"
+              return
+            fi
+            gh api --method POST "repos/$GH_REPO/issues/$blocked/dependencies/blocked_by" -F issue_id="$(issue_id "$blocker")" >/dev/null
+            echo "added dependency $blocked <- $blocker"
+          }
+
+          add_subissue 20 46
+          add_subissue 20 47
+
+          for blocker in 27 31 32 34 35 36 37 38 39 40; do add_dependency 47 "$blocker"; done
+          add_dependency 41 47
+          add_dependency 46 47
+          add_dependency 46 41
+
+          test "$(gh api "repos/$GH_REPO/issues/46" --jq '.parent_issue_url')" = "https://api.github.com/repos/$GH_REPO/issues/20"
+          test "$(gh api "repos/$GH_REPO/issues/47" --jq '.parent_issue_url')" = "https://api.github.com/repos/$GH_REPO/issues/20"
+          echo 'Native hierarchy and dependencies verified.'
