@@ -29,6 +29,11 @@ protected_frames:
   - '3458764679756478093'
   - '3458764679756478094'
   - '3458764679756478096'
+health_palette:
+  maturity: '#2F80ED'
+  attention: '#F2994A'
+  blocking_clear: '#27AE60'
+  blocking_active: '#EB5757'
 updates:
   - id: '3458764679756505802'
     type: text
@@ -53,28 +58,43 @@ updates:
     type: shape
     frame: control
     x: 3500
-    y: 3800
+    y: 3850
     width: 6400
-    height: 1900
-    font_size: 48
-    content: '<p><strong>ARTIFACT HEALTH — acceptance-claims-modernization</strong></p><p><strong>MATURITY:</strong> <strong>SCAFFOLD</strong> je výchozí struktura; <strong>WORKING</strong> se doplňuje; <strong>CANDIDATE</strong> čeká na review; <strong>VALIDATED</strong> prošel kontrolou; <strong>ACCEPTED</strong> vyžaduje explicitní lidské přijetí; <strong>SUPERSEDED</strong> byl nahrazen.</p><p><strong>ATTENTION</strong> znamená nutnost lidské kontroly nebo doplnění. Neznamená automaticky blokaci. Tu vyjadřuje pouze explicitní <strong>BLOCKING</strong> položka.</p>'
+    height: 2100
+    font_size: 64
+    style:
+      fillColor: '#E7F1FF'
+      borderColor: '#4B79A1'
+      color: '#1F3B64'
+      textAlign: left
+      textAlignVertical: top
+    content: '<p><strong>ARTIFACT HEALTH — acceptance-claims-modernization</strong></p>'
   - id: '3458764679756523219'
     type: shape
     frame: control
     x: 3500
-    y: 3100
+    y: 3500
     width: 5800
-    height: 500
-    font_size: 64
-    content: '<p><strong>HEALTH: ATTENTION</strong> — 1 artefakt vyžaduje lidskou kontrolu · <strong>BLOCKING: 0</strong></p>'
+    height: 700
+    font_size: 80
+    style:
+      fillColor: '#FFFFFF'
+      borderColor: '#8AA9C7'
+      color: '#1F2937'
+      textAlign: center
+      textAlignVertical: middle
+    content: '<p><strong>🟦 MATURITY: 1 SCAFFOLD · 2 WORKING</strong>   <strong>🟧 ATTENTION: 1</strong>   <strong>🟩 BLOCKING: 0</strong></p>'
   - id: '3458764679756523220'
     type: text
     frame: control
     x: 3500
-    y: 4450
+    y: 4300
     width: 5700
     font_size: 48
-    content: '<p><strong>3 artefakty</strong> · SCAFFOLD 1 · WORKING 2 · ATTENTION 1 · BLOCKING 0</p><p><a href="https://github.com/romanhlavac/ddd-accelerator/blob/feat/project-steering-and-documentation/examples/minimal/projects/acceptance-claims-modernization/docs/artifacts/index.md">OTEVŘÍT PROJEKTOVÝ ARTIFACT REGISTRY →</a></p><p>Project-owned Git/YAML je source of truth. Tato projekce ani technický PASS neschvalují gate.</p>'
+    style:
+      color: '#1F3B64'
+      textAlign: left
+    content: '<p><strong>🟦 MATURITY</strong> popisuje rozpracovanost artefaktu: SCAFFOLD → WORKING → CANDIDATE → VALIDATED → ACCEPTED → SUPERSEDED.</p><p><strong>🟧 ATTENTION</strong> vyžaduje lidskou kontrolu nebo doplnění, ale samo o sobě nemusí zastavit gate. <strong>🟩 BLOCKING: 0</strong> znamená bez blockeru; <strong>🟥 BLOCKING &gt; 0</strong> znamená zastavit postup a vyřešit překážku.</p><p><a href="https://github.com/romanhlavac/ddd-accelerator/blob/feat/project-steering-and-documentation/examples/minimal/projects/acceptance-claims-modernization/docs/artifacts/index.md">OTEVŘÍT PROJEKTOVÝ ARTIFACT REGISTRY →</a> · Project-owned Git/YAML je source of truth. Tato projekce ani technický PASS neschvalují gate.</p>'
   - id: '3458764679756523140'
     type: text
     frame: journey
@@ -166,12 +186,13 @@ control_verification:
   required_phrases:
     - CONTROL CENTER — začněte zde
     - Jak board použít poprvé
-    - HEALTH: ATTENTION
-    - MATURITY:
-    - ATTENTION
-    - BLOCKING
-    - acceptance-claims-modernization
+    - ARTIFACT HEALTH — acceptance-claims-modernization
+    - 🟦 MATURITY: 1 SCAFFOLD · 2 WORKING
+    - 🟧 ATTENTION: 1
+    - 🟩 BLOCKING: 0
+    - 🟥 BLOCKING > 0
     - Project-owned Git/YAML je source of truth
   forbidden_phrases:
+    - HEALTH: ATTENTION
     - PROVENANCE · GENERATED
     - PROJECT / GATE STATE — kompaktní legenda

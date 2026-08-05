@@ -56,6 +56,30 @@ REM-PR8-HVA-CC-012.3.1 therefore requires one integrated bottom health area:
 
 Numeric tests are regression guardrails, not a substitute for visual review at normal working zoom.
 
+## HVR-1 repeat checkpoint — frame 00
+
+Review of transport SHA `f471f83e4b178c8fec239bb51c0188c2c7a4e304` again concluded `CHANGES_REQUIRED`.
+
+The integrated health area was technically readable but still lacked an obvious project-scoped title, duplicated status in a redundant highlighted block, and rendered the actual artifact counts without enough visual weight. Maturity, attention, and blocking also lacked a reusable visual code.
+
+REM-PR8-HVA-CC-012.3.2 therefore requires:
+
+- the complete lower panel to be explicitly titled `ARTIFACT HEALTH — acceptance-claims-modernization`;
+- removal of the redundant `HEALTH: ATTENTION` wording;
+- one dominant status row containing actual values only;
+- no explanatory legend text in the status row;
+- a consistent visual code in both status and legend:
+  - `🟦` maturity;
+  - `🟧` attention;
+  - `🟩` no active blocker;
+  - `🟥` one or more active blockers;
+- status font size at least `80` and legend font size at least `48`;
+- explicit remote read-back of title, status values, color markers, style, geometry, and frame ownership;
+- zero-mutation second reconcile;
+- no changes to frames `01`, `10`, or `20+`.
+
+The numeric and color-token tests are mandatory regression controls, while normal-zoom human review remains the acceptance gate.
+
 ## Sequential HVR operating rule
 
 Human visual review proceeds one section at a time:
@@ -70,7 +94,7 @@ show exactly one review target
 Current sequence:
 
 ```text
-HVR-1 frame 00: CHANGES_REQUIRED
+HVR-1 frame 00: CHANGES_REQUIRED — REM-012.3.2 pending
 HVR-2 frame 01: NOT STARTED
 HVR-3 frame 10: NOT STARTED
 Cross-frame review: NOT STARTED

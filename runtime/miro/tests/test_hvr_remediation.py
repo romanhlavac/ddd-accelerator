@@ -80,70 +80,88 @@ def test_gate_legend_moves_to_journey_and_attention_is_explained():
     assert "PROVENANCE · GENERATED" not in control_text
 
 
-def test_frame_00_artifact_health_is_one_readable_bottom_panel():
+def test_frame_00_artifact_health_has_explicit_project_title_and_hierarchy():
     manifest = _load(MANIFEST)
     updates = {str(item["id"]): item for item in manifest["updates"]}
     panel = updates["3458764679756523217"]
     status = updates["3458764679756523219"]
-    detail = updates["3458764679756523220"]
+    legend = updates["3458764679756523220"]
 
-    assert panel["frame"] == status["frame"] == detail["frame"] == "control"
+    assert panel["frame"] == status["frame"] == legend["frame"] == "control"
+    assert panel["content"] == "<p><strong>ARTIFACT HEALTH — acceptance-claims-modernization</strong></p>"
     assert panel["width"] >= 6000
-    assert panel["height"] >= 1600
-    assert panel["width"] / panel["height"] >= 3.0
-    assert panel["y"] >= 3500
+    assert panel["height"] >= 2000
+    assert panel["font_size"] >= 64
+    assert panel["style"]["textAlignVertical"] == "top"
+    assert panel["style"]["fillColor"] == "#E7F1FF"
 
     assert status["width"] >= 5600
-    assert status["height"] <= 600
-    assert status["font_size"] >= 64
-    assert "HEALTH: ATTENTION" in status["content"]
-    assert "BLOCKING: 0" in status["content"]
+    assert status["height"] >= 650
+    assert status["font_size"] >= 80
+    assert "HEALTH: ATTENTION" not in status["content"]
+    assert "🟦 MATURITY: 1 SCAFFOLD · 2 WORKING" in status["content"]
+    assert "🟧 ATTENTION: 1" in status["content"]
+    assert "🟩 BLOCKING: 0" in status["content"]
 
-    assert panel["font_size"] >= 48
-    assert detail["font_size"] >= 48
-    assert status["font_size"] > panel["font_size"]
-    assert status["font_size"] > detail["font_size"]
+    assert legend["font_size"] >= 48
+    assert "OTEVŘÍT PROJEKTOVÝ ARTIFACT REGISTRY" in legend["content"]
+    assert "source of truth" in legend["content"]
 
     _assert_inside(panel, status)
-    _assert_inside(panel, detail)
+    _assert_inside(panel, legend)
 
 
-def test_frame_00_health_panel_explains_status_before_secondary_details():
+def test_frame_00_color_code_is_consistent_in_status_and_legend():
+    manifest = _load(MANIFEST)
+    updates = {str(item["id"]): item for item in manifest["updates"]}
+    status = updates["3458764679756523219"]["content"]
+    legend = updates["3458764679756523220"]["content"]
+    palette = manifest["health_palette"]
+
+    assert palette == {
+        "maturity": "#2F80ED",
+        "attention": "#F2994A",
+        "blocking_clear": "#27AE60",
+        "blocking_active": "#EB5757",
+    }
+    for marker in ("🟦 MATURITY", "🟧 ATTENTION", "🟩 BLOCKING"):
+        assert marker in status
+        assert marker in legend
+    assert "🟥 BLOCKING &gt; 0" in legend
+
+
+def test_frame_00_status_is_not_duplicated_or_mixed_with_legend():
+    manifest = _load(MANIFEST)
+    updates = {str(item["id"]): item for item in manifest["updates"]}
+    panel = updates["3458764679756523217"]["content"]
+    status = updates["3458764679756523219"]["content"]
+    legend = updates["3458764679756523220"]["content"]
+
+    assert "MATURITY:" not in panel
+    assert "ATTENTION:" not in panel
+    assert "BLOCKING:" not in panel
+    assert "znamená" not in status
+    assert "popisuje" not in status
+    assert "HEALTH: ATTENTION" not in status
+    assert status.count("ATTENTION: 1") == 1
+    assert status.count("BLOCKING: 0") == 1
+    assert "znamená" in legend or "popisuje" in legend
+
+
+def test_frame_00_readability_regression_guard():
     manifest = _load(MANIFEST)
     updates = {str(item["id"]): item for item in manifest["updates"]}
     panel = updates["3458764679756523217"]
     status = updates["3458764679756523219"]
-    detail = updates["3458764679756523220"]
+    legend = updates["3458764679756523220"]
 
-    assert status["y"] < panel["y"] < detail["y"]
-    assert "MATURITY:" in panel["content"]
-    for maturity in (
-        "SCAFFOLD",
-        "WORKING",
-        "CANDIDATE",
-        "VALIDATED",
-        "ACCEPTED",
-        "SUPERSEDED",
-    ):
-        assert maturity in panel["content"]
-    assert "ATTENTION" in panel["content"]
-    assert "BLOCKING" in panel["content"]
-    assert "OTEVŘÍT PROJEKTOVÝ ARTIFACT REGISTRY" in detail["content"]
-    assert "source of truth" in detail["content"]
-
-
-def test_frame_00_health_regression_guard_rejects_old_split_legend_layout():
-    manifest = _load(MANIFEST)
-    updates = {str(item["id"]): item for item in manifest["updates"]}
-    panel = updates["3458764679756523217"]
-    status = updates["3458764679756523219"]
-    detail = updates["3458764679756523220"]
-
-    assert (panel["x"], status["x"], detail["x"]) == (3500, 3500, 3500)
-    assert min(panel["width"], status["width"], detail["width"]) >= 5600
-    assert panel["font_size"] != 36
-    assert status["font_size"] != 36
-    assert detail["font_size"] != 36
+    assert (panel["x"], status["x"], legend["x"]) == (3500, 3500, 3500)
+    assert min(panel["width"], status["width"], legend["width"]) >= 5600
+    assert min(panel["font_size"], status["font_size"], legend["font_size"]) >= 48
+    assert status["font_size"] > panel["font_size"] > legend["font_size"] - 1
+    assert panel["style"]["borderColor"] == "#4B79A1"
+    assert status["style"]["fillColor"] == "#FFFFFF"
+    assert status["style"]["textAlign"] == "center"
     assert not (
         panel["width"] == 3400
         and status["width"] == 2600
