@@ -30,10 +30,35 @@ protected_frames:
   - '3458764679756478094'
   - '3458764679756478096'
 health_palette:
-  maturity: '#2F80ED'
+  maturity:
+    scaffold: '#EAF3FB'
+    working: '#C9E0F5'
+    candidate: '#9FC7EA'
+    validated: '#6FA8D8'
+    accepted: '#3F86C4'
+    superseded: '#1F5F98'
   attention: '#F2994A'
   blocking_clear: '#27AE60'
   blocking_active: '#EB5757'
+frame_00_maturity_items:
+  - {key: scaffold, label: SCAFFOLD, count: 1, x: 900, y: 4200, width: 850, height: 420, font_size: 32, fill_color: '#EAF3FB', text_color: '#1F3B64'}
+  - {key: working, label: WORKING, count: 2, x: 1900, y: 4200, width: 850, height: 420, font_size: 32, fill_color: '#C9E0F5', text_color: '#1F3B64'}
+  - {key: candidate, label: CANDIDATE, count: 0, x: 2900, y: 4200, width: 850, height: 420, font_size: 32, fill_color: '#9FC7EA', text_color: '#17395F'}
+  - {key: validated, label: VALIDATED, count: 0, x: 3900, y: 4200, width: 850, height: 420, font_size: 32, fill_color: '#6FA8D8', text_color: '#102A43'}
+  - {key: accepted, label: ACCEPTED, count: 0, x: 4900, y: 4200, width: 850, height: 420, font_size: 32, fill_color: '#3F86C4', text_color: '#FFFFFF'}
+  - {key: superseded, label: SUPERSEDED, count: 0, x: 5900, y: 4200, width: 850, height: 420, font_size: 32, fill_color: '#1F5F98', text_color: '#FFFFFF'}
+frame_00_registry_reference:
+  key: project-artifact-registry
+  type: text
+  frame: control
+  x: 3500
+  y: 4680
+  width: 6000
+  font_size: 44
+  style:
+    color: '#1F3B64'
+    textAlign: center
+  content: '<p><a href="https://github.com/romanhlavac/ddd-accelerator/blob/feat/project-steering-and-documentation/examples/minimal/projects/acceptance-claims-modernization/docs/artifacts/index.md"><strong>OTEVŘÍT PROJEKTOVÝ ARTIFACT REGISTRY →</strong></a></p><p>Project-owned Git/YAML je source of truth. Tato projekce ani technický PASS neschvalují gate.</p>'
 updates:
   - id: '3458764679756505802'
     type: text
@@ -72,29 +97,29 @@ updates:
   - id: '3458764679756523219'
     type: shape
     frame: control
-    x: 3500
+    x: 1700
     y: 3500
-    width: 5800
+    width: 2600
     height: 700
-    font_size: 80
+    font_size: 72
     style:
       fillColor: '#FFFFFF'
       borderColor: '#8AA9C7'
       color: '#1F2937'
       textAlign: center
       textAlignVertical: middle
-    content: '<p><strong>🟦 MATURITY: 1 SCAFFOLD · 2 WORKING</strong>   <strong>🟧 ATTENTION: 1</strong>   <strong>🟩 BLOCKING: 0</strong></p>'
+    content: '<p><strong>3 ARTEFAKTY</strong></p><p><strong>🟧 ATTENTION: 1</strong> · <strong>🟩 BLOCKING: 0</strong></p>'
   - id: '3458764679756523220'
     type: text
     frame: control
-    x: 3500
-    y: 4300
-    width: 5700
-    font_size: 48
+    x: 5000
+    y: 3500
+    width: 2600
+    font_size: 44
     style:
       color: '#1F3B64'
       textAlign: left
-    content: '<p><strong>🟦 MATURITY</strong> popisuje rozpracovanost artefaktu: SCAFFOLD → WORKING → CANDIDATE → VALIDATED → ACCEPTED → SUPERSEDED.</p><p><strong>🟧 ATTENTION</strong> vyžaduje lidskou kontrolu nebo doplnění, ale samo o sobě nemusí zastavit gate. <strong>🟩 BLOCKING: 0</strong> znamená bez blockeru; <strong>🟥 BLOCKING &gt; 0</strong> znamená zastavit postup a vyřešit překážku.</p><p><a href="https://github.com/romanhlavac/ddd-accelerator/blob/feat/project-steering-and-documentation/examples/minimal/projects/acceptance-claims-modernization/docs/artifacts/index.md">OTEVŘÍT PROJEKTOVÝ ARTIFACT REGISTRY →</a> · Project-owned Git/YAML je source of truth. Tato projekce ani technický PASS neschvalují gate.</p>'
+    content: '<p><strong>MATURITY</strong> — každý stav má vlastní modrý tón; světlejší znamená ranější a tmavší pokročilejší úroveň.</p><p><strong>🟧 ATTENTION</strong> vyžaduje lidskou kontrolu nebo doplnění, ale nemusí zastavit gate. <strong>🟩 BLOCKING: 0</strong> znamená bez blockeru; <strong>🟥 BLOCKING &gt; 0</strong> znamená zastavit postup.</p>'
   - id: '3458764679756523140'
     type: text
     frame: journey
@@ -187,12 +212,20 @@ control_verification:
     - CONTROL CENTER — začněte zde
     - Jak board použít poprvé
     - ARTIFACT HEALTH — acceptance-claims-modernization
-    - 🟦 MATURITY: 1 SCAFFOLD · 2 WORKING
+    - 3 ARTEFAKTY
+    - SCAFFOLD
+    - WORKING
+    - CANDIDATE
+    - VALIDATED
+    - ACCEPTED
+    - SUPERSEDED
     - 🟧 ATTENTION: 1
     - 🟩 BLOCKING: 0
     - 🟥 BLOCKING > 0
+    - OTEVŘÍT PROJEKTOVÝ ARTIFACT REGISTRY
     - Project-owned Git/YAML je source of truth
   forbidden_phrases:
     - HEALTH: ATTENTION
+    - 🟦 MATURITY
     - PROVENANCE · GENERATED
     - PROJECT / GATE STATE — kompaktní legenda

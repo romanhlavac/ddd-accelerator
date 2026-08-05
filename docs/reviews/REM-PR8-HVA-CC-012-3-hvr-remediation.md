@@ -80,6 +80,26 @@ REM-PR8-HVA-CC-012.3.2 therefore requires:
 
 The numeric and color-token tests are mandatory regression controls, while normal-zoom human review remains the acceptance gate.
 
+## HVR-1 third checkpoint — frame 00
+
+Review of transport SHA `fd23e1ce4f639e43d5c9cda458b608276a8d1fc3` again concluded `CHANGES_REQUIRED`.
+
+The project registry reference remained visually merged into explanatory legend text, the legend occupied the lower area rather than the requested upper-right position, and the maturity color model incorrectly assigned one color to the whole maturity group instead of distinguishing individual maturity states.
+
+REM-PR8-HVA-CC-012.3.3 therefore requires:
+
+- the project Artifact Registry link and source-of-truth statement as a distinct key reference block, visually separated from the legend;
+- the explanatory legend as a `Text` item in the upper-right part of the light-blue health panel;
+- no registry link or source-of-truth wording inside the legend;
+- one maturity status item for each state: `SCAFFOLD`, `WORKING`, `CANDIDATE`, `VALIDATED`, `ACCEPTED`, and `SUPERSEDED`;
+- a single blue hue family whose per-state tones progress monotonically from the lightest `SCAFFOLD` tone to the darkest `SUPERSEDED` tone;
+- actual artifact counts displayed on the corresponding maturity state items;
+- attention and blocking semantics remaining visually distinct from maturity;
+- source-level tests for registry/legend separation, upper-right legend placement, per-state palette identity, monotonic luminance, actual counts, panel containment, and minimum readability;
+- remote read-back, zero-mutation second reconcile, and no changes to frames `01`, `10`, or `20+`.
+
+Numeric and palette tests are regression guardrails. Human review at normal working zoom remains the acceptance gate.
+
 ## Sequential HVR operating rule
 
 Human visual review proceeds one section at a time:
@@ -94,7 +114,7 @@ show exactly one review target
 Current sequence:
 
 ```text
-HVR-1 frame 00: CHANGES_REQUIRED — REM-012.3.2 pending
+HVR-1 frame 00: CHANGES_REQUIRED — REM-012.3.3 pending
 HVR-2 frame 01: NOT STARTED
 HVR-3 frame 10: NOT STARTED
 Cross-frame review: NOT STARTED
