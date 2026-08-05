@@ -67,6 +67,8 @@ Child Change Requests:
 - #41 — synthetic multi-agent reference workflow and package-first acceptance
 - #46 — end-to-end first-user target/as-built documentation
 
+Issues #46 and #47 are native sub-issues of #20 and are included in the linked GitHub Project. Their `Blocked by` relationships are versioned in the governance configuration and materialized in GitHub.
+
 ## WP-10 → WP-11 authority hand-off
 
 ```text
