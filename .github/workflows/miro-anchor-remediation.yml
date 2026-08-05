@@ -16,6 +16,7 @@ jobs:
     env:
       TRANSPORT_SHA: ${{ github.event.pull_request.head.sha }}
       AUTHORIZED_TRANSPORT_SHA: 9c434404ff520eb61b434c9f3a766bc17171be78
+      PREVIOUS_TRANSPORT_SHA: d5aa7887793f1b4774c824f5bc596205935d4f75
       PRODUCT_SHA: 39e25603de826da5ac139c0445eb64d1563ba5d9
       BASE_SHA: fd23e1ce4f639e43d5c9cda458b608276a8d1fc3
       GH_TOKEN: ${{ github.token }}
@@ -32,13 +33,14 @@ jobs:
           @'
           import json,os,subprocess
           from pathlib import Path
-          g=lambda *a:subprocess.check_output(['git',*a],text=True).strip(); t,a,p,b=[os.environ[x] for x in ('TRANSPORT_SHA','AUTHORIZED_TRANSPORT_SHA','PRODUCT_SHA','BASE_SHA')]; w='.github/workflows/miro-anchor-remediation.yml'
-          assert g('rev-parse','HEAD')==t and g('rev-parse',t+'^')==a and g('rev-parse',a+'^')==p and g('rev-parse',p+'^')==b
+          g=lambda *a:subprocess.check_output(['git',*a],text=True).strip(); t,c,a,p,b=[os.environ[x] for x in ('TRANSPORT_SHA','PREVIOUS_TRANSPORT_SHA','AUTHORIZED_TRANSPORT_SHA','PRODUCT_SHA','BASE_SHA')]; w='.github/workflows/miro-anchor-remediation.yml'
+          assert g('rev-parse','HEAD')==t and g('rev-parse',t+'^')==c and g('rev-parse',c+'^')==a and g('rev-parse',a+'^')==p and g('rev-parse',p+'^')==b
           assert g('show','-s','--format=%s',p)=='fix(miro): refine frame 00 legend and maturity palette'
           assert sorted(g('diff-tree','--no-commit-id','--name-only','-r',p).splitlines())==sorted(['scaffolds/miro/rem-012-3-hvr-remediation.yaml','runtime/miro/tests/test_hvr_remediation.py','docs/reviews/REM-PR8-HVA-CC-012-3-hvr-remediation.md'])
           assert g('show','-s','--format=%s',a)=='fix(ci): authorize REM-012.3.3 frame 00 remediation' and g('diff-tree','--no-commit-id','--name-only','-r',a)==w
-          assert g('show','-s','--format=%s',t)=='fix(ci): preserve REM-012.3.3 evidence root' and g('diff-tree','--no-commit-id','--name-only','-r',t)==w
-          Path(os.environ['EVIDENCE_ROOT'],'identity.json').write_text(json.dumps({'status':'PASS','product_sha':p,'authorized_transport_sha':a,'transport_sha':t,'merge_allowed':False,'release_allowed':False,'human_review_status':'PENDING'},indent=2)+'\n')
+          assert g('show','-s','--format=%s',c)=='fix(ci): preserve REM-012.3.3 evidence root' and g('diff-tree','--no-commit-id','--name-only','-r',c)==w
+          assert g('show','-s','--format=%s',t)=='fix(ci): repair REM-012.3.3 Python syntax' and g('diff-tree','--no-commit-id','--name-only','-r',t)==w
+          Path(os.environ['EVIDENCE_ROOT'],'identity.json').write_text(json.dumps({'status':'PASS','product_sha':p,'authorized_transport_sha':a,'previous_transport_sha':c,'transport_sha':t,'merge_allowed':False,'release_allowed':False,'human_review_status':'PENDING'},indent=2)+'\n')
           '@|python -
       - name: Wait for exact-SHA CI
         shell: pwsh
@@ -99,7 +101,7 @@ jobs:
           def match(r,e,t):
             if r.get('type')!=t or str((r.get('parent')or{}).get('id'))!=F or canonical_miro_text((r.get('data')or{}).get('content'))!=canonical_miro_text(e['data']['content']):return False
             p,q=r.get('position')or{},e['position']; tol=180 if t=='text' else 1
-            if not _close(p.get('x'),q['x']) or abs(float(p.get('y')or0)-q['y'])>tol:return False
+            if not _close(p.get('x'),q['x']) or abs(float(p.get('y')or 0)-q['y'])>tol:return False
             for k,v in e['geometry'].items():
               if not _close((r.get('geometry')or{}).get(k),v):return False
             for k,v in e['style'].items():
@@ -150,7 +152,7 @@ jobs:
             reconcile(one);reconcile(two)
             if two['created'] or two['updated'] or two['unchanged']!=10:raise ValueError('non-idempotent '+str(two))
             panel,status,legend=[_get_item(c,B,i) for i in FIX]; lt=canonical_miro_text((legend.get('data')or{}).get('content')); st=canonical_miro_text((status.get('data')or{}).get('content'))
-            if legend.get('type')!='text' or 'OTEVŘÍT PROJEKTOVÝ ARTIFACT REGISTRY' in lt or 'source of truth' in lt or float((legend.get('position')or{}).get('x')or0)<=float((panel.get('position')or{}).get('x')or0) or float((legend.get('position')or{}).get('y')or0)>=4050:raise ValueError('legend')
+            if legend.get('type')!='text' or 'OTEVŘÍT PROJEKTOVÝ ARTIFACT REGISTRY' in lt or 'source of truth' in lt or float((legend.get('position')or{}).get('x')or 0)<=float((panel.get('position')or{}).get('x')or 0) or float((legend.get('position')or{}).get('y')or 0)>=4050:raise ValueError('legend')
             if not all(x in st for x in ('3 ARTEFAKTY','ATTENTION: 1','BLOCKING: 0')) or 'MATURITY' in st:raise ValueError('status')
             ids=set(one['ids']); rem=[_get_item(c,B,i) for i in ids if i not in FIX]; luminance=[]; maturity_ids=[]
             def lum(h):
@@ -161,7 +163,7 @@ jobs:
               maturity_ids.append(str(q[0]['id']));luminance.append(lum(s['fill_color']))
             if not all(a>b for a,b in zip(luminance,luminance[1:])) or luminance[0]-luminance[-1]<.55:raise ValueError('palette')
             qr=[x for x in rem if 'OTEVŘÍT PROJEKTOVÝ ARTIFACT REGISTRY' in canonical_miro_text((x.get('data')or{}).get('content'))]
-            if len(qr)!=1 or float((qr[0].get('position')or{}).get('y')or0)<=4400 or float((qr[0].get('geometry')or{}).get('width')or0)<5800:raise ValueError('registry')
+            if len(qr)!=1 or float((qr[0].get('position')or{}).get('y')or 0)<=4400 or float((qr[0].get('geometry')or{}).get('width')or 0)<5800:raise ValueError('registry')
             after_protected=_protected_snapshot(c,B,protected)
             if after_protected['digest']!=before_protected['digest']:raise ValueError('protected')
             after_unmanaged=digest([x for x in c.list_items(B) if str((x.get('parent')or{}).get('id'))==F and str(x.get('id')) not in ids])
