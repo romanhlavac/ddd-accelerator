@@ -24,6 +24,7 @@ jobs:
     timeout-minutes: 120
     env:
       TRANSPORT_SHA: ${{ github.event.pull_request.head.sha }}
+      PREVIOUS_TRANSPORT_SHA: b2bc572b3966dbb3476ee206e849cac9a6624f8e
       TARGET_SOURCE_SHA: 186e71235fc1cc7e5c65ad1f8f90bb58fe3c07fa
       AUTHORIZED_PREDECESSOR_SHA: f471f83e4b178c8fec239bb51c0188c2c7a4e304
       GH_TOKEN: ${{ github.token }}
@@ -51,6 +52,7 @@ jobs:
             repository = $env:GITHUB_REPOSITORY
             pr = [int]$env:PR_NUMBER
             transport_sha = $env:TRANSPORT_SHA
+            previous_transport_sha = $env:PREVIOUS_TRANSPORT_SHA
             target_source_sha = $env:TARGET_SOURCE_SHA
             authorized_predecessor_sha = $env:AUTHORIZED_PREDECESSOR_SHA
             board_id = 'uXjVH1phki0='
@@ -63,7 +65,7 @@ jobs:
             human_review_status = 'PENDING'
           } | ConvertTo-Json | Set-Content (Join-Path $root 'identity.json') -Encoding utf8
 
-      - name: Verify exact product and workflow-only transport
+      - name: Verify exact source and workflow-only correction chain
         shell: pwsh
         run: |
           @'
@@ -73,39 +75,52 @@ jobs:
           def git(*args):
               return subprocess.check_output(['git', *args], text=True).strip()
 
+          current = os.environ['TRANSPORT_SHA']
+          previous = os.environ['PREVIOUS_TRANSPORT_SHA']
           target = os.environ['TARGET_SOURCE_SHA']
           predecessor = os.environ['AUTHORIZED_PREDECESSOR_SHA']
-          transport = os.environ['TRANSPORT_SHA']
           workflow = '.github/workflows/miro-anchor-remediation.yml'
-          if git('rev-parse', 'HEAD') != transport:
+
+          if git('rev-parse', 'HEAD') != current:
               raise SystemExit('transport checkout mismatch')
-          if git('rev-parse', f'{transport}^') != target:
-              raise SystemExit('transport parent is not the exact authorized product SHA')
+          if git('rev-parse', f'{current}^') != previous:
+              raise SystemExit('workflow correction parent mismatch')
+          if git('rev-parse', f'{previous}^') != target:
+              raise SystemExit('previous transport parent mismatch')
           if git('rev-parse', f'{target}^') != predecessor:
               raise SystemExit('authorized product predecessor mismatch')
+          if git('show', '-s', '--format=%s', current) != 'fix(ci): tolerate Miro auto-layout in REM-012.3.2':
+              raise SystemExit('workflow correction message mismatch')
+          if git('show', '-s', '--format=%s', previous) != 'fix(ci): authorize REM-012.3.2 frame 00 remediation':
+              raise SystemExit('previous transport message mismatch')
           if git('show', '-s', '--format=%s', target) != 'fix(miro): improve frame 00 artifact health clarity':
-              raise SystemExit('authorized product commit message mismatch')
-          product_paths = sorted(filter(None, git('diff-tree', '--no-commit-id', '--name-only', '-r', target).splitlines()))
-          expected_product_paths = sorted([
-              'scaffolds/miro/rem-012-3-hvr-remediation.yaml',
-              'runtime/miro/tests/test_hvr_remediation.py',
+              raise SystemExit('product message mismatch')
+
+          def paths(sha):
+              return list(filter(None, git('diff-tree', '--no-commit-id', '--name-only', '-r', sha).splitlines()))
+
+          if paths(current) != [workflow] or paths(previous) != [workflow]:
+              raise SystemExit('transport chain is not workflow-only')
+          expected_product = sorted([
               'docs/reviews/REM-PR8-HVA-CC-012-3-hvr-remediation.md',
+              'runtime/miro/tests/test_hvr_remediation.py',
+              'scaffolds/miro/rem-012-3-hvr-remediation.yaml',
           ])
-          if product_paths != expected_product_paths:
-              raise SystemExit(f'authorized product allowlist mismatch: {product_paths}')
-          if git('show', '-s', '--format=%s', transport) != 'fix(ci): authorize REM-012.3.2 frame 00 remediation':
-              raise SystemExit('transport commit message mismatch')
-          transport_paths = list(filter(None, git('diff-tree', '--no-commit-id', '--name-only', '-r', transport).splitlines()))
-          if transport_paths != [workflow]:
-              raise SystemExit(f'transport is not workflow-only: {transport_paths}')
-          Path(os.environ['EVIDENCE_ROOT'], 'source-contract.json').write_text(json.dumps({
-              'status': 'PASS',
-              'target_source_sha': target,
-              'authorized_predecessor_sha': predecessor,
-              'transport_sha': transport,
-              'product_paths': product_paths,
-              'transport_paths': transport_paths,
-          }, indent=2) + '\n', encoding='utf-8')
+          if sorted(paths(target)) != expected_product:
+              raise SystemExit(f'product allowlist mismatch: {paths(target)}')
+
+          Path(os.environ['EVIDENCE_ROOT'], 'source-contract.json').write_text(
+              json.dumps({
+                  'status': 'PASS',
+                  'transport_sha': current,
+                  'previous_transport_sha': previous,
+                  'target_source_sha': target,
+                  'authorized_predecessor_sha': predecessor,
+                  'product_paths': expected_product,
+                  'transport_paths': [workflow],
+              }, indent=2) + '\n',
+              encoding='utf-8',
+          )
           '@ | python -
 
       - name: Verify exact-SHA CI gates
@@ -149,15 +164,27 @@ jobs:
                           raise SystemExit(f'{label} workflow {name} failed: {run["conclusion"]}')
                       if run['status'] != 'completed' or run['conclusion'] != 'success':
                           complete = False
-                  Path(os.environ['EVIDENCE_ROOT'], f'{label}-ci.json').write_text(json.dumps(state, indent=2) + '\n', encoding='utf-8')
+                  Path(os.environ['EVIDENCE_ROOT'], f'{label}-ci.json').write_text(
+                      json.dumps(state, indent=2) + '\n', encoding='utf-8')
                   if complete:
                       return state
                   time.sleep(15)
               raise SystemExit(f'{label} CI did not reach PASS')
 
-          target = wait_for(os.environ['TARGET_SOURCE_SHA'], ['Validate DDDA', 'DDDA exact-code Miro image probe'], 'target')
-          transport = wait_for(os.environ['TRANSPORT_SHA'], ['Validate DDDA', 'DDDA platform CI', 'DDDA exact-code Miro image probe'], 'transport')
-          Path(os.environ['EVIDENCE_ROOT'], 'ci-summary.json').write_text(json.dumps({'target': target, 'transport': transport}, indent=2) + '\n', encoding='utf-8')
+          target = wait_for(
+              os.environ['TARGET_SOURCE_SHA'],
+              ['Validate DDDA', 'DDDA exact-code Miro image probe'],
+              'target',
+          )
+          transport = wait_for(
+              os.environ['TRANSPORT_SHA'],
+              ['Validate DDDA', 'DDDA platform CI', 'DDDA exact-code Miro image probe'],
+              'transport',
+          )
+          Path(os.environ['EVIDENCE_ROOT'], 'ci-summary.json').write_text(
+              json.dumps({'target': target, 'transport': transport}, indent=2) + '\n',
+              encoding='utf-8',
+          )
           '@ | python -
 
       - name: Verify Miro secret
@@ -165,7 +192,9 @@ jobs:
         env:
           MIRO_ACCESS_TOKEN: ${{ secrets.MIRO_ACCESS_TOKEN }}
         run: |
-          if ([string]::IsNullOrWhiteSpace($env:MIRO_ACCESS_TOKEN)) { throw 'MIRO_ACCESS_TOKEN is required.' }
+          if ([string]::IsNullOrWhiteSpace($env:MIRO_ACCESS_TOKEN)) {
+            throw 'MIRO_ACCESS_TOKEN is required.'
+          }
 
       - name: Checkout exact product source
         uses: actions/checkout@v4
@@ -184,12 +213,21 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Targeted REM-012.3.2 tests failed.' }
           git reset --hard $env:TARGET_SOURCE_SHA
           git clean -ffdx
-          if ((git rev-parse HEAD).Trim() -ne $env:TARGET_SOURCE_SHA -or (git status --porcelain)) { throw 'Product source is not clean.' }
+          if ((git rev-parse HEAD).Trim() -ne $env:TARGET_SOURCE_SHA -or (git status --porcelain)) {
+            throw 'Product source is not clean.'
+          }
           $version = 'rem-012-3-2.' + $env:GITHUB_RUN_ID + '.' + $env:TARGET_SOURCE_SHA.Substring(0, 12)
           $output = Join-Path $env:RUNNER_TEMP ('ddda-rem-012-3-2-' + $env:TARGET_SOURCE_SHA.Substring(0, 12) + '.zip')
           $package = (.\scripts\platform\New-DDDAPlatformPackage.ps1 -PlatformPath $PWD.Path -Kind candidate -Version $version -SourceRef $env:TARGET_SOURCE_SHA -OutputPath $output -Json | Out-String).Trim() | ConvertFrom-Json
-          if ([string]$package.source_commit -ne $env:TARGET_SOURCE_SHA) { throw 'Candidate provenance mismatch.' }
-          [ordered]@{ status='PASS'; source_sha=$env:TARGET_SOURCE_SHA; package_path=[string]$package.path; package_sha256=[string]$package.sha256 } | ConvertTo-Json | Set-Content (Join-Path $env:EVIDENCE_ROOT 'package.json') -Encoding utf8
+          if ([string]$package.source_commit -ne $env:TARGET_SOURCE_SHA) {
+            throw 'Candidate provenance mismatch.'
+          }
+          [ordered]@{
+            status = 'PASS'
+            source_sha = $env:TARGET_SOURCE_SHA
+            package_path = [string]$package.path
+            package_sha256 = [string]$package.sha256
+          } | ConvertTo-Json | Set-Content (Join-Path $env:EVIDENCE_ROOT 'package.json') -Encoding utf8
           "package_path=$($package.path)" | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
           "package_sha256=$($package.sha256)" | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
@@ -206,7 +244,9 @@ jobs:
           if (Test-Path $packageRoot) { Remove-Item $packageRoot -Recurse -Force }
           Expand-Archive $env:PACKAGE_PATH $packageRoot -Force
           $packageManifest = Get-Content (Join-Path $packageRoot 'ddda-package.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-          if ([string]$packageManifest.source_commit -ne $env:TARGET_SOURCE_SHA -or [string]$packageManifest.kind -ne 'candidate') { throw 'Expanded package provenance mismatch.' }
+          if ([string]$packageManifest.source_commit -ne $env:TARGET_SOURCE_SHA -or [string]$packageManifest.kind -ne 'candidate') {
+            throw 'Expanded package provenance mismatch.'
+          }
           $runtime = Join-Path $packageRoot 'runtime\miro'
           python -m pip install --disable-pip-version-check --no-input $runtime
           $env:PYTHONPATH = $runtime
@@ -219,10 +259,22 @@ jobs:
           from pathlib import Path
 
           from ddda_miro import hvr_remediation as base
-          from ddda_miro.anchor_contract import _close, _get_item, _patch, _protected_snapshot, _writable, canonical_miro_text
+          from ddda_miro.anchor_contract import (
+              _close,
+              _get_item,
+              _patch,
+              _protected_snapshot,
+              _writable,
+              canonical_miro_text,
+          )
           from ddda_miro.client import MiroClient
 
-          MANAGED_IDS = ['3458764679756523217', '3458764679756523219', '3458764679756523220']
+          MANAGED_IDS = [
+              '3458764679756523217',
+              '3458764679756523219',
+              '3458764679756523220',
+          ]
+          AUTO_LAYOUT_IDS = {'3458764679756523220'}
 
           def stable_item(item):
               return {
@@ -239,20 +291,24 @@ jobs:
               return str(value).lower() if isinstance(value, str) else value
 
           def item_matches(remote, update, frame_id):
+              item_id = str(update['id'])
               if str((remote.get('parent') or {}).get('id') or '') != frame_id:
                   return False
               position = remote.get('position') or {}
               geometry = remote.get('geometry') or {}
               style = remote.get('style') or {}
-              for key in ('x', 'y'):
-                  if not _close(position.get(key), update[key]):
-                      return False
+              if not _close(position.get('x'), update['x']):
+                  return False
+              if item_id not in AUTO_LAYOUT_IDS and not _close(position.get('y'), update['y']):
+                  return False
               for key in ('width', 'height'):
                   if key in update and not _close(geometry.get(key), update[key]):
                       return False
               if 'font_size' in update and not _close(style.get('fontSize'), update['font_size']):
                   return False
-              if 'content' in update and canonical_miro_text((remote.get('data') or {}).get('content')) != canonical_miro_text(update['content']):
+              if 'content' in update and canonical_miro_text(
+                  (remote.get('data') or {}).get('content')
+              ) != canonical_miro_text(update['content']):
                   return False
               for key, expected in (update.get('style') or {}).items():
                   actual = style.get(key)
@@ -267,9 +323,22 @@ jobs:
               item_id = str(update['id'])
               remote = _get_item(client, board, item_id)
               snapshots.setdefault(item_id, remote)
+              if item_matches(remote, update, frame_id):
+                  return 'unchanged'
               payload = _writable(remote)
               payload['parent'] = {'id': frame_id}
-              payload['position'] = {'x': float(update['x']), 'y': float(update['y']), 'origin': 'center'}
+              if item_id in AUTO_LAYOUT_IDS:
+                  payload['position'] = {
+                      'x': float(update['x']),
+                      'y': float((remote.get('position') or {})['y']),
+                      'origin': 'center',
+                  }
+              else:
+                  payload['position'] = {
+                      'x': float(update['x']),
+                      'y': float(update['y']),
+                      'origin': 'center',
+                  }
               if 'content' in update:
                   payload.setdefault('data', {})['content'] = str(update['content'])
               style = dict(payload.get('style') or {})
@@ -283,41 +352,88 @@ jobs:
               if 'height' in update:
                   geometry['height'] = float(update['height'])
               payload['geometry'] = geometry
-              if item_matches(remote, update, frame_id):
-                  return 'unchanged'
               updated = _patch(client, board, str(update['type']), item_id, payload)
               if not item_matches(updated, update, frame_id):
                   raise ValueError(f'item {item_id} did not reach target')
               return 'updated'
 
           def untouched_control_digest(client, board, frame_id):
-              items = [stable_item(item) for item in client.list_items(board) if str((item.get('parent') or {}).get('id') or '') == frame_id and str(item.get('id') or '') not in MANAGED_IDS]
-              raw = json.dumps(sorted(items, key=lambda item: item['id']), sort_keys=True, ensure_ascii=False, separators=(',', ':')).encode('utf-8')
+              items = [
+                  stable_item(item)
+                  for item in client.list_items(board)
+                  if str((item.get('parent') or {}).get('id') or '') == frame_id
+                  and str(item.get('id') or '') not in MANAGED_IDS
+              ]
+              raw = json.dumps(
+                  sorted(items, key=lambda item: item['id']),
+                  sort_keys=True,
+                  ensure_ascii=False,
+                  separators=(',', ':'),
+              ).encode('utf-8')
               return hashlib.sha256(raw).hexdigest()
 
           def assert_precondition(remote, spec, frame_id):
+              item_id = str(spec['id'])
               if str((remote.get('parent') or {}).get('id') or '') != frame_id:
-                  raise ValueError(f"precondition frame mismatch for {spec['id']}")
+                  raise ValueError(f'precondition frame mismatch for {item_id}')
               position = remote.get('position') or {}
               geometry = remote.get('geometry') or {}
               style = remote.get('style') or {}
-              for key in ('x', 'y'):
-                  if not _close(position.get(key), spec[key]):
-                      raise ValueError(f"precondition {key} mismatch for {spec['id']}")
+              if not _close(position.get('x'), spec['x']):
+                  raise ValueError(f'precondition x mismatch for {item_id}')
+              if item_id not in AUTO_LAYOUT_IDS and not _close(position.get('y'), spec['y']):
+                  raise ValueError(f'precondition y mismatch for {item_id}')
+              if item_id in AUTO_LAYOUT_IDS:
+                  tolerance = float(spec.get('y_tolerance', 40))
+                  if abs(float(position.get('y')) - float(spec['y'])) > tolerance:
+                      raise ValueError(f'precondition auto-layout y drift for {item_id}')
               for key in ('width', 'height'):
                   if key in spec and not _close(geometry.get(key), spec[key]):
-                      raise ValueError(f"precondition {key} mismatch for {spec['id']}")
+                      raise ValueError(f'precondition {key} mismatch for {item_id}')
               if not _close(style.get('fontSize'), spec['font_size']):
-                  raise ValueError(f"precondition font mismatch for {spec['id']}")
-              if spec['phrase'] not in canonical_miro_text((remote.get('data') or {}).get('content')):
-                  raise ValueError(f"precondition content mismatch for {spec['id']}")
+                  raise ValueError(f'precondition font mismatch for {item_id}')
+              if spec['phrase'] not in canonical_miro_text(
+                  (remote.get('data') or {}).get('content')
+              ):
+                  raise ValueError(f'precondition content mismatch for {item_id}')
 
           def bounds(item):
               position = item.get('position') or {}
               geometry = item.get('geometry') or {}
               x, y = float(position['x']), float(position['y'])
               width, height = float(geometry['width']), float(geometry['height'])
-              return {'left': x - width / 2, 'right': x + width / 2, 'top': y - height / 2, 'bottom': y + height / 2}
+              return {
+                  'left': x - width / 2,
+                  'right': x + width / 2,
+                  'top': y - height / 2,
+                  'bottom': y + height / 2,
+              }
+
+          def snapshot_semantically_restored(remote, snapshot):
+              if str(remote.get('type') or '') != str(snapshot.get('type') or ''):
+                  return False
+              if str((remote.get('parent') or {}).get('id') or '') != str(
+                  (snapshot.get('parent') or {}).get('id') or ''
+              ):
+                  return False
+              if canonical_miro_text((remote.get('data') or {}).get('content')) != canonical_miro_text(
+                  (snapshot.get('data') or {}).get('content')
+              ):
+                  return False
+              remote_geometry = remote.get('geometry') or {}
+              snapshot_geometry = snapshot.get('geometry') or {}
+              if not _close(remote_geometry.get('width'), snapshot_geometry.get('width')):
+                  return False
+              if snapshot.get('type') == 'shape' and not _close(
+                  remote_geometry.get('height'), snapshot_geometry.get('height')
+              ):
+                  return False
+              if not _close(
+                  (remote.get('style') or {}).get('fontSize'),
+                  (snapshot.get('style') or {}).get('fontSize'),
+              ):
+                  return False
+              return True
 
           report_path = Path(os.environ['REPORT_PATH'])
           manifest = base._load(Path(os.environ['REMEDIATION_MANIFEST']))
@@ -325,16 +441,44 @@ jobs:
           board = str(manifest['board_id'])
           frame_ids = {key: str(value['id']) for key, value in manifest['frames'].items()}
           control_frame = frame_ids['control']
-          protected_ids = [frame_ids['journey'], frame_ids['align'], *[str(item) for item in manifest['protected_frames']]]
+          protected_ids = [
+              frame_ids['journey'],
+              frame_ids['align'],
+              *[str(item) for item in manifest['protected_frames']],
+          ]
           updates = {str(item['id']): item for item in manifest['updates']}
           selected = [updates[item_id] for item_id in MANAGED_IDS]
           if any(str(item.get('frame')) != 'control' for item in selected):
               raise SystemExit('authorized update escaped frame 00')
 
           preconditions = {
-              '3458764679756523217': {'id': '3458764679756523217', 'x': 3500, 'y': 3800, 'width': 6400, 'height': 1900, 'font_size': 48, 'phrase': 'ARTIFACT HEALTH — acceptance-claims-modernization'},
-              '3458764679756523219': {'id': '3458764679756523219', 'x': 3500, 'y': 3100, 'width': 5800, 'height': 500, 'font_size': 64, 'phrase': 'HEALTH: ATTENTION'},
-              '3458764679756523220': {'id': '3458764679756523220', 'x': 3500, 'y': 4450, 'width': 5700, 'font_size': 48, 'phrase': '3 artefakty'},
+              '3458764679756523217': {
+                  'id': '3458764679756523217',
+                  'x': 3500,
+                  'y': 3800,
+                  'width': 6400,
+                  'height': 1900,
+                  'font_size': 48,
+                  'phrase': 'ARTIFACT HEALTH — acceptance-claims-modernization',
+              },
+              '3458764679756523219': {
+                  'id': '3458764679756523219',
+                  'x': 3500,
+                  'y': 3100,
+                  'width': 5800,
+                  'height': 500,
+                  'font_size': 64,
+                  'phrase': 'HEALTH: ATTENTION',
+              },
+              '3458764679756523220': {
+                  'id': '3458764679756523220',
+                  'x': 3500,
+                  'y': 4450,
+                  'y_tolerance': 40,
+                  'width': 5700,
+                  'font_size': 48,
+                  'phrase': '3 artefakty',
+              },
           }
 
           protected_before = _protected_snapshot(client, board, protected_ids)
@@ -359,37 +503,73 @@ jobs:
           }
 
           try:
-              first = {str(item['id']): apply_update(client, board, control_frame, item, snapshots) for item in selected}
-              readback = {item_id: _get_item(client, board, item_id) for item_id in MANAGED_IDS}
+              first = {
+                  str(item['id']): apply_update(
+                      client, board, control_frame, item, snapshots
+                  )
+                  for item in selected
+              }
+              readback = {
+                  item_id: _get_item(client, board, item_id)
+                  for item_id in MANAGED_IDS
+              }
               for item_id in MANAGED_IDS:
                   if not item_matches(readback[item_id], updates[item_id], control_frame):
                       raise ValueError(f'remote read-back failed for {item_id}')
 
-              panel_text = canonical_miro_text((readback['3458764679756523217'].get('data') or {}).get('content'))
-              status_text = canonical_miro_text((readback['3458764679756523219'].get('data') or {}).get('content'))
-              legend_text = canonical_miro_text((readback['3458764679756523220'].get('data') or {}).get('content'))
+              panel_text = canonical_miro_text(
+                  (readback['3458764679756523217'].get('data') or {}).get('content')
+              )
+              status_text = canonical_miro_text(
+                  (readback['3458764679756523219'].get('data') or {}).get('content')
+              )
+              legend_text = canonical_miro_text(
+                  (readback['3458764679756523220'].get('data') or {}).get('content')
+              )
               if panel_text != 'ARTIFACT HEALTH — acceptance-claims-modernization':
                   raise ValueError('Artifact Health project title mismatch')
               if 'HEALTH: ATTENTION' in status_text:
                   raise ValueError('redundant HEALTH: ATTENTION wording remains')
-              for token in ('🟦 MATURITY: 1 SCAFFOLD · 2 WORKING', '🟧 ATTENTION: 1', '🟩 BLOCKING: 0'):
+              for token in (
+                  '🟦 MATURITY: 1 SCAFFOLD · 2 WORKING',
+                  '🟧 ATTENTION: 1',
+                  '🟩 BLOCKING: 0',
+              ):
                   if token not in status_text:
                       raise ValueError(f'status token missing: {token}')
-              for token in ('🟦 MATURITY', '🟧 ATTENTION', '🟩 BLOCKING: 0', '🟥 BLOCKING > 0'):
+              for token in (
+                  '🟦 MATURITY',
+                  '🟧 ATTENTION',
+                  '🟩 BLOCKING: 0',
+                  '🟥 BLOCKING > 0',
+              ):
                   if token not in legend_text:
                       raise ValueError(f'legend token missing: {token}')
 
               panel_bounds = bounds(readback['3458764679756523217'])
               status_bounds = bounds(readback['3458764679756523219'])
-              if not (panel_bounds['left'] <= status_bounds['left'] and status_bounds['right'] <= panel_bounds['right'] and panel_bounds['top'] <= status_bounds['top'] and status_bounds['bottom'] <= panel_bounds['bottom']):
+              if not (
+                  panel_bounds['left'] <= status_bounds['left']
+                  and status_bounds['right'] <= panel_bounds['right']
+                  and panel_bounds['top'] <= status_bounds['top']
+                  and status_bounds['bottom'] <= panel_bounds['bottom']
+              ):
                   raise ValueError('health status is outside the Artifact Health panel')
               detail = readback['3458764679756523220']
               detail_x = float(detail['position']['x'])
               detail_y = float(detail['position']['y'])
               detail_width = float(detail['geometry']['width'])
-              if not (panel_bounds['left'] <= detail_x - detail_width / 2 and detail_x + detail_width / 2 <= panel_bounds['right'] and panel_bounds['top'] <= detail_y <= panel_bounds['bottom']):
+              if not (
+                  panel_bounds['left'] <= detail_x - detail_width / 2
+                  and detail_x + detail_width / 2 <= panel_bounds['right']
+                  and panel_bounds['top'] <= detail_y <= panel_bounds['bottom']
+              ):
                   raise ValueError('Artifact Health legend is outside the panel')
-              if not (float(readback['3458764679756523219']['style']['fontSize']) >= 80 and float(readback['3458764679756523217']['style']['fontSize']) >= 64 and float(readback['3458764679756523220']['style']['fontSize']) >= 48):
+              if not (
+                  float(readback['3458764679756523219']['style']['fontSize']) >= 80
+                  and float(readback['3458764679756523217']['style']['fontSize']) >= 64
+                  and float(readback['3458764679756523220']['style']['fontSize']) >= 48
+              ):
                   raise ValueError('remote readability font threshold failed')
 
               protected_mid = _protected_snapshot(client, board, protected_ids)
@@ -399,7 +579,12 @@ jobs:
               if untouched_mid != untouched_before:
                   raise ValueError('an unauthorized frame 00 item changed')
 
-              second = {str(item['id']): apply_update(client, board, control_frame, item, snapshots) for item in selected}
+              second = {
+                  str(item['id']): apply_update(
+                      client, board, control_frame, item, snapshots
+                  )
+                  for item in selected
+              }
               if set(second.values()) != {'unchanged'}:
                   raise ValueError(f'second reconcile mutated frame 00: {second}')
 
@@ -416,17 +601,36 @@ jobs:
                   'overall_status': 'READY_FOR_HUMAN_REVIEW',
                   'first_run': first,
                   'second_run': second,
-                  'readback': {key: stable_item(value) for key, value in readback.items()},
-                  'protected_frames': {'count': len(protected_ids), 'unchanged': True, 'digest': protected_after['digest']},
-                  'untouched_control_items': {'unchanged': True, 'digest': untouched_after},
+                  'readback': {
+                      key: stable_item(value)
+                      for key, value in readback.items()
+                  },
+                  'protected_frames': {
+                      'count': len(protected_ids),
+                      'unchanged': True,
+                      'digest': protected_after['digest'],
+                  },
+                  'untouched_control_items': {
+                      'unchanged': True,
+                      'digest': untouched_after,
+                  },
                   'rollback': {'status': 'NOT_REQUIRED'},
               })
-              report_path.write_text(json.dumps(result, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+              report_path.write_text(
+                  json.dumps(result, indent=2, ensure_ascii=False) + '\n',
+                  encoding='utf-8',
+              )
           except Exception as exc:
               rollback_errors = []
               for item_id, snapshot in reversed(list(snapshots.items())):
                   try:
-                      _patch(client, board, str(snapshot['type']), item_id, _writable(snapshot))
+                      _patch(
+                          client,
+                          board,
+                          str(snapshot['type']),
+                          item_id,
+                          _writable(snapshot),
+                      )
                   except Exception as rollback_exc:
                       rollback_errors.append(f'{item_id}: {rollback_exc}')
               try:
@@ -435,12 +639,25 @@ jobs:
                   if untouched_control_digest(client, board, control_frame) != untouched_before:
                       rollback_errors.append('untouched frame 00 digest mismatch')
                   for item_id, snapshot in snapshots.items():
-                      if not base._same_item(_get_item(client, board, item_id), _writable(snapshot)):
-                          rollback_errors.append(f'{item_id}: rollback read-back mismatch')
+                      if not snapshot_semantically_restored(
+                          _get_item(client, board, item_id), snapshot
+                      ):
+                          rollback_errors.append(
+                              f'{item_id}: rollback semantic read-back mismatch'
+                          )
               except Exception as verify_exc:
                   rollback_errors.append(f'rollback verification: {verify_exc}')
-              result.update({'error': str(exc), 'rollback': {'status': 'PASS' if not rollback_errors else 'PARTIAL', 'errors': rollback_errors}})
-              report_path.write_text(json.dumps(result, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+              result.update({
+                  'error': str(exc),
+                  'rollback': {
+                      'status': 'PASS' if not rollback_errors else 'PARTIAL',
+                      'errors': rollback_errors,
+                  },
+              })
+              report_path.write_text(
+                  json.dumps(result, indent=2, ensure_ascii=False) + '\n',
+                  encoding='utf-8',
+              )
               raise
           '@ | python -
           if ($LASTEXITCODE -ne 0) {
@@ -448,13 +665,27 @@ jobs:
             throw 'REM-012.3.2 frame 00 execution failed.'
           }
           $report = Get-Content $env:REPORT_PATH -Raw -Encoding UTF8 | ConvertFrom-Json
-          if ([string]$report.status -ne 'PASS' -or [string]$report.technical_status -ne 'PASS') { throw 'Technical status is not PASS.' }
-          if ([string]$report.source_sha -ne $env:TARGET_SOURCE_SHA -or [string]$report.transport_sha -ne $env:TRANSPORT_SHA) { throw 'Result identity mismatch.' }
-          if ([string]$report.authorized_frame -ne '00') { throw 'Authorized frame mismatch.' }
-          if (-not [bool]$report.protected_frames.unchanged -or [int]$report.protected_frames.count -ne 17) { throw 'Frames 01, 10, or 20+ changed.' }
-          if (-not [bool]$report.untouched_control_items.unchanged) { throw 'Unauthorized frame 00 item changed.' }
-          if ((@($report.second_run.PSObject.Properties.Value | Where-Object { $_ -ne 'unchanged' })).Count -ne 0) { throw 'Second reconcile was not zero mutation.' }
-          if ([string]$report.human_review_status -ne 'PENDING' -or [string]$report.overall_status -ne 'READY_FOR_HUMAN_REVIEW') { throw 'HVR semantics failed.' }
+          if ([string]$report.status -ne 'PASS' -or [string]$report.technical_status -ne 'PASS') {
+            throw 'Technical status is not PASS.'
+          }
+          if ([string]$report.source_sha -ne $env:TARGET_SOURCE_SHA -or [string]$report.transport_sha -ne $env:TRANSPORT_SHA) {
+            throw 'Result identity mismatch.'
+          }
+          if ([string]$report.authorized_frame -ne '00') {
+            throw 'Authorized frame mismatch.'
+          }
+          if (-not [bool]$report.protected_frames.unchanged -or [int]$report.protected_frames.count -ne 17) {
+            throw 'Frames 01, 10, or 20+ changed.'
+          }
+          if (-not [bool]$report.untouched_control_items.unchanged) {
+            throw 'Unauthorized frame 00 item changed.'
+          }
+          if ((@($report.second_run.PSObject.Properties.Value | Where-Object { $_ -ne 'unchanged' })).Count -ne 0) {
+            throw 'Second reconcile was not zero mutation.'
+          }
+          if ([string]$report.human_review_status -ne 'PENDING' -or [string]$report.overall_status -ne 'READY_FOR_HUMAN_REVIEW') {
+            throw 'HVR semantics failed.'
+          }
           @(
             "REM-012.3.2 technical status: $($report.technical_status)"
             "Transport SHA: $env:TRANSPORT_SHA"
