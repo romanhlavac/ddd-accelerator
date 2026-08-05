@@ -41,24 +41,24 @@ health_palette:
   blocking_clear: '#27AE60'
   blocking_active: '#EB5757'
 frame_00_maturity_items:
-  - {key: scaffold, label: SCAFFOLD, count: 1, x: 900, y: 4200, width: 850, height: 420, font_size: 32, fill_color: '#EAF3FB', text_color: '#1F3B64'}
-  - {key: working, label: WORKING, count: 2, x: 1900, y: 4200, width: 850, height: 420, font_size: 32, fill_color: '#C9E0F5', text_color: '#1F3B64'}
-  - {key: candidate, label: CANDIDATE, count: 0, x: 2900, y: 4200, width: 850, height: 420, font_size: 32, fill_color: '#9FC7EA', text_color: '#17395F'}
-  - {key: validated, label: VALIDATED, count: 0, x: 3900, y: 4200, width: 850, height: 420, font_size: 32, fill_color: '#6FA8D8', text_color: '#102A43'}
-  - {key: accepted, label: ACCEPTED, count: 0, x: 4900, y: 4200, width: 850, height: 420, font_size: 32, fill_color: '#3F86C4', text_color: '#FFFFFF'}
-  - {key: superseded, label: SUPERSEDED, count: 0, x: 5900, y: 4200, width: 850, height: 420, font_size: 32, fill_color: '#1F5F98', text_color: '#FFFFFF'}
+  - {key: scaffold, label: SCAFFOLD, count: 1, x: 1050, y: 4580, width: 800, height: 180, font_size: 24, fill_color: '#EAF3FB', text_color: '#1F3B64'}
+  - {key: working, label: WORKING, count: 2, x: 2050, y: 4580, width: 800, height: 180, font_size: 24, fill_color: '#C9E0F5', text_color: '#1F3B64'}
+  - {key: candidate, label: CANDIDATE, count: 0, x: 3050, y: 4580, width: 800, height: 180, font_size: 24, fill_color: '#9FC7EA', text_color: '#17395F'}
+  - {key: validated, label: VALIDATED, count: 0, x: 4050, y: 4580, width: 800, height: 180, font_size: 24, fill_color: '#6FA8D8', text_color: '#102A43'}
+  - {key: accepted, label: ACCEPTED, count: 0, x: 5050, y: 4580, width: 800, height: 180, font_size: 24, fill_color: '#3F86C4', text_color: '#FFFFFF'}
+  - {key: superseded, label: SUPERSEDED, count: 0, x: 6050, y: 4580, width: 800, height: 180, font_size: 24, fill_color: '#1F5F98', text_color: '#FFFFFF'}
 frame_00_registry_reference:
   key: project-artifact-registry
   type: text
   frame: control
-  x: 3500
-  y: 4680
-  width: 6000
-  font_size: 44
+  x: 1850
+  y: 3150
+  width: 3100
+  font_size: 36
   style:
     color: '#1F3B64'
-    textAlign: center
-  content: '<p><a href="https://github.com/romanhlavac/ddd-accelerator/blob/feat/project-steering-and-documentation/examples/minimal/projects/acceptance-claims-modernization/docs/artifacts/index.md"><strong>OTEVŘÍT PROJEKTOVÝ ARTIFACT REGISTRY →</strong></a></p><p>Project-owned Git/YAML je source of truth. Tato projekce ani technický PASS neschvalují gate.</p>'
+    textAlign: left
+  content: '<p><a href="https://github.com/romanhlavac/ddd-accelerator/blob/feat/project-steering-and-documentation/examples/minimal/projects/acceptance-claims-modernization/docs/artifacts/index.md"><strong>OTEVŘÍT PLNÝ PROJEKTOVÝ ARTIFACT REGISTRY →</strong></a></p><p>Project-owned Git/YAML je source of truth.</p>'
 updates:
   - id: '3458764679756505802'
     type: text
@@ -83,9 +83,9 @@ updates:
     type: shape
     frame: control
     x: 3500
-    y: 3850
-    width: 6400
-    height: 2100
+    y: 3700
+    width: 6600
+    height: 2300
     font_size: 64
     style:
       fillColor: '#E7F1FF'
@@ -93,33 +93,33 @@ updates:
       color: '#1F3B64'
       textAlign: left
       textAlignVertical: top
-    content: '<p><strong>ARTIFACT HEALTH — acceptance-claims-modernization</strong></p>'
+    content: '<p><strong>ARTIFACT HEALTH SUMMARY — acceptance-claims-modernization</strong></p>'
   - id: '3458764679756523219'
     type: shape
     frame: control
-    x: 1700
-    y: 3500
-    width: 2600
-    height: 700
-    font_size: 72
+    x: 1500
+    y: 3900
+    width: 2300
+    height: 1250
+    font_size: 44
     style:
       fillColor: '#FFFFFF'
       borderColor: '#8AA9C7'
       color: '#1F2937'
-      textAlign: center
-      textAlignVertical: middle
-    content: '<p><strong>3 ARTEFAKTY</strong></p><p><strong>🟧 ATTENTION: 1</strong> · <strong>🟩 BLOCKING: 0</strong></p>'
+      textAlign: left
+      textAlignVertical: top
+    content: '<p><strong>3 ARTEFAKTY</strong></p><p><br /></p><p>Summary maturity:</p><p><strong>SCAFFOLD: 1</strong><br /><strong>WORKING: 2</strong><br />…<br /><strong>SUPERSEDED: 0</strong></p><p>Summary review flagů:</p><p><strong>🟧 ATTENTION: 1</strong><br /><strong>🟩 BLOCKING: 0</strong></p>'
   - id: '3458764679756523220'
     type: text
     frame: control
-    x: 5000
-    y: 3500
-    width: 2600
-    font_size: 44
+    x: 3500
+    y: 4820
+    width: 6300
+    font_size: 28
     style:
       color: '#1F3B64'
       textAlign: left
-    content: '<p><strong>MATURITY</strong> — každý stav má vlastní modrý tón; světlejší znamená ranější a tmavší pokročilejší úroveň.</p><p><strong>🟧 ATTENTION</strong> vyžaduje lidskou kontrolu nebo doplnění, ale nemusí zastavit gate. <strong>🟩 BLOCKING: 0</strong> znamená bez blockeru; <strong>🟥 BLOCKING &gt; 0</strong> znamená zastavit postup.</p>'
+    content: '<p><strong>MATURITY:</strong> světlejší modrá = ranější úroveň; tmavší modrá = pokročilejší úroveň. <strong>REVIEW FLAGS:</strong> 🟧 ATTENTION vyžaduje lidskou kontrolu nebo doplnění, ale nemusí zastavit gate. 🟩 BLOCKING = 0 znamená bez blockeru; 🟥 BLOCKING &gt; 0 znamená zastavit postup.</p>'
   - id: '3458764679756523140'
     type: text
     frame: journey
@@ -211,19 +211,18 @@ control_verification:
   required_phrases:
     - CONTROL CENTER — začněte zde
     - Jak board použít poprvé
-    - ARTIFACT HEALTH — acceptance-claims-modernization
+    - ARTIFACT HEALTH SUMMARY — acceptance-claims-modernization
+    - OTEVŘÍT PLNÝ PROJEKTOVÝ ARTIFACT REGISTRY
+    - Project-owned Git/YAML je source of truth
     - 3 ARTEFAKTY
+    - Summary maturity
     - SCAFFOLD
     - WORKING
-    - CANDIDATE
-    - VALIDATED
-    - ACCEPTED
     - SUPERSEDED
+    - Summary review flagů
     - 🟧 ATTENTION: 1
     - 🟩 BLOCKING: 0
     - 🟥 BLOCKING > 0
-    - OTEVŘÍT PROJEKTOVÝ ARTIFACT REGISTRY
-    - Project-owned Git/YAML je source of truth
   forbidden_phrases:
     - HEALTH: ATTENTION
     - 🟦 MATURITY

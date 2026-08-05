@@ -90,51 +90,87 @@ def test_gate_legend_moves_to_journey_and_attention_is_explained():
     assert "PROVENANCE · GENERATED" not in control_text
 
 
-def test_frame_00_artifact_health_separates_status_legend_and_registry():
+def test_frame_00_matches_approved_screenshot_hierarchy():
     manifest = _load(MANIFEST)
     updates = {str(item["id"]): item for item in manifest["updates"]}
     panel = updates["3458764679756523217"]
-    status = updates["3458764679756523219"]
+    summary = updates["3458764679756523219"]
     legend = updates["3458764679756523220"]
     registry = manifest["frame_00_registry_reference"]
 
-    assert panel["frame"] == status["frame"] == legend["frame"] == registry["frame"] == "control"
-    assert panel["content"] == "<p><strong>ARTIFACT HEALTH — acceptance-claims-modernization</strong></p>"
-    assert panel["width"] >= 6000
-    assert panel["height"] >= 2000
+    assert panel["content"] == (
+        "<p><strong>ARTIFACT HEALTH SUMMARY — acceptance-claims-modernization</strong></p>"
+    )
+    assert panel["frame"] == summary["frame"] == legend["frame"] == registry["frame"] == "control"
+    assert panel["width"] >= 6500
+    assert panel["height"] >= 2200
     assert panel["font_size"] >= 64
-    assert panel["style"]["textAlignVertical"] == "top"
     assert panel["style"]["fillColor"] == "#E7F1FF"
+    assert panel["style"]["textAlign"] == "left"
+    assert panel["style"]["textAlignVertical"] == "top"
 
-    assert status["font_size"] >= 72
-    assert "3 ARTEFAKTY" in status["content"]
-    assert "🟧 ATTENTION: 1" in status["content"]
-    assert "🟩 BLOCKING: 0" in status["content"]
-    assert "MATURITY" not in status["content"]
+    assert registry["x"] < panel["x"]
+    assert registry["y"] < summary["y"]
+    assert registry["style"]["textAlign"] == "left"
+    assert registry["font_size"] >= 36
+    assert "OTEVŘÍT PLNÝ PROJEKTOVÝ ARTIFACT REGISTRY" in registry["content"]
+    assert "Project-owned Git/YAML je source of truth" in registry["content"]
+    assert "technický PASS" not in registry["content"]
+
+    assert summary["x"] < panel["x"]
+    assert summary["width"] >= 2200
+    assert summary["height"] >= 1200
+    assert summary["font_size"] >= 44
+    assert summary["style"]["fillColor"] == "#FFFFFF"
+    assert summary["style"]["textAlign"] == "left"
+    assert summary["style"]["textAlignVertical"] == "top"
+    for phrase in (
+        "3 ARTEFAKTY",
+        "Summary maturity:",
+        "SCAFFOLD: 1",
+        "WORKING: 2",
+        "SUPERSEDED: 0",
+        "Summary review flagů:",
+        "🟧 ATTENTION: 1",
+        "🟩 BLOCKING: 0",
+    ):
+        assert phrase in summary["content"]
 
     assert legend["type"] == "text"
-    assert legend["font_size"] >= 44
-    assert legend["x"] > panel["x"]
-    assert legend["y"] < manifest["frame_00_maturity_items"][0]["y"]
-    assert "MATURITY" in legend["content"]
-    assert "ATTENTION" in legend["content"]
-    assert "BLOCKING" in legend["content"]
-    assert "OTEVŘÍT PROJEKTOVÝ ARTIFACT REGISTRY" not in legend["content"]
-    assert "source of truth" not in legend["content"]
+    assert legend["width"] >= 6200
+    assert legend["font_size"] >= 28
+    assert legend["y"] > summary["y"]
+    assert legend["style"]["textAlign"] == "left"
+    assert "MATURITY:" in legend["content"]
+    assert "REVIEW FLAGS:" in legend["content"]
+    assert "🟥 BLOCKING &gt; 0" in legend["content"]
 
-    assert registry["type"] == "text"
-    assert registry["width"] >= 5800
-    assert registry["font_size"] >= 44
-    assert registry["y"] > manifest["frame_00_maturity_items"][0]["y"]
-    assert "OTEVŘÍT PROJEKTOVÝ ARTIFACT REGISTRY" in registry["content"]
-    assert "source of truth" in registry["content"]
-    assert "MATURITY" not in registry["content"]
-    assert "ATTENTION" not in registry["content"]
-    assert "BLOCKING" not in registry["content"]
-
-    _assert_inside(panel, status)
-    _assert_inside(panel, legend)
     _assert_inside(panel, registry)
+    _assert_inside(panel, summary)
+    _assert_inside(panel, legend)
+
+
+def test_frame_00_preserves_screenshot_whitespace_and_alignment():
+    manifest = _load(MANIFEST)
+    updates = {str(item["id"]): item for item in manifest["updates"]}
+    panel = updates["3458764679756523217"]
+    summary = updates["3458764679756523219"]
+    legend = updates["3458764679756523220"]
+    registry = manifest["frame_00_registry_reference"]
+    maturity = manifest["frame_00_maturity_items"]
+
+    panel_bounds = _bounds(panel)
+    summary_bounds = _bounds(summary)
+
+    assert panel_bounds["left"] < summary_bounds["left"]
+    assert summary_bounds["right"] < panel["x"]
+    assert registry["x"] < panel["x"]
+    assert registry["y"] < summary_bounds["top"]
+    assert legend["y"] > summary_bounds["bottom"]
+    assert min(item["y"] for item in maturity) > summary_bounds["bottom"]
+    assert max(item["y"] for item in maturity) < legend["y"]
+    assert max(item["x"] for item in maturity) < panel_bounds["right"]
+    assert min(item["x"] for item in maturity) > panel_bounds["left"]
 
 
 def test_frame_00_maturity_palette_is_per_state_and_monotonic():
@@ -149,7 +185,7 @@ def test_frame_00_maturity_palette_is_per_state_and_monotonic():
     assert luminance[0] - luminance[-1] >= 0.55
 
 
-def test_frame_00_maturity_items_use_palette_and_actual_counts():
+def test_frame_00_maturity_scale_is_compact_and_uses_actual_counts():
     manifest = _load(MANIFEST)
     panel = {str(item["id"]): item for item in manifest["updates"]}["3458764679756523217"]
     palette = manifest["health_palette"]["maturity"]
@@ -165,64 +201,48 @@ def test_frame_00_maturity_items_use_palette_and_actual_counts():
 
     for item in items:
         assert item["fill_color"] == palette[item["key"]]
-        assert item["font_size"] >= 32
-        assert item["width"] >= 800
-        assert item["height"] >= 400
+        assert item["font_size"] >= 24
+        assert item["width"] <= 800
+        assert item["height"] <= 200
         _assert_inside(panel, item)
 
 
-def test_frame_00_attention_and_blocking_code_is_consistent():
+def test_frame_00_review_flags_are_separate_from_maturity_scale():
     manifest = _load(MANIFEST)
     updates = {str(item["id"]): item for item in manifest["updates"]}
-    status = updates["3458764679756523219"]["content"]
+    summary = updates["3458764679756523219"]["content"]
     legend = updates["3458764679756523220"]["content"]
+    maturity_items = manifest["frame_00_maturity_items"]
     palette = manifest["health_palette"]
 
     assert palette["attention"] == "#F2994A"
     assert palette["blocking_clear"] == "#27AE60"
     assert palette["blocking_active"] == "#EB5757"
-    for marker in ("🟧 ATTENTION", "🟩 BLOCKING"):
-        assert marker in status
-        assert marker in legend
+    assert "Summary maturity:" in summary
+    assert "Summary review flagů:" in summary
+    assert summary.index("Summary maturity:") < summary.index("Summary review flagů:")
+    assert "ATTENTION" not in " ".join(item["label"] for item in maturity_items)
+    assert "BLOCKING" not in " ".join(item["label"] for item in maturity_items)
+    assert "🟧 ATTENTION: 1" in summary
+    assert "🟩 BLOCKING: 0" in summary
+    assert "🟧 ATTENTION" in legend
+    assert "🟩 BLOCKING = 0" in legend
     assert "🟥 BLOCKING &gt; 0" in legend
 
 
-def test_frame_00_status_is_not_duplicated_or_mixed_with_legend():
-    manifest = _load(MANIFEST)
-    updates = {str(item["id"]): item for item in manifest["updates"]}
-    panel = updates["3458764679756523217"]["content"]
-    status = updates["3458764679756523219"]["content"]
-    legend = updates["3458764679756523220"]["content"]
-
-    assert "ATTENTION:" not in panel
-    assert "BLOCKING:" not in panel
-    assert "znamená" not in status
-    assert "popisuje" not in status
-    assert "HEALTH: ATTENTION" not in status
-    assert status.count("ATTENTION: 1") == 1
-    assert status.count("BLOCKING: 0") == 1
-    assert "znamená" in legend
-
-
-def test_frame_00_readability_and_layout_regression_guard():
+def test_frame_00_does_not_reintroduce_rejected_layout():
     manifest = _load(MANIFEST)
     updates = {str(item["id"]): item for item in manifest["updates"]}
     panel = updates["3458764679756523217"]
-    status = updates["3458764679756523219"]
+    summary = updates["3458764679756523219"]
     legend = updates["3458764679756523220"]
     registry = manifest["frame_00_registry_reference"]
-    maturity = manifest["frame_00_maturity_items"]
 
-    assert status["x"] < panel["x"] < legend["x"]
-    assert status["y"] == legend["y"]
-    assert status["width"] >= 2500
-    assert legend["width"] >= 2500
-    assert legend["type"] == "text"
-    assert registry["style"]["textAlign"] == "center"
-    assert panel["style"]["borderColor"] == "#4B79A1"
-    assert status["style"]["fillColor"] == "#FFFFFF"
-    assert status["style"]["textAlign"] == "center"
-    assert min(item["font_size"] for item in maturity) >= 32
-    assert legend["font_size"] >= 44
-    assert registry["font_size"] >= 44
-    assert not (legend["width"] == 3400 and legend["height"] == 1100)
+    assert "ARTIFACT HEALTH —" not in panel["content"]
+    assert "ARTIFACT HEALTH SUMMARY" in panel["content"]
+    assert summary["style"]["textAlign"] != "center"
+    assert summary["height"] > 1000
+    assert legend["x"] == panel["x"]
+    assert registry["style"]["textAlign"] != "center"
+    assert registry["y"] < 3500
+    assert max(item["height"] for item in manifest["frame_00_maturity_items"]) < 250
