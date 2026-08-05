@@ -36,3 +36,42 @@ technical_status: PASS
 human_review_status: PENDING
 overall_status: READY_FOR_HUMAN_REVIEW
 ```
+
+## HVR-1 checkpoint — frame 00
+
+Review of PR head `68bf109c8e4d393be10e669414686e33511e8a6b` concluded `CHANGES_REQUIRED`.
+
+The previous layout rendered `MATURITY` and `ATTENTION / BLOCKING` as two oversized square-like panels with small text, while the actual Artifact Health status was visually detached and subordinate.
+
+REM-PR8-HVA-CC-012.3.1 therefore requires one integrated bottom health area:
+
+- a wide panel occupying most of the `7000 px` frame width;
+- a highlighted status strip with font size at least `64`;
+- explanatory maturity and attention/blocking text with font size at least `48`;
+- status and metrics before secondary explanatory content;
+- geometric containment of status and detail elements inside the health panel;
+- remote read-back of content, font sizes, geometry, and frame ownership;
+- zero-mutation second reconcile;
+- no changes to frames `01`, `10`, or `20+`.
+
+Numeric tests are regression guardrails, not a substitute for visual review at normal working zoom.
+
+## Sequential HVR operating rule
+
+Human visual review proceeds one section at a time:
+
+```text
+show exactly one review target
+→ PASS | PASS_WITH_NOTES | CHANGES_REQUIRED
+→ if CHANGES_REQUIRED, remediate and repeat the same target
+→ open the next target only after PASS
+```
+
+Current sequence:
+
+```text
+HVR-1 frame 00: CHANGES_REQUIRED
+HVR-2 frame 01: NOT STARTED
+HVR-3 frame 10: NOT STARTED
+Cross-frame review: NOT STARTED
+```

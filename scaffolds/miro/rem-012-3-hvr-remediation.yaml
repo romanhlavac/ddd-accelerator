@@ -52,29 +52,29 @@ updates:
   - id: '3458764679756523217'
     type: shape
     frame: control
-    x: 1900
-    y: 3300
-    width: 3400
-    height: 1100
-    font_size: 36
-    content: '<p><strong>MATURITY ARTEFAKTU</strong></p><p><strong>SCAFFOLD</strong> je výchozí struktura. <strong>WORKING</strong> se právě doplňuje. <strong>CANDIDATE</strong> čeká na definované review. <strong>VALIDATED</strong> prošel kontrolou. <strong>ACCEPTED</strong> vyžaduje explicitní lidské přijetí. <strong>SUPERSEDED</strong> byl nahrazen.</p>'
+    x: 3500
+    y: 3800
+    width: 6400
+    height: 1900
+    font_size: 48
+    content: '<p><strong>ARTIFACT HEALTH — acceptance-claims-modernization</strong></p><p><strong>MATURITY:</strong> <strong>SCAFFOLD</strong> je výchozí struktura; <strong>WORKING</strong> se doplňuje; <strong>CANDIDATE</strong> čeká na review; <strong>VALIDATED</strong> prošel kontrolou; <strong>ACCEPTED</strong> vyžaduje explicitní lidské přijetí; <strong>SUPERSEDED</strong> byl nahrazen.</p><p><strong>ATTENTION</strong> znamená nutnost lidské kontroly nebo doplnění. Neznamená automaticky blokaci. Tu vyjadřuje pouze explicitní <strong>BLOCKING</strong> položka.</p>'
   - id: '3458764679756523219'
     type: shape
     frame: control
-    x: 5100
-    y: 3300
-    width: 2600
-    height: 1100
-    font_size: 36
-    content: '<p><strong>ATTENTION A BLOCKER</strong></p><p><strong>ATTENTION</strong> znamená, že artefakt potřebuje lidskou kontrolu nebo doplnění. Neznamená automaticky blokaci. Blokaci vyjadřuje pouze explicitní <strong>BLOCKING</strong> položka.</p>'
+    x: 3500
+    y: 3100
+    width: 5800
+    height: 500
+    font_size: 64
+    content: '<p><strong>HEALTH: ATTENTION</strong> — 1 artefakt vyžaduje lidskou kontrolu · <strong>BLOCKING: 0</strong></p>'
   - id: '3458764679756523220'
     type: text
     frame: control
     x: 3500
     y: 4450
-    width: 6200
-    font_size: 36
-    content: '<p><strong>ARTIFACT HEALTH — acceptance-claims-modernization</strong></p><p>3 artefakty · SCAFFOLD 1 · WORKING 2 · ATTENTION 1 · BLOCKING 0</p><p><a href="https://github.com/romanhlavac/ddd-accelerator/blob/feat/project-steering-and-documentation/examples/minimal/projects/acceptance-claims-modernization/docs/artifacts/index.md">OTEVŘÍT PROJEKTOVÝ ARTIFACT REGISTRY →</a></p><p>Project-owned Git/YAML je source of truth. Tato projekce ani technický PASS neschvalují gate.</p>'
+    width: 5700
+    font_size: 48
+    content: '<p><strong>3 artefakty</strong> · SCAFFOLD 1 · WORKING 2 · ATTENTION 1 · BLOCKING 0</p><p><a href="https://github.com/romanhlavac/ddd-accelerator/blob/feat/project-steering-and-documentation/examples/minimal/projects/acceptance-claims-modernization/docs/artifacts/index.md">OTEVŘÍT PROJEKTOVÝ ARTIFACT REGISTRY →</a></p><p>Project-owned Git/YAML je source of truth. Tato projekce ani technický PASS neschvalují gate.</p>'
   - id: '3458764679756523140'
     type: text
     frame: journey
@@ -166,7 +166,9 @@ control_verification:
   required_phrases:
     - CONTROL CENTER — začněte zde
     - Jak board použít poprvé
-    - ATTENTION znamená
+    - HEALTH: ATTENTION
+    - MATURITY:
+    - ATTENTION
     - BLOCKING
     - acceptance-claims-modernization
     - Project-owned Git/YAML je source of truth
