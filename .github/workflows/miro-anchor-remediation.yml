@@ -1,708 +1,186 @@
-name: DDDA REM-012.3.2 frame 00 HVR remediation
-
+name: DDDA REM-012.3.3 frame 00 HVR remediation
 on:
   pull_request:
     branches: [main]
     types: [synchronize]
-
-permissions:
-  actions: read
-  contents: read
-
+permissions: {actions: read, contents: read}
 concurrency:
-  group: ddda-rem-012-3-2-frame-00-${{ github.ref }}
+  group: ddda-rem-012-3-3-frame-00-${{ github.ref }}
   cancel-in-progress: false
-
 jobs:
   frame-00-remediation:
-    name: Exact-code frame 00 clarity remediation
-    if: >-
-      github.event.pull_request.number == 8 &&
-      github.actor == 'romanhlavac' &&
-      github.event.pull_request.head.repo.full_name == github.repository
+    name: Exact-code frame 00 legend remediation
+    if: github.event.pull_request.number == 8 && github.actor == 'romanhlavac' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: windows-latest
     timeout-minutes: 120
     env:
       TRANSPORT_SHA: ${{ github.event.pull_request.head.sha }}
-      PREVIOUS_TRANSPORT_SHA: b2bc572b3966dbb3476ee206e849cac9a6624f8e
-      TARGET_SOURCE_SHA: 186e71235fc1cc7e5c65ad1f8f90bb58fe3c07fa
-      AUTHORIZED_PREDECESSOR_SHA: f471f83e4b178c8fec239bb51c0188c2c7a4e304
+      TARGET_SOURCE_SHA: 39e25603de826da5ac139c0445eb64d1563ba5d9
+      AUTHORIZED_PREDECESSOR_SHA: fd23e1ce4f639e43d5c9cda458b608276a8d1fc3
       GH_TOKEN: ${{ github.token }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
-
     steps:
-      - name: Checkout exact transport head
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ env.TRANSPORT_SHA }}
-
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Initialize evidence
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0, ref: "${{ env.TRANSPORT_SHA }}"}
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11"}
+      - name: Initialize and verify exact lineage
         shell: pwsh
         run: |
-          $root = Join-Path $env:RUNNER_TEMP 'rem-012-3-2-frame-00'
-          New-Item -ItemType Directory -Path $root -Force | Out-Null
-          "EVIDENCE_ROOT=$root" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
-          [ordered]@{
-            repository = $env:GITHUB_REPOSITORY
-            pr = [int]$env:PR_NUMBER
-            transport_sha = $env:TRANSPORT_SHA
-            previous_transport_sha = $env:PREVIOUS_TRANSPORT_SHA
-            target_source_sha = $env:TARGET_SOURCE_SHA
-            authorized_predecessor_sha = $env:AUTHORIZED_PREDECESSOR_SHA
-            board_id = 'uXjVH1phki0='
-            remediation_id = 'REM-PR8-HVA-CC-012.3.2'
-            authorized_frame = '00'
-            merge_allowed = $false
-            promotion_allowed = $false
-            release_allowed = $false
-            gate_approval_allowed = $false
-            human_review_status = 'PENDING'
-          } | ConvertTo-Json | Set-Content (Join-Path $root 'identity.json') -Encoding utf8
-
-      - name: Verify exact source and workflow-only correction chain
+          $r=Join-Path $env:RUNNER_TEMP 'rem-012-3-3-frame-00'; New-Item -ItemType Directory -Path $r -Force|Out-Null; "EVIDENCE_ROOT=$r"|Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          @'
+          import json,os,subprocess
+          from pathlib import Path
+          g=lambda *a:subprocess.check_output(['git',*a],text=True).strip()
+          t,p,b=os.environ['TRANSPORT_SHA'],os.environ['TARGET_SOURCE_SHA'],os.environ['AUTHORIZED_PREDECESSOR_SHA']; w='.github/workflows/miro-anchor-remediation.yml'
+          assert g('rev-parse','HEAD')==t and g('rev-parse',t+'^')==p and g('rev-parse',p+'^')==b
+          assert g('show','-s','--format=%s',p)=='fix(miro): refine frame 00 legend and maturity palette'
+          pp=sorted(filter(None,g('diff-tree','--no-commit-id','--name-only','-r',p).splitlines()))
+          assert pp==sorted(['scaffolds/miro/rem-012-3-hvr-remediation.yaml','runtime/miro/tests/test_hvr_remediation.py','docs/reviews/REM-PR8-HVA-CC-012-3-hvr-remediation.md'])
+          assert g('show','-s','--format=%s',t)=='fix(ci): authorize REM-012.3.3 frame 00 remediation'
+          assert list(filter(None,g('diff-tree','--no-commit-id','--name-only','-r',t).splitlines()))==[w]
+          Path(os.environ['EVIDENCE_ROOT'],'identity.json').write_text(json.dumps({'status':'PASS','product_sha':p,'transport_sha':t,'product_paths':pp,'merge_allowed':False,'release_allowed':False,'human_review_status':'PENDING'},indent=2)+'\n')
+          '@|python -
+      - name: Wait for exact-SHA CI
         shell: pwsh
         run: |
           @'
-          import json, os, subprocess
+          import json,os,time,urllib.request
           from pathlib import Path
-
-          def git(*args):
-              return subprocess.check_output(['git', *args], text=True).strip()
-
-          current = os.environ['TRANSPORT_SHA']
-          previous = os.environ['PREVIOUS_TRANSPORT_SHA']
-          target = os.environ['TARGET_SOURCE_SHA']
-          predecessor = os.environ['AUTHORIZED_PREDECESSOR_SHA']
-          workflow = '.github/workflows/miro-anchor-remediation.yml'
-
-          if git('rev-parse', 'HEAD') != current:
-              raise SystemExit('transport checkout mismatch')
-          if git('rev-parse', f'{current}^') != previous:
-              raise SystemExit('workflow correction parent mismatch')
-          if git('rev-parse', f'{previous}^') != target:
-              raise SystemExit('previous transport parent mismatch')
-          if git('rev-parse', f'{target}^') != predecessor:
-              raise SystemExit('authorized product predecessor mismatch')
-          if git('show', '-s', '--format=%s', current) != 'fix(ci): tolerate Miro auto-layout in REM-012.3.2':
-              raise SystemExit('workflow correction message mismatch')
-          if git('show', '-s', '--format=%s', previous) != 'fix(ci): authorize REM-012.3.2 frame 00 remediation':
-              raise SystemExit('previous transport message mismatch')
-          if git('show', '-s', '--format=%s', target) != 'fix(miro): improve frame 00 artifact health clarity':
-              raise SystemExit('product message mismatch')
-
-          def paths(sha):
-              return list(filter(None, git('diff-tree', '--no-commit-id', '--name-only', '-r', sha).splitlines()))
-
-          if paths(current) != [workflow] or paths(previous) != [workflow]:
-              raise SystemExit('transport chain is not workflow-only')
-          expected_product = sorted([
-              'docs/reviews/REM-PR8-HVA-CC-012-3-hvr-remediation.md',
-              'runtime/miro/tests/test_hvr_remediation.py',
-              'scaffolds/miro/rem-012-3-hvr-remediation.yaml',
-          ])
-          if sorted(paths(target)) != expected_product:
-              raise SystemExit(f'product allowlist mismatch: {paths(target)}')
-
-          Path(os.environ['EVIDENCE_ROOT'], 'source-contract.json').write_text(
-              json.dumps({
-                  'status': 'PASS',
-                  'transport_sha': current,
-                  'previous_transport_sha': previous,
-                  'target_source_sha': target,
-                  'authorized_predecessor_sha': predecessor,
-                  'product_paths': expected_product,
-                  'transport_paths': [workflow],
-              }, indent=2) + '\n',
-              encoding='utf-8',
-          )
-          '@ | python -
-
-      - name: Verify exact-SHA CI gates
-        shell: pwsh
-        run: |
-          @'
-          import json, os, time, urllib.request
-          from pathlib import Path
-
-          repo = os.environ['GITHUB_REPOSITORY']
-          token = os.environ['GH_TOKEN']
-          headers = {
-              'Authorization': f'Bearer {token}',
-              'Accept': 'application/vnd.github+json',
-              'X-GitHub-Api-Version': '2022-11-28',
-          }
-
-          def get(url):
-              with urllib.request.urlopen(urllib.request.Request(url, headers=headers)) as response:
-                  return json.load(response)
-
-          def runs(sha):
-              return get(f'https://api.github.com/repos/{repo}/actions/runs?head_sha={sha}&event=pull_request&per_page=100')['workflow_runs']
-
-          def latest(items, name):
-              matches = [item for item in items if item['name'] == name]
-              return max(matches, key=lambda item: item['run_number']) if matches else None
-
-          def wait_for(sha, required, label):
-              for _ in range(320):
-                  current = runs(sha)
-                  state, complete = [], True
-                  for name in required:
-                      run = latest(current, name)
-                      if not run:
-                          state.append({'name': name, 'status': 'missing'})
-                          complete = False
-                          continue
-                      state.append({key: run.get(key) for key in ('id', 'name', 'status', 'conclusion', 'html_url')})
-                      if run['status'] == 'completed' and run['conclusion'] != 'success':
-                          raise SystemExit(f'{label} workflow {name} failed: {run["conclusion"]}')
-                      if run['status'] != 'completed' or run['conclusion'] != 'success':
-                          complete = False
-                  Path(os.environ['EVIDENCE_ROOT'], f'{label}-ci.json').write_text(
-                      json.dumps(state, indent=2) + '\n', encoding='utf-8')
-                  if complete:
-                      return state
-                  time.sleep(15)
-              raise SystemExit(f'{label} CI did not reach PASS')
-
-          target = wait_for(
-              os.environ['TARGET_SOURCE_SHA'],
-              ['Validate DDDA', 'DDDA exact-code Miro image probe'],
-              'target',
-          )
-          transport = wait_for(
-              os.environ['TRANSPORT_SHA'],
-              ['Validate DDDA', 'DDDA platform CI', 'DDDA exact-code Miro image probe'],
-              'transport',
-          )
-          Path(os.environ['EVIDENCE_ROOT'], 'ci-summary.json').write_text(
-              json.dumps({'target': target, 'transport': transport}, indent=2) + '\n',
-              encoding='utf-8',
-          )
-          '@ | python -
-
+          repo,tok=os.environ['GITHUB_REPOSITORY'],os.environ['GH_TOKEN']; h={'Authorization':f'Bearer {tok}','Accept':'application/vnd.github+json'}
+          def get(u):
+            with urllib.request.urlopen(urllib.request.Request(u,headers=h)) as r:return json.load(r)
+          def wait(sha,label):
+            req=['Validate DDDA','DDDA platform CI','DDDA exact-code Miro image probe']
+            for _ in range(320):
+              runs=get(f'https://api.github.com/repos/{repo}/actions/runs?head_sha={sha}&event=pull_request&per_page=100')['workflow_runs']; out=[]; ok=True
+              for n in req:
+                m=[x for x in runs if x['name']==n]; x=max(m,key=lambda z:z['run_number']) if m else None
+                out.append({'name':n,'status':x and x['status'],'conclusion':x and x['conclusion'],'id':x and x['id']})
+                if x and x['status']=='completed' and x['conclusion']!='success':raise SystemExit(f'{label} {n}={x["conclusion"]}')
+                ok &= bool(x and x['status']=='completed' and x['conclusion']=='success')
+              Path(os.environ['EVIDENCE_ROOT'],label+'-ci.json').write_text(json.dumps(out,indent=2)+'\n')
+              if ok:return
+              time.sleep(15)
+            raise SystemExit(label+' CI timeout')
+          wait(os.environ['TARGET_SOURCE_SHA'],'target');wait(os.environ['TRANSPORT_SHA'],'transport')
+          '@|python -
       - name: Verify Miro secret
         shell: pwsh
-        env:
-          MIRO_ACCESS_TOKEN: ${{ secrets.MIRO_ACCESS_TOKEN }}
-        run: |
-          if ([string]::IsNullOrWhiteSpace($env:MIRO_ACCESS_TOKEN)) {
-            throw 'MIRO_ACCESS_TOKEN is required.'
-          }
-
-      - name: Checkout exact product source
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ env.TARGET_SOURCE_SHA }}
-
-      - name: Test and build exact-SHA candidate
-        id: package
+        env: {MIRO_ACCESS_TOKEN: "${{ secrets.MIRO_ACCESS_TOKEN }}"}
+        run: if ([string]::IsNullOrWhiteSpace($env:MIRO_ACCESS_TOKEN)){throw 'MIRO_ACCESS_TOKEN required'}
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0, ref: "${{ env.TARGET_SOURCE_SHA }}"}
+      - name: Test and build candidate
+        id: pkg
         shell: pwsh
         run: |
-          $ErrorActionPreference = 'Stop'
           python -m pip install --disable-pip-version-check --no-input pytest 'ruamel.yaml>=0.18,<0.19' requests pyyaml
-          $env:PYTHONPATH = Join-Path $PWD.Path 'runtime\miro'
-          python -m pytest runtime/miro/tests/test_hvr_remediation.py runtime/miro/tests/test_hvr_remediation_inventory_compat.py runtime/miro/tests/test_hvr_remediation_api_compat.py runtime/miro/tests/test_anchor_remediation.py -q
-          if ($LASTEXITCODE -ne 0) { throw 'Targeted REM-012.3.2 tests failed.' }
-          git reset --hard $env:TARGET_SOURCE_SHA
-          git clean -ffdx
-          if ((git rev-parse HEAD).Trim() -ne $env:TARGET_SOURCE_SHA -or (git status --porcelain)) {
-            throw 'Product source is not clean.'
-          }
-          $version = 'rem-012-3-2.' + $env:GITHUB_RUN_ID + '.' + $env:TARGET_SOURCE_SHA.Substring(0, 12)
-          $output = Join-Path $env:RUNNER_TEMP ('ddda-rem-012-3-2-' + $env:TARGET_SOURCE_SHA.Substring(0, 12) + '.zip')
-          $package = (.\scripts\platform\New-DDDAPlatformPackage.ps1 -PlatformPath $PWD.Path -Kind candidate -Version $version -SourceRef $env:TARGET_SOURCE_SHA -OutputPath $output -Json | Out-String).Trim() | ConvertFrom-Json
-          if ([string]$package.source_commit -ne $env:TARGET_SOURCE_SHA) {
-            throw 'Candidate provenance mismatch.'
-          }
-          [ordered]@{
-            status = 'PASS'
-            source_sha = $env:TARGET_SOURCE_SHA
-            package_path = [string]$package.path
-            package_sha256 = [string]$package.sha256
-          } | ConvertTo-Json | Set-Content (Join-Path $env:EVIDENCE_ROOT 'package.json') -Encoding utf8
-          "package_path=$($package.path)" | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          "package_sha256=$($package.sha256)" | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
-
+          $env:PYTHONPATH=Join-Path $PWD.Path 'runtime\miro'; python -m pytest runtime/miro/tests/test_hvr_remediation.py runtime/miro/tests/test_hvr_remediation_inventory_compat.py runtime/miro/tests/test_hvr_remediation_api_compat.py runtime/miro/tests/test_anchor_remediation.py -q; if($LASTEXITCODE){throw 'tests failed'}
+          git reset --hard $env:TARGET_SOURCE_SHA; git clean -ffdx
+          $o=Join-Path $env:RUNNER_TEMP ('ddda-rem-012-3-3-'+$env:TARGET_SOURCE_SHA.Substring(0,12)+'.zip'); $v='rem-012-3-3.'+$env:GITHUB_RUN_ID+'.'+$env:TARGET_SOURCE_SHA.Substring(0,12)
+          $p=(.\scripts\platform\New-DDDAPlatformPackage.ps1 -PlatformPath $PWD.Path -Kind candidate -Version $v -SourceRef $env:TARGET_SOURCE_SHA -OutputPath $o -Json|Out-String).Trim()|ConvertFrom-Json
+          if([string]$p.source_commit-ne$env:TARGET_SOURCE_SHA){throw 'provenance mismatch'}; "path=$($p.path)"|Out-File $env:GITHUB_OUTPUT -Append; "sha=$($p.sha256)"|Out-File $env:GITHUB_OUTPUT -Append
+          [ordered]@{status='PASS';source_sha=$env:TARGET_SOURCE_SHA;package_sha256=[string]$p.sha256}|ConvertTo-Json|Set-Content (Join-Path $env:EVIDENCE_ROOT 'package.json')
       - name: Apply and verify frame 00 only
         shell: pwsh
         env:
           MIRO_ACCESS_TOKEN: ${{ secrets.MIRO_ACCESS_TOKEN }}
-          PACKAGE_PATH: ${{ steps.package.outputs.package_path }}
-          PACKAGE_SHA256: ${{ steps.package.outputs.package_sha256 }}
+          PACKAGE_PATH: ${{ steps.pkg.outputs.path }}
+          PACKAGE_SHA256: ${{ steps.pkg.outputs.sha }}
         run: |
-          $ErrorActionPreference = 'Stop'
-          .\scripts\platform\Test-DDDAPlatformPackage.ps1 -PackagePath $env:PACKAGE_PATH -ExpectedCommit $env:TARGET_SOURCE_SHA -ExpectedKind candidate
-          $packageRoot = Join-Path $env:RUNNER_TEMP 'rem-012-3-2-package'
-          if (Test-Path $packageRoot) { Remove-Item $packageRoot -Recurse -Force }
-          Expand-Archive $env:PACKAGE_PATH $packageRoot -Force
-          $packageManifest = Get-Content (Join-Path $packageRoot 'ddda-package.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-          if ([string]$packageManifest.source_commit -ne $env:TARGET_SOURCE_SHA -or [string]$packageManifest.kind -ne 'candidate') {
-            throw 'Expanded package provenance mismatch.'
-          }
-          $runtime = Join-Path $packageRoot 'runtime\miro'
-          python -m pip install --disable-pip-version-check --no-input $runtime
-          $env:PYTHONPATH = $runtime
-          $env:REMEDIATION_MANIFEST = Join-Path $packageRoot 'scaffolds\miro\rem-012-3-hvr-remediation.yaml'
-          $env:REPORT_PATH = Join-Path $env:EVIDENCE_ROOT 'result.json'
+          $root=Join-Path $env:RUNNER_TEMP 'rem-012-3-3-package'; Expand-Archive $env:PACKAGE_PATH $root -Force; $rt=Join-Path $root 'runtime\miro'; python -m pip install --disable-pip-version-check --no-input $rt; $env:PYTHONPATH=$rt; $env:MANIFEST=Join-Path $root 'scaffolds\miro\rem-012-3-hvr-remediation.yaml'; $env:REPORT=Join-Path $env:EVIDENCE_ROOT 'result.json'
           @'
-          import hashlib
-          import json
-          import os
+          import hashlib,json,os
           from pathlib import Path
-
-          from ddda_miro import hvr_remediation as base
-          from ddda_miro.anchor_contract import (
-              _close,
-              _get_item,
-              _patch,
-              _protected_snapshot,
-              _writable,
-              canonical_miro_text,
-          )
+          from ddda_miro.anchor_contract import _close,_get_item,_patch,_protected_snapshot,_seg,_writable,canonical_miro_text
           from ddda_miro.client import MiroClient
-
-          MANAGED_IDS = [
-              '3458764679756523217',
-              '3458764679756523219',
-              '3458764679756523220',
-          ]
-          AUTO_LAYOUT_IDS = {'3458764679756523220'}
-
-          def stable_item(item):
-              return {
-                  'id': str(item.get('id') or ''),
-                  'type': str(item.get('type') or ''),
-                  'parent': str((item.get('parent') or {}).get('id') or ''),
-                  'data': item.get('data') or {},
-                  'style': item.get('style') or {},
-                  'geometry': item.get('geometry') or {},
-                  'position': item.get('position') or {},
-              }
-
-          def norm(value):
-              return str(value).lower() if isinstance(value, str) else value
-
-          def item_matches(remote, update, frame_id):
-              item_id = str(update['id'])
-              if str((remote.get('parent') or {}).get('id') or '') != frame_id:
-                  return False
-              position = remote.get('position') or {}
-              geometry = remote.get('geometry') or {}
-              style = remote.get('style') or {}
-              if not _close(position.get('x'), update['x']):
-                  return False
-              if item_id not in AUTO_LAYOUT_IDS and not _close(position.get('y'), update['y']):
-                  return False
-              for key in ('width', 'height'):
-                  if key in update and not _close(geometry.get(key), update[key]):
-                      return False
-              if 'font_size' in update and not _close(style.get('fontSize'), update['font_size']):
-                  return False
-              if 'content' in update and canonical_miro_text(
-                  (remote.get('data') or {}).get('content')
-              ) != canonical_miro_text(update['content']):
-                  return False
-              for key, expected in (update.get('style') or {}).items():
-                  actual = style.get(key)
-                  if key in {'fillColor', 'borderColor', 'color'}:
-                      if norm(actual) != norm(expected):
-                          return False
-                  elif actual != expected:
-                      return False
-              return True
-
-          def apply_update(client, board, frame_id, update, snapshots):
-              item_id = str(update['id'])
-              remote = _get_item(client, board, item_id)
-              snapshots.setdefault(item_id, remote)
-              if item_matches(remote, update, frame_id):
-                  return 'unchanged'
-              payload = _writable(remote)
-              payload['parent'] = {'id': frame_id}
-              if item_id in AUTO_LAYOUT_IDS:
-                  payload['position'] = {
-                      'x': float(update['x']),
-                      'y': float((remote.get('position') or {})['y']),
-                      'origin': 'center',
-                  }
-              else:
-                  payload['position'] = {
-                      'x': float(update['x']),
-                      'y': float(update['y']),
-                      'origin': 'center',
-                  }
-              if 'content' in update:
-                  payload.setdefault('data', {})['content'] = str(update['content'])
-              style = dict(payload.get('style') or {})
-              if 'font_size' in update:
-                  style['fontSize'] = int(update['font_size'])
-              style.update(update.get('style') or {})
-              payload['style'] = style
-              geometry = dict(payload.get('geometry') or {})
-              if 'width' in update:
-                  geometry['width'] = float(update['width'])
-              if 'height' in update:
-                  geometry['height'] = float(update['height'])
-              payload['geometry'] = geometry
-              updated = _patch(client, board, str(update['type']), item_id, payload)
-              if not item_matches(updated, update, frame_id):
-                  raise ValueError(f'item {item_id} did not reach target')
-              return 'updated'
-
-          def untouched_control_digest(client, board, frame_id):
-              items = [
-                  stable_item(item)
-                  for item in client.list_items(board)
-                  if str((item.get('parent') or {}).get('id') or '') == frame_id
-                  and str(item.get('id') or '') not in MANAGED_IDS
-              ]
-              raw = json.dumps(
-                  sorted(items, key=lambda item: item['id']),
-                  sort_keys=True,
-                  ensure_ascii=False,
-                  separators=(',', ':'),
-              ).encode('utf-8')
-              return hashlib.sha256(raw).hexdigest()
-
-          def assert_precondition(remote, spec, frame_id):
-              item_id = str(spec['id'])
-              if str((remote.get('parent') or {}).get('id') or '') != frame_id:
-                  raise ValueError(f'precondition frame mismatch for {item_id}')
-              position = remote.get('position') or {}
-              geometry = remote.get('geometry') or {}
-              style = remote.get('style') or {}
-              if not _close(position.get('x'), spec['x']):
-                  raise ValueError(f'precondition x mismatch for {item_id}')
-              if item_id not in AUTO_LAYOUT_IDS and not _close(position.get('y'), spec['y']):
-                  raise ValueError(f'precondition y mismatch for {item_id}')
-              if item_id in AUTO_LAYOUT_IDS:
-                  tolerance = float(spec.get('y_tolerance', 40))
-                  if abs(float(position.get('y')) - float(spec['y'])) > tolerance:
-                      raise ValueError(f'precondition auto-layout y drift for {item_id}')
-              for key in ('width', 'height'):
-                  if key in spec and not _close(geometry.get(key), spec[key]):
-                      raise ValueError(f'precondition {key} mismatch for {item_id}')
-              if not _close(style.get('fontSize'), spec['font_size']):
-                  raise ValueError(f'precondition font mismatch for {item_id}')
-              if spec['phrase'] not in canonical_miro_text(
-                  (remote.get('data') or {}).get('content')
-              ):
-                  raise ValueError(f'precondition content mismatch for {item_id}')
-
-          def bounds(item):
-              position = item.get('position') or {}
-              geometry = item.get('geometry') or {}
-              x, y = float(position['x']), float(position['y'])
-              width, height = float(geometry['width']), float(geometry['height'])
-              return {
-                  'left': x - width / 2,
-                  'right': x + width / 2,
-                  'top': y - height / 2,
-                  'bottom': y + height / 2,
-              }
-
-          def snapshot_semantically_restored(remote, snapshot):
-              if str(remote.get('type') or '') != str(snapshot.get('type') or ''):
-                  return False
-              if str((remote.get('parent') or {}).get('id') or '') != str(
-                  (snapshot.get('parent') or {}).get('id') or ''
-              ):
-                  return False
-              if canonical_miro_text((remote.get('data') or {}).get('content')) != canonical_miro_text(
-                  (snapshot.get('data') or {}).get('content')
-              ):
-                  return False
-              remote_geometry = remote.get('geometry') or {}
-              snapshot_geometry = snapshot.get('geometry') or {}
-              if not _close(remote_geometry.get('width'), snapshot_geometry.get('width')):
-                  return False
-              if snapshot.get('type') == 'shape' and not _close(
-                  remote_geometry.get('height'), snapshot_geometry.get('height')
-              ):
-                  return False
-              if not _close(
-                  (remote.get('style') or {}).get('fontSize'),
-                  (snapshot.get('style') or {}).get('fontSize'),
-              ):
-                  return False
-              return True
-
-          report_path = Path(os.environ['REPORT_PATH'])
-          manifest = base._load(Path(os.environ['REMEDIATION_MANIFEST']))
-          client = MiroClient(os.environ['MIRO_ACCESS_TOKEN'])
-          board = str(manifest['board_id'])
-          frame_ids = {key: str(value['id']) for key, value in manifest['frames'].items()}
-          control_frame = frame_ids['control']
-          protected_ids = [
-              frame_ids['journey'],
-              frame_ids['align'],
-              *[str(item) for item in manifest['protected_frames']],
-          ]
-          updates = {str(item['id']): item for item in manifest['updates']}
-          selected = [updates[item_id] for item_id in MANAGED_IDS]
-          if any(str(item.get('frame')) != 'control' for item in selected):
-              raise SystemExit('authorized update escaped frame 00')
-
-          preconditions = {
-              '3458764679756523217': {
-                  'id': '3458764679756523217',
-                  'x': 3500,
-                  'y': 3800,
-                  'width': 6400,
-                  'height': 1900,
-                  'font_size': 48,
-                  'phrase': 'ARTIFACT HEALTH — acceptance-claims-modernization',
-              },
-              '3458764679756523219': {
-                  'id': '3458764679756523219',
-                  'x': 3500,
-                  'y': 3100,
-                  'width': 5800,
-                  'height': 500,
-                  'font_size': 64,
-                  'phrase': 'HEALTH: ATTENTION',
-              },
-              '3458764679756523220': {
-                  'id': '3458764679756523220',
-                  'x': 3500,
-                  'y': 4450,
-                  'y_tolerance': 40,
-                  'width': 5700,
-                  'font_size': 48,
-                  'phrase': '3 artefakty',
-              },
-          }
-
-          protected_before = _protected_snapshot(client, board, protected_ids)
-          untouched_before = untouched_control_digest(client, board, control_frame)
-          snapshots = {}
-          for item_id in MANAGED_IDS:
-              remote = _get_item(client, board, item_id)
-              assert_precondition(remote, preconditions[item_id], control_frame)
-              snapshots[item_id] = remote
-
-          result = {
-              'status': 'FAIL',
-              'technical_status': 'FAIL',
-              'remediation_id': 'REM-PR8-HVA-CC-012.3.2',
-              'board_id': board,
-              'source_sha': os.environ['TARGET_SOURCE_SHA'],
-              'transport_sha': os.environ['TRANSPORT_SHA'],
-              'candidate_sha256': os.environ['PACKAGE_SHA256'],
-              'authorized_frame': '00',
-              'human_review_status': 'PENDING',
-              'overall_status': 'NOT_READY_FOR_HVR',
-          }
-
+          from ddda_miro.yamlio import load_yaml
+          B='uXjVH1phki0=';F='3458764679756478046';E=['3458764679756523217','3458764679756523219','3458764679756523220'];EP={'shape':'shapes','text':'texts'}
+          m=load_yaml(Path(os.environ['MANIFEST']));c=MiroClient(os.environ['MIRO_ACCESS_TOKEN']);u={str(x.get('id')):x for x in m['updates']};snap={};created=[]
+          def n(v):return str(v).lower() if isinstance(v,str) else v
+          def st(x):return {'id':str(x.get('id')or''),'type':x.get('type'),'parent':str((x.get('parent')or{}).get('id')or''),'data':x.get('data')or{},'style':x.get('style')or{},'geometry':x.get('geometry')or{},'position':x.get('position')or{}}
+          def dg(xs):return hashlib.sha256(json.dumps(sorted(map(st,xs),key=lambda z:z['id']),sort_keys=True,ensure_ascii=False,separators=(',',':')).encode()).hexdigest()
+          def match(r,e,t,rel=False):
+            if r.get('type')!=t or str((r.get('parent')or{}).get('id'))!=F or canonical_miro_text((r.get('data')or{}).get('content'))!=canonical_miro_text((e.get('data')or{}).get('content')):return False
+            p,q=r.get('position')or{},e.get('position')or{}
+            if not _close(p.get('x'),q.get('x')) or (not rel and not _close(p.get('y'),q.get('y'))) or (rel and abs(float(p.get('y')or0)-float(q.get('y')or0))>180):return False
+            for k,v in (e.get('geometry')or{}).items():
+              if not _close((r.get('geometry')or{}).get(k),v):return False
+            for k,v in (e.get('style')or{}).items():
+              a=(r.get('style')or{}).get(k)
+              if (k in {'fillColor','borderColor','color'} and n(a)!=n(v)) or (k in {'fontSize','borderWidth'} and not _close(a,v)) or (k not in {'fillColor','borderColor','color','fontSize','borderWidth'} and a!=v):return False
+            return True
+          def ex(x):return {'data':{'content':str(x['content'])},'position':{'x':float(x['x']),'y':float(x['y']),'origin':'center'},'parent':{'id':F},'geometry':{k:float(x[k]) for k in ('width','height') if k in x},'style':{'fontSize':int(x['font_size']),**dict(x.get('style')or{})}}
+          def mx(s):return {'data':{'shape':'rectangle','content':f'<p><strong>{int(s["count"])}</strong></p><p><strong>{s["label"]}</strong></p>'},'position':{'x':float(s['x']),'y':float(s['y']),'origin':'center'},'parent':{'id':F},'geometry':{'width':float(s['width']),'height':float(s['height'])},'style':{'fillColor':s['fill_color'],'fillOpacity':'1.0','fontFamily':'arial','fontSize':int(s['font_size']),'borderColor':'#4B79A1','borderWidth':2,'borderOpacity':'1.0','borderStyle':'normal','textAlign':'center','textAlignVertical':'middle','color':s['text_color']}}
+          def rx(s):return {'data':{'content':s['content']},'position':{'x':float(s['x']),'y':float(s['y']),'origin':'center'},'parent':{'id':F},'geometry':{'width':float(s['width'])},'style':{'fillColor':'#ffffff','fillOpacity':'0.0','fontFamily':'arial','fontSize':int(s['font_size']),'textAlign':s['style']['textAlign'],'color':s['style']['color']}}
+          def existing(x):
+            i,t=str(x['id']),x['type'];r=_get_item(c,B,i);snap.setdefault(i,r);e=ex(x);rel=t=='text'
+            if match(r,e,t,rel):return i,'unchanged'
+            p=_writable(r);p['parent']={'id':F};p['position']=e['position'];p.setdefault('data',{})['content']=e['data']['content'];p['geometry']={**(p.get('geometry')or{}),**e['geometry']};p['style']={**(p.get('style')or{}),**e['style']};r=_patch(c,B,t,i,p)
+            if not match(r,e,t,rel):raise ValueError('existing target '+i)
+            return i,'updated'
+          def gen(t,e,ident):
+            q=[x for x in c.list_items(B,t) if str((x.get('parent')or{}).get('id'))==F and ident(canonical_miro_text((x.get('data')or{}).get('content')))]
+            if len(q)>1:raise ValueError('ambiguous generated')
+            if q:
+              r=q[0];i=str(r['id'])
+              if match(r,e,t,t=='text'):return i,'unchanged'
+              snap.setdefault(i,r);r=_patch(c,B,t,i,e)
+              if not match(r,e,t,t=='text'):raise ValueError('generated target '+i)
+              return i,'updated'
+            r=c._request('POST',f'boards/{_seg(B)}/{EP[t]}',body=e);i=str(r['id']);created.append(i)
+            if not match(r,e,t,t=='text'):raise ValueError('created target '+i)
+            return i,'created'
+          def rb():
+            er=[]
+            for i in reversed(created):
+              try:c.delete_item(B,i)
+              except Exception as z:er.append(str(z))
+            for i,r in reversed(list(snap.items())):
+              try:_patch(c,B,r['type'],i,_writable(r))
+              except Exception as z:er.append(str(z))
+            return {'status':'PASS' if not er else 'PARTIAL','errors':er}
+          prot=[str(m['frames']['journey']['id']),str(m['frames']['align']['id']),*map(str,m['protected_frames'])];pb=_protected_snapshot(c,B,prot)
+          labels=('SCAFFOLD','WORKING','CANDIDATE','VALIDATED','ACCEPTED','SUPERSEDED','OTEVŘÍT PROJEKTOVÝ ARTIFACT REGISTRY')
+          before=dg([x for x in c.list_items(B) if str((x.get('parent')or{}).get('id'))==F and str(x.get('id')) not in E and not any(z in canonical_miro_text((x.get('data')or{}).get('content')) for z in labels)])
+          def run(o):
+            for i in E:a,k=existing(u[i]);o[k]+=1;o['item_ids'].append(a)
+            for s in m['frame_00_maturity_items']:
+              L=s['label'];a,k=gen('shape',mx(s),lambda x,L=L:x.endswith(L) or (' '+L) in x);o[k]+=1;o['item_ids'].append(a)
+            a,k=gen('text',rx(m['frame_00_registry_reference']),lambda x:'OTEVŘÍT PROJEKTOVÝ ARTIFACT REGISTRY' in x);o[k]+=1;o['item_ids'].append(a)
+          one={k:([] if k=='item_ids' else 0) for k in ('created','updated','unchanged','item_ids')};two={k:([] if k=='item_ids' else 0) for k in ('created','updated','unchanged','item_ids')}
           try:
-              first = {
-                  str(item['id']): apply_update(
-                      client, board, control_frame, item, snapshots
-                  )
-                  for item in selected
-              }
-              readback = {
-                  item_id: _get_item(client, board, item_id)
-                  for item_id in MANAGED_IDS
-              }
-              for item_id in MANAGED_IDS:
-                  if not item_matches(readback[item_id], updates[item_id], control_frame):
-                      raise ValueError(f'remote read-back failed for {item_id}')
-
-              panel_text = canonical_miro_text(
-                  (readback['3458764679756523217'].get('data') or {}).get('content')
-              )
-              status_text = canonical_miro_text(
-                  (readback['3458764679756523219'].get('data') or {}).get('content')
-              )
-              legend_text = canonical_miro_text(
-                  (readback['3458764679756523220'].get('data') or {}).get('content')
-              )
-              if panel_text != 'ARTIFACT HEALTH — acceptance-claims-modernization':
-                  raise ValueError('Artifact Health project title mismatch')
-              if 'HEALTH: ATTENTION' in status_text:
-                  raise ValueError('redundant HEALTH: ATTENTION wording remains')
-              for token in (
-                  '🟦 MATURITY: 1 SCAFFOLD · 2 WORKING',
-                  '🟧 ATTENTION: 1',
-                  '🟩 BLOCKING: 0',
-              ):
-                  if token not in status_text:
-                      raise ValueError(f'status token missing: {token}')
-              for token in (
-                  '🟦 MATURITY',
-                  '🟧 ATTENTION',
-                  '🟩 BLOCKING: 0',
-                  '🟥 BLOCKING > 0',
-              ):
-                  if token not in legend_text:
-                      raise ValueError(f'legend token missing: {token}')
-
-              panel_bounds = bounds(readback['3458764679756523217'])
-              status_bounds = bounds(readback['3458764679756523219'])
-              if not (
-                  panel_bounds['left'] <= status_bounds['left']
-                  and status_bounds['right'] <= panel_bounds['right']
-                  and panel_bounds['top'] <= status_bounds['top']
-                  and status_bounds['bottom'] <= panel_bounds['bottom']
-              ):
-                  raise ValueError('health status is outside the Artifact Health panel')
-              detail = readback['3458764679756523220']
-              detail_x = float(detail['position']['x'])
-              detail_y = float(detail['position']['y'])
-              detail_width = float(detail['geometry']['width'])
-              if not (
-                  panel_bounds['left'] <= detail_x - detail_width / 2
-                  and detail_x + detail_width / 2 <= panel_bounds['right']
-                  and panel_bounds['top'] <= detail_y <= panel_bounds['bottom']
-              ):
-                  raise ValueError('Artifact Health legend is outside the panel')
-              if not (
-                  float(readback['3458764679756523219']['style']['fontSize']) >= 80
-                  and float(readback['3458764679756523217']['style']['fontSize']) >= 64
-                  and float(readback['3458764679756523220']['style']['fontSize']) >= 48
-              ):
-                  raise ValueError('remote readability font threshold failed')
-
-              protected_mid = _protected_snapshot(client, board, protected_ids)
-              untouched_mid = untouched_control_digest(client, board, control_frame)
-              if protected_mid['digest'] != protected_before['digest']:
-                  raise ValueError('frames 01, 10, or 20+ changed')
-              if untouched_mid != untouched_before:
-                  raise ValueError('an unauthorized frame 00 item changed')
-
-              second = {
-                  str(item['id']): apply_update(
-                      client, board, control_frame, item, snapshots
-                  )
-                  for item in selected
-              }
-              if set(second.values()) != {'unchanged'}:
-                  raise ValueError(f'second reconcile mutated frame 00: {second}')
-
-              protected_after = _protected_snapshot(client, board, protected_ids)
-              untouched_after = untouched_control_digest(client, board, control_frame)
-              if protected_after['digest'] != protected_before['digest']:
-                  raise ValueError('protected frame digest changed after second reconcile')
-              if untouched_after != untouched_before:
-                  raise ValueError('unauthorized frame 00 digest changed after second reconcile')
-
-              result.update({
-                  'status': 'PASS',
-                  'technical_status': 'PASS',
-                  'overall_status': 'READY_FOR_HUMAN_REVIEW',
-                  'first_run': first,
-                  'second_run': second,
-                  'readback': {
-                      key: stable_item(value)
-                      for key, value in readback.items()
-                  },
-                  'protected_frames': {
-                      'count': len(protected_ids),
-                      'unchanged': True,
-                      'digest': protected_after['digest'],
-                  },
-                  'untouched_control_items': {
-                      'unchanged': True,
-                      'digest': untouched_after,
-                  },
-                  'rollback': {'status': 'NOT_REQUIRED'},
-              })
-              report_path.write_text(
-                  json.dumps(result, indent=2, ensure_ascii=False) + '\n',
-                  encoding='utf-8',
-              )
-          except Exception as exc:
-              rollback_errors = []
-              for item_id, snapshot in reversed(list(snapshots.items())):
-                  try:
-                      _patch(
-                          client,
-                          board,
-                          str(snapshot['type']),
-                          item_id,
-                          _writable(snapshot),
-                      )
-                  except Exception as rollback_exc:
-                      rollback_errors.append(f'{item_id}: {rollback_exc}')
-              try:
-                  if _protected_snapshot(client, board, protected_ids)['digest'] != protected_before['digest']:
-                      rollback_errors.append('protected frame digest mismatch')
-                  if untouched_control_digest(client, board, control_frame) != untouched_before:
-                      rollback_errors.append('untouched frame 00 digest mismatch')
-                  for item_id, snapshot in snapshots.items():
-                      if not snapshot_semantically_restored(
-                          _get_item(client, board, item_id), snapshot
-                      ):
-                          rollback_errors.append(
-                              f'{item_id}: rollback semantic read-back mismatch'
-                          )
-              except Exception as verify_exc:
-                  rollback_errors.append(f'rollback verification: {verify_exc}')
-              result.update({
-                  'error': str(exc),
-                  'rollback': {
-                      'status': 'PASS' if not rollback_errors else 'PARTIAL',
-                      'errors': rollback_errors,
-                  },
-              })
-              report_path.write_text(
-                  json.dumps(result, indent=2, ensure_ascii=False) + '\n',
-                  encoding='utf-8',
-              )
-              raise
-          '@ | python -
-          if ($LASTEXITCODE -ne 0) {
-            Get-Content $env:REPORT_PATH -ErrorAction SilentlyContinue
-            throw 'REM-012.3.2 frame 00 execution failed.'
-          }
-          $report = Get-Content $env:REPORT_PATH -Raw -Encoding UTF8 | ConvertFrom-Json
-          if ([string]$report.status -ne 'PASS' -or [string]$report.technical_status -ne 'PASS') {
-            throw 'Technical status is not PASS.'
-          }
-          if ([string]$report.source_sha -ne $env:TARGET_SOURCE_SHA -or [string]$report.transport_sha -ne $env:TRANSPORT_SHA) {
-            throw 'Result identity mismatch.'
-          }
-          if ([string]$report.authorized_frame -ne '00') {
-            throw 'Authorized frame mismatch.'
-          }
-          if (-not [bool]$report.protected_frames.unchanged -or [int]$report.protected_frames.count -ne 17) {
-            throw 'Frames 01, 10, or 20+ changed.'
-          }
-          if (-not [bool]$report.untouched_control_items.unchanged) {
-            throw 'Unauthorized frame 00 item changed.'
-          }
-          if ((@($report.second_run.PSObject.Properties.Value | Where-Object { $_ -ne 'unchanged' })).Count -ne 0) {
-            throw 'Second reconcile was not zero mutation.'
-          }
-          if ([string]$report.human_review_status -ne 'PENDING' -or [string]$report.overall_status -ne 'READY_FOR_HUMAN_REVIEW') {
-            throw 'HVR semantics failed.'
-          }
-          @(
-            "REM-012.3.2 technical status: $($report.technical_status)"
-            "Transport SHA: $env:TRANSPORT_SHA"
-            "Product SHA: $env:TARGET_SOURCE_SHA"
-            "Candidate SHA-256: $env:PACKAGE_SHA256"
-            "Authorized mutation: frame 00, three Artifact Health items"
-            "Project title, dominant status, color markers and legend: verified"
-            "Frames 01, 10 and 20+: unchanged (17 protected frames)"
-            "Second reconcile: zero mutation"
-            "Human review: PENDING — repeat HVR-1 only"
-          ) | Add-Content $env:GITHUB_STEP_SUMMARY
-
-      - name: Upload evidence
-        if: always()
+            run(one);run(two)
+            if two['created'] or two['updated'] or two['unchanged']!=10:raise ValueError('second reconcile '+str(two))
+            panel,status,legend=[_get_item(c,B,i) for i in E];lt=canonical_miro_text((legend.get('data')or{}).get('content'));stt=canonical_miro_text((status.get('data')or{}).get('content'))
+            if 'OTEVŘÍT PROJEKTOVÝ ARTIFACT REGISTRY' in lt or 'source of truth' in lt or legend.get('type')!='text' or float((legend.get('position')or{}).get('x')or0)<=float((panel.get('position')or{}).get('x')or0) or float((legend.get('position')or{}).get('y')or0)>=4050:raise ValueError('legend separation/placement')
+            if not all(x in stt for x in ('3 ARTEFAKTY','ATTENTION: 1','BLOCKING: 0')) or 'MATURITY' in stt:raise ValueError('status')
+            gs={str(i):_get_item(c,B,str(i)) for i in one['item_ids'] if str(i) not in E};ids=[];ls=[]
+            def lum(h):
+              v=[int(h[i:i+2],16)/255 for i in (1,3,5)];v=[x/12.92 if x<=.04045 else ((x+.055)/1.055)**2.4 for x in v];return .2126*v[0]+.7152*v[1]+.0722*v[2]
+            for s in m['frame_00_maturity_items']:
+              q=[x for x in gs.values() if s['label'] in canonical_miro_text((x.get('data')or{}).get('content'))]
+              if len(q)!=1 or n((q[0].get('style')or{}).get('fillColor'))!=n(s['fill_color']):raise ValueError('maturity '+s['label'])
+              ids.append(str(q[0]['id']));ls.append(lum(s['fill_color']))
+            if not all(a>b for a,b in zip(ls,ls[1:])) or ls[0]-ls[-1]<.55:raise ValueError('palette')
+            qr=[x for x in gs.values() if 'OTEVŘÍT PROJEKTOVÝ ARTIFACT REGISTRY' in canonical_miro_text((x.get('data')or{}).get('content'))]
+            if len(qr)!=1 or float((qr[0].get('position')or{}).get('y')or0)<=4400 or float((qr[0].get('geometry')or{}).get('width')or0)<5800:raise ValueError('registry')
+            pa=_protected_snapshot(c,B,prot)
+            if pa['digest']!=pb['digest']:raise ValueError('protected frames')
+            managed=set(one['item_ids'])|set(E);after=dg([x for x in c.list_items(B) if str((x.get('parent')or{}).get('id'))==F and str(x.get('id')) not in managed])
+            if after!=before:raise ValueError('unmanaged frame 00')
+            out={'status':'PASS','remediation_id':'REM-PR8-HVA-CC-012.3.3','source_sha':os.environ['TARGET_SOURCE_SHA'],'transport_sha':os.environ['TRANSPORT_SHA'],'package_sha256':os.environ['PACKAGE_SHA256'],'first_run':one,'second_run':two,'zero_mutation_second_run':True,'maturity_item_ids':ids,'registry_item_id':str(qr[0]['id']),'protected_frames':{'count':len(prot),'unchanged':True,'before_digest':pb['digest'],'after_digest':pa['digest']},'frame_00_unmanaged_unchanged':True,'technical_status':'PASS','human_review_status':'PENDING','overall_status':'READY_FOR_HUMAN_REVIEW'}
+            Path(os.environ['REPORT']).write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n')
+          except Exception as z:
+            Path(os.environ['REPORT']).write_text(json.dumps({'status':'FAIL','error':str(z),'rollback':rb(),'technical_status':'FAIL'},ensure_ascii=False,indent=2)+'\n');raise
+          '@|python -
+          $x=Get-Content $env:REPORT -Raw|ConvertFrom-Json; if($x.status-ne'PASS'-or$x.second_run.unchanged-ne10-or-not$x.protected_frames.unchanged-or$x.maturity_item_ids.Count-ne6){throw 'REM-012.3.3 verification failed'}
+          @("technical_status: $($x.technical_status)","product: $env:TARGET_SOURCE_SHA","transport: $env:TRANSPORT_SHA","managed items: 10; second reconcile mutations=0","maturity items: 6","protected frames: 17 unchanged","human review: $($x.human_review_status)")|Add-Content $env:GITHUB_STEP_SUMMARY
+      - if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: rem-012-3-2-frame-00-${{ env.PR_NUMBER }}-${{ env.TARGET_SOURCE_SHA }}
+          name: rem-012-3-3-frame-00-${{ env.PR_NUMBER }}-${{ env.TARGET_SOURCE_SHA }}
           path: ${{ env.EVIDENCE_ROOT }}/**
           if-no-files-found: error
           retention-days: 30
