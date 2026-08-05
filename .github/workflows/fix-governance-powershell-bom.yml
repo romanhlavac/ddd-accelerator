@@ -1,0 +1,49 @@
+name: Fix governance PowerShell BOM
+
+on:
+  push:
+    branches:
+      - feature/github-native-backlog-governance
+    paths:
+      - .github/workflows/fix-governance-powershell-bom.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/github-native-backlog-governance
+          fetch-depth: 0
+
+      - name: Add required UTF-8 BOM
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          paths = [
+              Path('scripts/platform/Apply-DDDAGitHubGovernance.ps1'),
+              Path('scripts/platform/Bootstrap-DDDAGitHubGovernance.ps1'),
+              Path('scripts/platform/Initialize-DDDAGitHubGovernance.ps1'),
+              Path('scripts/platform/Run-DDDAGitHubGovernance.ps1'),
+          ]
+
+          bom = b'\xef\xbb\xbf'
+          for path in paths:
+              data = path.read_bytes()
+              if not data.startswith(bom):
+                  path.write_bytes(bom + data)
+              assert path.read_bytes().startswith(bom), path
+          PY
+
+          rm .github/workflows/fix-governance-powershell-bom.yml
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add scripts/platform .github/workflows/fix-governance-powershell-bom.yml
+          git commit -m 'fix(governance): encode PowerShell scripts with UTF-8 BOM (#16)'
+          git push origin HEAD:feature/github-native-backlog-governance
