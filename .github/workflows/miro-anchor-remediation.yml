@@ -14,6 +14,7 @@ jobs:
     timeout-minutes: 120
     env:
       HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      PREVIOUS_TRANSPORT: e48c30a2a3be4028cd8e9b4b4a004f911cfc5534
       AUTH_TRANSPORT: 4324024ff1ca7d6b86f0c7c2b72a29383b8acb91
       PRODUCT_SHA: 747bd48a9ca6fdda92c6887dc7d3bd34e8ea0193
       BASE_SHA: afabd41ad2767984c62029d4db6c4c3862706dd1
@@ -31,12 +32,13 @@ jobs:
           import json,os,subprocess,time,urllib.request
           from pathlib import Path
           g=lambda *a:subprocess.check_output(['git',*a],text=True).strip()
-          h,a,p,b=[os.environ[x] for x in ('HEAD_SHA','AUTH_TRANSPORT','PRODUCT_SHA','BASE_SHA')]; w='.github/workflows/miro-anchor-remediation.yml'
-          assert g('rev-parse','HEAD')==h and g('rev-parse',h+'^')==a and g('rev-parse',a+'^')==p and g('rev-parse',p+'^')==b
+          h,c,a,p,b=[os.environ[x] for x in ('HEAD_SHA','PREVIOUS_TRANSPORT','AUTH_TRANSPORT','PRODUCT_SHA','BASE_SHA')]; w='.github/workflows/miro-anchor-remediation.yml'
+          assert g('rev-parse','HEAD')==h and g('rev-parse',h+'^')==c and g('rev-parse',c+'^')==a and g('rev-parse',a+'^')==p and g('rev-parse',p+'^')==b
           assert g('show','-s','--format=%s',p)=='fix(miro): align frame 00 summary to approved screenshot'
           assert sorted(g('diff-tree','--no-commit-id','--name-only','-r',p).splitlines())==sorted(['scaffolds/miro/rem-012-3-hvr-remediation.yaml','runtime/miro/tests/test_hvr_remediation.py'])
           assert g('show','-s','--format=%s',a)=='fix(ci): authorize REM-012.3.4 frame 00 remediation' and g('diff-tree','--no-commit-id','--name-only','-r',a)==w
-          assert g('show','-s','--format=%s',h)=='fix(ci): preserve REM-012.3.4 product validation evidence' and g('diff-tree','--no-commit-id','--name-only','-r',h)==w
+          assert g('show','-s','--format=%s',c)=='fix(ci): preserve REM-012.3.4 product validation evidence' and g('diff-tree','--no-commit-id','--name-only','-r',c)==w
+          assert g('show','-s','--format=%s',h)=='fix(ci): narrow REM-012.3.4 maturity selectors' and g('diff-tree','--no-commit-id','--name-only','-r',h)==w
           repo=os.environ['GITHUB_REPOSITORY']; headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'}
           def get(url):
             with urllib.request.urlopen(urllib.request.Request(url,headers=headers)) as r:return json.load(r)
@@ -53,7 +55,7 @@ jobs:
             raise SystemExit(label+' CI timeout')
           product=wait(p,['Validate DDDA','DDDA exact-code Miro image probe'],'product')
           transport=wait(h,['Validate DDDA','DDDA platform CI','DDDA exact-code Miro image probe'],'transport')
-          Path(os.environ['EVIDENCE'],'identity.json').write_text(json.dumps({'status':'PASS','base_sha':b,'product_sha':p,'authorized_transport_sha':a,'transport_sha':h,'product_ci':product,'transport_ci':transport,'merge_allowed':False,'release_allowed':False,'gate_approval_allowed':False,'human_review_status':'PENDING'},indent=2)+'\n')
+          Path(os.environ['EVIDENCE'],'identity.json').write_text(json.dumps({'status':'PASS','base_sha':b,'product_sha':p,'authorized_transport_sha':a,'previous_transport_sha':c,'transport_sha':h,'product_ci':product,'transport_ci':transport,'merge_allowed':False,'release_allowed':False,'gate_approval_allowed':False,'human_review_status':'PENDING'},indent=2)+'\n')
           '@|python -
       - name: Verify Miro secret
         shell: pwsh
@@ -135,7 +137,7 @@ jobs:
             a,k=upsert('text',exp(u['3458764679756523220'],'text'),lambda z:('MATURITY' in z and 'REVIEW FLAGS' in z)or('MATURITY' in z and 'ATTENTION' in z));o[k]+=1;o['ids'].append(a)
             a,k=upsert('text',exp(m['frame_00_registry_reference'],'text'),lambda z:'ARTIFACT REGISTRY' in z);o[k]+=1;o['ids'].append(a)
             for s in specs:
-              a,k=upsert('shape',mat(s),lambda z,L=s['label']:L in z);o[k]+=1;o['ids'].append(a)
+              a,k=upsert('shape',mat(s),lambda z,L=s['label']:L in z and ':' not in z and 'ARTEFAKTY' not in z);o[k]+=1;o['ids'].append(a)
           one={'created':0,'updated':0,'unchanged':0,'ids':[]};two={'created':0,'updated':0,'unchanged':0,'ids':[]}
           def rollback():
             er=[]
