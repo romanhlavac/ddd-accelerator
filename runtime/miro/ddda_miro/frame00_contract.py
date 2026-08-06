@@ -115,12 +115,22 @@ def _target_payload(remote: dict[str, Any], update: dict[str, Any], frame_id: st
     payload["parent"] = {"id": frame_id}
     payload["position"] = {"x": float(update["x"]), "y": float(update["y"]), "origin": "center"}
     payload.setdefault("data", {})["content"] = str(update["content"])
-    style = dict(payload.get("style") or {})
-    style.update(deepcopy(update.get("style") or {}))
+
+    # Sticky-note presentation is intentionally unmanaged in REM-012.4 unless
+    # the manifest declares it. Miro may normalize those style values during
+    # PATCH/read-back, so inherited style must not become an accidental target.
+    if item_type == "sticky_note":
+        style = deepcopy(update.get("style") or {})
+    else:
+        style = dict(payload.get("style") or {})
+        style.update(deepcopy(update.get("style") or {}))
     if "font_size" in update:
         style["fontSize"] = int(update["font_size"])
     if style:
         payload["style"] = style
+    else:
+        payload.pop("style", None)
+
     geometry = dict(payload.get("geometry") or {})
     geometry = {"width": float(update["width"])} if item_type == "sticky_note" else geometry
     geometry["width"] = float(update["width"])

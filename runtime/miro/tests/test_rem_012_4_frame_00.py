@@ -137,6 +137,26 @@ def test_target_payload_and_readback_matching_for_existing_item():
     assert _matches(reached, payload)
 
 
+def test_sticky_note_does_not_promote_unmanaged_remote_style_into_target():
+    update = by_role(contract())["phase_gate_state"]
+    remote = {
+        "id": update["id"],
+        "type": "sticky_note",
+        "parent": {"id": "3458764679756478046"},
+        "data": {"shape": "rectangle", "content": "old"},
+        "style": {"fillColor": "light_yellow", "textAlign": "center", "textAlignVertical": "middle"},
+        "geometry": {"width": 1900, "height": 1237.7142857142858},
+        "position": {"x": 1200, "y": 1850, "origin": "center", "relativeTo": "parent_top_left"},
+    }
+    payload = _target_payload(remote, update, "3458764679756478046")
+    assert "style" not in payload
+    assert payload["geometry"] == {"width": 1700.0}
+    reached = {**remote, **payload, "type": "sticky_note"}
+    reached["style"] = {"fillColor": "yellow", "textAlign": "left", "textAlignVertical": "top"}
+    reached["geometry"] = {"width": 1700.0, "height": 1107.4285714285713}
+    assert _matches(reached, payload)
+
+
 def test_cleanup_selector_requires_exact_generated_signature():
     selector = next(item for item in contract()["cleanup"]["selectors"] if item.get("exact_text") == "SCAFFOLD: 1")
     matching = {
