@@ -26,9 +26,9 @@ protected_frame_ids:
 - '3458764679756478094'
 - '3458764679756478096'
 source_paths:
-  project_registry: 
+  project_registry:
     examples/minimal/projects/acceptance-claims-modernization/artifacts/registry.yaml
-  project_registry_markdown: 
+  project_registry_markdown:
     examples/minimal/projects/acceptance-claims-modernization/docs/artifacts/index.md
   project_intake: examples/minimal/input/project-intake.yaml
 project_state:
@@ -37,12 +37,12 @@ project_state:
   gate: G1
   gate_state: NOT_READY
   decision_owner_role: Acceptance Business Owner
-  decision_question: Je první ohraničený modernizační řez a evidence potřebná 
+  decision_question: Je první ohraničený modernizační řez a evidence potřebná
     pro Discover dostatečně vymezená?
   next_action: Doplnit scope boundaries a success measures; potom připravit G1 k
     lidskému review.
   attention_count: 1
-  attention_text: Projektový charter je stále SCAFFOLD a vyžaduje doplnění před 
+  attention_text: Projektový charter je stále SCAFFOLD a vyžaduje doplnění před
     G1 review.
   blocker_count: 0
   blocker_text: Postup není blokován.
@@ -177,7 +177,7 @@ cleanup:
   - '3458764680097662406'
   - '3458764680097662434'
   selectors:
-  - {type: text, exact_text: 'Summary maturity:', x: 1300, y: 3290, max_matches: 
+  - {type: text, exact_text: 'Summary maturity:', x: 1300, y: 3290, max_matches:
       1}
   - {type: text, exact_text: 'SCAFFOLD: 1', x: 1320, y: 3400, max_matches: 1}
   - {type: text, exact_text: 'WORKING: 2', x: 1320, y: 3490, max_matches: 1}
@@ -185,7 +185,7 @@ cleanup:
   - {type: text, exact_text: 'VALIDATED: 0', x: 1320, y: 3670, max_matches: 1}
   - {type: text, exact_text: 'ACCEPTED: 0', x: 1320, y: 3760, max_matches: 1}
   - {type: text, exact_text: 'SUPERSEDED: 0', x: 1320, y: 3850, max_matches: 1}
-  - {type: text, exact_text: 'Summary review flagů:', x: 1300, y: 4020, 
+  - {type: text, exact_text: 'Summary review flagů:', x: 1300, y: 4020,
       max_matches: 1}
   - {type: text, exact_text: '🟧 ATTENTION: 1', x: 1320, y: 4120, max_matches: 1}
   - {type: text, exact_text: '🟩 BLOCKING: 0', x: 1320, y: 4210, max_matches: 1}
