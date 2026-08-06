@@ -1,0 +1,88 @@
+schema_version: 1
+remediation_id: REM-PR8-HVA-CC-012.3.5
+base_manifest: scaffolds/miro/rem-012-3-hvr-remediation.yaml
+authorized_predecessor_sha: e4b0c99f21517a9291a165cbb38d17cb57241fa1
+board_id: uXjVH1phki0=
+frame_id: '3458764679756478046'
+protected_frame_ids:
+  - '3458764679756478059'
+  - '3458764679756478064'
+  - '3458764679756478065'
+  - '3458764679756478067'
+  - '3458764679756478070'
+  - '3458764679756478072'
+  - '3458764679756478075'
+  - '3458764679756478082'
+  - '3458764679756478086'
+  - '3458764679756478088'
+  - '3458764679756478089'
+  - '3458764679756478090'
+  - '3458764679756478091'
+  - '3458764679756478092'
+  - '3458764679756478093'
+  - '3458764679756478094'
+  - '3458764679756478096'
+palette:
+  scaffold: '#EAF3FB'
+  working: '#C9E0F5'
+  candidate: '#9FC7EA'
+  validated: '#6FA8D8'
+  accepted: '#3F86C4'
+  superseded: '#1F5F98'
+fixed_items:
+  panel:
+    id: '3458764679756523217'
+    type: shape
+    x: 3500
+    y: 3600
+    width: 6600
+    height: 2600
+    font_size: 64
+    content: '<p><strong>ARTIFACT HEALTH SUMMARY — acceptance-claims-modernization</strong></p>'
+    style: {fillColor: '#E7F1FF', borderColor: '#4B79A1', color: '#1F3B64', textAlign: left, textAlignVertical: top}
+  summary:
+    id: '3458764679756523219'
+    type: shape
+    x: 1450
+    y: 3700
+    width: 2400
+    height: 1500
+    font_size: 38
+    content: '<p><strong>3 ARTEFAKTY</strong></p><p><br /></p><p>Summary maturity:</p><p>&nbsp;&nbsp;&nbsp;&nbsp;<strong>SCAFFOLD: 1</strong><br />&nbsp;&nbsp;&nbsp;&nbsp;<strong>WORKING: 2</strong><br />&nbsp;&nbsp;&nbsp;&nbsp;<strong>CANDIDATE: 0</strong><br />&nbsp;&nbsp;&nbsp;&nbsp;<strong>VALIDATED: 0</strong><br />&nbsp;&nbsp;&nbsp;&nbsp;<strong>ACCEPTED: 0</strong><br />&nbsp;&nbsp;&nbsp;&nbsp;<strong>SUPERSEDED: 0</strong></p><p>Summary review flagů:</p><p><strong>🟧 ATTENTION: 1</strong><br /><strong>🟩 BLOCKING: 0</strong></p>'
+    style: {fillColor: '#FFFFFF', borderColor: '#8AA9C7', color: '#1F2937', textAlign: left, textAlignVertical: top}
+  legend:
+    id: '3458764680048047547'
+    type: text
+    x: 3500
+    y: 4640
+    width: 6300
+    font_size: 24
+    content: '<p><strong>MATURITY:</strong>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SCAFFOLD — založená počáteční struktura;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WORKING — aktivně rozpracovaná pracovní verze;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CANDIDATE — připravená k formálnímu review.</p><p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;VALIDATED — prošla technickou a metodickou validací;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ACCEPTED — člověkem přijatá pro další použití;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SUPERSEDED — nahrazená novější verzí.</p><p><strong>REVIEW FLAGS:</strong> 🟧 ATTENTION — vyžaduje lidskou kontrolu nebo doplnění, ale nemusí zastavit gate. 🟩 BLOCKING = 0 — bez blockeru; 🟥 BLOCKING &gt; 0 — zastavit postup.</p>'
+    style: {color: '#1F3B64', textAlign: left}
+  registry:
+    id: '3458764680048047692'
+    type: text
+    x: 1850
+    y: 2850
+    width: 3100
+    font_size: 36
+    content: '<p><a href="https://github.com/romanhlavac/ddd-accelerator/blob/feat/project-steering-and-documentation/examples/minimal/projects/acceptance-claims-modernization/docs/artifacts/index.md"><strong>OTEVŘÍT PLNÝ PROJEKTOVÝ ARTIFACT REGISTRY →</strong></a></p><p>Project-owned Git/YAML je source of truth.</p>'
+    style: {color: '#1F3B64', textAlign: left}
+summary_markers:
+  - {id: '3458764680048047567', key: scaffold, x: 540, y: 3560, width: 64, height: 64}
+  - {id: '3458764680048047583', key: working, x: 540, y: 3650, width: 64, height: 64}
+  - {id: '3458764680048047602', key: candidate, x: 540, y: 3740, width: 64, height: 64}
+  - {id: '3458764680048047620', key: validated, x: 540, y: 3830, width: 64, height: 64}
+  - {id: '3458764680048047626', key: accepted, x: 540, y: 3920, width: 64, height: 64}
+  - {id: '3458764680048047679', key: superseded, x: 540, y: 4010, width: 64, height: 64}
+legend_markers:
+  - {key: scaffold, x: 835, y: 4520, width: 44, height: 44}
+  - {key: working, x: 2520, y: 4520, width: 44, height: 44}
+  - {key: candidate, x: 4310, y: 4520, width: 44, height: 44}
+  - {key: validated, x: 835, y: 4610, width: 44, height: 44}
+  - {key: accepted, x: 2760, y: 4610, width: 44, height: 44}
+  - {key: superseded, x: 4680, y: 4610, width: 44, height: 44}
+forbidden_phrases:
+  - 'světlejší modrá = ranější úroveň'
+  - '1 · SCAFFOLD'
+  - '2 · WORKING'
