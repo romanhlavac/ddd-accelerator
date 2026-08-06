@@ -1,12 +1,13 @@
 from pathlib import Path
-import yaml
+from ruamel.yaml import YAML
 
 ROOT = Path(__file__).resolve().parents[3]
 TARGET = ROOT / 'scaffolds' / 'miro' / 'rem-012-3-5-frame-00.yaml'
+YAML_READER = YAML(typ='safe')
 
 
 def load():
-    return yaml.safe_load(TARGET.read_text(encoding='utf-8'))
+    return YAML_READER.load(TARGET.read_text(encoding='utf-8'))
 
 
 def luminance(value: str) -> float:
