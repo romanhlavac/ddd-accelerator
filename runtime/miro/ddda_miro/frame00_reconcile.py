@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import urllib.parse
 from copy import deepcopy
 from typing import Any
@@ -52,9 +53,19 @@ def reconcile_once(
         if _matches(remote, payload):
             result["unchanged"] += 1
         else:
-            patched = _patch(client, board, str(update["type"]), item_id, payload)
-            if not _matches(patched, payload):
-                raise ValueError(f"managed role {update['role']} did not reach target")
+            # PATCH responses are not a stable read-back contract across Miro item
+            # types. Verify the persisted item with a fresh GET instead.
+            _patch(client, board, str(update["type"]), item_id, payload)
+            readback = _get_item(client, board, item_id)
+            if not _matches(readback, payload):
+                fields = ("parent", "data", "style", "geometry", "position")
+                actual = {key: readback.get(key) for key in fields if key in readback}
+                expected = {key: payload.get(key) for key in fields if key in payload}
+                raise ValueError(
+                    f"managed role {update['role']} did not reach target; "
+                    f"actual={json.dumps(actual, ensure_ascii=False, sort_keys=True)}; "
+                    f"expected={json.dumps(expected, ensure_ascii=False, sort_keys=True)}"
+                )
             result["updated"] += 1
 
     for raw_id in contract["cleanup"].get("explicit_item_ids") or []:

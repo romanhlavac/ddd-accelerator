@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from ddda_miro import frame00_reconcile
 from ddda_miro.anchor_contract import canonical_miro_text
 from ddda_miro.frame00_control_center import (
     EXPECTED_ROLES,
@@ -155,6 +156,47 @@ def test_sticky_note_does_not_promote_unmanaged_remote_style_into_target():
     reached["style"] = {"fillColor": "yellow", "textAlign": "left", "textAlignVertical": "top"}
     reached["geometry"] = {"width": 1700.0, "height": 1107.4285714285713}
     assert _matches(reached, payload)
+
+
+def test_reconcile_verifies_persisted_get_not_patch_response(monkeypatch):
+    frame_id = "frame-00"
+    update = {
+        "role": "test_text",
+        "id": "item-1",
+        "type": "text",
+        "x": 500,
+        "y": 300,
+        "width": 900,
+        "font_size": 36,
+        "content": "<p>target</p>",
+    }
+    remote = {
+        "id": "item-1",
+        "type": "text",
+        "parent": {"id": frame_id},
+        "data": {"content": "<p>old</p>"},
+        "style": {"fontSize": 24, "color": "#000000"},
+        "geometry": {"width": 700},
+        "position": {"x": 100, "y": 100, "origin": "center"},
+    }
+    payload = _target_payload(remote, update, frame_id)
+    persisted = {**remote, **payload, "type": "text"}
+    responses = iter([remote, persisted])
+    monkeypatch.setattr(frame00_reconcile, "_get_item", lambda *args: next(responses))
+    monkeypatch.setattr(frame00_reconcile, "_patch", lambda *args, **kwargs: {"id": "item-1"})
+
+    class Client:
+        @staticmethod
+        def list_items(_board):
+            return []
+
+    result = frame00_reconcile.reconcile_once(
+        Client(),
+        {"board_id": "board", "frame": {"id": frame_id}, "managed_updates": [update], "cleanup": {}},
+        {},
+        [],
+    )
+    assert result == {"updated": 1, "unchanged": 0, "deleted": 0, "cleanup_absent": 0}
 
 
 def test_cleanup_selector_requires_exact_generated_signature():
