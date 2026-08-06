@@ -17,7 +17,9 @@ jobs:
     timeout-minutes: 120
     env:
       TRANSPORT_SHA: ${{ github.event.pull_request.head.sha }}
-      PRODUCT_SHA: e781e01d1144b56bb16698b7f6245ea85dc19a77
+      PRODUCT_SHA: 15fc017ff5465af39819bda45ff7761759928d8b
+      AUTHORIZED_TRANSPORT_SHA: 1163827d76e57c3bc2297d52a578cf2e0d1e446a
+      INITIAL_PRODUCT_SHA: e781e01d1144b56bb16698b7f6245ea85dc19a77
       BASE_SHA: e4b0c99f21517a9291a165cbb38d17cb57241fa1
       GH_TOKEN: ${{ github.token }}
 
@@ -37,19 +39,25 @@ jobs:
           import json, os, subprocess
           from pathlib import Path
           g=lambda *a: subprocess.check_output(['git',*a],text=True).strip()
-          h,p,b=os.environ['TRANSPORT_SHA'],os.environ['PRODUCT_SHA'],os.environ['BASE_SHA']
+          h,p,t,i,b=[os.environ[x] for x in ('TRANSPORT_SHA','PRODUCT_SHA','AUTHORIZED_TRANSPORT_SHA','INITIAL_PRODUCT_SHA','BASE_SHA')]
           w='.github/workflows/miro-anchor-remediation.yml'
           assert g('rev-parse','HEAD')==h
           assert g('rev-parse',h+'^')==p
-          assert g('rev-parse',p+'^')==b
-          assert g('show','-s','--format=%s',p)=='fix(miro): place maturity counts in frame 00 summary'
-          assert sorted(g('diff-tree','--no-commit-id','--name-only','-r',p).splitlines())==sorted([
+          assert g('rev-parse',p+'^')==t
+          assert g('rev-parse',t+'^')==i
+          assert g('rev-parse',i+'^')==b
+          assert g('show','-s','--format=%s',i)=='fix(miro): place maturity counts in frame 00 summary'
+          assert sorted(g('diff-tree','--no-commit-id','--name-only','-r',i).splitlines())==sorted([
             'scaffolds/miro/rem-012-3-5-frame-00.yaml',
             'runtime/miro/tests/test_rem_012_3_5_frame_00.py'])
-          assert g('show','-s','--format=%s',h)=='fix(ci): authorize REM-012.3.5 frame 00 remediation'
+          assert g('show','-s','--format=%s',t)=='fix(ci): authorize REM-012.3.5 frame 00 remediation'
+          assert g('diff-tree','--no-commit-id','--name-only','-r',t)==w
+          assert g('show','-s','--format=%s',p)=='fix(miro): use platform YAML parser in REM-012.3.5 tests'
+          assert g('diff-tree','--no-commit-id','--name-only','-r',p)=='runtime/miro/tests/test_rem_012_3_5_frame_00.py'
+          assert g('show','-s','--format=%s',h)=='fix(ci): preserve REM-012.3.5 product validation'
           assert g('diff-tree','--no-commit-id','--name-only','-r',h)==w
           Path(os.environ['EVIDENCE'],'identity.json').write_text(json.dumps({
-            'status':'PASS','base_sha':b,'product_sha':p,'transport_sha':h,
+            'status':'PASS','base_sha':b,'initial_product_sha':i,'authorized_transport_sha':t,'product_sha':p,'transport_sha':h,
             'merge_allowed':False,'release_allowed':False,'gate_approval_allowed':False,
             'human_review_status':'PENDING'},indent=2)+'\n')
           '@ | python -
