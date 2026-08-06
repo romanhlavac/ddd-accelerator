@@ -14,6 +14,16 @@ principles:
   main_direct_changes_forbidden: true
   planned_prs_as_backlog_forbidden: true
   automated_human_approval_forbidden: true
+  milestone_membership_is_not_release_approval: true
+  parent_membership_is_not_release_scope: true
+  dependency_priority_and_business_value_are_distinct: true
+
+dependency_semantics:
+  direct_blocked_by: native issue dependency; work cannot complete before blocker
+  transitive_prerequisite: inherited through direct dependency graph; do not duplicate natively
+  consumed_contract: another capability contract is reused but does not necessarily block start
+  related_work: informational relationship without scheduling semantics
+  no_automatic_priority_dates_release_or_human_review: true
 
 work_item_hierarchy:
   - level: gap
@@ -48,51 +58,19 @@ project:
   fields:
     status:
       type: single_select
-      values:
-        - Backlog
-        - Discovery
-        - Triaged
-        - Ready
-        - In progress
-        - In review
-        - Blocked
-        - Done
-        - Cancelled
+      values: [Backlog, Discovery, Triaged, Ready, In progress, In review, Blocked, Done, Cancelled]
     priority:
       type: single_select
       values: [P0, P1, P2, P3]
     work_package:
       type: single_select
-      values:
-        - WP-08
-        - WP-09
-        - WP-10
-        - WP-11
-        - Other
+      values: [WP-08, WP-09, WP-10, WP-11, Other]
     item_type:
       type: single_select
-      values:
-        - GAP
-        - Work Package
-        - Change Request
-        - Defect
-        - Risk
-        - Enabler
+      values: [GAP, Work Package, Change Request, Defect, Risk, Enabler]
     platform_area:
       type: single_select
-      values:
-        - DOC
-        - METHODOLOGY
-        - TEMPLATE
-        - SCHEMA
-        - ORCHESTRATION
-        - INGESTION
-        - CLI
-        - WORKSPACE-GENERATOR
-        - EXAMPLE
-        - TESTING
-        - RELEASE
-        - SECURITY-GOVERNANCE
+      values: [DOC, METHODOLOGY, TEMPLATE, SCHEMA, ORCHESTRATION, INGESTION, CLI, WORKSPACE-GENERATOR, EXAMPLE, TESTING, RELEASE, SECURITY-GOVERNANCE]
     impact:
       type: single_select
       values: [LOW, MEDIUM, HIGH, BREAKING]
@@ -108,18 +86,14 @@ project:
     outcome_summary:
       type: text
     owner:
-      type: person
+      type: native_assignees
     blocked:
-      type: boolean
-      default: false
+      type: single_select
+      values: [No, Yes]
+      default: No
     human_review:
       type: single_select
-      values:
-        - Not required
-        - Pending
-        - PASS
-        - FAIL
-        - Accepted risks
+      values: [Not required, Pending, PASS, FAIL, Accepted risks]
     dependency:
       type: text
   system_fields:
@@ -127,6 +101,20 @@ project:
     - Sub-issue progress
     - Milestone
     - Linked pull requests
+    - Assignees
+  hierarchy:
+    use_native_sub_issues_when_available: true
+    parent_issue_is_authoritative: true
+    text_prefix_is_navigation_only: true
+  dependencies:
+    use_native_blocked_by_when_available: true
+    dependency_field_is_projection: true
+    exact_dates_must_not_be_invented: true
+  status_projection:
+    closed_or_merged: Done
+    reopened: Triaged
+    configured_values_are_bootstrap_defaults: true
+    closed_item_blocked_value: No
   views:
     - Work Packages
     - WP hierarchy
@@ -137,35 +125,24 @@ project:
     - Human review queue
     - Ready without owner
     - Recently completed
-  roadmap:
-    start_field: Start date
-    target_field: Target date
-    group_by: Work Package
-    milestone_markers: true
-    exact_dates_required: false
-    unscheduled_items_allowed: true
-  hierarchy:
-    use_native_sub_issues_when_available: true
-    parent_issue_is_authoritative: true
-    text_prefix_is_navigation_only: true
-  dependencies:
-    use_native_blocked_by_when_available: true
-    dependency_field_is_projection: true
-    exact_dates_must_not_be_invented: true
 
 native_sub_issue_mapping:
   WP-08:
     parent_issue: 17
-    children: [9, 10, 11, 12, 13, 14, 15]
+    children: [9, 10, 11, 12, 13, 14, 15, 45]
+    release_0_1_0_children: [9, 10, 11, 12, 13, 14, 15]
+    future_children: [45]
   WP-09:
     parent_issue: 18
-    children: [21, 22, 23, 24, 25, 26]
+    children: [21, 22, 23, 24, 25, 50, 26, 51]
   WP-10:
     parent_issue: 19
     children: [27, 28, 29, 30, 31, 32, 33]
   WP-11:
     parent_issue: 20
-    children: [34, 35, 36, 37, 38, 39, 40, 47, 41, 46]
+    children: [34, 35, 36, 37, 38, 39, 40, 47, 41, 48, 46]
+  Other:
+    unparented_items: [16, 42, 43, 44, 49]
 
 dependency_edges:
   WP-08:
@@ -177,170 +154,159 @@ dependency_edges:
       rationale: board redesign precedes final online Miro evidence acceptance
     - blocking: 12
       blocked: 11
-      rationale: Miro evidence contract precedes compatibility closure in the critical path
+      rationale: historical critical-path edge retained; closed state projects to Done
     - blocking: 11
       blocked: 10
-      rationale: compatibility evidence precedes final release hygiene closure
+      rationale: historical critical-path edge retained; closed state projects to Done
     - blocking: 10
       blocked: 9
       rationale: release contract consistency precedes final HRDR
   WP-09:
     - blocking: 21
       blocked: 23
-      rationale: program lifecycle and gate semantics constrain Wardley workflow integration
     - blocking: 22
       blocked: 23
-      rationale: strategy intake and value chain provide the Wardley map anchor
     - blocking: 22
       blocked: 24
-      rationale: strategy intake provides portfolio items and outcomes
     - blocking: 23
       blocked: 24
-      rationale: Wardley evidence informs investment options
     - blocking: 21
       blocked: 25
-      rationale: program lifecycle provides state and decision links
     - blocking: 24
       blocked: 25
-      rationale: accepted investment decisions feed strategy-domain-team traceability
     - blocking: 25
+      blocked: 50
+      rationale: typed traceability precedes roadmap and benefits lifecycle
+    - blocking: 50
       blocked: 26
-      rationale: integrated traceability and roadmap precede final program projection and acceptance
+      rationale: program Miro projection consumes the roadmap contract
+    - blocking: 26
+      blocked: 51
+      rationale: reference acceptance exercises the completed program projection
   WP-10:
     - blocking: 27
+      blocked: 31
+      rationale: security policy consumes foundational manifest/path/evidence abstractions
+    - blocking: 27
       blocked: 28
-      rationale: Office adapters depend on the common manifest and provenance core
+    - blocking: 31
+      blocked: 28
     - blocking: 27
       blocked: 29
-      rationale: PDF adapter depends on the common manifest and provenance core
+    - blocking: 31
+      blocked: 29
     - blocking: 27
       blocked: 30
-      rationale: ArchiMate adapter depends on the common manifest and provenance core
+    - blocking: 31
+      blocked: 30
     - blocking: 27
       blocked: 32
-      rationale: incremental lifecycle depends on stable source and evidence identities
     - blocking: 31
-      blocked: 28
-      rationale: Office adapters must consume common security controls before completion
-    - blocking: 31
-      blocked: 29
-      rationale: PDF adapter must consume common security controls before completion
-    - blocking: 31
-      blocked: 30
-      rationale: ArchiMate adapter must consume common security controls before completion
-    - blocking: 32
-      blocked: 33
-      rationale: package-first acceptance must cover incremental add/change/delete/resume behavior
+      blocked: 32
+      rationale: incremental lifecycle must apply classification, redaction and retention rules
     - blocking: 28
       blocked: 33
-      rationale: acceptance corpus includes Office formats
     - blocking: 29
       blocked: 33
-      rationale: acceptance corpus includes PDF formats
     - blocking: 30
       blocked: 33
-      rationale: acceptance corpus includes ArchiMate
     - blocking: 31
       blocked: 33
-      rationale: final acceptance requires security and isolation evidence
+    - blocking: 32
+      blocked: 33
   WP-11:
     - blocking: 34
       blocked: 35
-      rationale: Miro round-trip depends on the executable EventStorming session model
     - blocking: 36
       blocked: 37
-      rationale: orchestrator tasks depend on versioned capability contracts
     - blocking: 37
       blocked: 38
-      rationale: fan-in consumes bounded fan-out task results
     - blocking: 36
       blocked: 39
-      rationale: authorization is enforced against capability contracts
     - blocking: 37
       blocked: 39
-      rationale: orchestrator transitions must stop at human checkpoints
     - blocking: 38
       blocked: 39
-      rationale: unresolved conflicts flow into explicit human decisions
     - blocking: 37
       blocked: 40
-      rationale: retry and observability wrap orchestrated execution
     - blocking: 38
       blocked: 40
-      rationale: partial fan-in and conflicts must survive failure/recovery
     - blocking: 39
       blocked: 40
-      rationale: replay and resume must preserve human-decision validity boundaries
-    - blocking: 35
-      blocked: 41
-      rationale: final E2E includes EventStorming Miro/Git round-trip
-    - blocking: 40
-      blocked: 41
-      rationale: final E2E includes failure, retry, resume and observability
-
-
     - blocking: 27
       blocked: 47
-      rationale: cross-WP integration consumes the canonical ingestion and evidence materialization contract
     - blocking: 31
       blocked: 47
-      rationale: integration preserves security, classification and isolation boundaries
     - blocking: 32
       blocked: 47
-      rationale: integration consumes incremental evidence lifecycle and traceability
     - blocking: 34
       blocked: 47
-      rationale: integration materializes results through the EventStorming session contract
     - blocking: 35
       blocked: 47
-      rationale: integration reuses the Miro seed and governed round-trip contract
     - blocking: 36
       blocked: 47
-      rationale: integration invokes versioned analytical capability contracts
     - blocking: 37
       blocked: 47
-      rationale: integration composes the bounded orchestration runtime
     - blocking: 38
       blocked: 47
-      rationale: integration reuses fan-in, alternatives and conflict records
     - blocking: 39
       blocked: 47
-      rationale: integration stops at explicit human checkpoints
     - blocking: 40
       blocked: 47
-      rationale: integration preserves failure, retry, resume and observability contracts
+    - blocking: 35
+      blocked: 41
+    - blocking: 40
+      blocked: 41
     - blocking: 47
       blocked: 41
-      rationale: final package-first E2E consumes the evidence-to-workshop integration flow
     - blocking: 47
       blocked: 46
-      rationale: final documentation requires the implemented integration flow for as-built validation
     - blocking: 41
       blocked: 46
-      rationale: final documentation requires package-first acceptance for as-built closure
-priority_semantics:
-  P0: release_safety_or_data_integrity_blocker
-  P1: highest_active_product_priority
-  P2: important_planned_increment
-  P3: long_term_or_opportunistic
+    - blocking: 48
+      blocked: 46
+      rationale: first-user guide must use canonical DDD Starter phase terminology
+  Other:
+    - blocking: 16
+      blocked: 49
+    - blocking: 46
+      blocked: 49
+    - blocking: 48
+      blocked: 49
 
-branch_naming:
-  feature: 'feature/<issue>-<short-name>'
-  fix: 'fix/<issue>-<short-name>'
-  docs: 'docs/<issue>-<short-name>'
-  release: 'release/<version>'
-
-pr_linking:
-  partial_delivery: 'Implements #<issue>'
-  complete_delivery: 'Closes #<issue>'
+baseline_compatibility:
+  PR8:
+    ingestion:
+      owner: WP-10-27
+      rule: extend_or_version_with_migration
+    agent_contract:
+      owner: WP-11-36
+      rule: extend_or_version_with_migration
+    generic_miro_runtime:
+      owner: WP-08
+      eventstorming_extension_owner: WP-11-35
+      duplicate_generic_runtime_forbidden: true
+    methodology:
+      owner: WP-08
+      gap_remediation_owner: WP-11-48
+      duplicate_starter_process_forbidden: true
 
 milestones:
   naming: 'DDDA <semver>'
   initial:
     - name: DDDA 0.1.0
-      scope: PR8 and approved release blockers
+      issues: [9, 10, 11, 12, 13, 14, 15]
+      pulls: [8]
+      excluded_future_items: [45]
   parent_work_packages_counted_in_release_progress: false
   unplanned_work_packages_target_release: TBD
+  membership_is_release_scope_not_approval: true
+
+priority_semantics:
+  P0: release_safety_or_data_integrity_blocker
+  P1: highest_active_product_priority
+  P2: important_planned_increment
+  P3: long_term_or_opportunistic
 
 ready_entry_criteria:
   - goal_defined
@@ -351,7 +317,8 @@ ready_entry_criteria:
   - classification_defined
   - impact_defined
   - migration_impact_defined
-  - dependencies_known
+  - direct_dependencies_known
+  - consumed_contracts_identified
   - owner_or_ownership_plan_known
 
 in_progress_entry_criteria:
@@ -370,38 +337,24 @@ done_exit_criteria:
   - parent_work_package_updated
   - roadmap_updated
 
-scope_review_statuses:
-  - covered
-  - partial
-  - missing
-  - scope_creep
-
 work_packages:
   WP-08:
     title: Platform lifecycle and project steering
     state: active_blocked
     target_release: 0.1.0
     outcome_summary: Reproducible platform lifecycle, G1-G8 steering and human-controlled release governance.
-    start_date: null
-    target_date: null
   WP-09:
     title: Strategy, portfolio and program lifecycle
     state: backlog
     target_release: TBD
-    outcome_summary: Strategy, Wardley, portfolio and P0-P10 program governance linked to DDD and teams.
-    start_date: null
-    target_date: null
+    outcome_summary: Strategy, Wardley, portfolio, traceability, roadmap, benefits and P0-P10 governance.
   WP-10:
     title: Enterprise ingestion
     state: backlog
     target_release: TBD
-    outcome_summary: Secure and auditable ingestion with normalized evidence, Markdown materialization, YAML registration and source provenance.
-    start_date: null
-    target_date: null
+    outcome_summary: Secure auditable ingestion with normalized evidence, Markdown materialization, YAML registration and provenance.
   WP-11:
     title: EventStorming and multi-agent orchestration
     state: backlog
     target_release: TBD
-    outcome_summary: Executable EventStorming, evidence-to-workshop integration and bounded multi-agent workflows with explicit human checkpoints.
-    start_date: null
-    target_date: null
+    outcome_summary: Executable EventStorming, evidence-to-workshop integration, methodology guidance and bounded agents.
