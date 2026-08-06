@@ -135,11 +135,16 @@ def _matches(remote: dict[str, Any], payload: dict[str, Any]) -> bool:
         return False
     if canonical_miro_text((remote.get("data") or {}).get("content")) != canonical_miro_text((payload.get("data") or {}).get("content")):
         return False
+    color_keys = {"fillColor", "borderColor", "color"}
     for section in ("position", "geometry", "style"):
         actual, expected = remote.get(section) or {}, payload.get(section) or {}
         for key, value in expected.items():
             if key in {"x", "y", "width", "height", "fontSize"}:
                 if not _close(actual.get(key), value):
+                    return False
+            elif key in color_keys:
+                # Miro normalizes hexadecimal colors to lowercase on read-back.
+                if str(actual.get(key) or "").lower() != str(value or "").lower():
                     return False
             elif actual.get(key) != value:
                 return False

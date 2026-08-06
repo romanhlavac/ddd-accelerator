@@ -109,7 +109,7 @@ def test_cleanup_is_specific_and_cannot_target_new_managed_items():
     managed = {item["id"] for item in data["managed_updates"]}
     explicit = set(data["cleanup"]["explicit_item_ids"])
     assert not managed & explicit
-    assert len(explicit) == 14
+    assert len(explicit) == 13
     assert all(int(item.get("max_matches") or 0) == 1 for item in data["cleanup"]["selectors"])
     assert all("type" in item and ("exact_text" in item or {"x", "y", "width", "height", "fill_color"} <= set(item)) for item in data["cleanup"]["selectors"])
 
@@ -130,6 +130,10 @@ def test_target_payload_and_readback_matching_for_existing_item():
     assert payload["style"]["fontSize"] == 64
     assert payload["geometry"] == {"width": 6000.0, "height": 550.0}
     reached = {**remote, **payload, "type": "shape"}
+    reached["style"] = {
+        key: (value.lower() if key in {"fillColor", "borderColor", "color"} and isinstance(value, str) else value)
+        for key, value in payload["style"].items()
+    }
     assert _matches(reached, payload)
 
 

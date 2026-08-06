@@ -111,3 +111,11 @@ HVR-2 frame 01: NOT STARTED
 HVR-3 frame 10: NOT STARTED
 Cross-frame review: NOT STARTED
 ```
+
+## Online read-back correction
+
+The first exact-SHA online attempt failed closed on the first managed text item because Miro returned hexadecimal style colors in lowercase while the declarative target used uppercase. The workflow restored the original frame successfully and did not mutate protected frames. The corrective implementation compares hexadecimal color tokens case-insensitively while retaining exact content, parent, geometry, typography, alignment and non-color style checks. A regression test reproduces the Miro normalization behavior.
+
+### Remote item identity refresh
+
+The live frame-00 inventory showed that five previously generated helper items had been recreated by earlier rollback-safe remediations and therefore carried new Miro item IDs. REM-012.4 refreshes only those five managed IDs from the authoritative remote inventory. The semantic reuse remains unchanged: the existing onboarding text and three project cards become the decision cockpit, and the existing lower legend becomes the compact Artifact Health legend. No new board item is created and the authorized scope remains exactly eight existing children of frame `00`.

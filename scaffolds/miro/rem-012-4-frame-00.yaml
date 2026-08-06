@@ -66,7 +66,7 @@ managed_updates:
       textAlign: left
     content: '<p><strong>00 — CONTROL CENTER</strong></p><p><strong>acceptance-claims-modernization</strong> · Modernizace vyhodnocování pojistných událostí pro transparentní pravidla, bezpečnou změnu a vysvětlitelné rozhodnutí.</p>'
   - role: decision_now
-    id: '3458764679756505810'
+    id: '3458764679959532317'
     type: text
     x: 3500
     y: 950
@@ -78,7 +78,7 @@ managed_updates:
       textAlign: left
     content: '<p><strong>ROZHODNUTÍ NYNÍ</strong></p><p>Je první ohraničený modernizační řez a evidence potřebná pro Discover dostatečně vymezená?</p><p><a href="https://miro.com/app/board/uXjVH1phki0=/?moveToWidget=3458764679756478059"><strong>OTEVŘÍT AKTUÁLNÍ FÁZI VE FRAMU 01 →</strong></a></p>'
   - role: phase_gate_state
-    id: '3458764679756548469'
+    id: '3458764679959532328'
     type: sticky_note
     x: 1100
     y: 2100
@@ -86,7 +86,7 @@ managed_updates:
     visual_height: 1700
     content: '<p><strong>FÁZE / GATE</strong></p><p>ALIGN / G1</p><p><strong>GATE STATE</strong></p><p>NOT_READY</p><p>Gate čeká na doplnění evidence a lidské rozhodnutí.</p>'
   - role: owner_next_action
-    id: '3458764679756548472'
+    id: '3458764679959532348'
     type: sticky_note
     x: 3500
     y: 2100
@@ -94,7 +94,7 @@ managed_updates:
     visual_height: 1800
     content: '<p><strong>ROZHODUJE</strong></p><p>Acceptance Business Owner</p><p>Rozhodnutí musí být zaznamenáno v Git decision recordu.</p><p><strong>DALŠÍ KROK</strong></p><p>Doplnit scope boundaries a success measures; potom připravit G1 k lidskému review.</p>'
   - role: attention_blockers
-    id: '3458764679756548475'
+    id: '3458764679959532379'
     type: sticky_note
     x: 5900
     y: 2100
@@ -134,7 +134,7 @@ managed_updates:
       textAlignVertical: middle
     content: '<p><strong>🟦 1 SCAFFOLD · 2 WORKING   🟧 ATTENTION 1   🟩 BLOCKERS 0</strong></p>'
   - role: artifact_legend
-    id: '3458764679756523220'
+    id: '3458764680048047547'
     type: text
     x: 3500
     y: 4450
@@ -147,7 +147,6 @@ managed_updates:
     content: '<p><strong>🟦 ARTIFACT LIFECYCLE</strong> — SCAFFOLD → WORKING → CANDIDATE → VALIDATED → ACCEPTED. <strong>SUPERSEDED</strong> označuje nahrazenou verzi, nikoli vyšší maturitu.</p><p><strong>🟧 ATTENTION</strong> vyžaduje doplnění nebo lidskou kontrolu. <strong>🟩 / 🟥 BLOCKERS</strong> znamená bez aktivního blockeru / zastavit postup.</p>'
 cleanup:
   explicit_item_ids:
-    - '3458764680048047547'
     - '3458764680048047692'
     - '3458764680048047567'
     - '3458764680048047583'
