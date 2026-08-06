@@ -1,251 +1,282 @@
-name: DDDA REM-012.3.5 frame 00 maturity summary remediation
+name: DDDA REM-012.3.6 frame 00 inline maturity markers
 
 on:
   pull_request:
     branches: [main]
     types: [synchronize]
 
-permissions: {actions: read, contents: read}
+permissions:
+  actions: read
+  contents: read
+
 concurrency:
-  group: ddda-rem-012-3-5-frame-00-${{ github.ref }}
+  group: ddda-rem-012-3-6-frame-00-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   remediate:
-    if: github.event.pull_request.number == 8 && github.actor == 'romanhlavac' && github.event.pull_request.head.repo.full_name == github.repository
+    name: Exact-code frame 00 inline marker remediation
+    if: >-
+      github.event.pull_request.number == 8 &&
+      github.actor == 'romanhlavac' &&
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: windows-latest
     timeout-minutes: 120
     env:
       TRANSPORT_SHA: ${{ github.event.pull_request.head.sha }}
-      PRODUCT_SHA: 15fc017ff5465af39819bda45ff7761759928d8b
-      AUTHORIZED_TRANSPORT_SHA: 1163827d76e57c3bc2297d52a578cf2e0d1e446a
-      INITIAL_PRODUCT_SHA: e781e01d1144b56bb16698b7f6245ea85dc19a77
-      BASE_SHA: e4b0c99f21517a9291a165cbb38d17cb57241fa1
+      PRODUCT_SHA: 8b50f8e8c0e47521a8028010058db48c6f79fb95
+      BASE_SHA: 12d7b67cca1c4c3fc68d3de4b7033a375368ce3a
       GH_TOKEN: ${{ github.token }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
 
     steps:
-      - uses: actions/checkout@v4
-        with: {fetch-depth: 0, ref: '${{ env.TRANSPORT_SHA }}'}
-      - uses: actions/setup-python@v5
-        with: {python-version: '3.11'}
+      - name: Checkout exact transport head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.TRANSPORT_SHA }}
 
-      - name: Verify exact lineage
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Verify exact lineage and initialize evidence
         shell: pwsh
         run: |
-          $env:EVIDENCE = Join-Path $env:RUNNER_TEMP 'rem-012-3-5'
-          New-Item -ItemType Directory -Path $env:EVIDENCE -Force | Out-Null
-          "EVIDENCE=$env:EVIDENCE" | Out-File $env:GITHUB_ENV -Append
+          $env:EVIDENCE_ROOT = Join-Path $env:RUNNER_TEMP 'rem-012-3-6-frame-00'
+          New-Item -ItemType Directory -Path $env:EVIDENCE_ROOT -Force | Out-Null
+          "EVIDENCE_ROOT=$env:EVIDENCE_ROOT" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
           @'
-          import json, os, subprocess
+          import json
+          import os
+          import subprocess
           from pathlib import Path
-          g=lambda *a: subprocess.check_output(['git',*a],text=True).strip()
-          h,p,t,i,b=[os.environ[x] for x in ('TRANSPORT_SHA','PRODUCT_SHA','AUTHORIZED_TRANSPORT_SHA','INITIAL_PRODUCT_SHA','BASE_SHA')]
-          w='.github/workflows/miro-anchor-remediation.yml'
-          assert g('rev-parse','HEAD')==h
-          assert g('rev-parse',h+'^')==p
-          assert g('rev-parse',p+'^')==t
-          assert g('rev-parse',t+'^')==i
-          assert g('rev-parse',i+'^')==b
-          assert g('show','-s','--format=%s',i)=='fix(miro): place maturity counts in frame 00 summary'
-          assert sorted(g('diff-tree','--no-commit-id','--name-only','-r',i).splitlines())==sorted([
-            'scaffolds/miro/rem-012-3-5-frame-00.yaml',
-            'runtime/miro/tests/test_rem_012_3_5_frame_00.py'])
-          assert g('show','-s','--format=%s',t)=='fix(ci): authorize REM-012.3.5 frame 00 remediation'
-          assert g('diff-tree','--no-commit-id','--name-only','-r',t)==w
-          assert g('show','-s','--format=%s',p)=='fix(miro): use platform YAML parser in REM-012.3.5 tests'
-          assert g('diff-tree','--no-commit-id','--name-only','-r',p)=='runtime/miro/tests/test_rem_012_3_5_frame_00.py'
-          assert g('show','-s','--format=%s',h)=='fix(ci): preserve REM-012.3.5 product validation'
-          assert g('diff-tree','--no-commit-id','--name-only','-r',h)==w
-          Path(os.environ['EVIDENCE'],'identity.json').write_text(json.dumps({
-            'status':'PASS','base_sha':b,'initial_product_sha':i,'authorized_transport_sha':t,'product_sha':p,'transport_sha':h,
-            'merge_allowed':False,'release_allowed':False,'gate_approval_allowed':False,
-            'human_review_status':'PENDING'},indent=2)+'\n')
+
+          def git(*args):
+              return subprocess.check_output(["git", *args], text=True).strip()
+
+          transport = os.environ["TRANSPORT_SHA"]
+          product = os.environ["PRODUCT_SHA"]
+          base = os.environ["BASE_SHA"]
+          workflow = ".github/workflows/miro-anchor-remediation.yml"
+          product_paths = sorted([
+              "runtime/miro/tests/test_rem_012_3_5_frame_00.py",
+              "scaffolds/miro/rem-012-3-5-frame-00.yaml",
+          ])
+
+          if git("rev-parse", "HEAD") != transport:
+              raise SystemExit("transport checkout mismatch")
+          if git("rev-parse", f"{transport}^") != product:
+              raise SystemExit("transport parent mismatch")
+          if git("rev-parse", f"{product}^") != base:
+              raise SystemExit("product predecessor mismatch")
+          if git("show", "-s", "--format=%s", product) != "fix(miro): align REM-012.3.6 maturity markers":
+              raise SystemExit("product message mismatch")
+          actual_product_paths = sorted(filter(None, git(
+              "diff-tree", "--no-commit-id", "--name-only", "-r", product
+          ).splitlines()))
+          if actual_product_paths != product_paths:
+              raise SystemExit(f"product allowlist mismatch: {actual_product_paths}")
+          if git("show", "-s", "--format=%s", transport) != "fix(ci): authorize REM-012.3.6 frame 00 remediation":
+              raise SystemExit("transport message mismatch")
+          actual_transport_paths = list(filter(None, git(
+              "diff-tree", "--no-commit-id", "--name-only", "-r", transport
+          ).splitlines()))
+          if actual_transport_paths != [workflow]:
+              raise SystemExit(f"transport is not workflow-only: {actual_transport_paths}")
+
+          Path(os.environ["EVIDENCE_ROOT"], "identity.json").write_text(
+              json.dumps({
+                  "status": "PASS",
+                  "remediation_id": "REM-PR8-HVA-CC-012.3.6",
+                  "base_sha": base,
+                  "product_sha": product,
+                  "transport_sha": transport,
+                  "product_paths": product_paths,
+                  "transport_paths": actual_transport_paths,
+                  "merge_allowed": False,
+                  "promotion_allowed": False,
+                  "release_allowed": False,
+                  "gate_approval_allowed": False,
+                  "human_review_status": "PENDING",
+              }, indent=2) + "\n",
+              encoding="utf-8",
+          )
           '@ | python -
 
       - name: Wait for exact-SHA CI
         shell: pwsh
         run: |
           @'
-          import json, os, time, urllib.request
+          import json
+          import os
+          import time
+          import urllib.request
           from pathlib import Path
-          repo=os.environ['GITHUB_REPOSITORY']
-          headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'}
+
+          repo = os.environ["GITHUB_REPOSITORY"]
+          headers = {
+              "Authorization": "Bearer " + os.environ["GH_TOKEN"],
+              "Accept": "application/vnd.github+json",
+              "X-GitHub-Api-Version": "2022-11-28",
+          }
+
           def get(url):
-            with urllib.request.urlopen(urllib.request.Request(url,headers=headers)) as r:return json.load(r)
-          def wait(sha,names,label):
-            for _ in range(320):
-              runs=get(f'https://api.github.com/repos/{repo}/actions/runs?head_sha={sha}&event=pull_request&per_page=100')['workflow_runs']
-              state=[]; complete=True
-              for name in names:
-                found=[x for x in runs if x['name']==name]
-                run=max(found,key=lambda x:x['run_number']) if found else None
-                state.append({'name':name,'id':run and run['id'],'status':run and run['status'],'conclusion':run and run['conclusion']})
-                if run and run['status']=='completed' and run['conclusion']!='success':raise SystemExit(f'{label} {name}={run["conclusion"]}')
-                complete &= bool(run and run['status']=='completed' and run['conclusion']=='success')
-              Path(os.environ['EVIDENCE'],label+'-ci.json').write_text(json.dumps(state,indent=2)+'\n')
-              if complete:return
-              time.sleep(15)
-            raise SystemExit(label+' CI timeout')
-          wait(os.environ['PRODUCT_SHA'],['Validate DDDA','DDDA exact-code Miro image probe'],'product')
-          wait(os.environ['TRANSPORT_SHA'],['Validate DDDA','DDDA platform CI','DDDA exact-code Miro image probe'],'transport')
+              request = urllib.request.Request(url, headers=headers)
+              with urllib.request.urlopen(request) as response:
+                  return json.load(response)
+
+          def wait_for(sha, required, label):
+              for _ in range(320):
+                  runs = get(
+                      f"https://api.github.com/repos/{repo}/actions/runs"
+                      f"?head_sha={sha}&event=pull_request&per_page=100"
+                  )["workflow_runs"]
+                  state = []
+                  complete = True
+                  for name in required:
+                      matches = [item for item in runs if item["name"] == name]
+                      run = max(matches, key=lambda item: item["run_number"]) if matches else None
+                      state.append({
+                          "name": name,
+                          "id": run and run["id"],
+                          "status": run and run["status"],
+                          "conclusion": run and run["conclusion"],
+                          "html_url": run and run["html_url"],
+                      })
+                      if run and run["status"] == "completed" and run["conclusion"] != "success":
+                          raise SystemExit(f"{label} {name}={run['conclusion']}")
+                      complete = complete and bool(
+                          run and run["status"] == "completed" and run["conclusion"] == "success"
+                      )
+                  Path(
+                      os.environ["EVIDENCE_ROOT"], f"{label}-ci.json"
+                  ).write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
+                  if complete:
+                      return
+                  time.sleep(15)
+              raise SystemExit(f"{label} CI timeout")
+
+          wait_for(
+              os.environ["PRODUCT_SHA"],
+              ["Validate DDDA", "DDDA exact-code Miro image probe"],
+              "product",
+          )
+          wait_for(
+              os.environ["TRANSPORT_SHA"],
+              ["Validate DDDA", "DDDA platform CI", "DDDA exact-code Miro image probe"],
+              "transport",
+          )
           '@ | python -
 
       - name: Verify Miro secret
         shell: pwsh
-        env: {MIRO_ACCESS_TOKEN: '${{ secrets.MIRO_ACCESS_TOKEN }}'}
-        run: if ([string]::IsNullOrWhiteSpace($env:MIRO_ACCESS_TOKEN)) { throw 'MIRO_ACCESS_TOKEN required' }
+        env:
+          MIRO_ACCESS_TOKEN: ${{ secrets.MIRO_ACCESS_TOKEN }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:MIRO_ACCESS_TOKEN)) {
+            throw 'MIRO_ACCESS_TOKEN is required.'
+          }
 
-      - uses: actions/checkout@v4
-        with: {fetch-depth: 0, ref: '${{ env.PRODUCT_SHA }}'}
+      - name: Checkout exact product source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.PRODUCT_SHA }}
 
-      - name: Test and build candidate
-        id: pkg
+      - name: Test and build exact-SHA candidate
+        id: package
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
           python -m pip install --disable-pip-version-check --no-input pytest 'ruamel.yaml>=0.18,<0.19' requests pyyaml
           $env:PYTHONPATH = Join-Path $PWD.Path 'runtime\miro'
           python -m pytest runtime/miro/tests/test_rem_012_3_5_frame_00.py runtime/miro/tests/test_hvr_remediation.py runtime/miro/tests/test_anchor_remediation.py -q
-          if ($LASTEXITCODE) { throw 'targeted tests failed' }
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Targeted REM-012.3.6 tests failed.'
+          }
           git reset --hard $env:PRODUCT_SHA
           git clean -ffdx
-          $out=Join-Path $env:RUNNER_TEMP ('ddda-rem-012-3-5-'+$env:PRODUCT_SHA.Substring(0,12)+'.zip')
-          $ver='rem-012-3-5.'+$env:GITHUB_RUN_ID+'.'+$env:PRODUCT_SHA.Substring(0,12)
-          $pkg=(.\scripts\platform\New-DDDAPlatformPackage.ps1 -PlatformPath $PWD.Path -Kind candidate -Version $ver -SourceRef $env:PRODUCT_SHA -OutputPath $out -Json | Out-String).Trim() | ConvertFrom-Json
-          if ([string]$pkg.source_commit -ne $env:PRODUCT_SHA) { throw 'candidate provenance mismatch' }
-          "path=$($pkg.path)" | Out-File $env:GITHUB_OUTPUT -Append
-          "sha=$($pkg.sha256)" | Out-File $env:GITHUB_OUTPUT -Append
-          [ordered]@{status='PASS';source_sha=$env:PRODUCT_SHA;package_sha256=[string]$pkg.sha256} | ConvertTo-Json | Set-Content (Join-Path $env:EVIDENCE 'package.json')
+          $output = Join-Path $env:RUNNER_TEMP ('ddda-rem-012-3-6-' + $env:PRODUCT_SHA.Substring(0,12) + '.zip')
+          $version = 'rem-012-3-6.' + $env:GITHUB_RUN_ID + '.' + $env:PRODUCT_SHA.Substring(0,12)
+          $package = (.\scripts\platform\New-DDDAPlatformPackage.ps1 -PlatformPath $PWD.Path -Kind candidate -Version $version -SourceRef $env:PRODUCT_SHA -OutputPath $output -Json | Out-String).Trim() | ConvertFrom-Json
+          if ([string]$package.source_commit -ne $env:PRODUCT_SHA) {
+            throw 'Candidate provenance mismatch.'
+          }
+          "package_path=$($package.path)" | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "package_sh256=$($package.sha256)" | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          [ordered]@{
+            status = 'PASS'
+            source_sha = $env:PRODUCT_SHA
+            package_sha256 = [string]$package.sha256
+          } | ConvertTo-Json | Set-Content (Join-Path $env:EVIDENCE_ROOT 'package.json') -Encoding utf8
 
       - name: Apply, verify, and reconcile frame 00
         shell: pwsh
         env:
           MIRO_ACCESS_TOKEN: ${{ secrets.MIRO_ACCESS_TOKEN }}
-          PACKAGE_PATH: ${{ steps.pkg.outputs.path }}
-          PACKAGE_SHA256: ${{ steps.pkg.outputs.sha }}
+          PACKAGE_PATH: ${{ steps.package.outputs.package_path }}
+          PACKAGE_SHA256: ${{ steps.package.outputs.package_sha256 }}
         run: |
-          $root=Join-Path $env:RUNNER_TEMP 'rem-012-3-5-package'
-          Expand-Archive $env:PACKAGE_PATH $root -Force
-          $runtime=Join-Path $root 'runtime\miro'
+          $ErrorActionPreference = 'Stop'
+          $packageRoot = Join-Path $env:RUNNER_TEMP 'rem-012-3-6-package'
+          if (Test-Path $packageRoot) {
+            Remove-Item $packageRoot -Recurse -Force
+          }
+          Expand-Archive $env:PACKAGE_PATH $packageRoot -Force
+          $runtime = Join-Path $packageRoot 'runtime\miro'
           python -m pip install --disable-pip-version-check --no-input $runtime
-          $env:PYTHONPATH=$runtime
-          $env:TARGET=Join-Path $root 'scaffolds\miro\rem-012-3-5-frame-00.yaml'
-          $env:REPORT=Join-Path $env:EVIDENCE 'result.json'
+          $env:PYTHONPATH = $runtime
+          $env:REMEDIATION_MANIFEST= Join-Path $packageRoot 'scaffolds\miro\rem-012-3-5-frame-00.yaml'
+          $env:REPORT_PATH = Join-Path $env:EVIDENCE_ROOT 'result.json'
           @'
-          import hashlib, json, os
+          import hashlib
+          import json
+          import os
           from pathlib import Path
-          from ddda_miro.anchor_contract import _close,_get_item,_patch,_protected_snapshot,_seg,_writable,canonical_miro_text
+
+          from ddda_miro.anchor_contract import (
+              _close,
+              _get_item,
+              _patch,
+              _protected_snapshot,
+              _seg,
+              _writable,
+              canonical_miro_text,
+          )
           from ddda_miro.client import MiroClient
           from ddda_miro.yamlio import load_yaml
 
-          cfg=load_yaml(Path(os.environ['TARGET']))
-          board=str(cfg['board_id']); frame=str(cfg['frame_id']); client=MiroClient(os.environ['MIRO_ACCESS_TOKEN'])
-          snapshots={}; created=[]
-          fixed=list(cfg['fixed_items'].values()); summary_markers=cfg['summary_markers']; legend_markers=cfg['legend_markers']
-          fixed_ids={str(x['id']) for x in fixed}; marker_ids={str(x['id']) for x in summary_markers}
+          config = load_yaml(Path(os.environ["REMEDIATION_MANIFEST"]))
+          client = MiroClient(os.environ["MIRO_ACCESS_TOKEN"])
+          board = str(config["board_id"])
+          frame = str(config["frame_id"])
+          snapshots = {}
+          created_ids = []
 
-          def text(item): return canonical_miro_text((item.get('data') or {}).get('content'))
+          def canonical(item):
+              return canonical_miro_text(item.get("data") or {}).get("content")
+
           def stable(item):
-            return {'id':str(item.get('id') or ''),'type':item.get('type'),'parent':str((item.get('parent') or {}).get('id') or ''),'data':item.get('data') or {},'style':item.get('style') or {},'geometry':item.get('geometry') or {},'position':item.get('position') or {}}
+              return {
+                  "id": str(item.get("id") or ""),
+                  "type": str(item.get("type") or ""),
+                  "parent": str((item.get("parent") or {}).get("id") or ""),
+                  "data": item.get("data") or {},
+                  "style": item.get("style") or {},
+                  "geometry": item.get("geometry") or {},
+                  "position": item.get("position") or {},
+              }
+
           def digest(items):
-            raw=json.dumps(sorted(map(stable,items),key=lambda x:x['id']),sort_keys=True,ensure_ascii=False,separators=(',',':')).encode()
-            return hashlib.sha256(raw).hexdigest()
-          def expected(spec):
-            out={'parent':{'id':frame},'position':{'x':float(spec['x']),'y':float(spec['y']),'origin':'center'},'data':{'content':str(spec.get('content') or '')},'geometry':{'width':float(spec['width'])},'style':{'fontSize':int(spec.get('font_size') or 24),**dict(spec.get('style') or {})}}
-            if spec['type']=='shape':out['data']['shape']='rectangle';out['geometry']['height']=float(spec['height'])
-            return out
-          def marker_expected(spec):
-            color=cfg['palette'][spec['key']]
-            return {'parent':{'id':frame},'position':{'x':float(spec['x']),'y':float(spec['y']),'origin':'center'},'data':{'shape':'rectangle','content':''},'geometry':{'width':float(spec['width']),'height':float(spec['height'])},'style':{'fillColor':color,'fillOpacity':'1.0','borderColor':'#4B79A1','borderWidth':2,'borderOpacity':'1.0','borderStyle':'normal','fontFamily':'arial','fontSize':24,'textAlign':'center','textAlignVertical':'middle','color':color}}
-          def matches(remote,target,item_type,tol=1):
-            if str(remote.get('type'))!=item_type or str((remote.get('parent') or {}).get('id'))!=frame:return False
-            if text(remote)!=canonical_miro_text(target['data']['content']):return False
-            pos=remote.get('position') or {}
-            if not _close(pos.get('x'),target['position']['x']) or abs(float(pos.get('y') or 0)-target['position']['y'])>tol:return False
-            for k,v in target['geometry'].items():
-              if not _close((remote.get('geometry') or {}).get(k),v):return False
-            for k,v in target['style'].items():
-              actual=(remote.get('style') or {}).get(k)
-              if k in ('fillColor','borderColor','color'):
-                if str(actual).lower()!=str(v).lower():return False
-              elif k in ('fontSize','borderWidth'):
-                if not _close(actual,v):return False
-              elif actual!=v:return False
-            return True
-          def patch_fixed(spec):
-            item_id=str(spec['id']); item_type=str(spec['type']); remote=_get_item(client,board,item_id); snapshots.setdefault(item_id,remote); target=expected(spec)
-            if matches(remote,target,item_type,180 if item_type=='text' else 1):return item_id,'unchanged'
-            payload=_writable(remote);payload['parent']=target['parent'];payload['position']=target['position'];payload['geometry']={**(payload.get('geometry') or {}),**target['geometry']};payload.setdefault('data',{}).update(target['data']);payload['style']={**(payload.get('style') or {}),**target['style']}
-            updated=_patch(client,board,item_type,item_id,payload)
-            if not matches(updated,target,item_type,180 if item_type=='text' else 1):raise ValueError('fixed item mismatch '+item_id)
-            return item_id,'updated'
-          def patch_summary_marker(spec):
-            item_id=str(spec['id']);remote=_get_item(client,board,item_id);snapshots.setdefault(item_id,remote);target=marker_expected({**spec,'type':'shape'})
-            if matches(remote,target,'shape'):return item_id,'unchanged'
-            updated=_patch(client,board,'shape',item_id,target)
-            if not matches(updated,target,'shape'):raise ValueError('summary marker mismatch '+item_id)
-            return item_id,'updated'
-          def find_legend_marker(spec):
-            target=marker_expected({**spec,'type':'shape'})
-            candidates=[x for x in client.list_items(board,'shape') if str((x.get('parent') or {}).get('id'))==frame and matches(x,target,'shape')]
-            if len(candidates)>1:raise ValueError('duplicate legend marker '+spec['key'])
-            return (str(candidates[0]['id']),target) if candidates else (None,target)
-          def upsert_legend_marker(spec):
-            item_id,target=find_legend_marker(spec)
-            if item_id:return item_id,'unchanged'
-            remote=client._request('POST',f'boards/{_seg(board)}/shapes',body=target);item_id=str(remote['id']);created.append(item_id)
-            if not matches(remote,target,'shape'):raise ValueError('legend marker create mismatch '+spec['key'])
-            return item_id,'created'
-          def rollback():
-            errors=[]
-            for item_id in reversed(created):
-              try:client.delete_item(board,item_id)
-              except Exception as exc:errors.append(f'{item_id}: {exc}')
-            for item_id,remote in reversed(list(snapshots.items())):
-              try:_patch(client,board,str(remote['type']),item_id,_writable(remote))
-              except Exception as exc:errors.append(f'{item_id}: {exc}')
-            return {'status':'PASS' if not errors else 'PARTIAL','errors':errors}
+              raw = json.dumps(
+                  sorted([map(stable, items)],key=lambda value: value["id"]),
+                  sort_keys=True,
+                  ensure_ascii=Falsl
+              separators=(",", ":"),
+              ).encode("utf-8")
+              return hashlib.sha256(raw).hexdigest()
 
-          protected_before=_protected_snapshot(client,board,[str(x) for x in cfg['protected_frame_ids']])
-          all_before=client.list_items(board)
-          unmanaged_before=digest([x for x in all_before if str((x.get('parent') or {}).get('id'))==frame and str(x.get('id')) not in fixed_ids|marker_ids])
-          one={'created':0,'updated':0,'unchanged':0,'ids':[]};two={'created':0,'updated':0,'unchanged':0,'ids':[]}
-          def reconcile(result):
-            for spec in fixed:
-              item_id,state=patch_fixed(spec);result[state]+=1;result['ids'].append(item_id)
-            for spec in summary_markers:
-              item_id,state=patch_summary_marker(spec);result[state]+=1;result['ids'].append(item_id)
-            for spec in legend_markers:
-              item_id,state=upsert_legend_marker(spec);result[state]+=1;result['ids'].append(item_id)
-          try:
-            reconcile(one);reconcile(two)
-            if two['created'] or two['updated'] or two['unchanged']!=16:raise ValueError('second reconcile mutated: '+str(two))
-            protected_after=_protected_snapshot(client,board,[str(x) for x in cfg['protected_frame_ids']])
-            if protected_after['digest']!=protected_before['digest']:raise ValueError('protected frame digest changed')
-            active=set(two['ids']);all_after=client.list_items(board)
-            unmanaged_after=digest([x for x in all_after if str((x.get('parent') or {}).get('id'))==frame and str(x.get('id')) not in active])
-            if unmanaged_after!=unmanaged_before:raise ValueError('unmanaged frame 00 changed')
-            summary=text(_get_item(client,board,str(cfg['fixed_items']['summary']['id'])))
-            legend=text(_get_item(client,board,str(cfg['fixed_items']['legend']['id'])))
-            for phrase in ('SCAFFOLD: 1','WORKING: 2','CANDIDATE: 0','VALIDATED: 0','ACCEPTED: 0','SUPERSEDED: 0','ATTENTION: 1','BLOCKING: 0'):
-              if phrase not in summary:raise ValueError('summary missing '+phrase)
-            for phrase in ('SCAFFOLD â€” zaloÅ¾enÃ¡ poÄÃ¡teÄnÃ­ struktura','WORKING â€” aktivnÄ› rozpracovanÃ¡ pracovnÃ­ verze','CANDIDATE â€” pÅ™ipravenÃ¡ k formÃ¡lnÃ­mu review','VALIDATED â€” proÅ¡la technickou a metodickou validacÃ­','ACCEPTED â€” ÄlovÄ›kem pÅ™ijatÃ¡ pro dalÅ¡Ã­ pouÅ¾itÃ­','SUPERSEDED â€” nahrazenÃ¡ novÄ›jÅ¡Ã­ verzÃ­'):
-              if phrase not in legend:raise ValueError('legend missing '+phrase)
-            for phrase in cfg['forbidden_phrases']:
-              if phrase in summary or phrase in legend:raise ValueError('forbidden phrase '+phrase)
-            report={'status':'PASS','technical_status':'PASS','remediation_id':cfg['remediation_id'],'product_sha':os.environ['PRODUCT_SHA'],'transport_sha':os.environ['TRANSPORT_SHA'],'candidate_sha256':os.environ['PACKAGE_SHA256'],'first_run':one,'second_run':two,'zero_mutation_second_run':True,'protected_frames':{'count':len(cfg['protected_frame_ids']),'unchanged':True,'digest':protected_after['digest']},'frame_00_unmanaged_unchanged':True,'rollback':{'status':'NOT_REQUIRED'},'human_review_status':'PENDING','overall_status':'READY_FOR_HUMAN_REVIEW'}
-            Path(os.environ['REPORT']).write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')
-          except Exception as exc:
-            Path(os.environ['REPORT']).write_text(json.dumps({'status':'FAIL','technical_status':'FAIL','error':str(exc),'rollback':rollback()},ensure_ascii=False,indent=2)+'\n')
-            raise
-          '@ | python -
-          $result=Get-Content $env:REPORT -Raw | ConvertFrom-Json
-          if ($result.status -ne 'PASS' -or -not $result.zero_mutation_second_run -or -not $result.protected_frames.unchanged) { throw 'REM-012.3.5 verification failed' }
-          @("technical_status: $($result.technical_status)","product: $env:PRODUCT_SHA","transport: $env:TRANSPORT_SHA","managed items: 16","second reconcile: zero mutation","protected frames: 17 unchanged","human review: PENDING") | Add-Content $env:GITHUB_STEP_SUMMARY
-
-      - if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: rem-012-3-5-frame-00-${{ github.event.pull_request.number }}-${{ env.PRODUCT_SHA }}
-          path: ${{ env.EVIDENCE }}\**
-          if-no-files-found: error
-          retention-days: 30
+          def style_matches(actual, expected):
+              for key, value in expecu•¹¥Ñ•µÌ ¤è(€€€€€€€€€€€€€€€€€É•µ½Ñ”€ô…ÑÕ…°¹•Ð¡­•ä¤(€€€€€€€€€€€€€€€€€¥˜­•ä¥¸ì‰™¥±±½±½Èˆ°€‰‰½É‘•É½±½Èˆ°€‰½±½È‰ôè(€€€€€€€€€€€€€€€€€€€€€¥˜ÍÑÈ¡É•µ½Ñ”¤¹±½Ý•È ¤€„ôÍÑÈ¡Ù…±Õ”¤¹±½Ý•È ¤è(€€€€€€€€€€€€€€€€€€€€€€€€€É•ÑÕÉ¸…±Í”(€€€€€€€€€€€€€€€€€•±¥˜­•ä¥¸ì‰™½¹ÑM¥é”ˆ°€‰‰½É‘•É]¥‘Ñ ‰ôè(€€€€€€€€€€€€€€€€€€€€€¥˜¹½Ð}±½Í”¡É•µ½Ñ”°Ù…±Õ”¤è(€€€€€€€€€€€€€€€€€€€€€€€€€É•ÑÕÉ¸…±Í”(€€€€€€€€€€€€€€€€€•±¥˜É•µ½Ñ”€„ôÙ…±Õ”è(€€€€€€€€€€€€€€€€€€€€€É•ÑÕÉ¸…±Í”(€€€€€€€€€€€€€É•ÑÕÉ¸QÉÕ”((€€€€€€€€€‘•˜•áÁ•Ñ•‘}™¥á•¡ÍÁ•Œ¤è(€€€€€€€€€€€€€É•ÍÕ±Ð€ôì(€€€€€€€€€€€€€€€€€€‰Á…É•¹Ðˆèì‰¥ˆè™É…µ•ô°(€€€€€€€€€€€€€€€€€€‰Á½Í¥Ñ¥½¸ˆèì(€€€€€€€€€€€€€€€€€€€€€€‰àˆè™±½…Ð¡ÍÁ•l‰à‰t¤°(€€€€€€€€€€€€€€€€€€€€€€‰äˆè™±½…Ð¡ÍÁ•l‰ä‰t¤°(€€€€€€€€€€€€€€€€€€€€€€‰½É¥¥¸ˆè€‰•¹Ñ•Èˆ°(€€€€€€€€€€€€€€€€€ô°(€€€€€€€€€€€€€€€€€€‰‘…Ñ„ˆèì‰½¹Ñ•¹ÐˆèÍÑÈ¡ÍÁ•Œ¹•Ð ‰½¹Ñ•¹Ðˆ¤½È€ˆˆ¥ô°(€€€€€€€€€€€€€€€€€€‰•½µ•ÑÉäˆèì‰Ý¥‘Ñ ˆè™±½…Ð¡ÍÁ•l‰Ý¥‘Ñ ‰t¥ô°(€€€€€€€€€€€€€€€€€€‰ÍÑå±”ˆèì‰™½¹ÑM¥é”ˆè¥¹Ð¡ÍÁ•Œ¹•Ð ‰™½¹Ñ}Í¥é”ˆ¤½È€ÈÐ¤°€¨©‘¥Ð¡ÍÁ•Œ¹•Ð ‰ÍÑå±”ˆ¤½Èíô¥ô°(€€€€€€€€€€€€€ô(€€€€€€€€€€€€€¥˜ÍÁ•l‰ÑåÁ”‰t€ôô€‰Í¡…Á”ˆè(€€€€€€€€€€€€€€€€€É•ÍÕ±Ñl‰‘…Ñ„‰ul‰Í¡…Á”‰t€ô€‰É•Ñ…¹±”ˆ(€€€€€€€€€€€€€€€€€É•ÍÕ±Ñl‰•½µ•ÑÉä‰ul‰¡•¥¡Ð‰t€ô™±½…Ð¡ÍÁ•l‰¡•¥¡Ð‰t¤(€€€€€€€€€€€€€É•ÑÕÉ¸É•ÍÕ±Ð((€€€€€€€€€‘•˜•áÁ•Ñ•‘}Ñ•áÐ¡ÍÁ•Œ¤è(€€€€€€€€€€€€€É•ÑÕÉ¸ì(€€€€€€€€€€€€€€€€€€‰Á…É•¹Ðˆèì‰¥ˆè™É…µ•ô°(€€€€€€€€€€€€€€€€€€‰Á½Í¥Ñ¥½¸ˆèì‰àˆè™±½…Ð¡ÍÁ•l‰à‰t¤°€‰äˆè™±½…Ð¡ÍÁ•l‰ä‰t¤°€‰½É¥¥¸ˆè€‰•¹Ñ•È‰ô°(€€€€€€€€€€€€€€€€€€‰‘…Ñ„ˆèì‰½¹Ñ•¹ÐˆèÍÑÈ¡ÍÁ•l‰½¹Ñ•¹Ð‰t¥ô°(€€€€€€€€€€€€€€€€€€‰•½µ•ÑÉäˆèì‰Ý¥‘Ñ ˆè™±½…Ð¡ÍÁ•l‰Ý¥‘Ñ ‰t¥ô°(€€€€€€€€€€€€€€€€€€‰ÍÑå±”ˆèì(€€€€€€€€€€€€€€€€€€€€€€‰™¥±±½±½Èˆè€ˆ™™™™™˜ˆ°(€€€€€€€€€€€€€€€€€€€€€€‰™¥±±=Á…¥Ñäˆè€ˆÀ¸Àˆ°(€€€€€€€€€€€€€€€€€€€€€€‰™½¹Ñ…µ¥±äˆè€‰…É¥…°ˆ°(€€€€€€€€€€€€€€€€€€€€€€‰™½¹ÑM¥é”ˆè¥¹Ð¡ÍÁ•l‰™½¹Ñ}Í¥é”‰t¤°(€€€€€€€€€€€€€€€€€€€€€€‰Ñ•áÑ±¥¸ˆè€‰±•™Ðˆ°(€€€€€€€€€€€€€€€€€€€€€€‰½±½Èˆè€ˆŒÅÍØÐˆ°(€€€€€€€€€€€€€€€€€ô°(€€€€€€€€€€€€€ô((€€€€€€€€€‘•˜•áÁ•Ñ•‘}µ…É­•È¡ÍÁ•Œ¤è(€€€€€€€€€€€€€½±½È€ô½¹™¥l‰Á…±•ÑÑ”‰umÍÁ•l‰­•ä‰ut(€€€€€€€€€€€€€É•ÑÕÉ¸ì(€€€€€€€€€€€€€€€€€€‰Á…É•¹Ðˆèì‰¥ˆè™É…µ•ô°(€€€€€€€€€€€€€€€€€€‰Á½Í¥Ñ¥½¸ˆèì‰àˆè™±½…Ð¡ÍÁ•l‰à‰t¤°€‰äˆè™±½…Ð¡ÍÁ•l‰ä‰t¤°€‰½É¥¥¸ˆè€‰•¹Ñ•È‰ô°(€€€€€€€€€€€€€€€€€€‰‘…Ñ„ˆèì‰Í¡…Á”ˆè€‰É•Ñ…¹±”ˆ°€‰½¹Ñ•¹Ðˆè€ˆ‰ô°(€€€€€€€€€€€€€€€€€€‰•½µ•ÑÉäˆèì‰Ý¥‘Ñ ˆè™±½…Ð¡ÍÁ•l‰Ý¥‘Ñ ‰t¤°€‰¡•¥¡Ðˆè™±½…Ð¡ÍÁ•l‰¡•¥¡Ð‰t¥ô°(€€€€€€€€€€€€€€€€€€‰ÍÑå±”ˆèì(€€€€€€€€€€€€€€€€€€€€€€‰™¥±±½±½Èˆè½±½È°(€€€€€€€€€€€€€€€€€€€€€€‰™¥±±=Á…¥Ñäˆè€ˆÄ¸Àˆ°(€€€€€€€€€€€€€€€€€€€€€€‰‰½É‘•É½±½Èˆè€ˆŒÑÜåÄˆ°(€€€€€€€€€€€€€€€€€€€€€€‰‰½É‘•É]¥‘Ñ ˆè€È°(€€€€€€€€€€€€€€€€€€€€€€‰‰½É‘•É=Á…¥Ñäˆè€ˆÄ¸Àˆ°(€€€€€€€€€€€€€€€€€€€€€€‰‰½É‘•ÉMÑå±”ˆè€‰¹½Éµ…°ˆ°(€€€€€€€€€€€€€€€€€€€€€€‰™½¹Ñ…µ¥±äˆè€‰…É¥…°ˆ°(€€€€€€€€€€€€€€€€€€€€€€‰™½¹ÑM¥é”ˆè€ÈÐ°(€€€€€€€€€€€€€€€€€€€€€€‰Ñ•áÑ±¥¸ˆè€‰•¹Ñ•Èˆ°(€€€€€€€€€€€€€€€€€€€€€€‰Ñ•áÑ±¥¹Y•ÉÑ¥…°ˆè€‰µ¥‘‘±”ˆ°(€€€€€€€€€€€€€€€€€€€€€€‰½±½Èˆè½±½È°(€€€€€€€€€€€€€€€€€ô°(€€€€€€€€€€€€€ô((€€€€€€€€€‘•˜µ…Ñ¡•Ì¡É•µ½Ñ”°Ñ…É•Ð°¥Ñ•µ}ÑåÁ”°å}Ñ½±•É…¹”ôÄ¤è(€€€€€€€€€€€€€¥˜ÍÑÈ¡É•µ½Ñ”¹•Ð ‰ÑåÁ”ˆ¤½È€ˆˆ¤€„ô¥Ñ•µ}ÑåÁ”è(€€€€€€€€€€€€€€€€€É•ÑÕÉ¸…±Í”(€€€€€€€€€€€€€¥˜ÍÑÈ ¡É•µ½Ñ”¹•Ð ‰Á…É•¹Ðˆ¤½Èíô¤¹•Ð ‰¥ˆ¤½È€ˆˆ¤€„ô™É…µ”è(€€€€€€€€€€€€€€€€€É•ÑÕÉ¸…±Í”(€€€€€€€€€€€€€¥˜…¹½¹¥…°¡É•µ½Ñ”¤€„ô…¹½¹¥…±}µ¥É½}Ñ•áÐ¡Ñ…É•Ñl‰‘…Ñ„‰ul‰½¹Ñ•¹Ð‰t¤è(€€€€€€€€€€€€€€€€€É•ÑÕÉ¸…±Í”(€€€€€€€€€€€€€Á½Í¥Ñ¥½¸€ôÉ•µ½Ñ”¹•Ð ‰Á½Í¥Ñ¥½¸ˆ¤½Èíô(€€€€€€€€€€€€€¥˜¹½Ð}±½Í”¡Á½Í¥Ñ¥½¸¹•Ð ‰àˆ¤°Ñ…É•Ñl‰Á½Í¥Ñ¥½¸‰ul‰à‰t¤è(€€€€€€€€€€€€€€€€€É•ÑÕÉ¸…±Í”(€€€€€€€€€€€€€¥˜…‰Ì¡™±½…Ð¡Á½Í¥Ñ¥½¸¹•Ð ‰äˆ¤½È€À¤€´Ñ…É•Ñl‰Á½Í¥Ñ¥½¸‰ul‰ä‰t¤€øå}Ñ½±•É…¹”è(€€€€€€€€€€€€€€€€€É•ÑÕÉ¸…±Í”(€€€€€€€€€€€€€™½È­•ä°Ù…±Õ”¥¸Ñ…É•Ñl‰•½µ•ÑÉä‰t¹¥Ñ•µÌ ¤è(€€€€€€€€€€€€€€€€€¥˜¹½Ð}±½Í” ¡É•µ½Ñ”¹•Ð ‰•½µ•ÑÉäˆ¤½Èíô¤¹•Ð¡­•ä¤°Ù…±Õ”¤è(€€€€€€€€€€€€€€€€€€€É•ÑÕÉ¸…±Í”(€€€€€€€€€€€€€¥˜¹½ÐÍÑå±•}µ…Ñ¡•Ì¡É•µ½Ñ”¹•Ð ‰ÍÑå±”ˆ¤½Èíô°Ñ…É•Ñl‰ÍÑå±”‰t¤è(€€€€€€€€€€€€€€€€€É•ÑÕÉ¸…±Í”(€€€€€€€€€€€€€É•ÑÕÉ¸QÉÕ”((€€€€€€€€€‘•˜Á…Ñ¡}™¥á•¡ÍÁ•Œ¤è(€€€€€€€€€€€€€¥Ñ•µ}¥€ôÍÑÈ¡ÍÁ•l‰¥‰t¤(€€€€€€€€€€€€€¥Ñ•µ}ÑåÁ”€ôÍÑÈ¡ÍÁ•l‰ÑåÁ”‰t¤(€€€€€€€€€€€€€É•µ½Ñ”€ô}•Ñ}¥Ñ•´¡±¥•¹Ð°‰½…É°¥Ñ•µ}¥¤(€€€€€€€€€€€€€Í¹…ÁÍ¡½ÑÌ¹Í•Ñ‘•™…Õ±Ð¡¥Ñ•µ}¥°É•µ½Ñ”¤(€€€€€€€€€€€€€Ñ…É•Ð€ô•áÁ•Ñ•‘}™¥á•¡ÍÁ•Œ¤(€€€€€€€€€€€€€¥˜µ…Ñ¡•Ì¡É•µ½Ñ”°Ñ…É•Ð°¥Ñ•µ}ÑåÁ”°€ÄàÀ¥˜¥Ñ•µ}ÑåÁ”€ôô€‰Ñ•áÐˆ•±Í”€Ä¤è(€€€€€€€€€€€€€€€€€É•ÑÕÉ¸¥Ñ•µ}¥°€‰Õ¹¡…¹•ˆ(€€€€€€€€€€€€€Á…å±½…€ô}ÝÉ¥Ñ…‰±”¡É•µ½Ñ”¤(€€€€€€€€€€€€€Á…å±½…‘l‰Á…É•¹Ð‰t€ôÑ…É•Ñl‰Á…É•¹Ð‰t(€€€€€€€€€€€€€Á…å±½…‘l‰Á½Í¥Ñ¥½¸‰t€ôÑ…É•Ñl‰Á½Í¥Ñ¥½¸‰t(€€€€€€€€€€€€€Á…å±½…‘l‰•½µ•ÑÉä‰t€ôì¨¨¡Á…å±½…¹•Ð ‰•½µ•ÑÉäˆ¤½Èíô¤°€¨©Ñ…É•Ñl‰•½µ•ÑÉä‰uô(€€€€€€€€€€€€€Á…å±½…¹Í•Ñ‘•™…Õ±Ð ‰‘…Ñ„ˆ°íô¤¹ÕÁ‘…Ñ”¡Ñ…É•Ñl‰‘…Ñ„‰t¤(€€€€€€€€€€€€€Á…å±½…‘l‰ÍÑå±”‰t€ôì¨¨¡Á…å±½…¹•Ð ‰ÍÑå±”ˆ¤½Èíô¤°€¨©Ñ…É•Ñl‰ÍÑå±”‰uô(€€€€€€€€€€€€€ÕÁ‘…Ñ•€ô}Á…Ñ ¡±¥•¹Ð°‰½…É°¥Ñ•µ}ÑåÁ”°¥Ñ•µ}¥°Á…å±½…¤(€€€€€€€€€€€€€¥˜¹½Ðµ…Ñ¡•Ì¡ÕÁ‘…Ñ•°Ñ…É•Ð°¥Ñ•µ}ÑåÁ”°€ÄàÀ¥˜¥Ñ•µ}ÑåÁ”€ôô€‰Ñ•áÐˆ•±Í”€Ä¤è(€€€€€€€€€€€€€€€€€É…¥Í”Y…±Õ•ÉÉ½È¡˜‰µ…¹…•¥Ñ•´µ¥Íµ…Ñ èí¥Ñ•µ}¥‘ôˆ¤(€€€€€€€€€€€€€É•ÑÕÉ¸¥Ñ•µ}¥°€‰ÕÁ‘…Ñ•ˆ((€€€€€€€€€‘•˜ÕÁÍ•ÉÑ}Ñ•áÐ¡ÍÁ•Œ°ÁÉ•™¥à¤è(€€€€€€€€€€€€€Ñ…É•Ð€ô•áÁ•Ñ•‘}Ñ•áÐ¡ÍÁ•Œ¤(€€€€€€€€€€€€€•áÁ•Ñ•‘}½¹Ñ•¹Ð€ô…¹½¹¥…±}µ¥É½}Ñ•áÐ¡Ñ…É•Ñl‰‘…Ñ„‰ul‰½¹Ñ•¹Ð‰t¤(€€€€€€€€€€€€€…¹‘¥‘…Ñ•Ì€ôl(€€€€€€€€€€€€€€€€€¥Ñ•´™½È¥Ñ•´¥¸±¥•¹Ð¹±¥ÍÑ}¥Ñ•µÌ¡‰½…É°€‰Ñ•áÐˆ¤(€€€€€€€€€€€€€€€€€¥˜ÍÑÈ ¡¥Ñ•´¹•Ð ‰Á…É•¹Ðˆ¤½Èíô¤¹•Ð ‰¥ˆ¤½È€ˆˆ¤€ôô™É…µ”(€€€€€€€€€€€€€€€€€…¹…¹½¹¥…°¡¥Ñ•´¤€ôô•áÁ•Ñ•‘}½¹Ñ•¹Ð(€€€€€€€€€€€€€t(€€€€€€€€€€€€€¥˜±•¸¡…¹‘¥‘…Ñ•Ì¤€ø€Äè(€€€€€€€€€€€€€€€€€É…¥Í”Y…±Õ•ÉÉ½È¡˜‰íÁÉ•™¥áô‘ÕÁ±¥…Ñ”Ñ•áÐ¥Ñ•µÌˆ¤(€€€€€€€€€€€€€¥˜…¹‘¥‘…Ñ•Ìè(€€€€€€€€€€€€€€€€€É•µ½Ñ”€ô…¹‘¥‘…Ñ•ÍlÁt(€€€€€€€€€€€€€€€€€¥Ñ•µ}¥€ôÍÑÈ¡É•µ½Ñ•l‰¥‰t¤(€€€€€€€€€€€€€€€€€¥˜µ…Ñ¡•Ì¡É•µ½Ñ”°Ñ…É•Ð°€‰Ñ•áÐˆ°€ÄàÀ¤è(€€€€€€€€€€€€€€€€€€€€€É•ÑÕÉ¸¥Ñ•µ}¥°€‰Õ¹¡…¹•ˆ(€€€€€€€€€€€€€€€€€Í¹…ÁÍ¡½ÑÌ¹Í•Ñ‘•™…Õ±Ð¡¥Ñ•µ}¥°É•µ½Ñ”¤(€€€€€€€€€€€€€€€€€ÕÁ‘…Ñ•€ô}Á…Ñ ¡±¥•¹Ð°‰½…É°€‰Ñ•áÐˆ°¥Ñ•µ}¥°Ñ…É•Ð¤(€€€€€€€€€€€€€€€€€¥˜¹½Ðµ…Ñ¡•Ì¡ÕÁ‘…Ñ•°Ñ…É•Ð°€‰Ñ•áÐˆ°€ÄàÀ¤è(€€€€€€€€€€€€€€€€€€€€€É…¥Í”Y…±Õ•ÉÉ½È¡˜‰íÁÉ•™¥áôÑ•áÐÕÁ‘…Ñ”µ¥Íµ…Ñ ˆ¤(€€€€€€€€€€€€€€€€€É•ÑÕÉ¸¥Ñ•µ}¥°€‰ÕÁ‘…Ñ•ˆ(€€€€€€€€€€€€€É•µ½Ñ”€ô±¥•¹Ð¹}É•ÅÕ•ÍÐ (€€€€€€€€€€€€€€€€€€‰A=MPˆ°˜‰‰½…É‘Ì½í}Í•œ¡‰½…É¥ô½Ñ•áÑÌˆ°‰½‘äõÑ…É•Ð(€€€€€€€€€€€€€€¤(€€€€€€€€€€€€€É•…Ñ•‘}¥‘Ì¹Á…¹¡ÍÑÈ¡É•µ½Ñ•l‰¥‰t¤¤(€€€€€€€€€€€€€¥˜¹½Ðµ…Ñ¡•Ì¡É•µ½Ñ”°Ñ…É•Ð°€‰Ñ•áÐˆ°€ÄàÀ¤è(€€€€€€€€€€€€€€€€€É…¥Í”Y…±Õ•ÉÉ½È¡˜‰íÁÉ•™¥áôÑ•áÐÉ•…Ñ”µ¥Íµ…Ñ ˆ¤(€€€€€€€€€€€€€É•ÑÕÉ¸ÍÑÈ¡É•µ½Ñ•l‰¥‰t¤°€‰É•…Ñ•ˆ((€€€€€€€€€‘•˜Á…Ñ¡}µ…É­•È¡ÍÁ•Œ¤è(€€€€€€€€€€€€€¥Ñ•µ}¥€ôÍÑÈ¡ÍÁ•l‰¥‰t¤(€€€€€€€€€€€€€É•µ½Ñ”€ô}•Ñ}¥Ñ•´¡±¥•¹Ð°‰½…É°¥Ñ•µ}¥¤(€€€€€€€€€€€€€Í¹…ÁÍ¡½ÑÌ¹Í•Ñ‘•™…Õ±Ð¡¥Ñ•µ}¥°É•µ½Ñ”¤(€€€€€€€€€€€€€Ñ…É•Ð€ô•áÁ•Ñ•‘}µ…É­•È¡ÍÁ•Œ¤(€€€€€€€€€€€€€¥˜µ…Ñ¡•Ì¡É•µ½Ñ”°Ñ…É•Ð°€‰Í¡…Á”ˆ¤è(€€€€€€€€€€€€€€€€€É•ÑÕÉ¸¥Ñ•µ}¥°€‰Õ¹¡…¹•ˆ(€€€€€€€€€€€€€ÕÁ‘…Ñ•€ô}Á…Ñ ¡±¥•¹Ð°‰½…É°€‰Í¡…Á”ˆ°¥Ñ•µ}¥°Ñ…É•Ð¤(€€€€€€€€€€€€€¥˜¹½Ðµ…Ñ¡•Ì¡ÕÁ‘…Ñ•°Ñ…É•Ð°€‰Í¡…Á”ˆ¤è(€€€€€€€€€€€€€€€€€É…¥Í”Y…±Õ•ÉÉ½È¡˜‰µ…É­•Èµ¥Íµ…Ñ èí¥Ñ•µ}¥‘ôˆ¤(€€€€€€€€€€€€€É•ÑÕÉ¸¥Ñ•µ}¥°€‰ÕÁ‘…Ñ•ˆ((€€€€€€€€€‘•˜É½±±‰…¬ ¤è(€€€€€€€€€€€€€•ÉÉ½ÉÌ€ômt(€€€€€€€€€€€€€™½È¥Ñ•µ}¥¥¸É•Ù•ÉÍ•¡É•…Ñ•‘}¥‘Ì¤è(€€€€€€€€€€€€€€€€€ÑÉäè(€€€€€€€€€€€€€€€€€€€€€±¥•¹Ð¹‘•±•Ñ•}¥Ñ•´¡‰½…É°¥Ñ•µ}¥¤(€€€€€€€€€€€€€€€€€•á•ÁÐá•ÁÑ¥½¸…Ì•áŒè(€€€€€€€€€€€€€€€€€€€€€•ÉÉ½ÉÌ¹…ÁÁ•¹¡˜‰í¥Ñ•µ}¥‘ôèí•áôˆ¤(€€€€€€€€€€€€€™½È¥Ñ•µ}¥°É•µ½Ñ”¥¸É•Ù•ÉÍ•¡±¥ÍÐ¡Í¹…ÁÍ¡½ÑÌ¹¥Ñ•µÌ ¤¤¤è(€€€€€€€€€€€€€€€€€ÑÉäè(€€€€€€€€€€€€€€€€€€€€€}Á…Ñ ¡±¥•¹Ð°‰½…É°ÍÑÈ¡É•µ½Ñ•l‰ÑåÁ”‰t¤°¥Ñ•µ}¥°}ÝÉ¥Ñ…‰±”¡É•µ½Ñ”¤¤(€€€€€€€€€€€€€€€€€•á•ÁÐá•ÁÑ¥½¸…Ì•áŒè(€€€€€€€€€€€€€€€€€€€€€•ÉÉ½ÉÌ¹…ÁÁ•¹¡˜‰í¥Ñ•µ}¥‘ôèí•áôˆ¤(€€€€€€€€€€€€€É•ÑÕÉ¸ì‰ÍÑ…ÑÕÌˆè€‰AMLˆ¥˜¹½Ð•ÉÉ½ÉÌ•±Í”€‰AIQ%0ˆ°€‰•ÉÉ½ÉÌˆè•ÉÉ½ÉÍô((€€€€€€€€€™¥á•‘}ÍÁ•Ì€ô±¥ÍÐ¡½¹™¥l‰™¥á•‘}¥Ñ•µÌ‰t¹Ù…±Õ•Ì ¤¤(€€€€€€€€€ÍÕµµ…Éå}Ñ•áÑ}ÍÁ•Ì€ô±¥ÍÐ¡½¹™¥l‰ÍÕµµ…Éå}Ñ•áÑ}¥Ñ•µÌ‰t¤(€€€€€€€€€ÍÕµµ…Éå}µ…É­•É}ÍÁ•Ì€ô±¥ÍÐ¡½¹™¥l‰ÍÕµµ…Éå}µ…É­•ÉÌ‰t¤(€€€€€€€€€±••¹‘}Ñ•áÑ}ÍÁ•Ì€ô±¥ÍÐ¡½¹™¥l‰±••¹‘}Ñ•áÑ}¥Ñ•µÌ‰t¤(€€€€€€€€€±••¹‘}µ…É­•É}ÍÁ•Ì€ô±¥ÍÐ¡½¹™¥l‰±••¹‘}µ…É­•ÉÌ‰t¤(€€€€€€€€€…±±}‰ÕÍ}ÍÁ•Ì€ôÍÕµµ…Éå}Ñ•áÑ}ÍÁ•Ì€¬±••¹‘}Ñ•áÑ}ÍÁ•Ì((€€€€€€€€€É•Á½ÉÐ€ôì(€€€€€€€€€€€€€€‰ÍÑ…ÑÕÌˆè€‰%0ˆ°(€€€€€€€€€€€€€€‰Ñ•¡¹¥…±}ÍÑ…ÑÕÌˆè€‰%0ˆ°(€€€€€€€€€€€€€€‰É•µ•‘¥…Ñ¥½¹}¥ˆè€‰I4µAHàµ!Yµ´ÀÄÈ¸Ì¸Øˆ°(€€€€€€€€€€€€€€‰‰½…É‘}¥ˆè‰½…É°(€€€€€€€€€€€€€€‰ÁÉ½‘ÕÑ}Í¡„ˆè½Ì¹•¹Ù¥É½¹l‰AI=UQ}M!‰t°(€€€€€€€€€€€€€€‰ÑÉ…¹ÍÁ½ÉÑ}Í¡„ˆè½Ì¹•¹Ù¥É½¹l‰QI9MA=IQ}M!‰t°(€€€€€€€€€€€€€€‰Á…­…•}Í¡„ÈÔØˆè½Ì¹•¹Ù¥É½¹l‰A-}M!ÈÔØ‰t°(€€€€€€€€€€€€€€‰¡Õµ…¹}É•Ù¥•Ý}ÍÑ…ÑÕÌˆè€‰A9%9ˆ°(€€€€€€€€€€€€€€‰½Ù•É…±±}ÍÑ…ÑÕÌˆè€‰9=Q}Ie}=I}!YHˆ°(€€€€€€€€€ô((€€€€€€€€€ÁÉ½Ñ•Ñ•‘}‰•™½É”€ô}ÁÉ½Ñ•Ñ•‘}Í¹…ÁÍ¡½Ð (€€€€€€€€€€€€€±¥•¹Ð°‰½…É°mÍÑÈ¡Ù…±Õ”¤™½ÈÙ…±Õ”¥¸½¹™¥l‰ÁÉ½Ñ•Ñ•‘}™É…µ•}¥‘Ì‰ut(€€€€€€€€€€¤(€€€€€€€€€™É…µ•}‰•™½É”€ôl(€€€€€€€€€€€€€¥Ñ•´™½È¥Ñ•´¥¸±¥•¹Ð¹±¥ÍÑ}¥Ñ•µÌ¡‰½…É¤(€€€€€€€€€€€€€¥˜ÍÑÈ ¡¥Ñ•´¹•Ð ‰Á…É•¹Ðˆ¤½Èíô¤¹•Ð ‰¥ˆ¤½È€ˆˆ¤€ôô™É…µ”(€€€€€€€€€t(€€€€€€€€€µ…¹…•‘}™¥á•‘}¥‘Ì€ôíÍÑÈ¡ÍÁ•l‰¥‰t¤™½ÈÍÁ•Œ¥¸™¥á•‘}ÍÁ•Íô(€€€€€€€€€µ…¹…•‘}µ…É­•É}¥‘Ì€ôíÍÑÈ¡ÍÁ•l‰¥‰t¤™½ÈÍÁ•Œ¥¸ÍÕµµ…Éå}µ…É­•É}ÍÁ•Ì€¬±••¹‘}µ…É­•É}ÍÁ•Íô(€€€€€€€€€•á¥ÍÑ¥¹}‰ÕÍ}¥‘Ì€ôì(€€€€€€€€€€€€€ÍÑÈ¡¥Ñ•µl‰¥‰t¤(€€€€€€€€€€€€€™½È¥Ñ•´¥¸™É…µ•}‰•™½É”(€€€€€€€€€€€€€¥˜ÍÑÈ¡¥Ñ•´¹•Ð ‰ÑåÁ”ˆ¤½È€ˆˆ¤€ôô€‰Ñ•áÐˆ(€€€€€€€€€€€€€…¹…¹ä¡…¹½¹¥…°¡¥Ñ•´¤€ôô…¹½¹¥…±}µ¥É½}Ñ•áÐ¡ÍÁ•l‰½¹Ñ•¹Ð‰t¤™½ÈÍÁ•Œ¥¸…±±}‰ÕÍ}ÍÁ•Ì¤(€€€€€€€€€ô(€€€€€€€€€Õ¹µ…¹…•‘}‰•™½É”€ô‘¥•ÍÐ¡l(€€€€€€€€€€€€€¥Ñ•´™½È¥Ñ•´¥¸™É…µ•}‰•™½É”(€€€€€€€€€€€€€¥˜ÍÑÈ¡¥Ñ•´¹•Ð ‰¥ˆ¤½È€ˆˆ¤¹½Ð¥¸µ…¹…•‘}™¥á•‘}¥‘Ìðµ…¹…•‘}µ…É­•É}¥‘Ìð•á¥ÍÑ¥¹}‰ÕÍ}¥‘Ì(€€€€€€€€€t¤((€€€€€€€€€‘•˜É•½¹¥±”¡É•ÍÕ±Ð¤è(€€€€€€€€€€€€€É•ÍÕ±Ð¹Í•Ñ‘•™…Õ±Ð ‰É½±•Ìˆ°íô¤(€€€€€€€€€€€€€™½ÈÍÁ•Œ¥¸™¥á•‘}ÍÁ•Ìè(€€€€€€€€€€€€€€€€€¥Ñ•µ}¥°ÍÑ…Ñ”€ôÁ…Ñ¡}™¥á•¡ÍÁ•Œ¤(€€€€€€€€€€€€€€€€€É•ÍÕ±ÑmÉ•ÍÕ±Ñt€ôÉ•ÍÕ±Ð¹•Ð¡ÍÑ…Ñ”°€À¤€¬€Ä(€€€€€€€€€€€€€€€€€É•ÍÕ±Ñl‰¥‘Ì‰t¹…ÁÁ•¹¡¥Ñ•µ}¥¤(€€€€€€€€€€€€€™½ÈÍÁ•Œ¥¸ÍÕµµ…Éå}Ñ•áÑ}ÍÁ•Ìè(€€€€€€€€€€€€€€€€€¥Ñ•µ}¥°ÍÑ…Ñ”€ôÕÁÍ•ÉÑ}Ñ•áÐ¡ÍÁ•Œ°€‰ÍÕµµ…Éäˆ¤(€€€€€€€€€€€€€€€€€É•ÍÕ±ÑmÉ•ÍÕ±Ñt€ôÉ•ÍÕ±Ð¹•Ð¡ÍÑ…Ñ”°€À¤€¬€Ä(€€€€€€€€€€€€€€€€€É•ÍÕ±Ñl‰¥‘Ì‰t¹…ÁÁ•¹¡¥Ñ•µ}¥¤(€€€€€€€€€€€€€€€€€É•ÍÕ±Ñl‰É½±•Ì‰um˜‰ÍÕµµ…ÉäéíÍÁ•lÉ½±”uô‰t€ô¥Ñ•µ}¥(€€€€€€€€€€€€€™½ÈÍÁ•Œ¥¸ÍÕµµ…Éå}µ…É­•É}ÍÁ•Ìè(€€€€€€€€€€€€€€€€€¥Ñ•µ}¥°ÍÑ…Ñ”€ôÁ…Ñ¡}µ…É­•È¡ÍÁ•Œ¤(€€€€€€€€€€€€€€€€€É•ÍÕ±ÑmÉ•ÍÕ±Ñt€ôÉ•ÍÕ±Ð¹•Ð¡ÍÑ…Ñ”°€À¤€¬€Ä(€€€€€€€€€€€€€€€€€É•ÍÕ±Ñl‰¥‘Ì‰t¹…ÁÁ•¹¡¥Ñ•µ}¥¤(€€€€€€€€€€€€€™½ÈÍÁ•Œ¥¸±••¹‘}Ñ•áÑ}ÍÁ•Ìè(€€€€€€€€€€€€€€€€€¥Ñ•µ}¥°ÍÑ…Ñ”€ôÕÁÍ•ÉÑ}Ñ•áÐ¡ÍÁ•Œ°€‰±••¹ˆ¤(€€€€€€€€€€€€€€€€€É•ÍÕ±ÑmÉ•ÍÕ±Ñt€ôÉ•ÍÕ±Ð¹•Ð¡ÍÑ…Ñ”°€À¤€¬€Ä(€€€€€€€€€€€€€€€€€É•ÍÕ±Ñl‰¥‘Ì‰t¹…ÁÁ•¹¡¥Ñ•µ}¥¤(€€€€€€€€€€€€€€€€€É•ÍÕ±Ñl‰É½±•Ì‰um˜‰±••¹éíÍÁ•lÉ½±”uô‰t€ô¥Ñ•µ}¥(€€€€€€€€€€€€€™½ÈÍÁ•Œ¥¸±••¹‘}µ…É­•É}ÍÁ•Ìè(€€€€€€€€€€€€€€€€€¥Ñ•µ}¥°ÍÑ…Ñ”€ôÁ…Ñ¡}µ…É­•È¡ÍÁ•Œ¤(€€€€€€€€€€€€€€€€€É•ÍÕ±ÑmÉ•ÍÕ±Ñt€ôÉ•ÍÕ±Ð¹•Ð¡ÍÑ…Ñ”°€À¤€¬€Ä(€€€€€€€€€€€€€€€€€É•ÍÕ±Ñl‰¥‘Ì‰t¹…ÁÁ•¹¡¥Ñ•µ}¥¤((€€€€€€€€€™¥ÉÍÐ€ôì‰É•…Ñ•ˆè€À°€‰ÕÁ‘…Ñ•ˆè€À°€‰Õ¹¡…¹•ˆè€À°€‰¥‘Ìˆèmuô(€€€€€€€€€Í•½¹€ôì‰É•…Ñ•ˆè€À°€‰ÕÁ‘…Ñ•ˆè€À°€‰Õ¹¡…¹•ˆè€À°€‰¥‘Ìˆèmuô(€€€€€€€€€ÑÉäè(€€€€€€€€€€€€€É•½¹¥±”¡™¥ÉÍÐ¤(€€€€€€€€€€€€€É•½¹¥±”¡Í•½¹¤(€€€€€€€€€€€€€¥˜Í•½¹‘l‰É•…Ñ•‰t½ÈÍ•½¹‘l‰ÕÁ‘…Ñ•‰t½ÈÍ•½¹‘l‰Õ¹¡…¹•‰t€„ô€ÌÌè(€€€€€€€€€€€€€€€€€É…¥Í”Y…±Õ•ÉÉ½È¡˜‰Í•½¹É•½¹¥±”µÕÑ…Ñ•èíÍ•½¹‘ôˆ¤((€€€€€€€€€€€€€µ…É­•É}¥‘Ì€ôíÍÑÈ¡ÍÁ•l‰¥‰t¤™½ÈÍÁ•Œ¥¸ÍÕµµ…Éå}µ…É­•É}ÍÁ•Ì€¬±••¹‘}µ…É­•É}ÍÁ•Íô(€€€€€€€€€€€€€ÍÕµµ…Éå}É½ÝÌ€ôì(€€€€€€€€€€€€€€€€€ÍÁ•l‰É½±”‰tè}•Ñ}¥Ñ•´ (€€€€€€€€€€€€€€€€€€€€€±¥•¹Ð°‰½…É°Í•½¹‘l‰É½±•Ì‰um˜‰ÍÕµµ…ÉäéíÍÁ•lÉ½±”uô‰t(€€€€€€€€€€€€€€€€€€¤(€€€€€€€€€€€€€€€€€™½ÈÍÁ•Œ¥¸ÍÕµµ…Éå}Ñ•áÑ}ÍÁ•Ì(€€€€€€€€€€€€€ô(€€€€€€€€€€€€€±••¹‘}É½ÝÌ€ôì(€€€€€€€€€€€€€€€€€ÍÁ•l‰É½±”‰tè}•Ñ}¥Ñ•´ (€€€€€€€€€€€€€€€€€€€€€±¥•¹Ð°‰½…É°Í•½¹‘l‰É½±•Ì‰um˜‰±••¹éíÍÁ•lÉ½±”uô‰t(€€€€€€€€€€€€€€€€€€¤(€€€€€€€€€€€€€€€€€™½ÈÍÁ•Œ¥¸±••¹‘}Ñ•áÑ}ÍÁ•Ì(€€€€€€€€€€€€€ô((€€€€€€€€€€€€€™½ÈÍÁ•Œ¥¸ÍÕµµ…Éå}µ…É­•É}ÍÁ•Ìè(€€€€€€€€€€€€€€€€€µ…É­•È€ô}•Ñ}¥Ñ•´¡±¥•¹Ð°‰½…É°ÍÑÈ¡ÍÁ•l‰¥‰t¤¤(€€€€€€€€€€€€€€€€€É½Ü€ôÍÕµµ…Éå}É½ÝÍmÍÁ•l‰­•ä‰ut(€€€€€€€€€€€€€€€€€µ…É­•É}Á½Ì€ôµ…É­•È¹•Ð ‰Á½Í¥Ñ¥½¸ˆ¤½Èíô(€€€€€€€€€€€€€€€€€µ…É­•É}•¼€ôµ…É­•È¹•Ð ‰•½µ•ÑÉäˆ¤½Èíô(€€€€€€€€€€€€€€€€€É½Ý}Á½Ì€ôÉ½Ü¹•Ð ‰Á½Í¥Ñ¥½¸ˆ¤½Èíô(€€€€€€€€€€€€€€€€€É½Ý}•¼€ôÉ½Ü¹•Ð ‰•½µ•ÑÉäˆ¤½Èíô(€€€€€€€€€€€€€€€€€Ù•ÉÑ¥…±}…À€ô…‰Ì¡™±½…Ð¡µ…É­•É}Á½Íl‰ä‰t¤€´™±½…Ð¡É½Ý}Á½Íl‰ä‰t¤¤(€€€€€€€€€€€€€€€€€¡½É¥é½¹Ñ…±}…À€ô€ (€€€€€€€€€€€€€€€€€€€€€™±½…Ð¡É½Ý}Á½Íl‰à‰t¤€´™±½…Ð¡É½Ý}•½l‰Ý¥‘Ñ ‰t¤€¼€È(€€€€€€€€€€€€€€€€€€€€€€´€¡™±½…Ð¡µ…É­•É}Á½Íl‰à‰t¤€¬™±½…Ð¡µ…É­•É}•½l‰Ý¥‘Ñ ‰t¤€¼€È¤(€€€€€€€€€€€€€€€€€€¤(€€€€€€€€€€€€€€€€€¥˜Ù•ÉÑ¥…±}…À€ø€ØÀ½È¹½Ð€ ´ÈÀ€ðô¡½É¥é½¹Ñ…±}…À€ðô€ÄÀÀ¤è(€€€€€€€€€€€€€€€€€€€€€É…¥Í”Y…±Õ•ÉÉ½È¡˜‰ÍÕµµ…Éäµ…É­•È‘•Ñ…¡•™É½´É½ÜèíÍÁ•l­•äuôˆ¤((€€€€€€€€€€€€€™½ÈÍÁ•Œ¥¸±••¹‘}µ…É­•É}ÍÁ•Ìè(€€€€€€€€€€€€€€€€€µ…É­•È€ô}•Ñ}¥Ñ•´¡±¥•¹Ð°‰½…É°ÍÑÈ¡ÍÁ•l‰¥‰t¤¤(€€€€€€€€€€€€€€€€€É½Ü€ô±••¹‘}É½ÝÍmÍÁ•l‰­•ä‰ut(€€€€€€€€€€€€€€€€€µ…É­•É}Á½Ì€ôµ…É­•È¹•Ð ‰Á½Í¥Ñ¥½¸ˆ¤½Èíô(€€€€€€€€€€€€€€€€€µ…É­•É}•¼€ôµ…É­•È¹•Ð ‰•½µ•ÑÉäˆ¤½Èíô(€€€€€€€€€€€€€€€€€É½Ý}Á½Ì€ôÉ½Ü¹•Ð ‰Á½Í¥Ñ¥½¸ˆ¤½Èíô(€€€€€€€€€€€€€€€€€É½Ý}•¼€ôÉ½Ü¹•Ð ‰•½µ•ÑÉäˆ¤½Èíô(€€€€€€€€€€€€€€€€€Ù•ÉÑ¥…±}…À€ô…‰Ì¡™±½…Ð¡µ…É­•É}Á½Íl‰ä‰t¤€´™±½…Ð¡É½Ý}Á½Íl‰ä‰t¤¤(€€€€€€€€€€€€€€€€€¡½É¥é½¹Ñ…±}…À€ô€ (€€€€€€€€€€€€€€€€€€€€€™±½…Ð¡É½Ý}Á½Íl‰à‰t¤€´™±½…Ð¡É½Ý}•½l‰Ý¥‘Ñ ‰t¤€¼€È(€€€€€€€€€€€€€€€€€€€€€€´€¡™±½…Ð¡µ…É­•É}Á½Íl‰à‰t¤€¬™±½…Ð¡µ…É­•É}•½l‰Ý¥‘Ñ ‰t¤€¼€È¤(€€€€€€€€€€€€€€€€€€¤(€€€€€€€€€€€€€€€€€¥˜Ù•ÉÑ¥…±}…À€ø€ØÀ½È¹½Ð€ ´ÈÀ€ðô¡½É¥é½¹Ñ…±}…À€ðô€ÄÀÀ¤è(€€€€€€€€€€€€€€€€€€€€€É…¥Í”Y…±Õ•ÉÉ½È¡˜‰±••¹µ…É­•È‘•Ñ…¡•™É½´É½ÜèíÍÁ•l­•äuôˆ¤((€€€€€€€€€€€€€Íµ…±±}Á…±•ÑÑ•}Í¡…Á•Ì€ômt(€€€€€€€€€€€€€™½È¥Ñ•´¥¸±¥•¹Ð¹±¥ÍÑ}¥Ñ•µÌ¡‰½…É°€‰Í¡…Á”ˆ¤è(€€€€€€€€€€€€€€€€€¥˜ÍÑÈ ¡¥Ñ•´¹•Ð ‰Á…É•¹Ðˆ¤½Èíô¤¹•Ð ‰¥ˆ¤½È€ˆˆ¤€„ô™É…µ”è(€€€€€€€€€€€€€€€€€€€€€½¹Ñ¥¹Õ”(€€€€€€€€€€€€€€€€€•½µ•ÑÉä€ô¥Ñ•´¹•Ð ‰•½µ•ÑÉäˆ¤½Èíô(€€€€€€€€€€€€€€€€€½±½È€ôÍÑÈ ¡¥Ñ•´¹•Ð ‰ÍÑå±”ˆ¤½Èíô¤¹•Ð ‰™¥±±½±½Èˆ¤½È€ˆˆ¤¹±½Ý•È ¤(€€€€€€€€€€€€€€€€€¥˜€ (€€€€€€€€€€€€€€€€€€€€€½±½È¥¸Á…±•ÑÑ”(€€€€€€€€€€€€€€€€€€€€€…¹™±½…Ð¡•½µ•ÑÉä¹•Ð ‰Ý¥‘Ñ ˆ¤½È€À¤€ðô€ÄÀÀ(€€€€€€€€€€€€€€€€€€€€€…¹™±½…Ð¡•½µ•ÑÉä¹•Ð ‰¡•¥¡Ðˆ¤½È€À¤€ðô€ÄÀÀ(€€€€€€€€€€€€€€€€€€¤è(€€€€€€€€€€€€€€€€€€€€€Íµ…±±}Á…±•ÑÑ•}Í¡…Á•Ì¹…ÁÁ•¹¡ÍÑÈ¡¥Ñ•µl‰¥‰t¤¤(€€€€€€€€€€€€€¥˜Í•Ð¡Íµ…±±}Á…±•ÑÑ•}Í¡…Á•Ì¤€„ôµ…É­•É}¥‘Ì½È±•¸¡Íµ…±±}Á…±•ÑÑ•}Í¡…Á•Ì¤€„ô€ÄÈè(€€€€€€€€€€€€€€€€€É…¥Í”Y…±Õ•ÉÉ½È (€€€€€€€€€€€€€€€€€€€€€˜‰‘•Ñ…¡•½È‘ÕÁ±¥…Ñ”µ…ÑÕÉ¥Ñäµ…É­•ÉÌÉ•µ…¥¸èíÍµ…±±}Á…±•ÑÑ•}Í¡…Á•Íôˆ(€€€€€€€€€€€€€€€€€€¤((€€€€€€€€€€€€€™½È­•ä¥¸€ ‰Í…™™½±ˆ°€‰Ý½É­¥¹œˆ°€‰…¹‘¥‘…Ñ”ˆ°€‰Ù…±¥‘…Ñ•ˆ°€‰…•ÁÑ•ˆ°€‰ÍÕÁ•ÉÍ•‘•ˆ¤è(€€€€€€€€€€€€€€€€€¥˜­•ä¹ÕÁÁ•È ¤¹½Ð¥¸…¹½¹¥…°¡ÍÕµµ…Éå}É½ÝÍm­•åt¤è(€€€€€€€€€€€€€€€€€€€€€É…¥Í”Y…±Õ•ÉÉ½È¡˜‰ÍÕµµ…ÉäÉ½Üµ¥ÍÍ¥¹œÍÑ…Ñ”èí­•åôˆ¤(€€€€€€€€€€€€€€€€€¥˜­•ä¹ÕÁÁ•È ¤¹½Ð¥¸…¹½¹¥…°¡±••¹‘}É½ÝÍm­•åt¤è(€€€€€€€€€€€€€€€€€€€€€É…¥Í”Y…±Õ•ÉÉ½È¡˜‰±••¹É½Üµ¥ÍÍ¥¹œÍÑ…Ñ”èí­•åôˆ¤((€€€€€€€€€€€€€ÁÉ½Ñ•Ñ•‘}…™Ñ•È€ô}ÁÉ½Ñ•Ñ•‘}Í¹…ÁÍ¡½Ð (€€€€€€€€€€€€€€€€€±¥•¹Ð°‰½…É°mÍÑÈ¡Ù…±Õ”¤™½ÈÙ…±Õ”¥¸½¹™¥l‰ÁÉ½Ñ•Ñ•‘}™É…µ•}¥‘Ì‰ut(€€€€€€€€€€€€€€¤(€€€€€€€€€€€€€¥˜ÁÉ½Ñ•Ñ•‘}…™Ñ•Él‰‘¥•ÍÐ‰t€„ôÁÉ½Ñ•Ñ•‘}‰•™½É•l‰‘¥•ÍÐ‰tè(€€€€€€€€€€€€€€€€€É…¥Í”Y…±Õ•ÉÉ½È ‰ÁÉ½Ñ•Ñ•™É…µ”‘¥•ÍÐ¡…¹•ˆ¤((€€€€€€€€€€€€€…Ñ¥Ù•}¥‘Ì€ôÍ•Ð¡Í•½¹‘l‰¥‘Ì‰t¤(€€€€€€€€€€€€€™É…µ•}…™Ñ•È€ôl(€€€€€€€€€€€€€€€€€¥Ñ•´™½È¥Ñ•´¥¸±¥•¹Ð¹±¥ÍÑ}¥Ñ•µÌ¡‰½…É¤(€€€€€€€€€€€€€€€€€¥˜ÍÑÈ ¡¥Ñ•´¹•Ð ‰Á…É•¹Ðˆ¤½Èíô¤¹•Ð ‰¥ˆ¤½È€ˆˆ¤€ôô™É…µ”(€€€€€€€€€€€€€t(€€€€€€€€€€€€€Õ¹µ…¹…•‘}…™Ñ•È€ô‘¥•ÍÐ¡l(€€€€€€€€€€€€€€€€€¥Ñ•´™½È¥Ñ•´¥¸™É…µ•}…™Ñ•È(€€€€€€€€€€€€€€€€€¥˜ÍÑÈ¡¥Ñ•´¹•Ð ‰¥ˆ¤½È€ˆˆ¤¹½Ð¥¸…Ñ¥Ù•}¥‘Ì(€€€€€€€€€€€€€t¤(€€€€€€€€€€€€€¥˜Õ¹µ…¹…•‘}…™Ñ•È€„ôÕ¹µ…¹…•‘}‰•™½É”è(€€€€€€€€€€€€€€€€€É…¥Í”Y…±Õ•ÉÉ½È ‰Õ¹µ…¹…•™É…µ”€ÀÀ½¹Ñ•¹Ð¡…¹•ˆ¤((€€€€€€€€€€€€€É•Á½ÉÐ¹ÕÁ‘…Ñ”¡ì(€€€€€€€€€€€€€€€€€€‰ÍÑ…ÑÕÌˆè€‰AMLˆ°(€€€€€€€€€€€€€€€€€€‰Ñ•¡¹¥…±}ÍÑ…ÑÕÌˆè€‰AMLˆ°(€€€€€€€€€€€€€€€€€€‰½Ù•É…±±}ÍÑ…ÑÕÌˆè€‰Ie}=I}!U59}IY%\ˆ°(€€€€€€€€€€€€€€€€€€‰™¥ÉÍÑ}ÉÕ¸ˆè™¥ÉÍÐ°(€€€€€€€€€€€€€€€€€€‰Í•½¹‘}ÉÕ¸ˆèÍ•½¹°(€€€€€€€€€€€€€€€€€€‰é•É½}µÕÑ…Ñ¥½¹}Í•½¹‘}ÉÕ¸ˆèQÉÕ”°(€€€€€€€€€€€€€€€€€€‰µ…¹…•‘}¥Ñ•µ}½Õ¹Ðˆè±•¸¡…Ñ¥Ù•}¥‘Ì¤°(€€€€€€€€€€€€€€€€€€‰µ…É­•É}¥Ñ•µ}½Õ¹Ðˆè±•¸¡µ…É­•É}¥‘Ì¤°(€€€€€€€€€€€€€€€€€€‰‘•Ñ…¡•‘}µ…É­•É}½Õ¹Ðˆè€À°(€€€€€€€€€€€€€€€€€€‰ÁÉ½Ñ•Ñ•‘}™É…µ•Ìˆèì(€€€€€€€€€€€€€€€€€€€€€€‰½Õ¹Ðˆè±•¸¡½¹™¥l‰ÁÉ½Ñ•Ñ•‘}™É…µ•}¥‘Ì‰t¤°(€€€€€€€€€€€€€€€€€€€€€€‰Õ¹¡…¹•ˆèQÉÕ”°(€€€€€€€€€€€€€€€€€€€€€€‰‰•™½É•}‘¥•ÍÐˆèÁÉ½Ñ•Ñ•‘}‰•™½É•l‰‘¥•ÍÐ‰t°(€€€€€€€€€€€€€€€€€€€€€€‰…™Ñ•É}‘¥•ÍÐˆèÁÉ½Ñ•Ñ•‘}…™Ñ•Él‰‘¥•ÍÐ‰t°(€€€€€€€€€€€€€€€€€ô°(€€€€€€€€€€€€€€€€€€‰Õ¹µ…¹…•‘}™É…µ•|ÀÁ}Õ¹¡…¹•ˆèQÉÕ”°(€€€€€€€€€€€€€€€€€€‰É½±±‰…¬ˆèì‰ÍÑ…ÑÕÌˆè€‰9=Q}IEU%I‰ô°(€€€€€€€€€€€€€ô¤(€€€€€€€€€€€€€A…Ñ ¡½Ì¹•¹Ù¥É½¹l‰IA=IQ}AQ ‰t¤¹ÝÉ¥Ñ•}Ñ•áÐ (€€€€€€€€€€€€€€€€€©Í½¸¹‘ÕµÁÌ¡É•Á½ÉÐ°•¹ÍÕÉ•}…Í¥¤õ…±Í”°¥¹‘•¹ÐôÈ¤€¬€‰q¸ˆ°(€€€€€€€€€€€€€€€€€•¹½‘¥¹œô‰ÕÑ˜´àˆ°(€€€€€€€€€€€€€€¤(€€€€€€€€€•á•ÁÐá•ÁÑ¥½¸…Ì•áŒè(€€€€€€€€€€€€€É•Á½ÉÐ¹ÕÁ‘…Ñ”¡ì(€€€€€€€€€€€€€€€€€€‰•ÉÉ½ÈˆèÍÑÈ¡•áŒ¤°(€€€€€€€€€€€€€€€€€€‰É½±±‰…¬ˆèÉ½±±‰…¬ ¤°(€€€€€€€€€€€€€ô¤(€€€€€€€€€€€€€A…Ñ ¡½Ì¹•¹Ù¥É½¹l‰IA=IQ}AQ ‰t¤¹ÝÉ¥Ñ•}Ñ•áÐ (€€€€€€€€€€€€€€€€€©Í½¸¹‘ÕµÁÌ¡É•Á½ÉÐ°•¹ÍÕÉ•}…Í¥¤õ…±Í”°¥¹‘•¹ÐôÈ¤€¬€‰q¸ˆ°(€€€€€€€€€€€€€€€€€•¹½‘¥¹œô‰ÕÑ˜´àˆ°(€€€€€€€€€€€€€€¤(€€€€€€€€€€€€€É…¥Í”(€€€€€€€€€€ ðÁåÑ¡½¸€´((€€€€€€€€€¥˜€ ‘1MQa%Q=€µ¹”€À¤ì(€€€€€€€€€€€•Ðµ½¹Ñ•¹Ð€‘•¹ØéIA=IQ}AQ €µÉÉ½ÉÑ¥½¸M¥±•¹Ñ±å½¹Ñ¥¹Õ”(€€€€€€€€€€€Ñ¡É½Ü€I4´ÀÄÈ¸Ì¸Ø™É…µ”€ÀÀ•á•ÕÑ¥½¸™…¥±•¸œ(€€€€€€€€€ô(€€€€€€€€€€‘É•ÍÕ±Ð€ô•Ðµ½¹Ñ•¹Ð€‘•¹ØéIA=IQ}AQ €µI…Ü€µ¹½‘¥¹œUQàð½¹Ù•ÉÑÉ½´µ)Í½¸(€€€€€€€€€¥˜€¡mÍÑÉ¥¹t‘É•ÍÕ±Ð¹ÍÑ…ÑÕÌ€µ¹”€AMLœ€µ½ÈmÍÑÉ¥¹t‘É•ÍÕ±Ð¹Ñ•¡¹¥…±}ÍÑ…ÑÕÌ€µ¹”€AMLœ¤ì(€€€€€€€€€€€Ñ¡É½Ü€Q•¡¹¥…°ÍÑ…ÑÕÌ¥Ì¹½ÐAML¸œ(€€€€€€€€€ô(€€€€€€€€€¥˜€ µ¹½Ðm‰½½±t‘É•ÍÕ±Ð¹é•É½}µÕÑ…Ñ¥½¹}Í•½¹‘}ÉÕ¸€µ½Èm¥¹Ñt‘É•ÍÕ±Ð¹Í•½¹‘}ÉÕ¸¹Õ¹¡…¹•€µ¹”€ÌÌ¤ì(€€€€€€€€€€€Ñ¡É½Ü€M•½¹É•½¹¥±”Ý…Ì¹½Ðé•É¼µÕÑ…Ñ¥½¸¸œ(€€€€€€€€€ô(€€€€€€€€€¥˜€¡m¥¹Ñt‘É•ÍÕ±Ð¹‘•Ñ…¡•‘}µ…É­•É}½Õ¹Ð€µ¹”€À€µ½Èm¥¹Ñt‘É•ÍÕ±Ð¹µ…É­•É}¥Ñ•µ}½Õ¹Ð€µ¹”€ÄÈ¤ì(€€€€€€€€€€€Ñ¡É½Ü€5…ÑÕÉ¥Ñäµ…É­•È±…å½ÕÐÙ•É¥™¥…Ñ¥½¸™…¥±•¸œ(€€€€€€€€€ô(€€€€€€€€€¥˜€ µ¹½Ðm‰½½±t‘É•ÍÕ±Ð¹ÁÉ½Ñ•Ñ•‘}™É…µ•Ì¹Õ¹¡…¹•€µ½Èm¥¹Ñt‘É•ÍÕ±Ð¹ÁÉ½Ñ•Ñ•‘}™É…µ•Ì¹½Õ¹Ð€µ¹”€ÄÜ¤ì(€€€€€€€€€€€Ñ¡É½Ü€AÉ½Ñ•Ñ•™É…µ”Ù•É¥™¥…Ñ¥½¸™…¥±•¸œ(€€€€€€€€€ô(€€€€€€€€€¥˜€ µ¹½Ðm‰½½±t‘É•ÍÕ±Ð¹Õ¹µ…¹…•‘}™É…µ•|ÀÁ}Õ¹¡…¹•¤ì(€€€€€€€€€€€Ñ¡É½Ü€U¹µ…¹…•™É…µ”€ÀÀ½¹Ñ•¹Ð¡…¹•¸œ(€€€€€€€€€ô((€€€€€€€€€  (€€€€€€€€€€€€‰I4´ÀÄÈ¸Ì¸ØÑ•¡¹¥…°ÍÑ…ÑÕÌè€ ‘É•ÍÕ±Ð¹Ñ•¡¹¥…±}ÍÑ…ÑÕÌ¤ˆ(€€€€€€€€€€€€‰AÉ½‘ÕÐM!è€‘•¹ØéAI=UQ}M!ˆ(€€€€€€€€€€€€‰QÉ…¹ÍÁ½ÉÐM!è€‘•¹ØéQI9MA=IQ}M!ˆ(€€€€€€€€€€€€‰5…¹…•¥Ñ•µÌè€ ‘É•ÍÕ±Ð¹µ…¹…•‘}¥Ñ•µ}½Õ¹Ð¤ˆ(€€€€€€€€€€€€‰5…ÑÕÉ¥Ñäµ…É­•ÉÌè€ÄÈì‘•Ñ…¡•µ…É­•ÉÌè€Àˆ(€€€€€€€€€€€€‰M•½¹É•½¹¥±”èé•É¼µÕÑ…Ñ¥½¸ˆ(€€€€€€€€€€€€‰AÉ½Ñ•Ñ•™É…µ•Ìè€ÄÜÕ¹¡…¹•ˆ(€€€€€€€€€€€€‰!Õµ…¸É•Ù¥•ÜèA9%9ƒŠPÉ•Á•…Ð!YH´Ä½¹±äˆ(€€€€€€€€€€¤ð‘µ½¹Ñ•¹Ð€‘•¹Øé%Q!U	}MQA}MU55Id((€€€€€€´¹…µ”èUÁ±½…•Ù¥‘•¹”(€€€€€€€¥˜è…±Ý…åÌ ¤(€€€€€€€ÕÍ•Ìè…Ñ¥½¹Ì½ÕÁ±½…µ…ÉÑ¥™…ÑØÐ(€€€€€€€Ý¥Ñ è(€€€€€€€€€¹…µ”èÉ•´´ÀÄÈ´Ì´Øµ™É…µ”´ÀÀ´‘íì•¹Ø¹AI}9U5	Hõô´‘íì•¹Ø¹AI=UQ}M!õô(€€€€€€€€€Á…Ñ è€‘íì•¹Ø¹Y%9}I==Põô¼¨¨(€€€€€€€€€¥˜µ¹¼µ™¥±•Ìµ™½Õ¹è•ÉÉ½È(€€€€€€€€€É•Ñ•¹Ñ¥½¸µ‘…åÌè€ÌÀ(
