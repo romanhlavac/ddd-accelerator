@@ -1,4 +1,4 @@
-name: DDDA REM-012.3.6 frame 00 inline maturity markers
+name: DDDA REM-012.4 frame 00 decision cockpit
 
 on:
   pull_request:
@@ -8,122 +8,230 @@ on:
 permissions:
   actions: read
   contents: read
-  issues: read
 
 concurrency:
-  group: ddda-rem-012-3-6-frame-00-${{ github.ref }}
+  group: ddda-rem-012-4-frame-00-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   remediate:
-    if: github.event.pull_request.number == 8 && github.actor == 'romanhlavac' && github.event.pull_request.head.repo.full_name == github.repository
+    name: Exact-code REM-012.4 frame 00 remediation
+    if: >-
+      github.event.pull_request.number == 8 &&
+      github.actor == 'romanhlavac' &&
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: windows-latest
     timeout-minutes: 120
     env:
-      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-      PREVIOUS_SHA: 0681469c8ddd0d9c5d845862f3c76d63b24749d1
-      PRODUCT_SHA: 8b50f8e8c0e47521a8028010058db48c6f79fb95
-      BASE_SHA: 12d7b67cca1c4c3fc68d3de4b7033a375368ce3a
-      PAYLOAD_COMMENT_ID: '5203019262'
-      COMPRESSED_SHA256: 92064c0c88489e11c60d556c2cd8c6ed4a3e43af5d87619876c3f8d4f406b62b
-      RAW_SHA256: 45850a4cfb7d94458bc65cda3a057dec8725d17add1d7fb4dfdc7f763c7dfa57
+      TRANSPORT_SHA: ${{ github.event.pull_request.head.sha }}
+      PRODUCT_SHA: 9efec3b08e640b175a119e4af7aa988dd891a9cf
+      BASE_SHA: 6d34b008d5b6c32bdc6c555649f1047de3f1f66c
       GH_TOKEN: ${{ github.token }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
+
     steps:
-      - uses: actions/checkout@v4
-        with: {fetch-depth: 0, ref: "${{ env.HEAD_SHA }}"}
-      - uses: actions/setup-python@v5
-        with: {python-version: "3.11"}
-      - name: Verify lineage and materialize pinned payload
+      - name: Checkout exact transport head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.TRANSPORT_SHA }}
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Initialize evidence
         shell: pwsh
         run: |
-          $env:EVIDENCE = Join-Path $env:RUNNER_TEMP 'rem-012-3-6'
-          New-Item -ItemType Directory -Path $env:EVIDENCE -Force | Out-Null
-          "EVIDENCE=$env:EVIDENCE" | Out-File $env:GITHUB_ENV -Append
+          $root = Join-Path $env:RUNNER_TEMP 'rem-012-4-frame-00'
+          New-Item -ItemType Directory -Path $root -Force | Out-Null
+          "EVIDENCE_ROOT=$root" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          [ordered]@{
+            repository = $env:GITHUB_REPOSITORY
+            pr = [int]$env:PR_NUMBER
+            transport_sha = $env:TRANSPORT_SHA
+            product_sha = $env:PRODUCT_SHA
+            base_sha = $env:BASE_SHA
+            board_id = 'uXjVH1phki0='
+            frame_id = '3458764679756478046'
+            remediation_id = 'REM-PR8-HVA-CC-012.4'
+            merge_allowed = $false
+            promotion_allowed = $false
+            release_allowed = $false
+            gate_approval_allowed = $false
+            human_review_status = 'PENDING'
+          } | ConvertTo-Json | Set-Content (Join-Path $root 'identity.json') -Encoding utf8
+
+      - name: Verify exact lineage and path allowlist
+        shell: pwsh
+        run: |
           @'
-          import base64, gzip, hashlib, json, os, re, subprocess, urllib.request
+          import json, os, subprocess
           from pathlib import Path
-          g=lambda *a: subprocess.check_output(['git',*a],text=True).strip()
-          h,p,b=[os.environ[x] for x in ('HEAD_SHA','PRODUCT_SHA','BASE_SHA')]
-          prev=os.environ['PREVIOUS_SHA']; w='.github/workflows/miro-anchor-remediation.yml'
-          assert g('rev-parse','HEAD')==h and g('rev-parse',h+'^')==prev
-          assert g('rev-parse',prev+'^^^^')==p and g('rev-parse',p+'^')==b
-          assert g('show','-s','--format=%s',h)=='fix(ci): use compressed REM-012.3.6 payload'
-          assert g('diff-tree','--no-commit-id','--name-only','-r',h)==w
-          url=f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/issues/comments/{os.environ['PAYLOAD_COMMENT_ID']}"
-          req=urllib.request.Request(url,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
-          with urllib.request.urlopen(req) as r: item=json.load(r)
-          assert item['user']['login']=='romanhlavac'
-          m=re.search(r'```text\n([A-Za-z0-9+/=\n]+)\n```',item['body'])
-          assert m
-          compressed=base64.b64decode(''.join(m.group(1).split()))
-          assert hashlib.sha256(compressed).hexdigest()==os.environ['COMPRESSED_SHA256']
-          raw=gzip.decompress(compressed)
-          assert hashlib.sha256(raw).hexdigest()==os.environ['RAW_SHA256']
-          Path(os.environ['EVIDENCE'],'apply.py').write_bytes(raw)
-          compile(raw,'apply.py','exec')
-          Path(os.environ['EVIDENCE'],'identity.json').write_text(json.dumps({'status':'PASS','base_sha':b,'product_sha':p,'transport_sha':h,'payload_comment_id':int(os.environ['PAYLOAD_COMMENT_ID']),'compressed_sha256':os.environ['COMPRESSED_SHA256'],'raw_sha256':os.environ['RAW_SHA256'],'human_review_status':'PENDING','merge_allowed':False,'release_allowed':False},indent=2)+'\n')
+
+          def git(*args):
+              return subprocess.check_output(['git', *args], text=True).strip()
+
+          transport = os.environ['TRANSPORT_SHA']
+          product = os.environ['PRODUCT_SHA']
+          base = os.environ['BASE_SHA']
+          workflow = '.github/workflows/miro-anchor-remediation.yml'
+          expected_product_paths = sorted([
+              'docs/reviews/REM-PR8-HVA-CC-012-4-frame-00-control-center.md',
+              'runtime/miro/ddda_miro/frame00_contract.py',
+              'runtime/miro/ddda_miro/frame00_control_center.py',
+              'runtime/miro/ddda_miro/frame00_reconcile.py',
+              'runtime/miro/tests/test_rem_012_4_frame_00.py',
+              'scaffolds/miro/rem-012-4-frame-00.yaml',
+          ])
+
+          assert git('rev-parse', 'HEAD') == transport, 'transport checkout mismatch'
+          assert git('rev-parse', transport + '^') == product, 'transport parent mismatch'
+          assert git('rev-parse', product + '^') == base, 'product parent mismatch'
+          assert git('show', '-s', '--format=%s', product) == 'fix(miro): make frame 00 a project decision cockpit'
+          assert git('show', '-s', '--format=%s', transport) == 'fix(ci): authorize REM-012.4 frame 00 remediation'
+          product_paths = sorted(filter(None, git('diff-tree', '--no-commit-id', '--name-only', '-r', product).splitlines()))
+          transport_paths = list(filter(None, git('diff-tree', '--no-commit-id', '--name-only', '-r', transport).splitlines()))
+          assert product_paths == expected_product_paths, f'product allowlist mismatch: {product_paths}'
+          assert transport_paths == [workflow], f'transport is not workflow-only: {transport_paths}'
+          Path(os.environ['EVIDENCE_ROOT'], 'source-contract.json').write_text(json.dumps({
+              'status': 'PASS',
+              'base_sha': base,
+              'product_sha': product,
+              'transport_sha': transport,
+              'product_paths': product_paths,
+              'transport_paths': transport_paths,
+          }, indent=2) + '\n', encoding='utf-8')
           '@ | python -
+
       - name: Wait for exact-SHA CI
         shell: pwsh
         run: |
           @'
-          import json,os,time,urllib.request
-          repo=os.environ['GITHUB_REPOSITORY']; hdr={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'}
-          def get(u):
-            with urllib.request.urlopen(urllib.request.Request(u,headers=hdr)) as r:return json.load(r)
-          def wait(sha,names):
-            for _ in range(320):
-              rs=get(f'https://api.github.com/repos/{repo}/actions/runs?head_sha={sha}&event=pull_request&per_page=100')['workflow_runs'];ok=True
-              for n in names:
-                xs=[x for x in rs if x['name']==n];x=max(xs,key=lambda z:z['run_number']) if xs else None
-                if x and x['status']=='completed' and x['conclusion']!='success':raise SystemExit(f'{n}={x["conclusion"]}')
-                ok &= bool(x and x['status']=='completed' and x['conclusion']=='success')
-              if ok:return
-              time.sleep(15)
-            raise SystemExit('CI timeout')
-          wait(os.environ['PRODUCT_SHA'],['Validate DDDA','DDDA exact-code Miro image probe'])
-          wait(os.environ['HEAD_SHA'],['Validate DDDA','DDDA platform CI','DDDA exact-code Miro image probe'])
+          import json, os, time, urllib.request
+          from pathlib import Path
+
+          repo = os.environ['GITHUB_REPOSITORY']
+          token = os.environ['GH_TOKEN']
+          headers = {
+              'Authorization': f'Bearer {token}',
+              'Accept': 'application/vnd.github+json',
+              'X-GitHub-Api-Version': '2022-11-28',
+          }
+
+          def get(url):
+              with urllib.request.urlopen(urllib.request.Request(url, headers=headers)) as response:
+                  return json.load(response)
+
+          def runs(sha):
+              return get(f'https://api.github.com/repos/{repo}/actions/runs?head_sha={sha}&event=pull_request&per_page=100')['workflow_runs']
+
+          def latest(items, name):
+              matches = [item for item in items if item['name'] == name]
+              return max(matches, key=lambda item: item['run_number']) if matches else None
+
+          def wait_for(sha, required, label):
+              for _ in range(320):
+                  current = runs(sha)
+                  state, complete = [], True
+                  for name in required:
+                      run = latest(current, name)
+                      if not run:
+                          state.append({'name': name, 'status': 'missing'})
+                          complete = False
+                          continue
+                      snapshot = {key: run.get(key) for key in ('id', 'name', 'status', 'conclusion', 'html_url')}
+                      state.append(snapshot)
+                      if run['status'] == 'completed' and run['conclusion'] != 'success':
+                          raise SystemExit(f'{label} workflow {name} failed: {run["conclusion"]}')
+                      if run['status'] != 'completed' or run['conclusion'] != 'success':
+                          complete = False
+                  Path(os.environ['EVIDENCE_ROOT'], f'{label}-ci.json').write_text(json.dumps(state, indent=2) + '\n', encoding='utf-8')
+                  if complete:
+                      return state
+                  time.sleep(15)
+              raise SystemExit(f'{label} CI did not reach PASS')
+
+          product = wait_for(os.environ['PRODUCT_SHA'], ['Validate DDDA', 'DDDA platform CI', 'DDDA exact-code Miro image probe'], 'product')
+          transport = wait_for(os.environ['TRANSPORT_SHA'], ['Validate DDDA', 'DDDA platform CI', 'DDDA exact-code Miro image probe'], 'transport')
+          Path(os.environ['EVIDENCE_ROOT'], 'ci-summary.json').write_text(json.dumps({'product': product, 'transport': transport}, indent=2) + '\n', encoding='utf-8')
           '@ | python -
+
       - name: Verify Miro secret
-        shell: pwsh
-        env: {MIRO_ACCESS_TOKEN: "${{ secrets.MIRO_ACCESS_TOKEN }}"}
-        run: if ([string]::IsNullOrWhiteSpace($env:MIRO_ACCESS_TOKEN)){throw 'MIRO_ACCESS_TOKEN required'}
-      - uses: actions/checkout@v4
-        with: {fetch-depth: 0, ref: "${{ env.PRODUCT_SHA }}"}
-      - name: Test and build candidate
-        id: pkg
-        shell: pwsh
-        run: |
-          python -m pip install --disable-pip-version-check --no-input pytest 'ruamel.yaml>=0.18,<0.19' requests pyyaml
-          $env:PYTHONPATH=Join-Path $PWD.Path 'runtime\miro'
-          python -m pytest runtime/miro/tests/test_rem_012_3_5_frame_00.py -q
-          if($LASTEXITCODE){throw 'product tests failed'}
-          git reset --hard $env:PRODUCT_SHA; git clean -ffdx
-          $o=Join-Path $env:RUNNER_TEMP ('rem-012-3-6-'+$env:PRODUCT_SHA.Substring(0,12)+'.zip');$v='rem-012-3-6.'+$env:GITHUB_RUN_ID
-          $p=(.\scripts\platform\New-DDDAPlatformPackage.ps1 -PlatformPath $PWD.Path -Kind candidate -Version $v -SourceRef $env:PRODUCT_SHA -OutputPath $o -Json|Out-String).Trim()|ConvertFrom-Json
-          if([string]$p.source_commit-ne$env:PRODUCT_SHA){throw 'provenance mismatch'}
-          "path=$($p.path)"|Out-File $env:GITHUB_OUTPUT -Append;"sha=$($p.sha256)"|Out-File $env:GITHUB_OUTPUT -Append
-          [ordered]@{status='PASS';source_sha=$env:PRODUCT_SHA;package_sha256=[string]$p.sha256}|ConvertTo-Json|Set-Content (Join-Path $env:EVIDENCE 'package.json')
-      - name: Apply and verify frame 00
         shell: pwsh
         env:
           MIRO_ACCESS_TOKEN: ${{ secrets.MIRO_ACCESS_TOKEN }}
-          PACKAGE_PATH: ${{ steps.pkg.outputs.path }}
-          PACKAGE_SHA256: ${{ steps.pkg.outputs.sha }}
-          TRANSPORT_SHA: ${{ env.HEAD_SHA }}
         run: |
-          $r=Join-Path $env:RUNNER_TEMP 'rem-012-3-6-package';Expand-Archive $env:PACKAGE_PATH $r -Force
-          $rt=Join-Path $r 'runtime\miro';python -m pip install --disable-pip-version-check --no-input $rt;$env:PYTHONPATH=$rt
-          $env:REMEDIATION_MANIFEST=Join-Path $r 'scaffolds\miro\rem-012-3-5-frame-00.yaml';$env:REPORT_PATH=Join-Path $env:EVIDENCE 'result.json'
-          python (Join-Path $env:EVIDENCE 'apply.py')
-          if($LASTEXITCODE){Get-Content $env:REPORT_PATH -ErrorAction SilentlyContinue;throw 'REM-012.3.6 failed'}
-          $x=Get-Content $env:REPORT_PATH -Raw|ConvertFrom-Json
-          if($x.status-ne'PASS'-or$x.second_run.unchanged-ne33-or$x.marker_item_count-ne12-or$x.detached_marker_count-ne0){throw 'verification failed'}
-      - if: always()
+          if ([string]::IsNullOrWhiteSpace($env:MIRO_ACCESS_TOKEN)) { throw 'MIRO_ACCESS_TOKEN is required.' }
+
+      - name: Checkout exact product source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.PRODUCT_SHA }}
+
+      - name: Test and build exact-SHA candidate
+        id: package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -m pip install --disable-pip-version-check --no-input pytest 'ruamel.yaml>=0.18,<0.19' requests pyyaml
+          $env:PYTHONPATH = Join-Path $PWD.Path 'runtime\miro'
+          python -m pytest runtime/miro/tests/test_rem_012_4_frame_00.py -q
+          if ($LASTEXITCODE -ne 0) { throw 'REM-012.4 product tests failed.' }
+          git reset --hard $env:PRODUCT_SHA
+          git clean -ffdx
+          if ((git rev-parse HEAD).Trim() -ne $env:PRODUCT_SHA -or (git status --porcelain)) { throw 'Product source is not clean.' }
+          $version = 'rem-012-4.' + $env:GITHUB_RUN_ID + '.' + $env:PRODUCT_SHA.Substring(0, 12)
+          $output = Join-Path $env:RUNNER_TEMP ('ddda-rem-012-4-' + $env:PRODUCT_SHA.Substring(0, 12) + '.zip')
+          $package = (.\scripts\platform\New-DDDAPlatformPackage.ps1 -PlatformPath $PWD.Path -Kind candidate -Version $version -SourceRef $env:PRODUCT_SHA -OutputPath $output -Json | Out-String).Trim() | ConvertFrom-Json
+          if ([string]$package.source_commit -ne $env:PRODUCT_SHA) { throw 'Candidate provenance mismatch.' }
+          [ordered]@{
+            status = 'PASS'
+            source_sha = $env:PRODUCT_SHA
+            package_path = [string]$package.path
+            package_sha256 = [string]$package.sha256
+          } | ConvertTo-Json | Set-Content (Join-Path $env:EVIDENCE_ROOT 'package.json') -Encoding utf8
+          "package_path=$($package.path)" | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "package_sha256=$($package.sha256)" | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Apply and verify frame 00 only
+        shell: pwsh
+        env:
+          MIRO_ACCESS_TOKEN: ${{ secrets.MIRO_ACCESS_TOKEN }}
+          PACKAGE_PATH: ${{ steps.package.outputs.package_path }}
+          PACKAGE_SHA256: ${{ steps.package.outputs.package_sha256 }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          .\scripts\platform\Test-DDDAPlatformPackage.ps1 -PackagePath $env:PACKAGE_PATH -ExpectedCommit $env:PRODUCT_SHA -ExpectedKind candidate
+          $packageRoot = Join-Path $env:RUNNER_TEMP 'rem-012-4-package'
+          if (Test-Path $packageRoot) { Remove-Item $packageRoot -Recurse -Force }
+          Expand-Archive $env:PACKAGE_PATH $packageRoot -Force
+          $packageManifest = Get-Content (Join-Path $packageRoot 'ddda-package.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+          if ([string]$packageManifest.source_commit -ne $env:PRODUCT_SHA -or [string]$packageManifest.kind -ne 'candidate') { throw 'Expanded package provenance mismatch.' }
+          $runtime = Join-Path $packageRoot 'runtime\miro'
+          python -m pip install --disable-pip-version-check --no-input $runtime
+          $env:PYTHONPATH = $runtime
+          $manifest = Join-Path $packageRoot 'scaffolds\miro\rem-012-4-frame-00.yaml'
+          $report = Join-Path $env:EVIDENCE_ROOT 'result.json'
+          python -m ddda_miro.frame00_control_center --manifest $manifest --report $report --source-sha $env:PRODUCT_SHA --apply
+          if ($LASTEXITCODE -ne 0) {
+            Get-Content $report -ErrorAction SilentlyContinue
+            throw 'REM-012.4 online remediation failed.'
+          }
+          $result = Get-Content $report -Raw -Encoding UTF8 | ConvertFrom-Json
+          if ($result.status -ne 'PASS') { throw 'Result status is not PASS.' }
+          if ($result.second_run.updated -ne 0 -or $result.second_run.deleted -ne 0 -or $result.second_run.unchanged -ne 8) { throw 'Second reconcile is not zero mutation.' }
+          if (-not $result.protected_frames.unchanged -or $result.protected_frames.count -ne 17) { throw 'Protected frame contract failed.' }
+          if ($result.technical_status -ne 'PASS' -or $result.human_review_status -ne 'PENDING' -or $result.overall_status -ne 'READY_FOR_HUMAN_REVIEW') { throw 'Acceptance state mismatch.' }
+          if ($result.merge_allowed -or $result.promotion_allowed -or $result.release_allowed -or $result.gate_approval_allowed) { throw 'Governance fail-closed contract failed.' }
+
+      - name: Upload evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: rem-012-3-6-frame-00-${{ env.PR_NUMBER }}-${{ env.PRODUCT_SHA }}
-          path: ${{ env.EVIDENCE }}/**
+          name: rem-012-4-frame-00-pr-${{ env.PR_NUMBER }}-${{ env.PRODUCT_SHA }}
+          path: ${{ env.EVIDENCE_ROOT }}/**
           if-no-files-found: error
           retention-days: 30
