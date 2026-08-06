@@ -21,7 +21,7 @@ jobs:
     timeout-minutes: 120
     env:
       HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-      PREVIOUS_SHA: b893dbd94445a1e12ad047d2db3f3b19f10cf715
+      PREVIOUS_SHA: fc9764d86ff3b345da5719a0b555d2118b968bee
       PRODUCT_SHA: 8b50f8e8c0e47521a8028010058db48c6f79fb95
       BASE_SHA: 12d7b67cca1c4c3fc68d3de4b7033a375368ce3a
       PAYLOAD_COMMENT_ID: '5203019262'
@@ -47,7 +47,7 @@ jobs:
           prev=os.environ['PREVIOUS_SHA']; w='.github/workflows/miro-anchor-remediation.yml'
           assert g('rev-parse','HEAD')==h and g('rev-parse',h+'^')==prev
           assert g('rev-parse',prev+'^^^')==p and g('rev-parse',p+'^')==b
-          assert g('show','-s','--format=%s',h)=='fix(ci): execute pinned REM-012.3.6 remediation'
+          assert g('show','-s','--format=%s',h)=='fix(ci): correct REM-012.3.6 lineage precondition'
           assert g('diff-tree','--no-commit-id','--name-only','-r',h)==w
           url=f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/issues/comments/{os.environ['PAYLOAD_COMMENT_ID']}"
           req=urllib.request.Request(url,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
@@ -84,7 +84,7 @@ jobs:
           '@ | python -
       - name: Verify Miro secret
         shell: pwsh
-        env: {MIRO_ACCESS_TOKEN: "${{ secrets.MIRO_ACCESS_TOKEN }}"}
+        env: {MIRO_ACCCESS_TOKEN: "${{ secrets.MIRO_ACCESS_TOKEN }}"}
         run: if ([string]::IsNullOrWhiteSpace($env:MIRO_ACCESS_TOKEN)){throw 'MIRO_ACCESS_TOKEN required'}
       - uses: actions/checkout@v4
         with: {fetch-depth: 0, ref: "${{ env.PRODUCT_SHA }}"}
@@ -114,8 +114,8 @@ jobs:
           $rt=Join-Path $r 'runtime\miro';python -m pip install --disable-pip-version-check --no-input $rt;$env:PYTHONPATH=$rt
           $env:REMEDIATION_MANIFEST=Join-Path $r 'scaffolds\miro\rem-012-3-5-frame-00.yaml';$env:REPORT_PATH=Join-Path $env:EVIDENCE 'result.json'
           python (Join-Path $env:EVIDENCE 'apply.py')
-          if($LASTEXITCODE){Get-Content $env:REPORT_PATH -ErrorAction SilentlyContinue;throw 'REM-012.3.6 failed'}
-          $x=Get-Content $env:REPORT_PATH -Raw|ConvertFrom-Json
+          if($LASTEXITCODE){Get-Content $env:REPORT -ErrorAction SilentlyContinue;throw 'REM-012.3.6 failed'}
+          $x=Get-Content $env:REPORT -Raw|ConvertFrom-Json
           if($x.status-ne'PASS'-or$x.second_run.unchanged-ne33-or$x.marker_item_count-ne12-or$x.detached_marker_count-ne0){throw 'verification failed'}
       - if: always()
         uses: actions/upload-artifact@v4
