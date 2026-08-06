@@ -24,8 +24,8 @@ jobs:
     timeout-minutes: 120
     env:
       TRANSPORT_SHA: ${{ github.event.pull_request.head.sha }}
-      PRODUCT_SHA: 9efec3b08e640b175a119e4af7aa988dd891a9cf
-      BASE_SHA: 6d34b008d5b6c32bdc6c555649f1047de3f1f66c
+      PRODUCT_SHA: b18bb6edde7641ccd3881442d2fd033691869ce3
+      BASE_SHA: 386565ec36da14e60f72e8374dce5ecd48e04eeb
       GH_TOKEN: ${{ github.token }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
 
@@ -80,8 +80,6 @@ jobs:
           expected_product_paths = sorted([
               'docs/reviews/REM-PR8-HVA-CC-012-4-frame-00-control-center.md',
               'runtime/miro/ddda_miro/frame00_contract.py',
-              'runtime/miro/ddda_miro/frame00_control_center.py',
-              'runtime/miro/ddda_miro/frame00_reconcile.py',
               'runtime/miro/tests/test_rem_012_4_frame_00.py',
               'scaffolds/miro/rem-012-4-frame-00.yaml',
           ])
@@ -89,7 +87,7 @@ jobs:
           assert git('rev-parse', 'HEAD') == transport, 'transport checkout mismatch'
           assert git('rev-parse', transport + '^') == product, 'transport parent mismatch'
           assert git('rev-parse', product + '^') == base, 'product parent mismatch'
-          assert git('show', '-s', '--format=%s', product) == 'fix(miro): make frame 00 a project decision cockpit'
+          assert git('show', '-s', '--format=%s', product) == 'fix(miro): normalize frame 00 remote readback'
           assert git('show', '-s', '--format=%s', transport) == 'fix(ci): authorize REM-012.4 frame 00 remediation'
           product_paths = sorted(filter(None, git('diff-tree', '--no-commit-id', '--name-only', '-r', product).splitlines()))
           transport_paths = list(filter(None, git('diff-tree', '--no-commit-id', '--name-only', '-r', transport).splitlines()))
