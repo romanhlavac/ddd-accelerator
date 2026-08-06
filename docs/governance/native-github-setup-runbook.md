@@ -2,126 +2,216 @@
 
 ## Purpose
 
-This runbook creates the live GitHub structures that repository files alone cannot activate:
+This runbook materializes live GitHub structures that repository files alone cannot activate:
 
 - native Parent/Sub-issue relationships;
 - native `Blocked by` / `Blocking` dependencies;
-- GitHub Project, custom fields, items and initial metadata;
+- GitHub Project, fields, items and initial metadata;
 - Project views;
 - Milestone and release-scope assignments.
 
-The authoritative execution/evidence Issue is #42.
+The authoritative administration/evidence Issue is #42.
 
 ## Automation-first rule
 
-Do not perform the setup item-by-item in the GitHub UI unless the automation reports a specific unsupported or failed operation.
+Do not perform setup item-by-item in the GitHub UI unless automation reports one specific unsupported/failed operation.
 
-Authoritative automation:
+Authoritative artifacts:
 
 ```text
+scripts/platform/Bootstrap-DDDAGitHubGovernance.ps1
+scripts/platform/Apply-DDDAGitHubGovernance.ps1
 scripts/platform/Initialize-DDDAGitHubGovernance.ps1
 config/governance/github-bootstrap.json
+config/governance/backlog-policy.yaml
 ```
 
-The script is idempotent: it reads the current GitHub state and adds only missing relationships, fields, items, views and milestone assignments.
+The automation is intended to be idempotent: it reads current GitHub state, adds missing relationships/items/fields/views and reconciles configured metadata. It never merges, rebases, promotes, releases or issues Human Review/GO decisions.
 
 ## Prerequisites
 
-Use a current GitHub CLI version that supports:
+- current GitHub CLI `gh`;
+- authenticated repository-owner access;
+- Project scope authorization;
+- PowerShell supported by the scripts.
 
-- `gh issue edit --add-sub-issue`;
-- `gh issue edit --add-blocked-by`;
-- `gh project` commands.
-
-Verify authentication:
+Verify:
 
 ```powershell
 gh --version
 gh auth status
 ```
 
-If Project access is missing, authorize it once:
+Authorize Projects once where required:
 
 ```powershell
 gh auth refresh -s project
 ```
 
-This browser authorization is the only potentially unavoidable pre-run interaction.
+## Recommended execution — no repository switch required
 
-## Recommended execution
+Do **not** switch the active PR #8 checkout or run the governance automation from a OneDrive-synchronized Git working tree. The safe bootstrap downloads the required governance files through the GitHub API into a new sibling workspace and leaves the current checkout untouched.
 
-Run from the repository root after checking out Draft PR #43 or its branch:
+From any current directory inside or beside the repository, download and execute the bootstrap from the governance branch:
 
 ```powershell
-git fetch origin
-git switch feature/github-native-backlog-governance
-git pull --ff-only
+$ErrorActionPreference = "Stop"
+
+$repository = "romanhlavac/ddd-accelerator"
+$ref = "feature/github-native-backlog-governance"
+$repositoryPath = "scripts/platform/Bootstrap-DDDAGitHubGovernance.ps1"
+
+if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
+    throw "GitHub CLI 'gh' není dostupné v PATH."
+}
+
+& gh auth status
+if ($LASTEXITCODE -ne 0) {
+    throw "GitHub CLI není autentizované. Spusť nejprve: gh auth login"
+}
+
+$currentPath = (Get-Location).Path
+$parentPath = Split-Path -Parent $currentPath
+$timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+$bootstrapPath = Join-Path $parentPath "Bootstrap-DDDAGitHubGovernance-$timestamp.ps1"
+
+$encodedRef = [Uri]::EscapeDataString($ref)
+$endpoint = "repos/$repository/contents/$repositoryPath?ref=$encodedRef"
+$response = & gh api $endpoint 2>&1
+
+if ($LASTEXITCODE -ne 0) {
+    throw "Stažení bootstrap skriptu selhalo:`n$($response -join "`n")"
+}
+
+$payload = ($response -join "`n") | ConvertFrom-Json
+$fileBytes = [Convert]::FromBase64String(($payload.content -replace "\s", ""))
+[System.IO.File]::WriteAllBytes($bootstrapPath, $fileBytes)
+Unblock-File -LiteralPath $bootstrapPath -ErrorAction SilentlyContinue
+
+& $bootstrapPath
+if (-not $?) {
+    throw "Governance automatizace skončila chybou."
+}
 ```
 
-First inspect the plan:
+The bootstrap:
+
+- derives a sibling work directory from the current location;
+- downloads only the required scripts/config via `gh api`;
+- avoids `git switch`, `git clone`, reset and cleanup of the current repository;
+- runs the Apply wrapper;
+- preserves the generated work directory/report for diagnostics;
+- opens the Project by default unless disabled by script parameters.
+
+## Direct execution from a clean governance checkout
+
+Only in a clean, non-synchronized checkout of Draft PR #43:
 
 ```powershell
 .\scripts\platform\Initialize-DDDAGitHubGovernance.ps1
 ```
 
-Apply the setup and open the resulting Project:
+This produces the plan without mutations.
+
+Apply:
 
 ```powershell
-.\scripts\platform\Initialize-DDDAGitHubGovernance.ps1 -Apply -OpenProject
+.\scripts\platform\Apply-DDDAGitHubGovernance.ps1
 ```
 
-The script writes a local evidence report:
+The wrapper invokes the initializer with `-Apply`, opens the Project, finds the latest setup report and publishes the evidence summary to #42 unless disabled.
+
+## Target hierarchy
 
 ```text
-ddda-github-governance-setup-YYYYMMDD-HHMMSS.md
+WP-08 #17
+  #9 #10 #11 #12 #13 #14 #15 #45
+
+WP-09 #18
+  #21 #22 #23 #24 #25 #50 #26 #51
+
+WP-10 #19
+  #27 #28 #29 #30 #31 #32 #33
+
+WP-11 #20
+  #34 #35 #36 #37 #38 #39 #40 #47 #41 #48 #46
 ```
 
-Do not commit this local report automatically. Attach or summarize it in Issue #42 after review.
+Cross-cutting #16, #42, Draft PR #43, #44 and #49 remain under `Work Package: Other`; #49 is intentionally not a WP-11 child.
 
-## What the script performs
+PR #8 and Draft PR #43 remain linked implementation items, not Sub-issues.
 
-### Native hierarchy
+Parent membership is capability ownership, not release scope.
+
+## Target dependencies
+
+The complete graph is read from `config/governance/github-bootstrap.json`.
+
+### WP-08
 
 ```text
-WP-08 #17 → #9–#15
-WP-09 #18 → #21–#26
-WP-10 #19 → #27–#33
-WP-11 #20 → #34–#41
+#13 → #14 → #12 → #11 → #10 → #9
 ```
 
-PR #8 and Draft PR #43 remain implementation links, not Sub-issues.
+Closed #10/#11/#13 project to `Done`; historical edges remain auditable. Operational critical path is documented in #17/#15.
 
-### Native dependencies
-
-The complete dependency graph is read from:
+### WP-09
 
 ```text
-config/governance/github-bootstrap.json
+#21 + #22 → #23
+#22 + #23 → #24
+#21 + #24 → #25 → #50 → #26 → #51
 ```
 
-It includes the WP-08 remediation critical path and the planned dependency graphs for WP-09 through WP-11.
+### WP-10
 
-### GitHub Project
+```text
+#27 → #31
+#27 + #31 → #28, #29, #30, #32
+#28 + #29 + #30 + #31 + #32 → #33
+```
 
-The script creates or reuses:
+This direction avoids the former textual cycle. #31 owns central security policy; adapters/#32 consume it.
+
+### WP-11
+
+```text
+#34 → #35
+#36 → #37 → #38
+#36 + #37 + #38 → #39
+#37 + #38 + #39 → #40
+#27 + #31 + #32 + #34–#40 → #47
+#35 + #40 + #47 → #41
+#47 + #41 + #48 → #46
+```
+
+### Cross-cutting documentation
+
+```text
+#16 + #46 + #48 → #49
+```
+
+PR #8 stable resolution is an explicit entry condition for broad documentation path moves, not an automatically materialized Issue dependency.
+
+## GitHub Project
+
+Create or reuse:
 
 ```text
 Owner: romanhlavac
 Project: DDDA Platform Backlog
 Visibility: PUBLIC
-Repository link: romanhlavac/ddd-accelerator
+Repository: romanhlavac/ddd-accelerator
 ```
 
-It adds:
+Items include:
 
 - PR #8;
 - Issues #9–#42;
 - Draft PR #43;
-- Issue #44.
+- Issues #44–#51.
 
-### Fields
-
-The script creates or normalizes:
+## Fields
 
 - `Status`;
 - `Priority`;
@@ -133,30 +223,30 @@ The script creates or normalizes:
 - `Start date`;
 - `Target date`;
 - `Outcome summary`;
-- `Blocked`;
+- `Blocked` (`No`/`Yes`);
 - `Human Review`;
 - `Dependency`.
 
-GitHub Projects does not provide a custom Boolean field in the required CLI/API contract, so `Blocked` is a single-select field with `No` and `Yes`.
+Ownership uses native `Assignees`.
 
-Ownership uses the native `Assignees` system field rather than a duplicate custom Person field.
+Priority, dates, target release and human review are never inferred automatically.
 
-The script intentionally leaves Priority, Start date and Target date empty unless explicitly configured later.
+## Initial metadata rules
 
-### Initial metadata
+- WP-08: Blocked, Target Release `0.1.0`, Human Review Pending;
+- WP-09–WP-11: Backlog, Target Release `TBD`;
+- #10/#11/#13: Done and `Blocked = No`;
+- #45: WP-08/Backlog/TBD, not Milestone 0.1.0;
+- #48: WP-11 child;
+- #50/#51: WP-09 children;
+- #49: Other/Backlog/Blocked;
+- closed/merged items: `Done` based on live GitHub state.
 
-The script sets:
+Configured values are bootstrap defaults/projections. Safe Project workflows should keep closed/reopened status synchronized.
 
-- WP-08 as Blocked with Target Release `0.1.0` and Human Review Pending;
-- WP-09 through WP-11 as Backlog with Target Release `TBD`;
-- children under the matching Work Package;
-- PR #8 under WP-08;
-- Draft PR #43 and governance items under `Other`;
-- completed/closed items to `Done` when their current GitHub state is closed or merged.
+## Views
 
-### Views
-
-The script attempts to create:
+Create/verify:
 
 1. `Work Packages`;
 2. `WP hierarchy`;
@@ -168,109 +258,28 @@ The script attempts to create:
 8. `Ready without owner`;
 9. `Recently completed`.
 
-The current GitHub API can create views and basic filters. Some advanced UI settings still require a short manual finalization; see below.
+Advanced grouping/visible fields may require UI finalization.
 
-### Milestone
+## Milestone
 
-The script creates or reuses:
-
-```text
-DDDA 0.1.0
-```
-
-and assigns:
+Create/reuse `DDDA 0.1.0` and assign exactly:
 
 - PR #8;
 - Issues #9–#15.
 
-It deliberately does not assign Parent WP #17, WP-09 through WP-11 or Draft PR #43.
+Do not assign:
 
-## Remaining manual steps after a successful run
+- Parent #17;
+- #45;
+- WP-09–WP-11;
+- Draft PR #43;
+- #49–#51.
 
-These are the only expected manual Project actions.
+Milestone membership is release scope, not GO/approval.
 
-### 1. Finish view configuration
+## Safe built-in workflows only
 
-Open `DDDA Platform Backlog` and configure the created views:
-
-#### Work Packages
-
-```text
-Layout: Table
-Filter: Item Type = Work Package
-Visible fields:
-  Title
-  Outcome summary
-  Status
-  Priority
-  Sub-issue progress
-  Start date
-  Target date
-  Target Release
-  Human Review
-```
-
-#### WP hierarchy
-
-```text
-Layout: Table
-Group by: Parent issue
-Visible fields:
-  Title
-  Parent issue
-  Status
-  Priority
-  Blocked
-  Dependency
-  Target Release
-  Linked pull requests
-```
-
-#### Delivery board
-
-```text
-Layout: Board
-Column field: Status
-Visible fields:
-  Priority
-  Work Package
-  Assignees
-  Target Release
-  Blocked
-```
-
-#### Roadmap by Work Package
-
-```text
-Layout: Roadmap
-Start field: Start date
-Target field: Target date
-Group by: Work Package
-Milestone markers: enabled
-Unscheduled items: visible
-```
-
-#### Release scope
-
-```text
-Layout: Table
-Group by: Milestone
-Visible fields:
-  Title
-  Milestone
-  Status
-  Priority
-  Work Package
-  Human Review
-  Blocked
-  Linked pull requests
-```
-
-For the remaining views, verify the generated filter and select useful visible fields. Save every changed view.
-
-### 2. Configure safe built-in workflows
-
-In Project settings, enable only mechanical workflows such as:
+Allowed mechanical examples:
 
 - item added → Backlog;
 - closed Issue → Done;
@@ -280,52 +289,55 @@ In Project settings, enable only mechanical workflows such as:
 Never automate:
 
 - Priority;
-- Target Release or Milestone;
+- Target Release/Milestone;
 - Start/Target dates;
+- dependencies based on inference;
 - Human Review PASS;
 - gate `passed`;
 - HRDR or GO/NO-GO;
-- closing a Parent WP after one PR merge.
+- closing Parent WP after one PR.
 
-### 3. Verify release scope
+## Verification
 
-Confirm that Milestone `DDDA 0.1.0` contains exactly the intended release candidates:
-
-- PR #8;
-- Issues #9–#15.
-
-It must not contain Parent WP #17, WP-09 through WP-11 or PR #43 unless a later explicit release decision changes the scope.
-
-### 4. Record evidence
-
-Attach or summarize the generated setup report in Issue #42 and record:
-
-- Project URL;
-- any warnings or failed automated actions;
-- confirmation of hierarchy and dependencies;
-- confirmation of Milestone scope;
-- screenshots only where they add useful evidence;
-- any deliberate deviation from the versioned configuration.
-
-## Verification commands
+After Apply, verify at least:
 
 ```powershell
 gh issue view 17 -R romanhlavac/ddd-accelerator --json subIssues,subIssuesSummary
 gh issue view 18 -R romanhlavac/ddd-accelerator --json subIssues,subIssuesSummary
-gh issue view 23 -R romanhlavac/ddd-accelerator --json parent,blockedBy,blocking
-gh issue view 33 -R romanhlavac/ddd-accelerator --json parent,blockedBy,blocking
-gh issue view 41 -R romanhlavac/ddd-accelerator --json parent,blockedBy,blocking
+gh issue view 19 -R romanhlavac/ddd-accelerator --json subIssues,subIssuesSummary
+gh issue view 20 -R romanhlavac/ddd-accelerator --json subIssues,subIssuesSummary
+
+gh issue view 31 -R romanhlavac/ddd-accelerator --json parent,blockedBy,blocking
+gh issue view 50 -R romanhlavac/ddd-accelerator --json parent,blockedBy,blocking
+gh issue view 51 -R romanhlavac/ddd-accelerator --json parent,blockedBy,blocking
+gh issue view 46 -R romanhlavac/ddd-accelerator --json parent,blockedBy,blocking
+gh issue view 49 -R romanhlavac/ddd-accelerator --json parent,blockedBy,blocking
+
 gh project list --owner romanhlavac
 gh project field-list <PROJECT_NUMBER> --owner romanhlavac
 gh project item-list <PROJECT_NUMBER> --owner romanhlavac --limit 100
 ```
 
-Before closing #42, verify that:
+Confirm:
 
-- every child has the expected native parent;
-- every configured dependency is visible;
-- all fields and nine views exist;
-- Parent WP progress is visible;
-- the Roadmap contains no fabricated dates;
-- the Milestone scope is correct;
-- no human approval is automated.
+- every configured child has the expected native parent;
+- every direct dependency is visible and graph is acyclic;
+- all Project items/fields/nine views exist;
+- #10/#11/#13 are Done;
+- #45 is outside Milestone 0.1.0;
+- Milestone contains only PR #8 and Issues #9–#15;
+- no dates, priority, release or human approval were invented;
+- no merge/rebase/promotion occurred.
+
+## Evidence
+
+The automation writes a setup report. Publish/attach the reviewed result to #42 with:
+
+- current governance branch SHA;
+- Project URL;
+- hierarchy/dependency results;
+- Milestone membership;
+- warnings/unsupported operations;
+- any deliberate deviation from versioned configuration.
+
+Do not commit local reports automatically and do not interpret technical PASS as Human Review PASS.
