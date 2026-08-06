@@ -21,11 +21,12 @@ jobs:
     timeout-minutes: 120
     env:
       HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-      PREVIOUS_SHA: fc9764d86ff3b345da5719a0b555d2118b968bee
+      PREVIOUS_SHA: 0681469c8ddd0d9c5d845862f3c76d63b24749d1
       PRODUCT_SHA: 8b50f8e8c0e47521a8028010058db48c6f79fb95
       BASE_SHA: 12d7b67cca1c4c3fc68d3de4b7033a375368ce3a
       PAYLOAD_COMMENT_ID: '5203019262'
-      PAYLOAD_SHA256: 45850a4cfb7d94458bc65cda3a057dec8725d17add1d7fb4dfdc7f763c7dfa57
+      COMPRESSED_SHA256: 92064c0c88489e11c60d556c2cd8c6ed4a3e43af5d87619876c3f8d4f406b62b
+      RAW_SHA256: 45850a4cfb7d94458bc65cda3a057dec8725d17add1d7fb4dfdc7f763c7dfa57
       GH_TOKEN: ${{ github.token }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
     steps:
@@ -40,14 +41,14 @@ jobs:
           New-Item -ItemType Directory -Path $env:EVIDENCE -Force | Out-Null
           "EVIDENCE=$env:EVIDENCE" | Out-File $env:GITHUB_ENV -Append
           @'
-          import base64, hashlib, json, os, re, subprocess, urllib.request
+          import base64, gzip, hashlib, json, os, re, subprocess, urllib.request
           from pathlib import Path
           g=lambda *a: subprocess.check_output(['git',*a],text=True).strip()
           h,p,b=[os.environ[x] for x in ('HEAD_SHA','PRODUCT_SHA','BASE_SHA')]
           prev=os.environ['PREVIOUS_SHA']; w='.github/workflows/miro-anchor-remediation.yml'
           assert g('rev-parse','HEAD')==h and g('rev-parse',h+'^')==prev
-          assert g('rev-parse',prev+'^^^')==p and g('rev-parse',p+'^')==b
-          assert g('show','-s','--format=%s',h)=='fix(ci): correct REM-012.3.6 lineage precondition'
+          assert g('rev-parse',prev+'^^^^')==p and g('rev-parse',p+'^')==b
+          assert g('show','-s','--format=%s',h)=='fix(ci): use compressed REM-012.3.6 payload'
           assert g('diff-tree','--no-commit-id','--name-only','-r',h)==w
           url=f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/issues/comments/{os.environ['PAYLOAD_COMMENT_ID']}"
           req=urllib.request.Request(url,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
@@ -55,11 +56,13 @@ jobs:
           assert item['user']['login']=='romanhlavac'
           m=re.search(r'```text\n([A-Za-z0-9+/=\n]+)\n```',item['body'])
           assert m
-          raw=base64.b64decode(''.join(m.group(1).split()))
-          assert hashlib.sha256(raw).hexdigest()==os.environ['PAYLOAD_SHA256']
+          compressed=base64.b64decode(''.join(m.group(1).split()))
+          assert hashlib.sha256(compressed).hexdigest()==os.environ['COMPRESSED_SHA256']
+          raw=gzip.decompress(compressed)
+          assert hashlib.sha256(raw).hexdigest()==os.environ['RAW_SHA256']
           Path(os.environ['EVIDENCE'],'apply.py').write_bytes(raw)
           compile(raw,'apply.py','exec')
-          Path(os.environ['EVIDENCE'],'identity.json').write_text(json.dumps({'status':'PASS','base_sha':b,'product_sha':p,'transport_sha':h,'payload_comment_id':int(os.environ['PAYLOAD_COMMENT_ID']),'payload_sha256':os.environ['PAYLOAD_SHA256'],'human_review_status':'PENDING','merge_allowed':False,'release_allowed':False},indent=2)+'\n')
+          Path(os.environ['EVIDENCE'],'identity.json').write_text(json.dumps({'status':'PASS','base_sha':b,'product_sha':p,'transport_sha':h,'payload_comment_id':int(os.environ['PAYLOAD_COMMENT_ID']),'compressed_sha256':os.environ['COMPRESSED_SHA256'],'raw_sha256':os.environ['RAW_SHA256'],'human_review_status':'PENDING','merge_allowed':False,'release_allowed':False},indent=2)+'\n')
           '@ | python -
       - name: Wait for exact-SHA CI
         shell: pwsh
@@ -84,7 +87,7 @@ jobs:
           '@ | python -
       - name: Verify Miro secret
         shell: pwsh
-        env: {MIRO_ACCCESS_TOKEN: "${{ secrets.MIRO_ACCESS_TOKEN }}"}
+        env: {MIRO_ACCESS_TOKEN: "${{ secrets.MIRO_ACCESS_TOKEN }}"}
         run: if ([string]::IsNullOrWhiteSpace($env:MIRO_ACCESS_TOKEN)){throw 'MIRO_ACCESS_TOKEN required'}
       - uses: actions/checkout@v4
         with: {fetch-depth: 0, ref: "${{ env.PRODUCT_SHA }}"}
@@ -114,8 +117,8 @@ jobs:
           $rt=Join-Path $r 'runtime\miro';python -m pip install --disable-pip-version-check --no-input $rt;$env:PYTHONPATH=$rt
           $env:REMEDIATION_MANIFEST=Join-Path $r 'scaffolds\miro\rem-012-3-5-frame-00.yaml';$env:REPORT_PATH=Join-Path $env:EVIDENCE 'result.json'
           python (Join-Path $env:EVIDENCE 'apply.py')
-          if($LASTEXITCODE){Get-Content $env:REPORT -ErrorAction SilentlyContinue;throw 'REM-012.3.6 failed'}
-          $x=Get-Content $env:REPORT -Raw|ConvertFrom-Json
+          if($LASTEXITCODE){Get-Content $env:REPORT_PATH -ErrorAction SilentlyContinue;throw 'REM-012.3.6 failed'}
+          $x=Get-Content $env:REPORT_PATH -Raw|ConvertFrom-Json
           if($x.status-ne'PASS'-or$x.second_run.unchanged-ne33-or$x.marker_item_count-ne12-or$x.detached_marker_count-ne0){throw 'verification failed'}
       - if: always()
         uses: actions/upload-artifact@v4
