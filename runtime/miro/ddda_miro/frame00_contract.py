@@ -37,6 +37,59 @@ def _validate_bounds(item: dict[str, Any], width: float, height: float) -> None:
         raise ValueError(f"managed role {item['role']} escapes frame 00")
 
 
+def _box(item: dict[str, Any]) -> tuple[float, float, float, float]:
+    width = float(item["width"])
+    height = float(item.get("visual_height") or item.get("height") or 1)
+    x = float(item["x"])
+    y = float(item["y"])
+    return x - width / 2, y - height / 2, x + width / 2, y + height / 2
+
+
+def _contains(container: dict[str, Any], item: dict[str, Any]) -> bool:
+    left, top, right, bottom = _box(container)
+    inner_left, inner_top, inner_right, inner_bottom = _box(item)
+    return left <= inner_left and top <= inner_top and right >= inner_right and bottom >= inner_bottom
+
+
+def _validate_artifact_health_contract(updates: list[dict[str, Any]]) -> None:
+    roles = {str(item["role"]): item for item in updates}
+    panel = roles["artifact_panel"]
+    status = roles["artifact_status"]
+    legend = roles["artifact_legend"]
+    health_items = (panel, status, legend)
+
+    if str(panel["type"]) != "shape" or sum(str(item["type"]) == "shape" for item in health_items) != 1:
+        raise ValueError("Artifact Health must have exactly one container")
+    if str(status["type"]) != "text" or str(legend["type"]) != "text":
+        raise ValueError("Artifact Health status and explanation must be text inside the single panel")
+
+    panel_width = float(panel["width"])
+    panel_height = float(panel.get("height") or panel.get("visual_height") or 0)
+    if panel_width < 6000 or panel_height <= 0 or panel_width / panel_height < 4:
+        raise ValueError("Artifact Health panel must span the frame with aspect ratio at least 4:1")
+    if int(status.get("font_size") or 0) < 64:
+        raise ValueError("Artifact Health current status font must be at least 64")
+    if int(legend.get("font_size") or 0) < 48:
+        raise ValueError("Artifact Health headings and metrics font must be at least 48")
+    if int(status["font_size"]) <= int(legend["font_size"]) or float(status["y"]) >= float(legend["y"]):
+        raise ValueError("Artifact Health current status must be first and visually dominant")
+    if not _contains(panel, status) or not _contains(panel, legend):
+        raise ValueError("Artifact Health status and explanations must remain inside the same panel")
+
+    status_text = canonical_miro_text(status.get("content"))
+    legend_text = canonical_miro_text(legend.get("content"))
+    if "CURRENT STATUS" not in status_text:
+        raise ValueError("Artifact Health current status heading is missing")
+    if "MATURITY" not in legend_text or "ATTENTION / BLOCKING" not in legend_text:
+        raise ValueError("Maturity and Attention / Blocking explanations must share the Artifact Health panel")
+
+    for item in updates:
+        if item is panel or not _contains(panel, item) or not canonical_miro_text(item.get("content")):
+            continue
+        if int(item.get("font_size") or 0) < 44:
+            raise ValueError(f"Artifact Health text below 44 in role {item['role']}")
+
+
 def load_contract(path: Path) -> dict[str, Any]:
     path = path.resolve()
     data = load_yaml(path)
@@ -68,6 +121,7 @@ def load_contract(path: Path) -> dict[str, Any]:
         if str(item.get("type") or "") not in SUPPORTED_TYPES:
             raise ValueError(f"unsupported item type: {item.get('type')}")
         _validate_bounds(item, float(frame["width"]), float(frame["height"]))
+    _validate_artifact_health_contract(updates)
 
     root = path.parents[2]
     sources = {key: root / str(value) for key, value in data["source_paths"].items()}

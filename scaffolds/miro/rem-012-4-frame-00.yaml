@@ -1,6 +1,6 @@
 schema_version: 1
 remediation_id: REM-PR8-HVA-CC-012.4
-authorized_base_sha: 6d34b008d5b6c32bdc6c555649f1047de3f1f66c
+authorized_base_sha: cbc9963e13a1674e466cbceebfeff6f0b531a663
 target_branch: feat/project-steering-and-documentation
 board_id: uXjVH1phki0=
 frame:
@@ -8,26 +8,28 @@ frame:
   width: 7000
   height: 4914.42
 protected_frame_ids:
-  - '3458764679756478059'
-  - '3458764679756478064'
-  - '3458764679756478065'
-  - '3458764679756478067'
-  - '3458764679756478070'
-  - '3458764679756478072'
-  - '3458764679756478075'
-  - '3458764679756478082'
-  - '3458764679756478086'
-  - '3458764679756478088'
-  - '3458764679756478089'
-  - '3458764679756478090'
-  - '3458764679756478091'
-  - '3458764679756478092'
-  - '3458764679756478093'
-  - '3458764679756478094'
-  - '3458764679756478096'
+- '3458764679756478059'
+- '3458764679756478064'
+- '3458764679756478065'
+- '3458764679756478067'
+- '3458764679756478070'
+- '3458764679756478072'
+- '3458764679756478075'
+- '3458764679756478082'
+- '3458764679756478086'
+- '3458764679756478088'
+- '3458764679756478089'
+- '3458764679756478090'
+- '3458764679756478091'
+- '3458764679756478092'
+- '3458764679756478093'
+- '3458764679756478094'
+- '3458764679756478096'
 source_paths:
-  project_registry: examples/minimal/projects/acceptance-claims-modernization/artifacts/registry.yaml
-  project_registry_markdown: examples/minimal/projects/acceptance-claims-modernization/docs/artifacts/index.md
+  project_registry: 
+    examples/minimal/projects/acceptance-claims-modernization/artifacts/registry.yaml
+  project_registry_markdown: 
+    examples/minimal/projects/acceptance-claims-modernization/docs/artifacts/index.md
   project_intake: examples/minimal/input/project-intake.yaml
 project_state:
   project_id: acceptance-claims-modernization
@@ -35,10 +37,13 @@ project_state:
   gate: G1
   gate_state: NOT_READY
   decision_owner_role: Acceptance Business Owner
-  decision_question: Je první ohraničený modernizační řez a evidence potřebná pro Discover dostatečně vymezená?
-  next_action: Doplnit scope boundaries a success measures; potom připravit G1 k lidskému review.
+  decision_question: Je první ohraničený modernizační řez a evidence potřebná 
+    pro Discover dostatečně vymezená?
+  next_action: Doplnit scope boundaries a success measures; potom připravit G1 k
+    lidskému review.
   attention_count: 1
-  attention_text: Projektový charter je stále SCAFFOLD a vyžaduje doplnění před G1 review.
+  attention_text: Projektový charter je stále SCAFFOLD a vyžaduje doplnění před 
+    G1 review.
   blocker_count: 0
   blocker_text: Postup není blokován.
 artifact_health:
@@ -53,147 +58,171 @@ artifact_health:
   attention_count: 1
   blocker_count: 0
 managed_updates:
-  - role: project_identity
-    id: '3458764679756505802'
-    type: text
-    x: 3500
-    y: 350
-    width: 6400
-    visual_height: 520
-    font_size: 48
-    style:
-      color: '#1F3B64'
-      textAlign: left
-    content: '<p><strong>00 — CONTROL CENTER</strong></p><p><strong>acceptance-claims-modernization</strong> · Modernizace vyhodnocování pojistných událostí pro transparentní pravidla, bezpečnou změnu a vysvětlitelné rozhodnutí.</p>'
-  - role: decision_now
-    id: '3458764679959532317'
-    type: text
-    x: 3500
-    y: 950
-    width: 6400
-    visual_height: 680
-    font_size: 80
-    style:
-      color: '#102A43'
-      textAlign: left
-    content: '<p><strong>ROZHODNUTÍ NYNÍ</strong></p><p>Je první ohraničený modernizační řez a evidence potřebná pro Discover dostatečně vymezená?</p><p><a href="https://miro.com/app/board/uXjVH1phki0=/?moveToWidget=3458764679756478059"><strong>OTEVŘÍT AKTUÁLNÍ FÁZI VE FRAMU 01 →</strong></a></p>'
-  - role: phase_gate_state
-    id: '3458764679959532328'
-    type: sticky_note
-    x: 1100
-    y: 2100
-    width: 1700
-    visual_height: 1700
-    content: '<p><strong>FÁZE / GATE</strong></p><p>ALIGN / G1</p><p><strong>GATE STATE</strong></p><p>NOT_READY</p><p>Gate čeká na doplnění evidence a lidské rozhodnutí.</p>'
-  - role: owner_next_action
-    id: '3458764679959532348'
-    type: sticky_note
-    x: 3500
-    y: 2100
-    width: 1800
-    visual_height: 1800
-    content: '<p><strong>ROZHODUJE</strong></p><p>Acceptance Business Owner</p><p>Rozhodnutí musí být zaznamenáno v Git decision recordu.</p><p><strong>DALŠÍ KROK</strong></p><p>Doplnit scope boundaries a success measures; potom připravit G1 k lidskému review.</p>'
-  - role: attention_blockers
-    id: '3458764679959532379'
-    type: sticky_note
-    x: 5900
-    y: 2100
-    width: 1700
-    visual_height: 1700
-    content: '<p><strong>🟧 ATTENTION — 1</strong></p><p>Projektový charter je stále SCAFFOLD a vyžaduje doplnění před G1 review.</p><p><strong>🟩 BLOCKERS — 0</strong></p><p>Postup není blokován.</p>'
-  - role: artifact_panel
-    id: '3458764679756523217'
-    type: shape
-    x: 3500
-    y: 3950
-    width: 6600
-    height: 1800
-    visual_height: 1800
-    font_size: 48
-    style:
-      fillColor: '#E7F1FF'
-      borderColor: '#4B79A1'
-      color: '#1F3B64'
-      textAlign: left
-      textAlignVertical: top
-    content: '<p><strong>ARTIFACT HEALTH — acceptance-claims-modernization</strong></p><p><a href="https://github.com/romanhlavac/ddd-accelerator/blob/feat/project-steering-and-documentation/examples/minimal/projects/acceptance-claims-modernization/docs/artifacts/index.md"><strong>OTEVŘÍT PROJEKTOVÝ ARTIFACT REGISTRY →</strong></a> · Project-owned Git/YAML je source of truth. Miro ani technický PASS neschvalují gate.</p>'
-  - role: artifact_status
-    id: '3458764679756523219'
-    type: shape
-    x: 3500
-    y: 3700
-    width: 6000
-    height: 550
-    visual_height: 550
-    font_size: 64
-    style:
-      fillColor: '#FFFFFF'
-      borderColor: '#8AA9C7'
-      color: '#1F2937'
-      textAlign: center
-      textAlignVertical: middle
-    content: '<p><strong>🟦 1 SCAFFOLD · 2 WORKING   🟧 ATTENTION 1   🟩 BLOCKERS 0</strong></p>'
-  - role: artifact_legend
-    id: '3458764680048047547'
-    type: text
-    x: 3500
-    y: 4450
-    width: 6000
-    visual_height: 520
-    font_size: 36
-    style:
-      color: '#1F3B64'
-      textAlign: left
-    content: '<p><strong>🟦 ARTIFACT LIFECYCLE</strong> — SCAFFOLD → WORKING → CANDIDATE → VALIDATED → ACCEPTED. <strong>SUPERSEDED</strong> označuje nahrazenou verzi, nikoli vyšší maturitu.</p><p><strong>🟧 ATTENTION</strong> vyžaduje doplnění nebo lidskou kontrolu. <strong>🟩 / 🟥 BLOCKERS</strong> znamená bez aktivního blockeru / zastavit postup.</p>'
+- role: project_identity
+  id: '3458764679756505802'
+  type: text
+  x: 3500
+  y: 350
+  width: 6400
+  visual_height: 520
+  font_size: 48
+  style:
+    color: '#1F3B64'
+    textAlign: left
+  content: '<p><strong>00 — CONTROL CENTER</strong></p><p><strong>acceptance-claims-modernization</strong>
+    · Modernizace vyhodnocování pojistných událostí pro transparentní pravidla, bezpečnou
+    změnu a vysvětlitelné rozhodnutí.</p>'
+- role: decision_now
+  id: '3458764679959532317'
+  type: text
+  x: 3500
+  y: 950
+  width: 6400
+  visual_height: 680
+  font_size: 80
+  style:
+    color: '#102A43'
+    textAlign: left
+  content: '<p><strong>ROZHODNUTÍ NYNÍ</strong></p><p>Je první ohraničený modernizační
+    řez a evidence potřebná pro Discover dostatečně vymezená?</p><p><a href="https://miro.com/app/board/uXjVH1phki0=/?moveToWidget=3458764679756478059"><strong>OTEVŘÍT
+    AKTUÁLNÍ FÁZI VE FRAMU 01 →</strong></a></p>'
+- role: phase_gate_state
+  id: '3458764679959532328'
+  type: sticky_note
+  x: 1100
+  y: 2100
+  width: 1700
+  visual_height: 1700
+  content: '<p><strong>FÁZE / GATE</strong></p><p>ALIGN / G1</p><p><strong>GATE STATE</strong></p><p>NOT_READY</p><p>Gate
+    čeká na doplnění evidence a lidské rozhodnutí.</p>'
+- role: owner_next_action
+  id: '3458764679959532348'
+  type: sticky_note
+  x: 3500
+  y: 2100
+  width: 1800
+  visual_height: 1800
+  content: '<p><strong>ROZHODUJE</strong></p><p>Acceptance Business Owner</p><p>Rozhodnutí
+    musí být zaznamenáno v Git decision recordu.</p><p><strong>DALŠÍ KROK</strong></p><p>Doplnit
+    scope boundaries a success measures; potom připravit G1 k lidskému review.</p>'
+- role: attention_blockers
+  id: '3458764679959532379'
+  type: sticky_note
+  x: 5900
+  y: 2100
+  width: 1700
+  visual_height: 1700
+  content: '<p><strong>🟧 ATTENTION — 1</strong></p><p>Projektový charter je stále
+    SCAFFOLD a vyžaduje doplnění před G1 review.</p><p><strong>🟩 BLOCKERS — 0</strong></p><p>Postup
+    není blokován.</p>'
+- role: artifact_panel
+  id: '3458764679756523217'
+  type: shape
+  x: 3500
+  y: 4050
+  width: 6600
+  height: 1600
+  visual_height: 1600
+  font_size: 48
+  style:
+    fillColor: '#E7F1FF'
+    borderColor: '#4B79A1'
+    color: '#1F3B64'
+    textAlign: left
+    textAlignVertical: top
+  content: ''
+- role: artifact_status
+  id: '3458764680048047547'
+  type: text
+  x: 3500
+  y: 3550
+  width: 6000
+  visual_height: 500
+  font_size: 64
+  style:
+    color: '#102A43'
+    textAlign: left
+  content: '<p><strong>ARTIFACT HEALTH — CURRENT STATUS</strong></p><p><strong>1 SCAFFOLD
+    · 2 WORKING · ATTENTION 1 · BLOCKERS 0</strong></p>'
+- role: artifact_legend
+  id: '3458764680048047692'
+  type: text
+  x: 3500
+  y: 4300
+  width: 6000
+  visual_height: 900
+  font_size: 48
+  style:
+    color: '#1F3B64'
+    textAlign: left
+  content: '<p><strong>MATURITY</strong> — SCAFFOLD 1 · WORKING 2 · CANDIDATE 0 ·
+    VALIDATED 0 · ACCEPTED 0 · SUPERSEDED 0.</p><p><strong>ATTENTION / BLOCKING</strong>
+    — ATTENTION 1 vyžaduje doplnění nebo lidskou kontrolu; BLOCKERS 0 znamená, že
+    postup není blokován.</p><p><a href="https://github.com/romanhlavac/ddd-accelerator/blob/feat/project-steering-and-documentation/examples/minimal/projects/acceptance-claims-modernization/docs/artifacts/index.md"><strong>OTEVŘÍT
+    PROJEKTOVÝ ARTIFACT REGISTRY →</strong></a> · Project-owned Git/YAML je source
+    of truth. Miro ani technický PASS neschvalují gate.</p>'
 cleanup:
   explicit_item_ids:
-    - '3458764680048047692'
-    - '3458764680048047567'
-    - '3458764680048047583'
-    - '3458764680048047602'
-    - '3458764680048047620'
-    - '3458764680048047626'
-    - '3458764680048047679'
-    - '3458764680097662272'
-    - '3458764680097662320'
-    - '3458764680097662340'
-    - '3458764680097662357'
-    - '3458764680097662406'
-    - '3458764680097662434'
+  - '3458764679756523219'
+  - '3458764680048047567'
+  - '3458764680048047583'
+  - '3458764680048047602'
+  - '3458764680048047620'
+  - '3458764680048047626'
+  - '3458764680048047679'
+  - '3458764680097662272'
+  - '3458764680097662320'
+  - '3458764680097662340'
+  - '3458764680097662357'
+  - '3458764680097662406'
+  - '3458764680097662434'
   selectors:
-    - {type: text, exact_text: 'Summary maturity:', x: 1300, y: 3290, max_matches: 1}
-    - {type: text, exact_text: 'SCAFFOLD: 1', x: 1320, y: 3400, max_matches: 1}
-    - {type: text, exact_text: 'WORKING: 2', x: 1320, y: 3490, max_matches: 1}
-    - {type: text, exact_text: 'CANDIDATE: 0', x: 1320, y: 3580, max_matches: 1}
-    - {type: text, exact_text: 'VALIDATED: 0', x: 1320, y: 3670, max_matches: 1}
-    - {type: text, exact_text: 'ACCEPTED: 0', x: 1320, y: 3760, max_matches: 1}
-    - {type: text, exact_text: 'SUPERSEDED: 0', x: 1320, y: 3850, max_matches: 1}
-    - {type: text, exact_text: 'Summary review flagů:', x: 1300, y: 4020, max_matches: 1}
-    - {type: text, exact_text: '🟧 ATTENTION: 1', x: 1320, y: 4120, max_matches: 1}
-    - {type: text, exact_text: '🟩 BLOCKING: 0', x: 1320, y: 4210, max_matches: 1}
-    - {type: shape, x: 1050, y: 4580, width: 800, height: 180, fill_color: '#EAF3FB', max_matches: 1}
-    - {type: shape, x: 2050, y: 4580, width: 800, height: 180, fill_color: '#C9E0F5', max_matches: 1}
-    - {type: shape, x: 3050, y: 4580, width: 800, height: 180, fill_color: '#9FC7EA', max_matches: 1}
-    - {type: shape, x: 4050, y: 4580, width: 800, height: 180, fill_color: '#6FA8D8', max_matches: 1}
-    - {type: shape, x: 5050, y: 4580, width: 800, height: 180, fill_color: '#3F86C4', max_matches: 1}
-    - {type: shape, x: 6050, y: 4580, width: 800, height: 180, fill_color: '#1F5F98', max_matches: 1}
+  - {type: text, exact_text: 'Summary maturity:', x: 1300, y: 3290, max_matches: 
+      1}
+  - {type: text, exact_text: 'SCAFFOLD: 1', x: 1320, y: 3400, max_matches: 1}
+  - {type: text, exact_text: 'WORKING: 2', x: 1320, y: 3490, max_matches: 1}
+  - {type: text, exact_text: 'CANDIDATE: 0', x: 1320, y: 3580, max_matches: 1}
+  - {type: text, exact_text: 'VALIDATED: 0', x: 1320, y: 3670, max_matches: 1}
+  - {type: text, exact_text: 'ACCEPTED: 0', x: 1320, y: 3760, max_matches: 1}
+  - {type: text, exact_text: 'SUPERSEDED: 0', x: 1320, y: 3850, max_matches: 1}
+  - {type: text, exact_text: 'Summary review flagů:', x: 1300, y: 4020, 
+      max_matches: 1}
+  - {type: text, exact_text: '🟧 ATTENTION: 1', x: 1320, y: 4120, max_matches: 1}
+  - {type: text, exact_text: '🟩 BLOCKING: 0', x: 1320, y: 4210, max_matches: 1}
+  - {type: shape, x: 1050, y: 4580, width: 800, height: 180, fill_color: '#EAF3FB',
+    max_matches: 1}
+  - {type: shape, x: 2050, y: 4580, width: 800, height: 180, fill_color: '#C9E0F5',
+    max_matches: 1}
+  - {type: shape, x: 3050, y: 4580, width: 800, height: 180, fill_color: '#9FC7EA',
+    max_matches: 1}
+  - {type: shape, x: 4050, y: 4580, width: 800, height: 180, fill_color: '#6FA8D8',
+    max_matches: 1}
+  - {type: shape, x: 5050, y: 4580, width: 800, height: 180, fill_color: '#3F86C4',
+    max_matches: 1}
+  - {type: shape, x: 6050, y: 4580, width: 800, height: 180, fill_color: '#1F5F98',
+    max_matches: 1}
 verification:
   required_phrases:
-    - '00 — CONTROL CENTER'
-    - 'acceptance-claims-modernization'
-    - 'ROZHODNUTÍ NYNÍ'
-    - 'ALIGN / G1'
-    - 'NOT_READY'
-    - 'Acceptance Business Owner'
-    - 'DALŠÍ KROK'
-    - '🟧 ATTENTION — 1'
-    - '🟩 BLOCKERS — 0'
-    - 'ARTIFACT HEALTH — acceptance-claims-modernization'
-    - 'OTEVŘÍT PROJEKTOVÝ ARTIFACT REGISTRY'
-    - 'Project-owned Git/YAML je source of truth'
+  - '00 — CONTROL CENTER'
+  - 'acceptance-claims-modernization'
+  - 'ROZHODNUTÍ NYNÍ'
+  - 'ALIGN / G1'
+  - 'NOT_READY'
+  - 'Acceptance Business Owner'
+  - 'DALŠÍ KROK'
+  - '🟧 ATTENTION — 1'
+  - '🟩 BLOCKERS — 0'
+  - 'OTEVŘÍT PROJEKTOVÝ ARTIFACT REGISTRY'
+  - 'Project-owned Git/YAML je source of truth'
+  - ARTIFACT HEALTH — CURRENT STATUS
+  - MATURITY
+  - ATTENTION / BLOCKING
   forbidden_phrases:
-    - 'Jak board použít poprvé'
-    - 'PROVENANCE · GENERATED'
-    - 'HEALTH: ATTENTION'
-    - 'JAK ČÍST STAV GATE'
-    - 'světlejší modrá = ranější úroveň'
+  - 'Jak board použít poprvé'
+  - 'PROVENANCE · GENERATED'
+  - 'HEALTH: ATTENTION'
+  - 'JAK ČÍST STAV GATE'
+  - 'světlejší modrá = ranější úroveň'
+  - ARTIFACT HEALTH SUMMARY
+  - 'Summary maturity:'
+  - 'Summary review flagů:'

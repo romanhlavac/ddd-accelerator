@@ -11,7 +11,7 @@ permissions:
 
 concurrency:
   group: ddda-rem-012-4-frame-00-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   remediate:
@@ -23,18 +23,17 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 120
     env:
-      TRANSPORT_SHA: ${{ github.event.pull_request.head.sha }}
-      PRODUCT_SHA: 7a54422a0a7c0398da6a30fe2ecdce6f345fed44
-      BASE_SHA: ca2e7d7c5430ca08620eecf1b27975c2a857cad4
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+      BASE_SHA: cbc9963e13a1674e466cbceebfeff6f0b531a663
       GH_TOKEN: ${{ github.token }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
 
     steps:
-      - name: Checkout exact transport head
+      - name: Checkout exact source head
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ env.TRANSPORT_SHA }}
+          ref: ${{ env.SOURCE_SHA }}
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
@@ -50,12 +49,12 @@ jobs:
           [ordered]@{
             repository = $env:GITHUB_REPOSITORY
             pr = [int]$env:PR_NUMBER
-            transport_sha = $env:TRANSPORT_SHA
-            product_sha = $env:PRODUCT_SHA
-            base_sha = $env:BASE_SHA
+            source_sha = $env:SOURCE_SHA
+            authorized_base_sha = $env:BASE_SHA
             board_id = 'uXjVH1phki0='
             frame_id = '3458764679756478046'
             remediation_id = 'REM-PR8-HVA-CC-012.4'
+            candidate_reused = $true
             merge_allowed = $false
             promotion_allowed = $false
             release_allowed = $false
@@ -73,35 +72,32 @@ jobs:
           def git(*args):
               return subprocess.check_output(['git', *args], text=True).strip()
 
-          transport = os.environ['TRANSPORT_SHA']
-          product = os.environ['PRODUCT_SHA']
+          source = os.environ['SOURCE_SHA']
           base = os.environ['BASE_SHA']
-          workflow = '.github/workflows/miro-anchor-remediation.yml'
-          expected_product_paths = sorted([
+          expected_paths = sorted([
+              '.github/workflows/miro-anchor-remediation.yml',
               'runtime/miro/ddda_miro/frame00_contract.py',
               'runtime/miro/tests/test_rem_012_4_frame_00.py',
+              'scaffolds/miro/rem-012-4-frame-00.yaml',
           ])
+          actual_paths = sorted(filter(None, git('diff-tree', '--no-commit-id', '--name-only', '-r', source).splitlines()))
+          manifest = Path('scaffolds/miro/rem-012-4-frame-00.yaml').read_text(encoding='utf-8')
 
-          assert git('rev-parse', 'HEAD') == transport, 'transport checkout mismatch'
-          assert git('rev-parse', transport + '^') == product, 'transport parent mismatch'
-          assert git('rev-parse', product + '^') == base, 'product parent mismatch'
-          assert git('show', '-s', '--format=%s', product) == 'fix(miro): ignore unmanaged sticky-note style normalization'
-          assert git('show', '-s', '--format=%s', transport) == 'fix(ci): authorize REM-012.4 frame 00 remediation'
-          product_paths = sorted(filter(None, git('diff-tree', '--no-commit-id', '--name-only', '-r', product).splitlines()))
-          transport_paths = list(filter(None, git('diff-tree', '--no-commit-id', '--name-only', '-r', transport).splitlines()))
-          assert product_paths == expected_product_paths, f'product allowlist mismatch: {product_paths}'
-          assert transport_paths == [workflow], f'transport is not workflow-only: {transport_paths}'
+          assert git('rev-parse', 'HEAD') == source, 'source checkout mismatch'
+          assert git('rev-parse', source + '^') == base, 'authorized base mismatch'
+          assert git('show', '-s', '--format=%s', source) == 'fix(miro): complete frame 00 Artifact Health HVR', 'unexpected source commit'
+          assert actual_paths == expected_paths, f'path allowlist mismatch: {actual_paths}'
+          assert f'authorized_base_sha: {base}' in manifest, 'manifest authorization mismatch'
           Path(os.environ['EVIDENCE_ROOT'], 'source-contract.json').write_text(json.dumps({
               'status': 'PASS',
-              'base_sha': base,
-              'product_sha': product,
-              'transport_sha': transport,
-              'product_paths': product_paths,
-              'transport_paths': transport_paths,
+              'authorized_base_sha': base,
+              'source_sha': source,
+              'changed_paths': actual_paths,
           }, indent=2) + '\n', encoding='utf-8')
           '@ | python -
 
-      - name: Wait for exact-SHA CI
+      - name: Wait for authoritative exact-SHA evidence and candidate
+        id: ci
         shell: pwsh
         run: |
           @'
@@ -109,6 +105,7 @@ jobs:
           from pathlib import Path
 
           repo = os.environ['GITHUB_REPOSITORY']
+          sha = os.environ['SOURCE_SHA']
           token = os.environ['GH_TOKEN']
           headers = {
               'Authorization': f'Bearer {token}',
@@ -120,39 +117,66 @@ jobs:
               with urllib.request.urlopen(urllib.request.Request(url, headers=headers)) as response:
                   return json.load(response)
 
-          def runs(sha):
-              return get(f'https://api.github.com/repos/{repo}/actions/runs?head_sha={sha}&event=pull_request&per_page=100')['workflow_runs']
-
           def latest(items, name):
               matches = [item for item in items if item['name'] == name]
               return max(matches, key=lambda item: item['run_number']) if matches else None
 
-          def wait_for(sha, required, label):
-              for _ in range(320):
-                  current = runs(sha)
-                  state, complete = [], True
-                  for name in required:
-                      run = latest(current, name)
-                      if not run:
-                          state.append({'name': name, 'status': 'missing'})
-                          complete = False
-                          continue
-                      snapshot = {key: run.get(key) for key in ('id', 'name', 'status', 'conclusion', 'html_url')}
-                      state.append(snapshot)
-                      if run['status'] == 'completed' and run['conclusion'] != 'success':
-                          raise SystemExit(f'{label} workflow {name} failed: {run["conclusion"]}')
-                      if run['status'] != 'completed' or run['conclusion'] != 'success':
-                          complete = False
-                  Path(os.environ['EVIDENCE_ROOT'], f'{label}-ci.json').write_text(json.dumps(state, indent=2) + '\n', encoding='utf-8')
-                  if complete:
-                      return state
-                  time.sleep(15)
-              raise SystemExit(f'{label} CI did not reach PASS')
+          def require_success(item, label):
+              if item and item['status'] == 'completed' and item.get('conclusion') != 'success':
+                  raise SystemExit(f'{label} failed: {item.get("conclusion")}')
+              return bool(item and item['status'] == 'completed' and item.get('conclusion') == 'success')
 
-          product = wait_for(os.environ['PRODUCT_SHA'], ['Validate DDDA', 'DDDA platform CI', 'DDDA exact-code Miro image probe'], 'product')
-          transport = wait_for(os.environ['TRANSPORT_SHA'], ['Validate DDDA', 'DDDA platform CI', 'DDDA exact-code Miro image probe'], 'transport')
-          Path(os.environ['EVIDENCE_ROOT'], 'ci-summary.json').write_text(json.dumps({'product': product, 'transport': transport}, indent=2) + '\n', encoding='utf-8')
+          candidate_name = f'ddda-candidate-{sha}'
+          snapshot = {}
+          for _ in range(240):
+              runs = get(f'https://api.github.com/repos/{repo}/actions/runs?head_sha={sha}&event=pull_request&per_page=100')['workflow_runs']
+              validate = latest(runs, 'Validate DDDA')
+              probe = latest(runs, 'DDDA exact-code Miro image probe')
+              platform = latest(runs, 'DDDA platform CI')
+              validate_ok = require_success(validate, 'Validate DDDA')
+              probe_ok = require_success(probe, 'Miro image probe')
+
+              platform_jobs = []
+              artifacts = []
+              platform_ok = False
+              if platform:
+                  platform_jobs = get(f'https://api.github.com/repos/{repo}/actions/runs/{platform["id"]}/jobs?per_page=100')['jobs']
+                  required_jobs = []
+                  for name in ('Platform validation', 'One-command PR validation'):
+                      matches = [job for job in platform_jobs if job['name'] == name]
+                      job = max(matches, key=lambda value: value.get('run_attempt', 1)) if matches else None
+                      if job and job['status'] == 'completed' and job.get('conclusion') != 'success':
+                          raise SystemExit(f'platform job {name} failed: {job.get("conclusion")}')
+                      required_jobs.append(bool(job and job['status'] == 'completed' and job.get('conclusion') == 'success'))
+                  artifacts = get(f'https://api.github.com/repos/{repo}/actions/runs/{platform["id"]}/artifacts?per_page=100')['artifacts']
+                  platform_ok = all(required_jobs) and any(item['name'] == candidate_name and not item['expired'] for item in artifacts)
+
+              snapshot = {
+                  'source_sha': sha,
+                  'validate': validate,
+                  'probe': probe,
+                  'platform_run': platform,
+                  'platform_jobs': [{key: job.get(key) for key in ('id', 'name', 'status', 'conclusion')} for job in platform_jobs],
+                  'candidate_artifacts': [{key: item.get(key) for key in ('id', 'name', 'expired', 'digest')} for item in artifacts if item['name'] == candidate_name],
+              }
+              Path(os.environ['EVIDENCE_ROOT'], 'ci-evidence.json').write_text(json.dumps(snapshot, indent=2) + '\n', encoding='utf-8')
+              if validate_ok and probe_ok and platform_ok:
+                  with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
+                      output.write(f'platform_run_id={platform["id"]}\n')
+                  break
+              time.sleep(15)
+          else:
+              raise SystemExit('exact-SHA evidence or candidate did not become ready within 60 minutes')
           '@ | python -
+
+      - name: Run targeted Frame 00 source tests
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -m pip install --disable-pip-version-check --no-input pytest 'ruamel.yaml>=0.18,<0.19' requests pyyaml
+          $env:PYTHONPATH = Join-Path $PWD.Path 'runtime\miro'
+          python -m pytest runtime/miro/tests/test_rem_012_4_frame_00.py -q
+          if ($LASTEXITCODE -ne 0) { throw 'REM-012.4 targeted source tests failed.' }
 
       - name: Verify Miro secret
         shell: pwsh
@@ -161,57 +185,45 @@ jobs:
         run: |
           if ([string]::IsNullOrWhiteSpace($env:MIRO_ACCESS_TOKEN)) { throw 'MIRO_ACCESS_TOKEN is required.' }
 
-      - name: Checkout exact product source
-        uses: actions/checkout@v4
+      - name: Download exact-SHA candidate package
+        uses: actions/download-artifact@v4
         with:
-          fetch-depth: 0
-          ref: ${{ env.PRODUCT_SHA }}
+          name: ddda-candidate-${{ env.SOURCE_SHA }}
+          path: ${{ runner.temp }}/candidate
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.ci.outputs.platform_run_id }}
 
-      - name: Test and build exact-SHA candidate
-        id: package
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          python -m pip install --disable-pip-version-check --no-input pytest 'ruamel.yaml>=0.18,<0.19' requests pyyaml
-          $env:PYTHONPATH = Join-Path $PWD.Path 'runtime\miro'
-          python -m pytest runtime/miro/tests/test_rem_012_4_frame_00.py -q
-          if ($LASTEXITCODE -ne 0) { throw 'REM-012.4 product tests failed.' }
-          git reset --hard $env:PRODUCT_SHA
-          git clean -ffdx
-          if ((git rev-parse HEAD).Trim() -ne $env:PRODUCT_SHA -or (git status --porcelain)) { throw 'Product source is not clean.' }
-          $version = 'rem-012-4.' + $env:GITHUB_RUN_ID + '.' + $env:PRODUCT_SHA.Substring(0, 12)
-          $output = Join-Path $env:RUNNER_TEMP ('ddda-rem-012-4-' + $env:PRODUCT_SHA.Substring(0, 12) + '.zip')
-          $package = (.\scripts\platform\New-DDDAPlatformPackage.ps1 -PlatformPath $PWD.Path -Kind candidate -Version $version -SourceRef $env:PRODUCT_SHA -OutputPath $output -Json | Out-String).Trim() | ConvertFrom-Json
-          if ([string]$package.source_commit -ne $env:PRODUCT_SHA) { throw 'Candidate provenance mismatch.' }
-          [ordered]@{
-            status = 'PASS'
-            source_sha = $env:PRODUCT_SHA
-            package_path = [string]$package.path
-            package_sha256 = [string]$package.sha256
-          } | ConvertTo-Json | Set-Content (Join-Path $env:EVIDENCE_ROOT 'package.json') -Encoding utf8
-          "package_path=$($package.path)" | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          "package_sha256=$($package.sha256)" | Out-File $env:GITHUB_OUTPUT -Encoding utf8 -Append
-
-      - name: Apply and verify frame 00 only
+      - name: Apply and verify Frame 00 only from reused candidate
         shell: pwsh
         env:
           MIRO_ACCESS_TOKEN: ${{ secrets.MIRO_ACCESS_TOKEN }}
-          PACKAGE_PATH: ${{ steps.package.outputs.package_path }}
-          PACKAGE_SHA256: ${{ steps.package.outputs.package_sha256 }}
         run: |
           $ErrorActionPreference = 'Stop'
-          .\scripts\platform\Test-DDDAPlatformPackage.ps1 -PackagePath $env:PACKAGE_PATH -ExpectedCommit $env:PRODUCT_SHA -ExpectedKind candidate
+          $candidate = @(Get-ChildItem -LiteralPath (Join-Path $env:RUNNER_TEMP 'candidate') -Filter '*.zip' -File)
+          if ($candidate.Count -ne 1) { throw "Expected exactly one candidate package, found $($candidate.Count)." }
+          .\scripts\platform\Test-DDDAPlatformPackage.ps1 -PackagePath $candidate[0].FullName -ExpectedCommit $env:SOURCE_SHA -ExpectedKind candidate
+          $packageSha256 = (Get-FileHash -LiteralPath $candidate[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          [ordered]@{
+            status = 'PASS'
+            source_sha = $env:SOURCE_SHA
+            reused_from_platform_run = '${{ steps.ci.outputs.platform_run_id }}'
+            package_file = $candidate[0].Name
+            package_sha256 = $packageSha256
+          } | ConvertTo-Json | Set-Content (Join-Path $env:EVIDENCE_ROOT 'package.json') -Encoding utf8
+
           $packageRoot = Join-Path $env:RUNNER_TEMP 'rem-012-4-package'
           if (Test-Path $packageRoot) { Remove-Item $packageRoot -Recurse -Force }
-          Expand-Archive $env:PACKAGE_PATH $packageRoot -Force
+          Expand-Archive $candidate[0].FullName $packageRoot -Force
           $packageManifest = Get-Content (Join-Path $packageRoot 'ddda-package.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-          if ([string]$packageManifest.source_commit -ne $env:PRODUCT_SHA -or [string]$packageManifest.kind -ne 'candidate') { throw 'Expanded package provenance mismatch.' }
+          if ([string]$packageManifest.source_commit -ne $env:SOURCE_SHA -or [string]$packageManifest.kind -ne 'candidate') { throw 'Expanded package provenance mismatch.' }
+
           $runtime = Join-Path $packageRoot 'runtime\miro'
           python -m pip install --disable-pip-version-check --no-input $runtime
           $env:PYTHONPATH = $runtime
           $manifest = Join-Path $packageRoot 'scaffolds\miro\rem-012-4-frame-00.yaml'
           $report = Join-Path $env:EVIDENCE_ROOT 'result.json'
-          python -m ddda_miro.frame00_control_center --manifest $manifest --report $report --source-sha $env:PRODUCT_SHA --apply
+          python -m ddda_miro.frame00_control_center --manifest $manifest --report $report --source-sha $env:SOURCE_SHA --apply
           if ($LASTEXITCODE -ne 0) {
             Get-Content $report -ErrorAction SilentlyContinue
             throw 'REM-012.4 online remediation failed.'
@@ -227,7 +239,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: rem-012-4-frame-00-pr-${{ env.PR_NUMBER }}-${{ env.PRODUCT_SHA }}
+          name: rem-012-4-frame-00-pr-${{ env.PR_NUMBER }}-${{ env.SOURCE_SHA }}-${{ github.run_id }}
           path: ${{ env.EVIDENCE_ROOT }}/**
           if-no-files-found: error
           retention-days: 30

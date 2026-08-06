@@ -27,7 +27,7 @@ def by_role(data):
 def test_exact_scope_lineage_and_sources():
     data = contract()
     assert data["remediation_id"] == "REM-PR8-HVA-CC-012.4"
-    assert data["authorized_base_sha"] == "6d34b008d5b6c32bdc6c555649f1047de3f1f66c"
+    assert data["authorized_base_sha"] == "cbc9963e13a1674e466cbceebfeff6f0b531a663"
     assert data["target_branch"] == "feat/project-steering-and-documentation"
     assert data["board_id"] == "uXjVH1phki0="
     assert data["frame"]["id"] == "3458764679756478046"
@@ -70,19 +70,47 @@ def test_attention_and_blockers_are_explicit_and_not_conflated():
     assert "HEALTH: ATTENTION" not in text
 
 
-def test_artifact_health_is_project_owned_secondary_projection():
+def test_artifact_health_is_one_wide_readable_panel_with_status_first():
     data = contract()
     items = by_role(data)
-    panel = canonical_miro_text(items["artifact_panel"]["content"])
-    status = canonical_miro_text(items["artifact_status"]["content"])
-    legend = canonical_miro_text(items["artifact_legend"]["content"])
-    assert "ARTIFACT HEALTH — acceptance-claims-modernization" in panel
-    assert "OTEVŘÍT PROJEKTOVÝ ARTIFACT REGISTRY" in panel
-    assert "Project-owned Git/YAML je source of truth" in panel
-    assert "Miro ani technický PASS neschvalují gate" in panel
-    assert "1 SCAFFOLD · 2 WORKING" in status
-    assert "ATTENTION 1" in status and "BLOCKERS 0" in status
-    assert "SUPERSEDED" in legend and "nikoli vyšší maturitu" in legend
+    panel = items["artifact_panel"]
+    status = items["artifact_status"]
+    legend = items["artifact_legend"]
+    status_text = canonical_miro_text(status["content"])
+    legend_text = canonical_miro_text(legend["content"])
+
+    assert panel["type"] == "shape"
+    assert status["type"] == legend["type"] == "text"
+    assert sum(item["type"] == "shape" for item in (panel, status, legend)) == 1
+    assert float(panel["width"]) >= 6000
+    assert float(panel["width"]) / float(panel["height"]) >= 4
+    assert int(status["font_size"]) >= 64
+    assert int(legend["font_size"]) >= 48
+    assert int(status["font_size"]) > int(legend["font_size"])
+    assert float(status["y"]) < float(legend["y"])
+    assert "ARTIFACT HEALTH — CURRENT STATUS" in status_text
+    assert "1 SCAFFOLD · 2 WORKING" in status_text
+    assert "ATTENTION 1" in status_text and "BLOCKERS 0" in status_text
+    assert "MATURITY" in legend_text
+    assert "ATTENTION / BLOCKING" in legend_text
+    assert "SUPERSEDED 0" in legend_text
+    assert "OTEVŘÍT PROJEKTOVÝ ARTIFACT REGISTRY" in legend_text
+    assert "Project-owned Git/YAML je source of truth" in legend_text
+    assert "Miro ani technický PASS neschvalují gate" in legend_text
+
+    def bounds(item):
+        width = float(item["width"])
+        height = float(item.get("visual_height") or item.get("height") or 1)
+        return (float(item["x"]) - width / 2, float(item["y"]) - height / 2,
+                float(item["x"]) + width / 2, float(item["y"]) + height / 2)
+
+    panel_box = bounds(panel)
+    for item in (status, legend):
+        box = bounds(item)
+        assert panel_box[0] <= box[0] and panel_box[1] <= box[1]
+        assert panel_box[2] >= box[2] and panel_box[3] >= box[3]
+        assert int(item["font_size"]) >= 44
+
     assert data["artifact_health"]["total"] == 3
     assert data["artifact_health"]["lifecycle_counts"] == {
         "scaffold": 1,
@@ -119,18 +147,17 @@ def test_target_payload_and_readback_matching_for_existing_item():
     update = by_role(contract())["artifact_status"]
     remote = {
         "id": update["id"],
-        "type": "shape",
+        "type": "text",
         "parent": {"id": "3458764679756478046"},
-        "data": {"shape": "rectangle", "content": "old"},
-        "style": {"fillColor": "#000000", "fontSize": 24},
-        "geometry": {"width": 1000, "height": 300},
+        "data": {"content": "old"},
+        "style": {"color": "#000000", "fontSize": 24},
+        "geometry": {"width": 1000},
         "position": {"x": 100, "y": 100, "origin": "center"},
     }
     payload = _target_payload(remote, update, "3458764679756478046")
-    assert payload["data"]["shape"] == "rectangle"
     assert payload["style"]["fontSize"] == 64
-    assert payload["geometry"] == {"width": 6000.0, "height": 550.0}
-    reached = {**remote, **payload, "type": "shape"}
+    assert payload["geometry"] == {"width": 6000.0}
+    reached = {**remote, **payload, "type": "text"}
     reached["style"] = {
         key: (value.lower() if key in {"fillColor", "borderColor", "color"} and isinstance(value, str) else value)
         for key, value in payload["style"].items()
