@@ -91,8 +91,8 @@ managed_updates:
   type: sticky_note
   x: 1100
   y: 2100
-  width: 1700
-  visual_height: 1700
+  width: 1900
+  visual_height: 1900
   content: '<p><strong>FÁZE / GATE</strong></p><p>ALIGN / G1</p><p><strong>GATE STATE</strong></p><p>NOT_READY</p><p>Gate
     čeká na doplnění evidence a lidské rozhodnutí.</p>'
 - role: owner_next_action
@@ -100,8 +100,8 @@ managed_updates:
   type: sticky_note
   x: 3500
   y: 2100
-  width: 1800
-  visual_height: 1800
+  width: 2000
+  visual_height: 2000
   content: '<p><strong>ROZHODUJE</strong></p><p>Acceptance Business Owner</p><p>Rozhodnutí
     musí být zaznamenáno v Git decision recordu.</p><p><strong>DALŠÍ KROK</strong></p><p>Doplnit
     scope boundaries a success measures; potom připravit G1 k lidskému review.</p>'
@@ -110,8 +110,8 @@ managed_updates:
   type: sticky_note
   x: 5900
   y: 2100
-  width: 1700
-  visual_height: 1700
+  width: 1900
+  visual_height: 1900
   content: '<p><strong>🟧 ATTENTION — 1</strong></p><p>Projektový charter je stále
     SCAFFOLD a vyžaduje doplnění před G1 review.</p><p><strong>🟩 BLOCKERS — 0</strong></p><p>Postup
     není blokován.</p>'
