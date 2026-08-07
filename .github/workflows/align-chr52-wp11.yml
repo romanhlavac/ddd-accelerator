@@ -151,15 +151,6 @@ jobs:
             gh api "repos/$GH_REPO/issues/$blocked/dependencies/blocked_by?per_page=100" --jq '.[].number' | grep -qx 52
           done
 
-      - name: Verify Project V2 membership
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: romanhlavac/ddd-accelerator
-        shell: bash
-        run: |
-          set -euo pipefail
-          gh api "repos/$GH_REPO/issues/52/events?per_page=100" --jq '.[] | select(.event=="added_to_project_v2") | .event' | grep -qx 'added_to_project_v2'
-
       - name: Commit versioned alignment and remove one-shot workflow
         shell: bash
         run: |
