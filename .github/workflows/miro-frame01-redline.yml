@@ -24,7 +24,7 @@ jobs:
     timeout-minutes: 120
     env:
       SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
-      AUTHORIZED_BASE_SHA: aec047fd10b8e89efee3748305b0fb9d93f33ad7
+      AUTHORIZED_BASE_SHA: 908695f882032f6863e9940a0c6f72457ca5f57d
       GH_TOKEN: ${{ github.token }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
 
@@ -43,7 +43,7 @@ jobs:
       - name: Initialize evidence
         shell: pwsh
         run: |
-          $root = Join-Path $env:RUNNER_TEMP 'rem-012-5-frame-01-recovery'
+          $root = Join-Path $env:RUNNER_TEMP 'rem-012-5-frame-01-wirefix'
           New-Item -ItemType Directory -Path $root -Force | Out-Null
           "EVIDENCE_ROOT=$root" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
           [ordered]@{
@@ -78,24 +78,21 @@ jobs:
 
           source = os.environ['SOURCE_SHA']
           base = os.environ['AUTHORIZED_BASE_SHA']
-          expected_paths = sorted([
+          expected = sorted([
               '.github/workflows/miro-frame01-redline.yml',
-              'runtime/miro/ddda_miro/review_board_recovery.py',
-              'runtime/miro/tests/test_rem_012_5_frame_01.py',
+              'runtime/miro/ddda_miro/review_board_recovery_wirefix.py',
+              'runtime/miro/tests/test_rem_012_5_frame00_position_payload.py',
               'scaffolds/miro/rem-012-5-frame-01.yaml',
           ])
           observed = sorted(filter(None, git('diff-tree', '--no-commit-id', '--name-only', '-r', source).splitlines()))
           manifest = Path('scaffolds/miro/rem-012-5-frame-01.yaml').read_text(encoding='utf-8')
-          scaffold = Path('scaffolds/miro/strategic-ddd-method-board.yaml').read_text(encoding='utf-8')
-
           assert git('rev-parse', 'HEAD') == source, 'source checkout mismatch'
-          assert git('rev-parse', source + '^') == base, 'REM-012.5 recovery parent mismatch'
-          assert git('show', '-s', '--format=%s', source) == 'fix(miro): create Frame 00 before parent shrink', 'unexpected source commit'
-          assert observed == expected_paths, f'REM-012.5 recovery path allowlist mismatch: {observed}'
+          assert git('rev-parse', source + '^') == base, 'REM-012.5 wirefix parent mismatch'
+          assert git('show', '-s', '--format=%s', source) == 'fix(miro): omit read-only position metadata on create', 'unexpected source commit'
+          assert observed == expected, f'REM-012.5 wirefix path allowlist mismatch: {observed}'
           assert f'authorized_base_sha: {base}' in manifest, 'manifest authorization mismatch'
-          assert 'board_id: uXjVH0doLYY=' in manifest, 'recovery target board mismatch'
-          assert "source_board_id: uXjVH2vcvRI=" in manifest, 'source redline board mismatch'
-          assert "board_id: uXjVH2vcvRI=" in scaffold, 'canonical scaffold no longer identifies the approved redline board'
+          assert 'board_id: uXjVH0doLYY=' in manifest, 'target board mismatch'
+          assert 'source_board_id: uXjVH2vcvRI=' in manifest, 'source board mismatch'
           Path(os.environ['EVIDENCE_ROOT'], 'source-contract.json').write_text(json.dumps({
               'status': 'PASS', 'source_sha': source, 'authorized_base_sha': base, 'observed_paths': observed,
           }, indent=2) + '\n', encoding='utf-8')
@@ -112,44 +109,62 @@ jobs:
           repo, sha, token = os.environ['GITHUB_REPOSITORY'], os.environ['SOURCE_SHA'], os.environ['GH_TOKEN']
           headers = {'Authorization': f'Bearer {token}', 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28'}
           def get(url):
-              with urllib.request.urlopen(urllib.request.Request(url, headers=headers)) as response: return json.load(response)
+              with urllib.request.urlopen(urllib.request.Request(url, headers=headers)) as response:
+                  return json.load(response)
           def latest(items, name):
-              hits=[item for item in items if item['name']==name]; return max(hits,key=lambda item:item['run_number']) if hits else None
-          def success(item,label):
-              if item and item['status']=='completed' and item.get('conclusion')!='success': raise SystemExit(f'{label} failed: {item.get("conclusion")}')
-              return bool(item and item['status']=='completed' and item.get('conclusion')=='success')
-          candidate=f'ddda-candidate-{sha}'
+              hits = [item for item in items if item['name'] == name]
+              return max(hits, key=lambda item: item['run_number']) if hits else None
+          def require_success(item, label):
+              if item and item['status'] == 'completed' and item.get('conclusion') != 'success':
+                  raise SystemExit(f'{label} failed: {item.get("conclusion")}')
+              return bool(item and item['status'] == 'completed' and item.get('conclusion') == 'success')
+
+          candidate_name = f'ddda-candidate-{sha}'
           for _ in range(240):
-              runs=get(f'https://api.github.com/repos/{repo}/actions/runs?head_sha={sha}&event=pull_request&per_page=100')['workflow_runs']
-              validate, probe, platform = latest(runs,'Validate DDDA'), latest(runs,'DDDA exact-code Miro image probe'), latest(runs,'DDDA platform CI')
-              v_ok, p_ok = success(validate,'Validate DDDA'), success(probe,'Miro image probe')
-              jobs=[]; artifacts=[]; platform_ok=False
+              runs = get(f'https://api.github.com/repos/{repo}/actions/runs?head_sha={sha}&event=pull_request&per_page=100')['workflow_runs']
+              validate = latest(runs, 'Validate DDDA')
+              probe = latest(runs, 'DDDA exact-code Miro image probe')
+              platform = latest(runs, 'DDDA platform CI')
+              validate_ok = require_success(validate, 'Validate DDDA')
+              probe_ok = require_success(probe, 'Miro image probe')
+              jobs, artifacts, platform_ok = [], [], False
               if platform:
-                  jobs=get(f'https://api.github.com/repos/{repo}/actions/runs/{platform["id"]}/jobs?per_page=100')['jobs']
-                  flags=[]
-                  for name in ('Platform validation','One-command PR validation'):
-                      hits=[job for job in jobs if job['name']==name]; job=max(hits,key=lambda x:x.get('run_attempt',1)) if hits else None
-                      if job and job['status']=='completed' and job.get('conclusion')!='success': raise SystemExit(f'platform job {name} failed: {job.get("conclusion")}')
-                      flags.append(bool(job and job['status']=='completed' and job.get('conclusion')=='success'))
-                  artifacts=get(f'https://api.github.com/repos/{repo}/actions/runs/{platform["id"]}/artifacts?per_page=100')['artifacts']
-                  platform_ok=all(flags) and any(a['name']==candidate and not a['expired'] for a in artifacts)
-              snapshot={'source_sha':sha,'validate':validate,'probe':probe,'platform_run':platform,'platform_jobs':[{k:j.get(k) for k in ('id','name','status','conclusion')} for j in jobs],'candidate_artifacts':[{k:a.get(k) for k in ('id','name','expired','digest')} for a in artifacts if a['name']==candidate]}
-              Path(os.environ['EVIDENCE_ROOT'],'ci-evidence.json').write_text(json.dumps(snapshot,indent=2)+'\n',encoding='utf-8')
-              if v_ok and p_ok and platform_ok:
-                  with open(os.environ['GITHUB_OUTPUT'],'a',encoding='utf-8') as out: out.write(f'platform_run_id={platform["id"]}\n')
+                  jobs = get(f'https://api.github.com/repos/{repo}/actions/runs/{platform["id"]}/jobs?per_page=100')['jobs']
+                  flags = []
+                  for name in ('Platform validation', 'One-command PR validation'):
+                      hits = [job for job in jobs if job['name'] == name]
+                      job = max(hits, key=lambda value: value.get('run_attempt', 1)) if hits else None
+                      if job and job['status'] == 'completed' and job.get('conclusion') != 'success':
+                          raise SystemExit(f'platform job {name} failed: {job.get("conclusion")}')
+                      flags.append(bool(job and job['status'] == 'completed' and job.get('conclusion') == 'success'))
+                  artifacts = get(f'https://api.github.com/repos/{repo}/actions/runs/{platform["id"]}/artifacts?per_page=100')['artifacts']
+                  platform_ok = all(flags) and any(item['name'] == candidate_name and not item['expired'] for item in artifacts)
+              snapshot = {
+                  'source_sha': sha,
+                  'validate': validate,
+                  'probe': probe,
+                  'platform_run': platform,
+                  'platform_jobs': [{key: job.get(key) for key in ('id','name','status','conclusion')} for job in jobs],
+                  'candidate_artifacts': [{key: item.get(key) for key in ('id','name','expired','digest')} for item in artifacts if item['name'] == candidate_name],
+              }
+              Path(os.environ['EVIDENCE_ROOT'], 'ci-evidence.json').write_text(json.dumps(snapshot, indent=2) + '\n', encoding='utf-8')
+              if validate_ok and probe_ok and platform_ok:
+                  with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
+                      output.write(f'platform_run_id={platform["id"]}\n')
                   break
               time.sleep(15)
-          else: raise SystemExit('exact-SHA evidence or candidate did not become ready within 60 minutes')
+          else:
+              raise SystemExit('exact-SHA evidence or candidate did not become ready within 60 minutes')
           '@ | python -
 
-      - name: Run targeted Frame 00/01 recovery tests
+      - name: Run targeted REM-012.5 tests
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           python -m pip install --disable-pip-version-check --no-input pytest 'ruamel.yaml>=0.18,<0.19' requests pyyaml
           $env:PYTHONPATH = Join-Path $PWD.Path 'runtime\miro'
-          python -m pytest runtime/miro/tests/test_rem_012_5_frame_01.py -q
-          if ($LASTEXITCODE -ne 0) { throw 'REM-012.5 recovery tests failed.' }
+          python -m pytest runtime/miro/tests/test_rem_012_5_frame_01.py runtime/miro/tests/test_rem_012_5_frame00_position_payload.py -q
+          if ($LASTEXITCODE -ne 0) { throw 'REM-012.5 targeted tests failed.' }
 
       - name: Verify Miro secret
         shell: pwsh
@@ -178,7 +193,7 @@ jobs:
           .\scripts\platform\Test-DDDAPlatformPackage.ps1 -PackagePath $candidate[0].FullName -ExpectedCommit $env:SOURCE_SHA -ExpectedKind candidate
           $packageSha256 = (Get-FileHash -LiteralPath $candidate[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant()
           [ordered]@{status='PASS';source_sha=$env:SOURCE_SHA;platform_run_id='${{ steps.ci.outputs.platform_run_id }}';package_file=$candidate[0].Name;package_sha256=$packageSha256} | ConvertTo-Json | Set-Content (Join-Path $env:EVIDENCE_ROOT 'package.json') -Encoding utf8
-          $packageRoot = Join-Path $env:RUNNER_TEMP 'rem-012-5-recovery-package'
+          $packageRoot = Join-Path $env:RUNNER_TEMP 'rem-012-5-wirefix-package'
           if (Test-Path $packageRoot) { Remove-Item $packageRoot -Recurse -Force }
           Expand-Archive -LiteralPath $candidate[0].FullName -DestinationPath $packageRoot -Force
           $runtime = Join-Path $packageRoot 'runtime\miro'
@@ -186,7 +201,7 @@ jobs:
           $env:PYTHONPATH = $runtime
           $manifest = Join-Path $packageRoot 'scaffolds\miro\rem-012-5-frame-01.yaml'
           $report = Join-Path $env:EVIDENCE_ROOT 'result.json'
-          python -m ddda_miro.review_board_recovery --manifest $manifest --report $report --source-sha $env:SOURCE_SHA --apply
+          python -m ddda_miro.review_board_recovery_wirefix --manifest $manifest --report $report --source-sha $env:SOURCE_SHA --apply
           if ($LASTEXITCODE -ne 0) { Get-Content $report -ErrorAction SilentlyContinue; throw 'REM-012.5 review-board recovery failed.' }
           $result = Get-Content $report -Raw -Encoding UTF8 | ConvertFrom-Json
           if ($result.technical_status -ne 'PASS' -or $result.human_review_status -ne 'PENDING' -or $result.overall_status -ne 'READY_FOR_HUMAN_REVIEW') { throw 'REM-012.5 acceptance state mismatch.' }

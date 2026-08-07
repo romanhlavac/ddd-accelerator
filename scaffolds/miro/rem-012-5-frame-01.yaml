@@ -1,6 +1,6 @@
 schema_version: 1
 remediation_id: REM-PR8-HVA-CC-012.5
-authorized_base_sha: aec047fd10b8e89efee3748305b0fb9d93f33ad7
+authorized_base_sha: 908695f882032f6863e9940a0c6f72457ca5f57d
 board_id: uXjVH0doLYY=
 frame00_id: '3458764680243144441'
 frame_id: '3458764680243144449'
