@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 import urllib.parse
 from copy import deepcopy
 from typing import Any
@@ -8,6 +9,50 @@ from typing import Any
 from .anchor_contract import ENDPOINT, _get_item, _patch, _writable
 from .client import MiroApiError, MiroClient
 from .frame00_contract import _matches, _selector_matches, _target_payload
+
+
+_STICKY_GEOMETRY_ATTEMPTS = 4
+_STICKY_GEOMETRY_DELAY_SECONDS = 0.5
+
+
+def _sticky_geometry_payload(payload: dict[str, Any]) -> dict[str, Any] | None:
+    geometry = payload.get("geometry")
+    if not isinstance(geometry, dict) or geometry.get("width") is None:
+        return None
+    return {"geometry": {"width": float(geometry["width"])}}
+
+
+def _sticky_width_matches(readback: dict[str, Any], geometry_payload: dict[str, Any]) -> bool:
+    actual = (readback.get("geometry") or {}).get("width")
+    expected = (geometry_payload.get("geometry") or {}).get("width")
+    try:
+        return abs(float(actual) - float(expected)) <= 0.75
+    except (TypeError, ValueError):
+        return actual == expected
+
+
+def _finish_sticky_geometry(
+    client: MiroClient,
+    board: str,
+    item_id: str,
+    geometry_payload: dict[str, Any],
+    target_payload: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    readback: dict[str, Any] = {}
+    for _ in range(_STICKY_GEOMETRY_ATTEMPTS):
+        # Miro may persist content/position from a combined sticky-note PATCH while
+        # retaining the previous geometry. Finish width through a dedicated PATCH,
+        # then verify fresh server state. Repeated writes are bounded and idempotent.
+        _patch(client, board, "sticky_note", item_id, geometry_payload)
+        if _STICKY_GEOMETRY_DELAY_SECONDS > 0:
+            time.sleep(_STICKY_GEOMETRY_DELAY_SECONDS)
+        readback = _get_item(client, board, item_id)
+        if target_payload is not None:
+            if _matches(readback, target_payload):
+                return readback
+        elif _sticky_width_matches(readback, geometry_payload):
+            return readback
+    return readback
 
 
 def _restore_deleted(client: MiroClient, board: str, snapshot: dict[str, Any]) -> None:
@@ -25,7 +70,15 @@ def rollback(client: MiroClient, board: str, original: dict[str, dict[str, Any]]
     errors: list[str] = []
     for item_id, snapshot in reversed(list(original.items())):
         try:
-            _patch(client, board, str(snapshot["type"]), item_id, _writable(snapshot))
+            item_type = str(snapshot["type"])
+            payload = _writable(snapshot)
+            _patch(client, board, item_type, item_id, payload)
+            if item_type == "sticky_note":
+                geometry_payload = _sticky_geometry_payload(payload)
+                if geometry_payload is not None:
+                    readback = _finish_sticky_geometry(client, board, item_id, geometry_payload)
+                    if not _sticky_width_matches(readback, geometry_payload):
+                        raise ValueError(f"sticky geometry rollback did not converge for {item_id}")
         except Exception as exc:  # noqa: BLE001
             errors.append(f"managed {item_id}: {exc}")
     for snapshot in deleted:
@@ -54,9 +107,22 @@ def reconcile_once(
             result["unchanged"] += 1
         else:
             # PATCH responses are not a stable read-back contract across Miro item
-            # types. Verify the persisted item with a fresh GET instead.
-            _patch(client, board, str(update["type"]), item_id, payload)
+            # types. Verify persisted state with a fresh GET. For sticky notes,
+            # Miro can accept content/position while retaining the previous width;
+            # finish geometry separately and require bounded convergence.
+            item_type = str(update["type"])
+            _patch(client, board, item_type, item_id, payload)
             readback = _get_item(client, board, item_id)
+            if not _matches(readback, payload) and item_type == "sticky_note":
+                geometry_payload = _sticky_geometry_payload(payload)
+                if geometry_payload is not None:
+                    readback = _finish_sticky_geometry(
+                        client,
+                        board,
+                        item_id,
+                        geometry_payload,
+                        target_payload=payload,
+                    )
             if not _matches(readback, payload):
                 fields = ("parent", "data", "style", "geometry", "position")
                 actual = {key: readback.get(key) for key in fields if key in readback}

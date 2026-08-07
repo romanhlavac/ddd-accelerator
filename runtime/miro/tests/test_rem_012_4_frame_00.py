@@ -226,6 +226,83 @@ def test_reconcile_verifies_persisted_get_not_patch_response(monkeypatch):
     assert result == {"updated": 1, "unchanged": 0, "deleted": 0, "cleanup_absent": 0}
 
 
+def test_reconcile_finishes_sticky_geometry_with_bounded_followup_patch(monkeypatch):
+    frame_id = "3458764679756478046"
+    update = by_role(contract())["phase_gate_state"]
+    remote = {
+        "id": update["id"],
+        "type": "sticky_note",
+        "parent": {"id": frame_id},
+        "data": {"shape": "rectangle", "content": "<p>old</p>"},
+        "style": {"fillColor": "light_yellow", "textAlign": "center", "textAlignVertical": "middle"},
+        "geometry": {"width": 1900, "height": 1237.7142857142858},
+        "position": {"x": 1200, "y": 1850, "origin": "center", "relativeTo": "parent_top_left"},
+    }
+    payload = _target_payload(remote, update, frame_id)
+    after_combined = {
+        **remote,
+        "data": payload["data"],
+        "parent": payload["parent"],
+        "position": payload["position"],
+    }
+    persisted = {
+        **after_combined,
+        "geometry": {"width": 1700.0, "height": 1107.4285714285713},
+    }
+    responses = iter([remote, after_combined, persisted])
+    patches = []
+    monkeypatch.setattr(frame00_reconcile, "_get_item", lambda *args: next(responses))
+    monkeypatch.setattr(
+        frame00_reconcile,
+        "_patch",
+        lambda *args, **kwargs: patches.append(args[-1]) or {"id": update["id"]},
+    )
+    monkeypatch.setattr(frame00_reconcile.time, "sleep", lambda *_: None)
+
+    class Client:
+        @staticmethod
+        def list_items(_board):
+            return []
+
+    result = frame00_reconcile.reconcile_once(
+        Client(),
+        {"board_id": "board", "frame": {"id": frame_id}, "managed_updates": [update], "cleanup": {}},
+        {},
+        [],
+    )
+
+    assert result == {"updated": 1, "unchanged": 0, "deleted": 0, "cleanup_absent": 0}
+    assert patches[0] == payload
+    assert patches[1] == {"geometry": {"width": 1700.0}}
+    assert len(patches) == 2
+
+
+def test_rollback_reapplies_sticky_width_separately(monkeypatch):
+    snapshot = {
+        "id": "item-1",
+        "type": "sticky_note",
+        "parent": {"id": "frame-00"},
+        "data": {"shape": "rectangle", "content": "<p>original</p>"},
+        "style": {"fillColor": "light_yellow", "textAlign": "center", "textAlignVertical": "middle"},
+        "geometry": {"width": 1900.0, "height": 1237.7142857142858},
+        "position": {"x": 1200, "y": 1850, "origin": "center", "relativeTo": "parent_top_left"},
+    }
+    patches = []
+    monkeypatch.setattr(
+        frame00_reconcile,
+        "_patch",
+        lambda *args, **kwargs: patches.append(args[-1]) or {"id": "item-1"},
+    )
+    monkeypatch.setattr(frame00_reconcile, "_get_item", lambda *args: snapshot)
+    monkeypatch.setattr(frame00_reconcile.time, "sleep", lambda *_: None)
+
+    result = frame00_reconcile.rollback(object(), "board", {"item-1": snapshot}, [])
+
+    assert result == {"status": "PASS", "errors": []}
+    assert patches[1] == {"geometry": {"width": 1900.0}}
+    assert len(patches) == 2
+
+
 def test_cleanup_selector_requires_exact_generated_signature():
     selector = next(item for item in contract()["cleanup"]["selectors"] if item.get("exact_text") == "SCAFFOLD: 1")
     matching = {
