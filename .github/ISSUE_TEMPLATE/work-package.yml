@@ -1,0 +1,135 @@
+name: Work Package
+description: Založit velký outcome-oriented roadmap blok se stabilním WP-XX identifikátorem.
+title: "[WP-XX] "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Work Package je parent Issue pro velký roadmap outcome. Detail implementace patří do Child Issues. Stabilní identita je WP-XX, nikoli číslo budoucího PR.
+  - type: input
+    id: wp_id
+    attributes:
+      label: Work Package ID
+      description: Stabilní identifikátor ve formátu WP-XX.
+      placeholder: WP-09
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+      description: Jaký pozorovatelný stav platformy má po dokončení WP existovat?
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / GAP
+      description: Jakou zásadní mezeru nebo riziko Work Package řeší?
+    validations:
+      required: true
+  - type: textarea
+    id: value
+    attributes:
+      label: Business and platform value
+      description: Pro koho je outcome důležitý a jakou hodnotu přinese?
+    validations:
+      required: true
+  - type: textarea
+    id: in_scope
+    attributes:
+      label: In scope
+      placeholder: |
+        - ...
+        - ...
+    validations:
+      required: true
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: Out of scope
+      placeholder: |
+        - ...
+        - ...
+    validations:
+      required: true
+  - type: textarea
+    id: boundaries
+    attributes:
+      label: Platform and domain boundaries
+      description: Jak se WP odděluje od sousedních Work Packages, klientských projektů a G1–G8?
+    validations:
+      required: true
+  - type: textarea
+    id: quality_attributes
+    attributes:
+      label: Priority quality attributes and constraints
+      description: Auditability, security, usability, modifiability, compatibility, cost, external constraints...
+    validations:
+      required: true
+  - type: textarea
+    id: delivery_slices
+    attributes:
+      label: Proposed delivery slices / Child Issues
+      description: Rozděl WP na samostatně realizovatelné a validovatelné inkrementy.
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Work Package acceptance criteria
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies and sequencing
+      description: Blocking/blocked-by Work Packages, issues, external systems and required order.
+    validations:
+      required: true
+  - type: textarea
+    id: risks
+    attributes:
+      label: Risks and mitigations
+      placeholder: |
+        | Risk | Impact | Mitigation |
+        |---|---:|---|
+        | ... | High | ... |
+    validations:
+      required: true
+  - type: input
+    id: target_release
+    attributes:
+      label: Target release
+      description: Konkrétní verze pouze pokud je rozhodnutá; jinak TBD a bez Milestone.
+      placeholder: TBD
+    validations:
+      required: true
+  - type: textarea
+    id: exit_criteria
+    attributes:
+      label: Exit criteria / Definition of Done
+      description: Za jakých podmínek lze uzavřít celý Work Package?
+    validations:
+      required: true
+  - type: checkboxes
+    id: governance
+    attributes:
+      label: Governance confirmation
+      options:
+        - label: Work Package popisuje outcome, nikoli plánovaný jeden PR.
+          required: true
+        - label: Budoucí implementace bude rozdělena do Child Issues.
+          required: true
+        - label: Priorita bude řízena v GitHub Projectu a cílová verze v Milestone.
+          required: true
+        - label: Žádný agent, CI ani Miro nesmí automaticky vydat lidské approval.
+          required: true
