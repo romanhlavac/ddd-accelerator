@@ -24,6 +24,7 @@ jobs:
     timeout-minutes: 120
     env:
       SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+      PREVIOUS_SOURCE_SHA: 9d78fabc69599007b9897e2801f5287aa295fc78
       PRODUCT_SHA: d7920d78fa2a4ee53c08309eff4a5c921864bbed
       BASE_SHA: cbc9963e13a1674e466cbceebfeff6f0b531a663
       GH_TOKEN: ${{ github.token }}
@@ -51,6 +52,7 @@ jobs:
             repository = $env:GITHUB_REPOSITORY
             pr = [int]$env:PR_NUMBER
             source_sha = $env:SOURCE_SHA
+            previous_source_sha = $env:PREVIOUS_SOURCE_SHA
             product_sha = $env:PRODUCT_SHA
             authorized_base_sha = $env:BASE_SHA
             board_id = 'uXjVH1phki0='
@@ -75,6 +77,7 @@ jobs:
               return subprocess.check_output(['git', *args], text=True).strip()
 
           source = os.environ['SOURCE_SHA']
+          previous_source = os.environ['PREVIOUS_SOURCE_SHA']
           product = os.environ['PRODUCT_SHA']
           base = os.environ['BASE_SHA']
           expected_product_paths = sorted([
@@ -83,28 +86,37 @@ jobs:
               'runtime/miro/tests/test_rem_012_4_frame_00.py',
               'scaffolds/miro/rem-012-4-frame-00.yaml',
           ])
-          expected_source_paths = sorted([
+          expected_previous_source_paths = sorted([
               '.github/workflows/miro-anchor-remediation.yml',
               'scaffolds/miro/rem-012-4-frame-00.yaml',
           ])
+          expected_source_paths = [
+              '.github/workflows/miro-anchor-remediation.yml',
+          ]
           product_paths = sorted(filter(None, git('diff-tree', '--no-commit-id', '--name-only', '-r', product).splitlines()))
+          previous_source_paths = sorted(filter(None, git('diff-tree', '--no-commit-id', '--name-only', '-r', previous_source).splitlines()))
           source_paths = sorted(filter(None, git('diff-tree', '--no-commit-id', '--name-only', '-r', source).splitlines()))
           manifest = Path('scaffolds/miro/rem-012-4-frame-00.yaml').read_text(encoding='utf-8')
 
           assert git('rev-parse', 'HEAD') == source, 'source checkout mismatch'
-          assert git('rev-parse', source + '^') == product, 'source parent mismatch'
+          assert git('rev-parse', source + '^') == previous_source, 'source parent mismatch'
+          assert git('rev-parse', previous_source + '^') == product, 'previous source parent mismatch'
           assert git('rev-parse', product + '^') == base, 'product parent mismatch'
           assert git('show', '-s', '--format=%s', product) == 'fix(miro): complete frame 00 Artifact Health HVR', 'unexpected product commit'
-          assert git('show', '-s', '--format=%s', source) == 'chore(miro): remove Frame 00 manifest trailing whitespace', 'unexpected source commit'
+          assert git('show', '-s', '--format=%s', previous_source) == 'chore(miro): remove Frame 00 manifest trailing whitespace', 'unexpected previous source commit'
+          assert git('show', '-s', '--format=%s', source) == 'chore(ci): recover PR 8 exact-SHA validation after Actions outage', 'unexpected source commit'
           assert product_paths == expected_product_paths, f'product path allowlist mismatch: {product_paths}'
+          assert previous_source_paths == expected_previous_source_paths, f'previous source path allowlist mismatch: {previous_source_paths}'
           assert source_paths == expected_source_paths, f'source path allowlist mismatch: {source_paths}'
           assert f'authorized_base_sha: {base}' in manifest, 'manifest authorization mismatch'
           Path(os.environ['EVIDENCE_ROOT'], 'source-contract.json').write_text(json.dumps({
               'status': 'PASS',
               'authorized_base_sha': base,
               'product_sha': product,
+              'previous_source_sha': previous_source,
               'source_sha': source,
               'product_paths': product_paths,
+              'previous_source_paths': previous_source_paths,
               'source_paths': source_paths,
           }, indent=2) + '\n', encoding='utf-8')
           '@ | python -
