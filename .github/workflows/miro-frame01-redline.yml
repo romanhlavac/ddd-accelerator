@@ -24,6 +24,7 @@ jobs:
     timeout-minutes: 120
     env:
       SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+      AUTHORIZED_PREVIOUS_SHA: 5edbd87b999a81ee234ad617999d31c518144231
       AUTHORIZED_CORRECTIVE_SHA: d1a75aa49f60e72d6377274d8e52ee7fb19d704b
       IMPLEMENTATION_SHA: aca563951d6480dfc24fddafd11a3f1fdb6c2938
       AUTHORIZED_BASE_SHA: ed14f57363c359e60633f9f1da9ad69dee8b5bda
@@ -50,8 +51,9 @@ jobs:
           "EVIDENCE_ROOT=$root" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
           [ordered]@{
             repository=$env:GITHUB_REPOSITORY; pr=[int]$env:PR_NUMBER; source_sha=$env:SOURCE_SHA
-            authorized_corrective_sha=$env:AUTHORIZED_CORRECTIVE_SHA; implementation_sha=$env:IMPLEMENTATION_SHA
-            authorized_base_sha=$env:AUTHORIZED_BASE_SHA; remediation_id='REM-PR8-HVA-CC-012.5'
+            authorized_previous_sha=$env:AUTHORIZED_PREVIOUS_SHA; authorized_corrective_sha=$env:AUTHORIZED_CORRECTIVE_SHA
+            implementation_sha=$env:IMPLEMENTATION_SHA; authorized_base_sha=$env:AUTHORIZED_BASE_SHA
+            remediation_id='REM-PR8-HVA-CC-012.5'
             source_board_id='uXjVH2vcvRI='; source_frame_id='3458764679494310883'
             board_id='uXjVH0doLYY='; frame00_id='3458764680243144441'; original_frame01_id='3458764680243144449'
             frame00_hvr_original_decision='ACCEPTED'; frame00_visual_equivalence_spot_check='PENDING'
@@ -72,11 +74,18 @@ jobs:
               return sorted(filter(None, git('diff-tree', '--no-commit-id', '--name-only', '-r', commit).splitlines()))
 
           source = os.environ['SOURCE_SHA']
+          previous = os.environ['AUTHORIZED_PREVIOUS_SHA']
           corrective = os.environ['AUTHORIZED_CORRECTIVE_SHA']
           implementation = os.environ['IMPLEMENTATION_SHA']
           base = os.environ['AUTHORIZED_BASE_SHA']
 
-          expected_source = ['.github/workflows/miro-frame01-redline.yml']
+          expected_source = sorted([
+              '.github/workflows/miro-frame01-redline.yml',
+              'runtime/miro/ddda_miro/review_board_recovery_wirefix.py',
+              'runtime/miro/tests/test_rem_012_5_frame00_position_payload.py',
+              'scaffolds/miro/rem-012-5-frame-01.yaml',
+          ])
+          expected_previous = ['.github/workflows/miro-frame01-redline.yml']
           expected_corrective = ['.github/workflows/miro-frame01-redline.yml']
           expected_implementation = sorted([
               '.github/workflows/miro-frame01-redline.yml',
@@ -86,35 +95,45 @@ jobs:
           ])
 
           source_paths = changed(source)
+          previous_paths = changed(previous)
           corrective_paths = changed(corrective)
           implementation_paths = changed(implementation)
           manifest = Path('scaffolds/miro/rem-012-5-frame-01.yaml').read_text(encoding='utf-8')
 
           assert git('rev-parse', 'HEAD') == source
-          assert git('rev-parse', source + '^') == corrective, 'REM-012.5 current corrective parent mismatch'
+          assert git('rev-parse', source + '^') == previous, 'REM-012.5 HVR corrective parent mismatch'
+          assert git('rev-parse', previous + '^') == corrective, 'REM-012.5 previous corrective parent mismatch'
           assert git('rev-parse', corrective + '^') == implementation, 'REM-012.5 first corrective parent mismatch'
           assert git('rev-parse', implementation + '^') == base, 'REM-012.5 implementation parent mismatch'
 
-          assert git('show', '-s', '--format=%s', source) == 'fix(ci): validate REM-012.5 corrective lineage'
+          assert git('show', '-s', '--format=%s', source) == 'fix(miro): restore Frame 01 visual companions'
+          assert git('show', '-s', '--format=%s', previous) == 'fix(ci): validate REM-012.5 corrective lineage'
           assert git('show', '-s', '--format=%s', corrective) == 'fix(ci): correct REM-012.5 evidence path expression'
           assert git('show', '-s', '--format=%s', implementation) == 'fix(miro): replace Frame 01 container from redline'
 
-          assert source_paths == expected_source, f'current corrective path allowlist mismatch: {source_paths}'
+          assert source_paths == expected_source, f'HVR corrective path allowlist mismatch: {source_paths}'
+          assert previous_paths == expected_previous, f'previous corrective path allowlist mismatch: {previous_paths}'
           assert corrective_paths == expected_corrective, f'first corrective path allowlist mismatch: {corrective_paths}'
           assert implementation_paths == expected_implementation, f'implementation path allowlist mismatch: {implementation_paths}'
 
           assert f'authorized_base_sha: {base}' in manifest
           assert 'board_id: uXjVH0doLYY=' in manifest and 'source_board_id: uXjVH2vcvRI=' in manifest
-          assert 'frame00_container_policy: preserve_relocated_container_pending_human_equivalence_check' in manifest
+          assert 'frame00_container_policy: restore_accepted_geometry_preserve_top_left_pending_human_equivalence_check' in manifest
+          assert 'source_companion_frames:' in manifest
+          assert manifest.count('min_images:') == 9
+          assert 'methodology_min_font_size: 80' in manifest
+          assert 'connector_caption_min_font_size: 48' in manifest
 
           Path(os.environ['EVIDENCE_ROOT'], 'source-contract.json').write_text(
               json.dumps({
                   'status': 'PASS',
                   'source_sha': source,
+                  'authorized_previous_sha': previous,
                   'authorized_corrective_sha': corrective,
                   'implementation_sha': implementation,
                   'authorized_base_sha': base,
                   'source_paths': source_paths,
+                  'previous_paths': previous_paths,
                   'corrective_paths': corrective_paths,
                   'implementation_paths': implementation_paths,
               }, indent=2) + '\n',
@@ -204,9 +223,14 @@ jobs:
           $r=Get-Content $report -Raw -Encoding UTF8 | ConvertFrom-Json
           if($r.technical_status -ne 'PASS' -or $r.human_review_status -ne 'PENDING' -or $r.overall_status -ne 'READY_FOR_HUMAN_REVIEW'){throw 'REM-012.5 acceptance state mismatch.'}
           if(-not $r.protected_frames.unchanged -or $r.protected_frames.count -ne 16){throw 'REM-012.5 protected-frame contract failed.'}
-          if($r.frame00_visual_equivalence_spot_check -ne 'PENDING'){throw 'Frame 00 relocation spot check must remain pending.'}
+          if($r.frame00_visual_equivalence_spot_check -ne 'PENDING'){throw 'Frame 00 visual equivalence must remain pending for human HVR.'}
+          if([math]::Abs([double]$r.frame00_container.geometry.width - 7000.0) -gt 0.5 -or [math]::Abs([double]$r.frame00_container.geometry.height - 4914.42) -gt 0.5){throw 'Frame 00 accepted container geometry was not restored.'}
+          if($r.frame00_container.geometry_status -ne 'ACCEPTED_GEOMETRY_TOP_LEFT_PRESERVED_PENDING_HUMAN_EQUIVALENCE_CHECK'){throw 'Frame 00 geometry status mismatch.'}
           if($r.frame01_recovery.second_run.items.created -ne 0 -or $r.frame01_recovery.second_run.items.updated -ne 0 -or $r.frame01_recovery.second_run.items.deleted -ne 0){throw 'Frame 01 second item reconcile is not zero mutation.'}
           if($r.frame01_recovery.second_run.connectors.created -ne 0 -or $r.frame01_recovery.second_run.connectors.updated -ne 0 -or $r.frame01_recovery.second_run.connectors.deleted -ne 0){throw 'Frame 01 second connector reconcile is not zero mutation.'}
+          if($r.companion_frames.first_run.expected_frame_count -ne 9 -or $r.companion_frames.second_run.expected_frame_count -ne 9){throw 'Frame 01 companion-frame inventory mismatch.'}
+          if($r.companion_frames.second_run.frames.created -ne 0 -or $r.companion_frames.second_run.frames.updated -ne 0 -or $r.companion_frames.second_run.frames.unchanged -ne 9){throw 'Frame 01 companion-frame second reconcile is not zero mutation.'}
+          if([int]$r.readability_contract.methodology_min_font_size -lt 80 -or [int]$r.readability_contract.connector_caption_min_font_size -lt 48){throw 'Frame 01 readability contract is below HVR minimum.'}
 
       - name: Upload evidence
         if: always()

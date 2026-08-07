@@ -12,8 +12,42 @@ frame00_sticky_colors:
   phase_gate_state: light_yellow
   owner_next_action: light_blue
   attention_blockers: light_green
-frame00_container_policy: preserve_relocated_container_pending_human_equivalence_check
+frame00_container_policy: restore_accepted_geometry_preserve_top_left_pending_human_equivalence_check
 replace_entire_frame_children: true
+readability:
+  methodology_min_font_size: 80
+  methodology_width: 4800
+  methodology_x: 2600
+  methodology_y: 850
+  connector_caption_min_font_size: 48
+source_companion_frames:
+  - id: '3458764679531043366'
+    title: Miro Tips
+    min_images: 1
+  - id: '3458764679531716415'
+    title: Align
+    min_images: 2
+  - id: '3458764679532531400'
+    title: Discover
+    min_images: 2
+  - id: '3458764679532531576'
+    title: Decompose
+    min_images: 2
+  - id: '3458764679532531636'
+    title: Strategize
+    min_images: 2
+  - id: '3458764679532834577'
+    title: Connect
+    min_images: 2
+  - id: '3458764679532834532'
+    title: Organize
+    min_images: 2
+  - id: '3458764679532834637'
+    title: Define
+    min_images: 2
+  - id: '3458764679532834681'
+    title: Code
+    min_images: 2
 source_sentinels:
   - G1 · Align
   - G8 · Code
