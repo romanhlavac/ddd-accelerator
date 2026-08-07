@@ -27,7 +27,7 @@ def by_role(data):
 def test_exact_scope_lineage_and_sources():
     data = contract()
     assert data["remediation_id"] == "REM-PR8-HVA-CC-012.4"
-    assert data["authorized_base_sha"] == "40a64e950b408f7dfce7a2e642eaa0e3bcf1b38f"
+    assert data["authorized_base_sha"] == "eb7a40ddf522f1ac9494f72c28ed0d6cca457f05"
     assert data["target_branch"] == "feat/project-steering-and-documentation"
     assert data["board_id"] == "uXjVH1phki0="
     assert data["frame"]["id"] == "3458764679756478046"
@@ -81,7 +81,7 @@ def test_attention_and_blockers_are_explicit_and_not_conflated():
     assert "HEALTH: ATTENTION" not in text
 
 
-def test_artifact_health_has_status_then_true_legend_and_separate_registry_action():
+def test_artifact_health_has_spaced_status_true_legend_and_separate_registry_action():
     data = contract()
     items = by_role(data)
     panel = items["artifact_panel"]
@@ -89,6 +89,7 @@ def test_artifact_health_has_status_then_true_legend_and_separate_registry_actio
     legend = items["artifact_legend"]
     status_text = canonical_miro_text(status["content"])
     legend_text = canonical_miro_text(legend["content"])
+    raw_status = status["content"]
 
     assert panel["type"] == "shape"
     assert status["type"] == legend["type"] == "text"
@@ -102,6 +103,13 @@ def test_artifact_health_has_status_then_true_legend_and_separate_registry_actio
     assert "ARTIFACT HEALTH — CURRENT STATUS" in status_text
     assert "1 SCAFFOLD · 2 WORKING" in status_text
     assert "ATTENTION 1" in status_text and "BLOCKERS 0" in status_text
+
+    heading_at = raw_status.index("ARTIFACT HEALTH — CURRENT STATUS")
+    summary_at = raw_status.index("1 SCAFFOLD")
+    detail_at = raw_status.index("DETAIL ARTEFAKTŮ")
+    assert heading_at < summary_at < detail_at
+    assert raw_status[heading_at:summary_at].count("<p><br></p>") >= 2
+    assert raw_status[summary_at:detail_at].count("<p><br></p>") >= 2
 
     assert "ARTIFACT LIFECYCLE / MATURITY" in legend_text
     for state in ("SCAFFOLD", "WORKING", "CANDIDATE", "VALIDATED", "ACCEPTED", "SUPERSEDED"):
@@ -142,7 +150,9 @@ def test_artifact_health_has_status_then_true_legend_and_separate_registry_actio
 
     status_box = bounds(status)
     legend_box = bounds(legend)
-    assert status_box[3] < legend_box[1]
+    assert legend_box[1] - status_box[3] >= 90
+    assert float(status["y"]) == 3750
+    assert float(legend["y"]) == 4510
 
     assert data["artifact_health"]["total"] == 3
     assert data["artifact_health"]["lifecycle_counts"] == {

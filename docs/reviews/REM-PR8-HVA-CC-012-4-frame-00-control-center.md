@@ -1,6 +1,6 @@
 # REM-PR8-HVA-CC-012.4 — Frame 00 Control Center
 
-Status: HVR remediation authorized — CHANGES_REQUIRED round 1
+Status: HVR remediation authorized — CHANGES_REQUIRED round 2
 
 Date: 2026-08-07
 
@@ -8,7 +8,7 @@ Date: 2026-08-07
 
 Human visual review repeatedly showed that frame `00` devoted too much visual weight to Artifact Health while the project decision, decision owner and next action remained subordinate. REM-012.4 replaces the frame-00 information hierarchy without changing the DDD Starter journey, frame `01`, frame `10` or any workshop frame `20+`.
 
-The original authorized predecessor was commit `6d34b008d5b6c32bdc6c555649f1047de3f1f66c`. The current HVR-remediation base is commit `40a64e950b408f7dfce7a2e642eaa0e3bcf1b38f`. The target remains PR `#8` on branch `feat/project-steering-and-documentation`.
+The original authorized predecessor was commit `6d34b008d5b6c32bdc6c555649f1047de3f1f66c`. The current HVR-remediation round-2 base is commit `eb7a40ddf522f1ac9494f72c28ed0d6cca457f05`. The target remains PR `#8` on branch `feat/project-steering-and-documentation`.
 
 ## Decision
 
@@ -51,7 +51,7 @@ The frame must make the following information readable at normal working zoom:
 
 `SUPERSEDED` is explained as a replacement state, not a maturity level above `ACCEPTED`.
 
-## HVR-1 CHANGES_REQUIRED findings — 2026-08-07
+## HVR-1 CHANGES_REQUIRED findings — round 1 — 2026-08-07
 
 The first human visual review rejected Frame `00` with three findings:
 
@@ -59,13 +59,32 @@ The first human visual review rejected Frame `00` with three findings:
 2. `MATURITY` was presented as a numeric summary duplicated from Artifact Health instead of a true legend explaining lifecycle-state meanings.
 3. The project Artifact Registry link was visually embedded in the legend although it is a navigation/source action.
 
-The authorized remediation changes only Frame `00` and its exact-SHA validation contract:
+Round 1 changed only Frame `00` and its exact-SHA validation contract:
 
-- the decision-owner sticky now says that the `Acceptance Business Owner` confirms G1 in the project DDDA chat; DDDA prepares the project decision record and no manual YAML editing is required;
+- the decision-owner sticky says that the `Acceptance Business Owner` confirms G1 in the project DDDA chat; DDDA prepares the project decision record and no manual YAML editing is required;
 - Artifact Health keeps the numeric current-state summary;
 - the lower legend explains lifecycle-state meanings and ATTENTION/BLOCKING semantics without repeating lifecycle counts;
-- the Artifact Registry action is moved into the separate current-status/action block and is no longer part of the lifecycle legend;
+- the Artifact Registry action is in the separate current-status/action block and is no longer part of the lifecycle legend;
 - existing eight managed Frame-00 items are reused; no new Miro item is created;
+- frame `01`, frame `10` and all fifteen frames `20+` remain protected.
+
+## HVR-1 CHANGES_REQUIRED findings — round 2 — 2026-08-07
+
+The second human visual review accepted the round-1 content corrections but rejected the remaining vertical hierarchy inside the Artifact Health panel:
+
+1. `ARTIFACT HEALTH — CURRENT STATUS` is the heading of the whole health panel and needs visibly more vertical separation from the actual status section beneath it.
+2. `DETAIL ARTEFAKTŮ` likewise needs visibly more vertical separation from the current-status summary above it.
+
+The authorized round-2 remediation is intentionally narrow:
+
+- keep the same eight managed Frame-00 items and the same Artifact Health container;
+- keep the decision cockpit content, gate semantics, lifecycle definitions and registry target unchanged;
+- move the current-status text block lower inside the panel;
+- insert two explicit spacer paragraphs between the Artifact Health heading and the numeric current-status summary;
+- insert two explicit spacer paragraphs between the numeric summary and `DETAIL ARTEFAKTŮ`;
+- move the lifecycle legend lower and require a real geometric gap of at least 90 px between the status block and lifecycle legend in the declarative layout;
+- keep all managed content within the existing 1600 px Artifact Health panel;
+- do not create a ninth Miro item;
 - frame `01`, frame `10` and all fifteen frames `20+` remain protected.
 
 ## Technical scope
@@ -106,7 +125,10 @@ The HVR-remediation source test additionally enforces:
 - `JAK ROZHODNOUT` and the project DDDA chat instruction are present;
 - lifecycle counts do not appear in the lifecycle legend;
 - lifecycle-state meanings are present;
-- the Artifact Registry link and source-of-truth text are outside the lifecycle legend.
+- the Artifact Registry link and source-of-truth text are outside the lifecycle legend;
+- two explicit spacer paragraphs separate the Artifact Health heading from the numeric summary;
+- two explicit spacer paragraphs separate the numeric summary from `DETAIL ARTEFAKTŮ`;
+- the status and lifecycle blocks remain inside the one Artifact Health panel with at least a 90 px declarative gap between them.
 
 A successful technical execution yields:
 
@@ -132,7 +154,7 @@ The workflow must not:
 ## Human review sequence
 
 ```text
-HVR-1 frame 00: CHANGES_REQUIRED; remediation round 1 authorized
+HVR-1 frame 00: CHANGES_REQUIRED; remediation round 2 authorized
 HVR-2 frame 01: NOT STARTED
 HVR-3 frame 10: NOT STARTED
 Cross-frame review: NOT STARTED
@@ -144,4 +166,4 @@ The first exact-SHA online attempt failed closed on the first managed text item 
 
 The live frame-00 inventory later showed that five previously generated helper items had been recreated by rollback-safe remediations and therefore carried new Miro item IDs. REM-012.4 refreshed only those five managed IDs from the authoritative remote inventory. The semantic reuse remained unchanged and no new board item was created.
 
-A subsequent correction preserved native sticky-note geometry because Miro normalizes sticky-note height. That correction is the direct base of this HVR remediation and remains part of the lineage and path allowlist.
+A subsequent correction preserved native sticky-note geometry because Miro normalizes sticky-note height. Round 1 then corrected decision guidance, lifecycle legend semantics and Artifact Registry placement. Both corrections remain part of the exact lineage and path allowlist for round 2.

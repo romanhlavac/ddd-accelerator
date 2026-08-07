@@ -1,6 +1,6 @@
 schema_version: 1
 remediation_id: REM-PR8-HVA-CC-012.4
-authorized_base_sha: 40a64e950b408f7dfce7a2e642eaa0e3bcf1b38f
+authorized_base_sha: eb7a40ddf522f1ac9494f72c28ed0d6cca457f05
 target_branch: feat/project-steering-and-documentation
 board_id: uXjVH1phki0=
 frame:
@@ -135,25 +135,25 @@ managed_updates:
   id: '3458764680048047547'
   type: text
   x: 3500
-  y: 3600
+  y: 3750
   width: 6000
-  visual_height: 600
+  visual_height: 760
   font_size: 64
   style:
     color: '#102A43'
     textAlign: left
-  content: '<p><strong>ARTIFACT HEALTH — CURRENT STATUS</strong></p><p><strong>1 SCAFFOLD
-    · 2 WORKING · ATTENTION 1 · BLOCKERS 0</strong></p><p><strong>DETAIL ARTEFAKTŮ</strong>
-    · <a href="https://github.com/romanhlavac/ddd-accelerator/blob/feat/project-steering-and-documentation/examples/minimal/projects/acceptance-claims-modernization/docs/artifacts/index.md"><strong>OTEVŘÍT
+  content: '<p><strong>ARTIFACT HEALTH — CURRENT STATUS</strong></p><p><br></p><p><br></p><p><strong>1
+    SCAFFOLD · 2 WORKING · ATTENTION 1 · BLOCKERS 0</strong></p><p><br></p><p><br></p><p><strong>DETAIL
+    ARTEFAKTŮ</strong> · <a href="https://github.com/romanhlavac/ddd-accelerator/blob/feat/project-steering-and-documentation/examples/minimal/projects/acceptance-claims-modernization/docs/artifacts/index.md"><strong>OTEVŘÍT
     PROJEKTOVÝ ARTIFACT REGISTRY →</strong></a></p><p>Project-owned Git/YAML je source
     of truth.</p>'
 - role: artifact_legend
   id: '3458764680048047692'
   type: text
   x: 3500
-  y: 4350
+  y: 4510
   width: 6000
-  visual_height: 800
+  visual_height: 580
   font_size: 48
   style:
     color: '#1F3B64'
