@@ -27,7 +27,7 @@ def by_role(data):
 def test_exact_scope_lineage_and_sources():
     data = contract()
     assert data["remediation_id"] == "REM-PR8-HVA-CC-012.4"
-    assert data["authorized_base_sha"] == "cbc9963e13a1674e466cbceebfeff6f0b531a663"
+    assert data["authorized_base_sha"] == "40a64e950b408f7dfce7a2e642eaa0e3bcf1b38f"
     assert data["target_branch"] == "feat/project-steering-and-documentation"
     assert data["board_id"] == "uXjVH1phki0="
     assert data["frame"]["id"] == "3458764679756478046"
@@ -61,6 +61,17 @@ def test_information_hierarchy_prioritizes_the_decision_over_artifact_health():
     assert "OTEVŘÍT AKTUÁLNÍ FÁZI VE FRAMU 01" in items["decision_now"]["content"]
 
 
+def test_decision_owner_card_explains_who_and_how_without_git_dr_jargon():
+    item = by_role(contract())["owner_next_action"]
+    text = canonical_miro_text(item["content"])
+    assert "ROZHODUJE" in text
+    assert "Acceptance Business Owner" in text
+    assert "JAK ROZHODNOUT" in text
+    assert "projektovém DDDA chatu" in text
+    assert "ruční editace YAML není potřeba" in text
+    assert "Git decision record" not in text
+
+
 def test_attention_and_blockers_are_explicit_and_not_conflated():
     item = by_role(contract())["attention_blockers"]
     text = canonical_miro_text(item["content"])
@@ -70,7 +81,7 @@ def test_attention_and_blockers_are_explicit_and_not_conflated():
     assert "HEALTH: ATTENTION" not in text
 
 
-def test_artifact_health_is_one_wide_readable_panel_with_status_first():
+def test_artifact_health_has_status_then_true_legend_and_separate_registry_action():
     data = contract()
     items = by_role(data)
     panel = items["artifact_panel"]
@@ -91,18 +102,36 @@ def test_artifact_health_is_one_wide_readable_panel_with_status_first():
     assert "ARTIFACT HEALTH — CURRENT STATUS" in status_text
     assert "1 SCAFFOLD · 2 WORKING" in status_text
     assert "ATTENTION 1" in status_text and "BLOCKERS 0" in status_text
-    assert "MATURITY" in legend_text
+
+    assert "ARTIFACT LIFECYCLE / MATURITY" in legend_text
+    for state in ("SCAFFOLD", "WORKING", "CANDIDATE", "VALIDATED", "ACCEPTED", "SUPERSEDED"):
+        assert state in legend_text
     assert "ATTENTION / BLOCKING" in legend_text
-    assert "SUPERSEDED 0" in legend_text
-    assert "OTEVŘÍT PROJEKTOVÝ ARTIFACT REGISTRY" in legend_text
-    assert "Project-owned Git/YAML je source of truth" in legend_text
-    assert "Miro ani technický PASS neschvalují gate" in legend_text
+    for summary_count in (
+        "SCAFFOLD 1",
+        "WORKING 2",
+        "CANDIDATE 0",
+        "VALIDATED 0",
+        "ACCEPTED 0",
+        "SUPERSEDED 0",
+    ):
+        assert summary_count not in legend_text
+
+    assert "DETAIL ARTEFAKTŮ" in status_text
+    assert "OTEVŘÍT PROJEKTOVÝ ARTIFACT REGISTRY" in status_text
+    assert "Project-owned Git/YAML je source of truth" in status_text
+    assert "OTEVŘÍT PROJEKTOVÝ ARTIFACT REGISTRY" not in legend_text
+    assert "Project-owned Git/YAML je source of truth" not in legend_text
 
     def bounds(item):
         width = float(item["width"])
         height = float(item.get("visual_height") or item.get("height") or 1)
-        return (float(item["x"]) - width / 2, float(item["y"]) - height / 2,
-                float(item["x"]) + width / 2, float(item["y"]) + height / 2)
+        return (
+            float(item["x"]) - width / 2,
+            float(item["y"]) - height / 2,
+            float(item["x"]) + width / 2,
+            float(item["y"]) + height / 2,
+        )
 
     panel_box = bounds(panel)
     for item in (status, legend):
@@ -110,6 +139,10 @@ def test_artifact_health_is_one_wide_readable_panel_with_status_first():
         assert panel_box[0] <= box[0] and panel_box[1] <= box[1]
         assert panel_box[2] >= box[2] and panel_box[3] >= box[3]
         assert int(item["font_size"]) >= 44
+
+    status_box = bounds(status)
+    legend_box = bounds(legend)
+    assert status_box[3] < legend_box[1]
 
     assert data["artifact_health"]["total"] == 3
     assert data["artifact_health"]["lifecycle_counts"] == {
@@ -140,7 +173,10 @@ def test_cleanup_is_specific_and_cannot_target_new_managed_items():
     assert not managed & explicit
     assert len(explicit) == 13
     assert all(int(item.get("max_matches") or 0) == 1 for item in data["cleanup"]["selectors"])
-    assert all("type" in item and ("exact_text" in item or {"x", "y", "width", "height", "fill_color"} <= set(item)) for item in data["cleanup"]["selectors"])
+    assert all(
+        "type" in item and ("exact_text" in item or {"x", "y", "width", "height", "fill_color"} <= set(item))
+        for item in data["cleanup"]["selectors"]
+    )
 
 
 def test_target_payload_and_readback_matching_for_existing_item():
@@ -173,8 +209,12 @@ def test_sticky_note_geometry_matches_existing_miro_sizes_and_keeps_safe_gaps():
 
     assert [left["width"], middle["width"], right["width"]] == [1900, 2000, 1900]
     assert [left["visual_height"], middle["visual_height"], right["visual_height"]] == [1900, 2000, 1900]
-    left_gap = (float(middle["x"]) - float(middle["width"]) / 2) - (float(left["x"]) + float(left["width"]) / 2)
-    right_gap = (float(right["x"]) - float(right["width"]) / 2) - (float(middle["x"]) + float(middle["width"]) / 2)
+    left_gap = (float(middle["x"]) - float(middle["width"]) / 2) - (
+        float(left["x"]) + float(left["width"]) / 2
+    )
+    right_gap = (float(right["x"]) - float(right["width"]) / 2) - (
+        float(middle["x"]) + float(middle["width"]) / 2
+    )
     assert left_gap == right_gap == 450
     assert float(left["x"]) - float(left["width"]) / 2 >= 0
     assert float(right["x"]) + float(right["width"]) / 2 <= float(contract()["frame"]["width"])
@@ -242,7 +282,9 @@ def test_reconcile_verifies_persisted_get_not_patch_response(monkeypatch):
 
 
 def test_cleanup_selector_requires_exact_generated_signature():
-    selector = next(item for item in contract()["cleanup"]["selectors"] if item.get("exact_text") == "SCAFFOLD: 1")
+    selector = next(
+        item for item in contract()["cleanup"]["selectors"] if item.get("exact_text") == "SCAFFOLD: 1"
+    )
     matching = {
         "type": "text",
         "data": {"content": "<p>SCAFFOLD: 1</p>"},

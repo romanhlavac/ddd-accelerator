@@ -24,11 +24,12 @@ jobs:
     timeout-minutes: 120
     env:
       SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+      HVR_BASE_SHA: 40a64e950b408f7dfce7a2e642eaa0e3bcf1b38f
       RESIZE_ATTEMPT_SHA: 1d10dea6c9326f0c88ee6d785f0c37480cce6058
       FIX_BASE_SHA: 6dc9353bbec09ae3883b39dca2590db4e95103cf
       PREVIOUS_SOURCE_SHA: 9d78fabc69599007b9897e2801f5287aa295fc78
       PRODUCT_SHA: d7920d78fa2a4ee53c08309eff4a5c921864bbed
-      BASE_SHA: cbc9963e13a1674e466cbceebfeff6f0b531a663
+      ROOT_BASE_SHA: cbc9963e13a1674e466cbceebfeff6f0b531a663
       GH_TOKEN: ${{ github.token }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
 
@@ -54,11 +55,13 @@ jobs:
             repository = $env:GITHUB_REPOSITORY
             pr = [int]$env:PR_NUMBER
             source_sha = $env:SOURCE_SHA
+            hvr_base_sha = $env:HVR_BASE_SHA
             resize_attempt_sha = $env:RESIZE_ATTEMPT_SHA
             fix_base_sha = $env:FIX_BASE_SHA
             previous_source_sha = $env:PREVIOUS_SOURCE_SHA
             product_sha = $env:PRODUCT_SHA
-            authorized_base_sha = $env:BASE_SHA
+            root_base_sha = $env:ROOT_BASE_SHA
+            authorized_base_sha = $env:HVR_BASE_SHA
             board_id = 'uXjVH1phki0='
             frame_id = '3458764679756478046'
             remediation_id = 'REM-PR8-HVA-CC-012.4'
@@ -81,11 +84,12 @@ jobs:
               return subprocess.check_output(['git', *args], text=True).strip()
 
           source = os.environ['SOURCE_SHA']
+          hvr_base = os.environ['HVR_BASE_SHA']
           resize_attempt = os.environ['RESIZE_ATTEMPT_SHA']
           fix_base = os.environ['FIX_BASE_SHA']
           previous_source = os.environ['PREVIOUS_SOURCE_SHA']
           product = os.environ['PRODUCT_SHA']
-          base = os.environ['BASE_SHA']
+          root_base = os.environ['ROOT_BASE_SHA']
           expected_product_paths = sorted([
               '.github/workflows/miro-anchor-remediation.yml',
               'runtime/miro/ddda_miro/frame00_contract.py',
@@ -104,9 +108,15 @@ jobs:
               'runtime/miro/ddda_miro/frame00_reconcile.py',
               'runtime/miro/tests/test_rem_012_4_frame_00.py',
           ])
-          expected_source_paths = sorted([
+          expected_hvr_base_paths = sorted([
               '.github/workflows/miro-anchor-remediation.yml',
               'runtime/miro/ddda_miro/frame00_reconcile.py',
+              'runtime/miro/tests/test_rem_012_4_frame_00.py',
+              'scaffolds/miro/rem-012-4-frame-00.yaml',
+          ])
+          expected_source_paths = sorted([
+              '.github/workflows/miro-anchor-remediation.yml',
+              'docs/reviews/REM-PR8-HVA-CC-012-4-frame-00-control-center.md',
               'runtime/miro/tests/test_rem_012_4_frame_00.py',
               'scaffolds/miro/rem-012-4-frame-00.yaml',
           ])
@@ -114,38 +124,45 @@ jobs:
           previous_source_paths = sorted(filter(None, git('diff-tree', '--no-commit-id', '--name-only', '-r', previous_source).splitlines()))
           fix_base_paths = sorted(filter(None, git('diff-tree', '--no-commit-id', '--name-only', '-r', fix_base).splitlines()))
           resize_attempt_paths = sorted(filter(None, git('diff-tree', '--no-commit-id', '--name-only', '-r', resize_attempt).splitlines()))
+          hvr_base_paths = sorted(filter(None, git('diff-tree', '--no-commit-id', '--name-only', '-r', hvr_base).splitlines()))
           source_paths = sorted(filter(None, git('diff-tree', '--no-commit-id', '--name-only', '-r', source).splitlines()))
           manifest = Path('scaffolds/miro/rem-012-4-frame-00.yaml').read_text(encoding='utf-8')
 
           assert git('rev-parse', 'HEAD') == source, 'source checkout mismatch'
-          assert git('rev-parse', source + '^') == resize_attempt, 'source parent mismatch'
+          assert git('rev-parse', source + '^') == hvr_base, 'HVR remediation source parent mismatch'
+          assert git('rev-parse', hvr_base + '^') == resize_attempt, 'HVR base parent mismatch'
           assert git('rev-parse', resize_attempt + '^') == fix_base, 'resize attempt parent mismatch'
           assert git('rev-parse', fix_base + '^') == previous_source, 'fix base parent mismatch'
           assert git('rev-parse', previous_source + '^') == product, 'previous source parent mismatch'
-          assert git('rev-parse', product + '^') == base, 'product parent mismatch'
+          assert git('rev-parse', product + '^') == root_base, 'product parent mismatch'
           assert git('show', '-s', '--format=%s', product) == 'fix(miro): complete frame 00 Artifact Health HVR', 'unexpected product commit'
           assert git('show', '-s', '--format=%s', previous_source) == 'chore(miro): remove Frame 00 manifest trailing whitespace', 'unexpected previous source commit'
           assert git('show', '-s', '--format=%s', fix_base) == 'chore(ci): recover PR 8 exact-SHA validation after Actions outage', 'unexpected fix base commit'
           assert git('show', '-s', '--format=%s', resize_attempt) == 'fix(miro): persist Frame 00 sticky geometry before readback', 'unexpected resize attempt commit'
-          assert git('show', '-s', '--format=%s', source) == 'fix(miro): preserve native Frame 00 sticky geometry', 'unexpected source commit'
+          assert git('show', '-s', '--format=%s', hvr_base) == 'fix(miro): preserve native Frame 00 sticky geometry', 'unexpected HVR base commit'
+          assert git('show', '-s', '--format=%s', source) == 'fix(miro): remediate Frame 00 HVR findings', 'unexpected source commit'
           assert product_paths == expected_product_paths, f'product path allowlist mismatch: {product_paths}'
           assert previous_source_paths == expected_previous_source_paths, f'previous source path allowlist mismatch: {previous_source_paths}'
           assert fix_base_paths == expected_fix_base_paths, f'fix base path allowlist mismatch: {fix_base_paths}'
           assert resize_attempt_paths == expected_resize_attempt_paths, f'resize attempt path allowlist mismatch: {resize_attempt_paths}'
+          assert hvr_base_paths == expected_hvr_base_paths, f'HVR base path allowlist mismatch: {hvr_base_paths}'
           assert source_paths == expected_source_paths, f'source path allowlist mismatch: {source_paths}'
-          assert f'authorized_base_sha: {base}' in manifest, 'manifest authorization mismatch'
+          assert f'authorized_base_sha: {hvr_base}' in manifest, 'manifest authorization mismatch'
           Path(os.environ['EVIDENCE_ROOT'], 'source-contract.json').write_text(json.dumps({
               'status': 'PASS',
-              'authorized_base_sha': base,
+              'authorized_base_sha': hvr_base,
+              'root_base_sha': root_base,
               'product_sha': product,
               'previous_source_sha': previous_source,
               'fix_base_sha': fix_base,
               'resize_attempt_sha': resize_attempt,
+              'hvr_base_sha': hvr_base,
               'source_sha': source,
               'product_paths': product_paths,
               'previous_source_paths': previous_source_paths,
               'fix_base_paths': fix_base_paths,
               'resize_attempt_paths': resize_attempt_paths,
+              'hvr_base_paths': hvr_base_paths,
               'source_paths': source_paths,
           }, indent=2) + '\n', encoding='utf-8')
           '@ | python -
