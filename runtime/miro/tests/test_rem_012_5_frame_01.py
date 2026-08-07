@@ -3,6 +3,7 @@ from __future__ import annotations
 from copy import deepcopy
 
 from ddda_miro.frame01_redline import identity, item_payload, same_item, reconcile
+from ddda_miro.review_board_recovery import frame00_payload
 
 
 class FakeClient:
@@ -85,7 +86,7 @@ def manifest():
     return {"remediation_id": "REM-PR8-HVA-CC-012.5", "source_board_id": "source", "source_frame_id": "source-frame",
             "board_id": "target", "frame_id": "target-frame", "source_frame_title": "01 – DDD Starter journey, gates a iterace",
             "source_sentinels": ["G1 · Align", "METODIKA A ZDROJE"], "source_forbidden_sentinels": ["JAK ČÍST STAV GATE"],
-            "protected_frames": [str(index) for index in range(17)]}
+            "protected_frames": [str(index) for index in range(16)]}
 
 
 def test_identity_preserves_stage_semantics_across_geometry_changes():
@@ -112,3 +113,14 @@ def test_source_to_target_reconcile_removes_non_redline_items_and_is_idempotent(
 def test_same_item_treats_hex_color_case_insensitively():
     client = FakeClient(); source = client.items["source"][0]; payload = item_payload(source, "source-frame"); remote = deepcopy(source)
     remote["style"]["fillColor"] = "#fff2cc"; assert same_item(remote, payload)
+
+
+def test_recovered_frame00_payload_retargets_frame01_link_and_preserves_sticky_palette():
+    m = {"board_id": "uXjVH0doLYY=", "frame_id": "new-frame-01", "frame00_sticky_colors": {
+        "phase_gate_state": "light_yellow", "owner_next_action": "light_blue", "attention_blockers": "light_green"}}
+    update = {"role": "owner_next_action", "type": "sticky_note", "x": 3500, "y": 2100, "width": 2000,
+              "content": '<p>ROZHODUJE</p><p><a href="https://miro.com/app/board/uXjVH1phki0=/?moveToWidget=3458764679756478059">01</a></p>'}
+    payload = frame00_payload(update, "new-frame-00", m)
+    assert payload["style"]["fillColor"] == "light_blue"
+    assert "uXjVH0doLYY=" in payload["data"]["content"] and "new-frame-01" in payload["data"]["content"]
+    assert "uXjVH1phki0=" not in payload["data"]["content"]
