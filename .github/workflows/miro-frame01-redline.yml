@@ -172,6 +172,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: rem-012-5-frame01-redline-pr-${{ env.PR_NUMBER }}-${{ env.SOURCE_SHA }}-${{ github.run_id }}
-          path: ${{ env:EVIDENCE_ROOT }}/**
+          path: ${{ env.EVIDENCE_ROOT }}/**
           if-no-files-found: error
           retention-days: 30
