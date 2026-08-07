@@ -24,6 +24,8 @@ jobs:
     timeout-minutes: 120
     env:
       SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+      AUTHORIZED_CORRECTIVE_SHA: d1a75aa49f60e72d6377274d8e52ee7fb19d704b
+      IMPLEMENTATION_SHA: aca563951d6480dfc24fddafd11a3f1fdb6c2938
       AUTHORIZED_BASE_SHA: ed14f57363c359e60633f9f1da9ad69dee8b5bda
       GH_TOKEN: ${{ github.token }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -48,6 +50,7 @@ jobs:
           "EVIDENCE_ROOT=$root" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
           [ordered]@{
             repository=$env:GITHUB_REPOSITORY; pr=[int]$env:PR_NUMBER; source_sha=$env:SOURCE_SHA
+            authorized_corrective_sha=$env:AUTHORIZED_CORRECTIVE_SHA; implementation_sha=$env:IMPLEMENTATION_SHA
             authorized_base_sha=$env:AUTHORIZED_BASE_SHA; remediation_id='REM-PR8-HVA-CC-012.5'
             source_board_id='uXjVH2vcvRI='; source_frame_id='3458764679494310883'
             board_id='uXjVH0doLYY='; frame00_id='3458764680243144441'; original_frame01_id='3458764680243144449'
@@ -61,24 +64,62 @@ jobs:
           @'
           import json, os, subprocess
           from pathlib import Path
-          def git(*args): return subprocess.check_output(['git', *args], text=True).strip()
-          source, base = os.environ['SOURCE_SHA'], os.environ['AUTHORIZED_BASE_SHA']
-          expected = sorted([
-            '.github/workflows/miro-frame01-redline.yml',
-            'runtime/miro/ddda_miro/review_board_recovery_wirefix.py',
-            'runtime/miro/tests/test_rem_012_5_frame00_position_payload.py',
-            'scaffolds/miro/rem-012-5-frame-01.yaml',
+
+          def git(*args):
+              return subprocess.check_output(['git', *args], text=True).strip()
+
+          def changed(commit):
+              return sorted(filter(None, git('diff-tree', '--no-commit-id', '--name-only', '-r', commit).splitlines()))
+
+          source = os.environ['SOURCE_SHA']
+          corrective = os.environ['AUTHORIZED_CORRECTIVE_SHA']
+          implementation = os.environ['IMPLEMENTATION_SHA']
+          base = os.environ['AUTHORIZED_BASE_SHA']
+
+          expected_source = ['.github/workflows/miro-frame01-redline.yml']
+          expected_corrective = ['.github/workflows/miro-frame01-redline.yml']
+          expected_implementation = sorted([
+              '.github/workflows/miro-frame01-redline.yml',
+              'runtime/miro/ddda_miro/review_board_recovery_wirefix.py',
+              'runtime/miro/tests/test_rem_012_5_frame00_position_payload.py',
+              'scaffolds/miro/rem-012-5-frame-01.yaml',
           ])
-          observed = sorted(filter(None, git('diff-tree','--no-commit-id','--name-only','-r',source).splitlines()))
+
+          source_paths = changed(source)
+          corrective_paths = changed(corrective)
+          implementation_paths = changed(implementation)
           manifest = Path('scaffolds/miro/rem-012-5-frame-01.yaml').read_text(encoding='utf-8')
-          assert git('rev-parse','HEAD') == source
-          assert git('rev-parse', source + '^') == base, 'REM-012.5 replacement parent mismatch'
-          assert git('show','-s','--format=%s',source) == 'fix(miro): replace Frame 01 container from redline'
-          assert observed == expected, f'path allowlist mismatch: {observed}'
+
+          assert git('rev-parse', 'HEAD') == source
+          assert git('rev-parse', source + '^') == corrective, 'REM-012.5 current corrective parent mismatch'
+          assert git('rev-parse', corrective + '^') == implementation, 'REM-012.5 first corrective parent mismatch'
+          assert git('rev-parse', implementation + '^') == base, 'REM-012.5 implementation parent mismatch'
+
+          assert git('show', '-s', '--format=%s', source) == 'fix(ci): validate REM-012.5 corrective lineage'
+          assert git('show', '-s', '--format=%s', corrective) == 'fix(ci): correct REM-012.5 evidence path expression'
+          assert git('show', '-s', '--format=%s', implementation) == 'fix(miro): replace Frame 01 container from redline'
+
+          assert source_paths == expected_source, f'current corrective path allowlist mismatch: {source_paths}'
+          assert corrective_paths == expected_corrective, f'first corrective path allowlist mismatch: {corrective_paths}'
+          assert implementation_paths == expected_implementation, f'implementation path allowlist mismatch: {implementation_paths}'
+
           assert f'authorized_base_sha: {base}' in manifest
           assert 'board_id: uXjVH0doLYY=' in manifest and 'source_board_id: uXjVH2vcvRI=' in manifest
           assert 'frame00_container_policy: preserve_relocated_container_pending_human_equivalence_check' in manifest
-          Path(os.environ['EVIDENCE_ROOT'],'source-contract.json').write_text(json.dumps({'status':'PASS','source_sha':source,'observed_paths':observed},indent=2)+'\n',encoding='utf-8')
+
+          Path(os.environ['EVIDENCE_ROOT'], 'source-contract.json').write_text(
+              json.dumps({
+                  'status': 'PASS',
+                  'source_sha': source,
+                  'authorized_corrective_sha': corrective,
+                  'implementation_sha': implementation,
+                  'authorized_base_sha': base,
+                  'source_paths': source_paths,
+                  'corrective_paths': corrective_paths,
+                  'implementation_paths': implementation_paths,
+              }, indent=2) + '\n',
+              encoding='utf-8',
+          )
           '@ | python -
 
       - name: Wait for authoritative exact-SHA evidence and candidate
