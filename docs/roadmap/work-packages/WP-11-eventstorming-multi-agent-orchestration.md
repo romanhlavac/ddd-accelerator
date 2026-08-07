@@ -32,6 +32,7 @@ WP-11 must extend/version these baselines, not create parallel sources of truth:
 | Issue | Owned capability |
 |---|---|
 | #34 | executable EventStorming session/item model |
+| #52 | detailed human facilitation for Big Picture, Process Modeling and Design-Level EventStorming |
 | #35 | EventStorming-specific Miro seed, layout and round-trip adapters |
 | #36 | versioned agent/capability contracts and catalog |
 | #37 | orchestrator state machine and bounded fan-out |
@@ -48,13 +49,13 @@ WP-10 #27–#33 remain the sole owners of source/evidence inception. #47 compose
 ## Dependency order
 
 ```text
-#34 → #35
+#34 + #52 → #35
 #36 → #37 → #38
 #36 + #37 + #38 → #39
 #37 + #38 + #39 → #40
 #27 + #31 + #32 + #34–#40 → #47
-#35 + #40 + #47 → #41
-#47 + #41 + #48 → final as-built closure #46
+#35 + #40 + #47 + #52 → #41
+#47 + #41 + #48 + #52 → final as-built closure #46
 ```
 
 #48 may progress after a stable PR #8 methodology baseline. #46 may be drafted earlier as a target operating model, but final closure requires #47, #41 and #48.
@@ -70,6 +71,7 @@ WP-10 #27–#33 remain the sole owners of source/evidence inception. #47 compose
 7. Automation may prepare `ready_for_review`, never human `passed`.
 8. No agent implicitly commits, pushes, merges, releases or performs destructive Miro actions.
 9. #48 owns the canonical Discover/Connect, COTS/BC and tactical-design phase rules used by #46.
+10. #52 owns the canonical detailed human facilitation for all three EventStorming workshop types; #34/#35 consume it without duplicating it.
 
 ## In scope
 

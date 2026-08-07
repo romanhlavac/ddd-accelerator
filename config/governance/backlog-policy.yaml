@@ -140,7 +140,7 @@ native_sub_issue_mapping:
     children: [27, 28, 29, 30, 31, 32, 33]
   WP-11:
     parent_issue: 20
-    children: [34, 35, 36, 37, 38, 39, 40, 47, 41, 48, 46]
+    children: [34, 52, 35, 36, 37, 38, 39, 40, 47, 41, 48, 46]
   Other:
     unparented_items: [16, 42, 43, 44, 49]
 
@@ -217,6 +217,9 @@ dependency_edges:
   WP-11:
     - blocking: 34
       blocked: 35
+    - blocking: 52
+      blocked: 35
+      rationale: detailed EventStorming facilitation methodology must be stable before final Miro workshop semantics acceptance
     - blocking: 36
       blocked: 37
     - blocking: 37
@@ -257,12 +260,18 @@ dependency_edges:
       blocked: 41
     - blocking: 40
       blocked: 41
+    - blocking: 52
+      blocked: 41
+      rationale: final package-first EventStorming acceptance must validate methodology fidelity against the canonical facilitation guide
     - blocking: 47
       blocked: 41
     - blocking: 47
       blocked: 46
     - blocking: 41
       blocked: 46
+    - blocking: 52
+      blocked: 46
+      rationale: final first-user guide must route detailed EventStorming facilitation to the canonical guide without duplication
     - blocking: 48
       blocked: 46
       rationale: first-user guide must use canonical DDD Starter phase terminology
