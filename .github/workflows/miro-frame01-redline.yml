@@ -24,7 +24,7 @@ jobs:
     timeout-minutes: 120
     env:
       SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
-      AUTHORIZED_BASE_SHA: fbfcf41011fe8487ae8c1bc51d84af5da1f0f459
+      AUTHORIZED_BASE_SHA: aec047fd10b8e89efee3748305b0fb9d93f33ad7
       GH_TOKEN: ${{ github.token }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
 
@@ -80,8 +80,6 @@ jobs:
           base = os.environ['AUTHORIZED_BASE_SHA']
           expected_paths = sorted([
               '.github/workflows/miro-frame01-redline.yml',
-              'docs/reviews/HVR-PR8-frame-00-accepted.md',
-              'docs/reviews/REM-PR8-HVA-CC-012-5-frame-01-redline.md',
               'runtime/miro/ddda_miro/review_board_recovery.py',
               'runtime/miro/tests/test_rem_012_5_frame_01.py',
               'scaffolds/miro/rem-012-5-frame-01.yaml',
@@ -92,7 +90,7 @@ jobs:
 
           assert git('rev-parse', 'HEAD') == source, 'source checkout mismatch'
           assert git('rev-parse', source + '^') == base, 'REM-012.5 recovery parent mismatch'
-          assert git('show', '-s', '--format=%s', source) == 'fix(miro): recover HVR board and adopt Frame 01 redline', 'unexpected source commit'
+          assert git('show', '-s', '--format=%s', source) == 'fix(miro): create Frame 00 before parent shrink', 'unexpected source commit'
           assert observed == expected_paths, f'REM-012.5 recovery path allowlist mismatch: {observed}'
           assert f'authorized_base_sha: {base}' in manifest, 'manifest authorization mismatch'
           assert 'board_id: uXjVH0doLYY=' in manifest, 'recovery target board mismatch'

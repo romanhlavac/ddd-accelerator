@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import argparse, html, json, os, re, sys, urllib.parse
+import argparse, html, json, os, re, sys, time, urllib.parse
 from pathlib import Path
 from typing import Any
 
@@ -137,11 +137,44 @@ def frame00_state(client: MiroClient, manifest: dict[str, Any], contract: dict[s
     return True, mapping
 
 
+def _wait_frame_empty(client: MiroClient, board: str, frame_id: str, *, attempts: int = 10, delay_seconds: float = 0.5) -> None:
+    for attempt in range(attempts):
+        if not _children(client, board, frame_id):
+            return
+        if attempt + 1 < attempts:
+            time.sleep(delay_seconds)
+    raise ValueError("Frame 00 children did not disappear after bounded delete wait")
+
+
+def _resize_frame00(client: MiroClient, board: str, frame_id: str, contract: dict[str, Any]) -> None:
+    target = {"width": float(contract["frame"]["width"]), "height": float(contract["frame"]["height"])}
+    fresh = _get_frame(client, board, frame_id)
+    if _close((fresh.get("geometry") or {}).get("width"), target["width"]) and _close((fresh.get("geometry") or {}).get("height"), target["height"]):
+        return
+    last_error: Exception | None = None
+    for attempt in range(5):
+        try:
+            _patch(client, board, "frame", frame_id, {"geometry": target})
+            last_error = None
+            break
+        except Exception as exc:  # Miro may lag after child delete/create mutations.
+            last_error = exc
+            if "Child item cannot be placed outside the bounds of its parent" not in str(exc) or attempt == 4:
+                raise
+            time.sleep(1.0)
+    if last_error is not None:
+        raise last_error
+    fresh = _get_frame(client, board, frame_id)
+    if not (_close((fresh.get("geometry") or {}).get("width"), target["width"]) and _close((fresh.get("geometry") or {}).get("height"), target["height"])):
+        raise ValueError("Frame 00 geometry did not converge to accepted contract")
+
+
 def restore_frame00(client: MiroClient, manifest: dict[str, Any], contract: dict[str, Any]) -> dict[str, Any]:
     board, frame_id = str(manifest["board_id"]), str(manifest["frame00_id"])
     ok, mapping = frame00_state(client, manifest, contract)
     if ok:
         return {"created": 0, "deleted": 0, "connectors_deleted": 0, "unchanged": 8, "role_ids": mapping}
+
     children = _children(client, board, frame_id)
     child_ids = {str(item["id"]) for item in children}
     related = _related_connectors(client, board, child_ids)
@@ -149,16 +182,36 @@ def restore_frame00(client: MiroClient, manifest: dict[str, Any], contract: dict
         client.delete_connector(board, str(connector["id"]))
     for item in children:
         client.delete_item(board, str(item["id"]))
-    _patch(client, board, "frame", frame_id, {"geometry": {"width": float(contract["frame"]["width"]), "height": float(contract["frame"]["height"])}})
-    mapping = {}
+    _wait_frame_empty(client, board, frame_id)
+
+    # Important Miro ordering invariant: create accepted children while the current parent
+    # is still large enough, then shrink the parent around children that already fit the
+    # accepted 7000 × 4914.42 bounds. Shrinking an empty frame immediately after deletes
+    # can transiently fail with 3.0204 because Miro's parent-bound index lags deletion.
+    mapping: dict[str, str] = {}
     for update in contract["managed_updates"]:
         item_type = str(update["type"])
         payload = frame00_payload(update, frame_id, manifest)
         created = client._request("POST", f"boards/{_seg(board)}/{EP[item_type]}", body=payload)
         fresh = client._request("GET", f"boards/{_seg(board)}/items/{_seg(created['id'])}")
         if not same_item(fresh, payload):
-            raise ValueError(f"recovered Frame 00 role {update['role']} read-back mismatch")
+            raise ValueError(f"recovered Frame 00 role {update['role']} read-back mismatch before parent resize")
         mapping[str(update["role"])] = str(created["id"])
+
+    _resize_frame00(client, board, frame_id, contract)
+
+    # Re-read and, if Miro normalized coordinates while the parent was resized, re-apply
+    # the exact accepted relative geometry/content/style before final verification.
+    for update in contract["managed_updates"]:
+        item_id = mapping[str(update["role"])]
+        payload = frame00_payload(update, frame_id, manifest)
+        fresh = client._request("GET", f"boards/{_seg(board)}/items/{_seg(item_id)}")
+        if not same_item(fresh, payload):
+            client._request("PATCH", f"boards/{_seg(board)}/{EP[str(update['type'])]}/{_seg(item_id)}", body=payload)
+            fresh = client._request("GET", f"boards/{_seg(board)}/items/{_seg(item_id)}")
+            if not same_item(fresh, payload):
+                raise ValueError(f"recovered Frame 00 role {update['role']} read-back mismatch after parent resize")
+
     ok, verified = frame00_state(client, manifest, contract)
     if not ok:
         raise ValueError("recovered Frame 00 did not reach accepted contract")
