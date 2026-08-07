@@ -1,0 +1,237 @@
+name: DDDA REM-012.5 frame 01 redline
+
+on:
+  pull_request:
+    branches: [main]
+    types: [synchronize]
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: ddda-rem-012-5-frame-01-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  remediate:
+    name: Exact-code REM-012.5 Frame 01 redline adoption
+    if: >-
+      github.event.pull_request.number == 8 &&
+      github.actor == 'romanhlavac' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: windows-latest
+    timeout-minutes: 120
+    env:
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+      AUTHORIZED_BASE_SHA: ddc8e68bbab1bf64c680050347d881d5b485f225
+      GH_TOKEN: ${{ github.token }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+
+    steps:
+      - name: Checkout exact source head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.SOURCE_SHA }}
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Initialize evidence
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP 'rem-012-5-frame-01'
+          New-Item -ItemType Directory -Path $root -Force | Out-Null
+          "EVIDENCE_ROOT=$root" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          [ordered]@{
+            repository = $env:GITHUB_REPOSITORY
+            pr = [int]$env:PR_NUMBER
+            source_sha = $env:SOURCE_SHA
+            authorized_base_sha = $env:AUTHORIZED_BASE_SHA
+            remediation_id = 'REM-PR8-HVA-CC-012.5'
+            source_board_id = 'uXjVH2vcvRI='
+            source_frame_id = '3458764679494310883'
+            board_id = 'uXjVH1phki0='
+            frame_id = '3458764679756478059'
+            frame00_hvr = 'ACCEPTED'
+            human_review_status = 'PENDING'
+            merge_allowed = $false
+            promotion_allowed = $false
+            release_allowed = $false
+            gate_approval_allowed = $false
+          } | ConvertTo-Json | Set-Content (Join-Path $root 'identity.json') -Encoding utf8
+
+      - name: Verify exact lineage and path allowlist
+        shell: pwsh
+        run: |
+          @'
+          import json, os, subprocess
+          from pathlib import Path
+
+          def git(*args):
+              return subprocess.check_output(['git', *args], text=True).strip()
+
+          source = os.environ['SOURCE_SHA']
+          base = os.environ['AUTHORIZED_BASE_SHA']
+          expected_paths = sorted([
+              '.github/workflows/miro-anchor-remediation.yml',
+              '.github/workflows/miro-frame01-redline.yml',
+              'docs/reviews/HVR-PR8-frame-00-accepted.md',
+              'docs/reviews/REM-PR8-HVA-CC-012-5-frame-01-redline.md',
+              'runtime/miro/ddda_miro/frame01_redline.py',
+              'runtime/miro/tests/test_rem_012_5_frame_01.py',
+              'scaffolds/miro/rem-012-5-frame-01.yaml',
+          ])
+          observed = sorted(filter(None, git('diff-tree', '--no-commit-id', '--name-only', '-r', source).splitlines()))
+          manifest = Path('scaffolds/miro/rem-012-5-frame-01.yaml').read_text(encoding='utf-8')
+          scaffold = Path('scaffolds/miro/strategic-ddd-method-board.yaml').read_text(encoding='utf-8')
+
+          assert git('rev-parse', 'HEAD') == source, 'source checkout mismatch'
+          assert git('rev-parse', source + '^') == base, 'REM-012.5 parent mismatch'
+          assert git('show', '-s', '--format=%s', source) == 'fix(miro): adopt Frame 01 from approved redline', 'unexpected source commit'
+          assert observed == expected_paths, f'REM-012.5 path allowlist mismatch: {observed}'
+          assert not Path('.github/workflows/miro-anchor-remediation.yml').exists(), 'retired Frame 00 workflow is still present'
+          assert f'authorized_base_sha: {base}' in manifest, 'REM-012.5 manifest authorization mismatch'
+          assert 'source_board_id: uXjVH2vcvRI=' in manifest, 'source redline board mismatch'
+          assert "board_id: uXjVH2vcvRI=" in scaffold, 'canonical scaffold no longer identifies the approved redline board'
+          Path(os.environ['EVIDENCE_ROOT'], 'source-contract.json').write_text(json.dumps({
+              'status': 'PASS', 'source_sha': source, 'authorized_base_sha': base,
+              'observed_paths': observed,
+          }, indent=2) + '\n', encoding='utf-8')
+          '@ | python -
+
+      - name: Wait for authoritative exact-SHA evidence and candidate
+        id: ci
+        shell: pwsh
+        run: |
+          @'
+          import json, os, time, urllib.request
+          from pathlib import Path
+
+          repo = os.environ['GITHUB_REPOSITORY']
+          sha = os.environ['SOURCE_SHA']
+          token = os.environ['GH_TOKEN']
+          headers = {
+              'Authorization': f'Bearer {token}',
+              'Accept': 'application/vnd.github+json',
+              'X-GitHub-Api-Version': '2022-11-28',
+          }
+
+          def get(url):
+              with urllib.request.urlopen(urllib.request.Request(url, headers=headers)) as response:
+                  return json.load(response)
+
+          def latest(items, name):
+              matches = [item for item in items if item['name'] == name]
+              return max(matches, key=lambda item: item['run_number']) if matches else None
+
+          def require_success(item, label):
+              if item and item['status'] == 'completed' and item.get('conclusion') != 'success':
+                  raise SystemExit(f'{label} failed: {item.get("conclusion")}')
+              return bool(item and item['status'] == 'completed' and item.get('conclusion') == 'success')
+
+          candidate_name = f'ddda-candidate-{sha}'
+          for _ in range(240):
+              runs = get(f'https://api.github.com/repos/{repo}/actions/runs?head_sha={sha}&event=pull_request&per_page=100')['workflow_runs']
+              validate = latest(runs, 'Validate DDDA')
+              probe = latest(runs, 'DDDA exact-code Miro image probe')
+              platform = latest(runs, 'DDDA platform CI')
+              validate_ok = require_success(validate, 'Validate DDDA')
+              probe_ok = require_success(probe, 'Miro image probe')
+              platform_jobs, artifacts, platform_ok = [], [], False
+              if platform:
+                  platform_jobs = get(f'https://api.github.com/repos/{repo}/actions/runs/{platform["id"]}/jobs?per_page=100')['jobs']
+                  required = []
+                  for name in ('Platform validation', 'One-command PR validation'):
+                      matches = [job for job in platform_jobs if job['name'] == name]
+                      job = max(matches, key=lambda value: value.get('run_attempt', 1)) if matches else None
+                      if job and job['status'] == 'completed' and job.get('conclusion') != 'success':
+                          raise SystemExit(f'platform job {name} failed: {job.get("conclusion")}')
+                      required.append(bool(job and job['status'] == 'completed' and job.get('conclusion') == 'success'))
+                  artifacts = get(f'https://api.github.com/repos/{repo}/actions/runs/{platform["id"]}/artifacts?per_page=100')['artifacts']
+                  platform_ok = all(required) and any(item['name'] == candidate_name and not item['expired'] for item in artifacts)
+              snapshot = {
+                  'source_sha': sha, 'validate': validate, 'probe': probe, 'platform_run': platform,
+                  'platform_jobs': [{key: job.get(key) for key in ('id', 'name', 'status', 'conclusion')} for job in platform_jobs],
+                  'candidate_artifacts': [{key: item.get(key) for key in ('id', 'name', 'expired', 'digest')} for item in artifacts if item['name'] == candidate_name],
+              }
+              Path(os.environ['EVIDENCE_ROOT'], 'ci-evidence.json').write_text(json.dumps(snapshot, indent=2) + '\n', encoding='utf-8')
+              if validate_ok and probe_ok and platform_ok:
+                  with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
+                      output.write(f'platform_run_id={platform["id"]}\n')
+                  break
+              time.sleep(15)
+          else:
+              raise SystemExit('exact-SHA evidence or candidate did not become ready within 60 minutes')
+          '@ | python -
+
+      - name: Run targeted Frame 01 source tests
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -m pip install --disable-pip-version-check --no-input pytest 'ruamel.yaml>=0.18,<0.19' requests pyyaml
+          $env:PYTHONPATH = Join-Path $PWD.Path 'runtime\miro'
+          python -m pytest runtime/miro/tests/test_rem_012_5_frame_01.py -q
+          if ($LASTEXITCODE -ne 0) { throw 'REM-012.5 targeted source tests failed.' }
+
+      - name: Verify Miro secret
+        shell: pwsh
+        env:
+          MIRO_ACCESS_TOKEN: ${{ secrets.MIRO_ACCESS_TOKEN }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:MIRO_ACCESS_TOKEN)) { throw 'MIRO_ACCESS_TOKEN is required.' }
+
+      - name: Download exact-SHA candidate package
+        uses: actions/download-artifact@v4
+        with:
+          name: ddda-candidate-${{ env.SOURCE_SHA }}
+          path: ${{ runner.temp }}/candidate
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.ci.outputs.platform_run_id }}
+
+      - name: Apply and verify Frame 01 from candidate
+        shell: pwsh
+        env:
+          MIRO_ACCESS_TOKEN: ${{ secrets.MIRO_ACCESS_TOKEN }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $candidate = @(Get-ChildItem -LiteralPath (Join-Path $env:RUNNER_TEMP 'candidate') -Filter '*.zip' -File -Recurse)
+          if ($candidate.Count -ne 1) { throw "Expected exactly one candidate package, found $($candidate.Count)." }
+          .\scripts\platform\Test-DDDAPlatformPackage.ps1 -PackagePath $candidate[0].FullName -ExpectedCommit $env:SOURCE_SHA -ExpectedKind candidate
+          $packageSha256 = (Get-FileHash -LiteralPath $candidate[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          [ordered]@{
+            status = 'PASS'; source_sha = $env:SOURCE_SHA; platform_run_id = '${{ steps.ci.outputs.platform_run_id }}';
+            package_file = $candidate[0].Name; package_sha256 = $packageSha256
+          } | ConvertTo-Json | Set-Content (Join-Path $env:EVIDENCE_ROOT 'package.json') -Encoding utf8
+
+          $packageRoot = Join-Path $env:RUNNER_TEMP 'rem-012-5-package'
+          if (Test-Path $packageRoot) { Remove-Item $packageRoot -Recurse -Force }
+          Expand-Archive -LiteralPath $candidate[0].FullName -DestinationPath $packageRoot -Force
+          $runtime = Join-Path $packageRoot 'runtime\miro'
+          python -m pip install --disable-pip-version-check --no-input $runtime
+          $env:PYTHONPATH = $runtime
+          $manifest = Join-Path $packageRoot 'scaffolds\miro\rem-012-5-frame-01.yaml'
+          $report = Join-Path $env:EVIDENCE_ROOT 'result.json'
+          python -m ddda_miro.frame01_redline --manifest $manifest --report $report --source-sha $env:SOURCE_SHA --apply
+          if ($LASTEXITCODE -ne 0) {
+            Get-Content $report -ErrorAction SilentlyContinue
+            throw 'REM-012.5 online Frame 01 redline adoption failed.'
+          }
+          $result = Get-Content $report -Raw -Encoding UTF8 | ConvertFrom-Json
+          if ($result.technical_status -ne 'PASS' -or $result.human_review_status -ne 'PENDING' -or $result.overall_status -ne 'READY_FOR_HUMAN_REVIEW') { throw 'REM-012.5 acceptance state mismatch.' }
+          if (-not $result.protected_frames.unchanged -or $result.protected_frames.count -ne 17) { throw 'REM-012.5 protected-frame contract failed.' }
+          if ($result.second_run.items.created -ne 0 -or $result.second_run.items.updated -ne 0 -or $result.second_run.items.deleted -ne 0) { throw 'REM-012.5 second item reconcile is not zero mutation.' }
+          if ($result.second_run.connectors.created -ne 0 -or $result.second_run.connectors.updated -ne 0 -or $result.second_run.connectors.deleted -ne 0) { throw 'REM-012.5 second connector reconcile is not zero mutation.' }
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rem-012-5-frame-01-pr-${{ env.PR_NUMBER }}-${{ env.SOURCE_SHA }}-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_ROOT }}/**
+          if-no-files-found: error
+          retention-days: 30
