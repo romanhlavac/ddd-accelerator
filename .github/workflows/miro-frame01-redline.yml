@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   remediate:
-    name: Exact-code REM-012.5 review-board recovery and Frame 01 redline
+    name: Exact-code REM-012.5 Frame 01 redline replacement
     if: >-
       github.event.pull_request.number == 8 &&
       github.actor == 'romanhlavac' &&
@@ -24,7 +24,7 @@ jobs:
     timeout-minutes: 120
     env:
       SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
-      AUTHORIZED_BASE_SHA: 5f98192b6ba89d08367eb79043bf8c91348e30ca
+      AUTHORIZED_BASE_SHA: ed14f57363c359e60633f9f1da9ad69dee8b5bda
       GH_TOKEN: ${{ github.token }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
 
@@ -43,14 +43,14 @@ jobs:
       - name: Initialize evidence
         shell: pwsh
         run: |
-          $root = Join-Path $env:RUNNER_TEMP 'rem-012-5-frame-01-anchorfix'
+          $root = Join-Path $env:RUNNER_TEMP 'rem-012-5-frame01-replacement'
           New-Item -ItemType Directory -Path $root -Force | Out-Null
           "EVIDENCE_ROOT=$root" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
           [ordered]@{
             repository=$env:GITHUB_REPOSITORY; pr=[int]$env:PR_NUMBER; source_sha=$env:SOURCE_SHA
             authorized_base_sha=$env:AUTHORIZED_BASE_SHA; remediation_id='REM-PR8-HVA-CC-012.5'
             source_board_id='uXjVH2vcvRI='; source_frame_id='3458764679494310883'
-            board_id='uXjVH0doLYY='; frame00_id='3458764680243144441'; frame_id='3458764680243144449'
+            board_id='uXjVH0doLYY='; frame00_id='3458764680243144441'; original_frame01_id='3458764680243144449'
             frame00_hvr_original_decision='ACCEPTED'; frame00_visual_equivalence_spot_check='PENDING'
             human_review_status='PENDING'; merge_allowed=$false; promotion_allowed=$false; release_allowed=$false; gate_approval_allowed=$false
           } | ConvertTo-Json | Set-Content (Join-Path $root 'identity.json') -Encoding utf8
@@ -72,11 +72,12 @@ jobs:
           observed = sorted(filter(None, git('diff-tree','--no-commit-id','--name-only','-r',source).splitlines()))
           manifest = Path('scaffolds/miro/rem-012-5-frame-01.yaml').read_text(encoding='utf-8')
           assert git('rev-parse','HEAD') == source
-          assert git('rev-parse', source + '^') == base, 'REM-012.5 anchor-fix parent mismatch'
-          assert git('show','-s','--format=%s',source) == 'fix(miro): preserve Frame 00 top-left on resize'
+          assert git('rev-parse', source + '^') == base, 'REM-012.5 replacement parent mismatch'
+          assert git('show','-s','--format=%s',source) == 'fix(miro): replace Frame 01 container from redline'
           assert observed == expected, f'path allowlist mismatch: {observed}'
           assert f'authorized_base_sha: {base}' in manifest
           assert 'board_id: uXjVH0doLYY=' in manifest and 'source_board_id: uXjVH2vcvRI=' in manifest
+          assert 'frame00_container_policy: preserve_relocated_container_pending_human_equivalence_check' in manifest
           Path(os.environ['EVIDENCE_ROOT'],'source-contract.json').write_text(json.dumps({'status':'PASS','source_sha':source,'observed_paths':observed},indent=2)+'\n',encoding='utf-8')
           '@ | python -
 
@@ -144,7 +145,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ steps.ci.outputs.platform_run_id }}
 
-      - name: Recover review board and apply Frame 01 from candidate
+      - name: Replace Frame 01 from exact-SHA candidate
         shell: pwsh
         env:
           MIRO_ACCESS_TOKEN: ${{ secrets.MIRO_ACCESS_TOKEN }}
@@ -154,15 +155,15 @@ jobs:
           if ($candidate.Count -ne 1) { throw "Expected exactly one candidate package, found $($candidate.Count)." }
           .\scripts\platform\Test-DDDAPlatformPackage.ps1 -PackagePath $candidate[0].FullName -ExpectedCommit $env:SOURCE_SHA -ExpectedKind candidate
           [ordered]@{status='PASS';source_sha=$env:SOURCE_SHA;platform_run_id='${{ steps.ci.outputs.platform_run_id }}';package_file=$candidate[0].Name;package_sha256=(Get-FileHash $candidate[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant()} | ConvertTo-Json | Set-Content (Join-Path $env:EVIDENCE_ROOT 'package.json') -Encoding utf8
-          $root=Join-Path $env:RUNNER_TEMP 'rem-012-5-anchorfix-package'; if(Test-Path $root){Remove-Item $root -Recurse -Force}; Expand-Archive $candidate[0].FullName $root -Force
+          $root=Join-Path $env:RUNNER_TEMP 'rem-012-5-frame01-package'; if(Test-Path $root){Remove-Item $root -Recurse -Force}; Expand-Archive $candidate[0].FullName $root -Force
           $runtime=Join-Path $root 'runtime\miro'; python -m pip install --disable-pip-version-check --no-input $runtime; $env:PYTHONPATH=$runtime
           $manifest=Join-Path $root 'scaffolds\miro\rem-012-5-frame-01.yaml'; $report=Join-Path $env:EVIDENCE_ROOT 'result.json'
           python -m ddda_miro.review_board_recovery_wirefix --manifest $manifest --report $report --source-sha $env:SOURCE_SHA --apply
-          if($LASTEXITCODE -ne 0){Get-Content $report -ErrorAction SilentlyContinue; throw 'REM-012.5 review-board recovery failed.'}
+          if($LASTEXITCODE -ne 0){Get-Content $report -ErrorAction SilentlyContinue; throw 'REM-012.5 Frame 01 replacement failed.'}
           $r=Get-Content $report -Raw -Encoding UTF8 | ConvertFrom-Json
           if($r.technical_status -ne 'PASS' -or $r.human_review_status -ne 'PENDING' -or $r.overall_status -ne 'READY_FOR_HUMAN_REVIEW'){throw 'REM-012.5 acceptance state mismatch.'}
           if(-not $r.protected_frames.unchanged -or $r.protected_frames.count -ne 16){throw 'REM-012.5 protected-frame contract failed.'}
-          if($r.frame00_visual_equivalence_spot_check -ne 'PENDING'){throw 'Frame 00 visual-equivalence check must remain pending.'}
+          if($r.frame00_visual_equivalence_spot_check -ne 'PENDING'){throw 'Frame 00 relocation spot check must remain pending.'}
           if($r.frame01_recovery.second_run.items.created -ne 0 -or $r.frame01_recovery.second_run.items.updated -ne 0 -or $r.frame01_recovery.second_run.items.deleted -ne 0){throw 'Frame 01 second item reconcile is not zero mutation.'}
           if($r.frame01_recovery.second_run.connectors.created -ne 0 -or $r.frame01_recovery.second_run.connectors.updated -ne 0 -or $r.frame01_recovery.second_run.connectors.deleted -ne 0){throw 'Frame 01 second connector reconcile is not zero mutation.'}
 
@@ -170,7 +171,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: rem-012-5-review-board-pr-${{ env.PR_NUMBER }}-${{ env.SOURCE_SHA }}-${{ github.run_id }}
-          path: ${{ env.EVIDENCE_ROOT }}/**
+          name: rem-012-5-frame01-redline-pr-${{ env.PR_NUMBER }}-${{ env.SOURCE_SHA }}-${{ github.run_id }}
+          path: ${{ env:EVIDENCE_ROOT }}/**
           if-no-files-found: error
           retention-days: 30

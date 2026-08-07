@@ -1,4 +1,4 @@
-from ddda_miro.review_board_recovery_wirefix import frame00_payload, frame_patch_preserving_top_left
+from ddda_miro.review_board_recovery_wirefix import frame00_payload, frame01_replacement_payload
 
 
 def test_frame00_create_payload_omits_read_only_relative_to_metadata():
@@ -26,18 +26,27 @@ def test_frame00_create_payload_omits_read_only_relative_to_metadata():
     assert "relativeTo" not in payload["position"]
 
 
-def test_frame_resize_preserves_board_absolute_top_left_anchor():
-    frame = {
-        "geometry": {"width": 9000.0, "height": 8000.0},
-        "position": {"x": -17000.0, "y": 1000.0, "origin": "center"},
+def test_frame01_replacement_uses_redline_geometry_and_preserves_old_top_left():
+    old_frame = {
+        "data": {"title": "01 – DDD Starter journey, gates a iterace"},
+        "geometry": {"width": 58000.0, "height": 13000.0},
+        "position": {"x": 8000.0, "y": -7500.0, "origin": "center"},
+        "style": {"fillColor": "#ffffff"},
     }
-    patch = frame_patch_preserving_top_left(frame, {"width": 7000.0, "height": 4914.42})
-    assert patch["geometry"] == {"width": 7000.0, "height": 4914.42}
-    assert patch["position"]["x"] == -18000.0
-    assert abs(patch["position"]["y"] - (-542.79)) < 0.001
-    old_left = frame["position"]["x"] - frame["geometry"]["width"] / 2
-    old_top = frame["position"]["y"] - frame["geometry"]["height"] / 2
-    new_left = patch["position"]["x"] - patch["geometry"]["width"] / 2
-    new_top = patch["position"]["y"] - patch["geometry"]["height"] / 2
-    assert old_left == new_left
-    assert old_top == new_top
+    source_frame = {
+        "data": {"title": "01 – DDD Starter journey, gates a iterace"},
+        "geometry": {"width": 58008.9, "height": 10144.3},
+        "position": {"x": 0.0, "y": 0.0, "origin": "center"},
+        "style": {"fillColor": "#ffffff"},
+    }
+    payload = frame01_replacement_payload(old_frame, source_frame)
+    assert payload["geometry"] == {"width": 58008.9, "height": 10144.3}
+    assert abs(payload["position"]["x"] - 8004.45) < 0.001
+    assert abs(payload["position"]["y"] - (-8927.85)) < 0.001
+    old_left = old_frame["position"]["x"] - old_frame["geometry"]["width"] / 2
+    old_top = old_frame["position"]["y"] - old_frame["geometry"]["height"] / 2
+    new_left = payload["position"]["x"] - payload["geometry"]["width"] / 2
+    new_top = payload["position"]["y"] - payload["geometry"]["height"] / 2
+    assert abs(old_left - new_left) < 0.001
+    assert abs(old_top - new_top) < 0.001
+    assert payload["style"]["fillColor"] == "#ffffff"

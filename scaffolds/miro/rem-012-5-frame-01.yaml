@@ -1,6 +1,6 @@
 schema_version: 1
 remediation_id: REM-PR8-HVA-CC-012.5
-authorized_base_sha: 5f98192b6ba89d08367eb79043bf8c91348e30ca
+authorized_base_sha: ed14f57363c359e60633f9f1da9ad69dee8b5bda
 board_id: uXjVH0doLYY=
 frame00_id: '3458764680243144441'
 frame_id: '3458764680243144449'
@@ -12,6 +12,7 @@ frame00_sticky_colors:
   phase_gate_state: light_yellow
   owner_next_action: light_blue
   attention_blockers: light_green
+frame00_container_policy: preserve_relocated_container_pending_human_equivalence_check
 replace_entire_frame_children: true
 source_sentinels:
   - G1 · Align
