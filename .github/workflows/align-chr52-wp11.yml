@@ -10,6 +10,7 @@ on:
 permissions:
   contents: write
   issues: write
+  repository-projects: write
 
 jobs:
   align:
@@ -30,7 +31,6 @@ jobs:
 
           root = Path('.')
 
-          # github-bootstrap.json
           p = root / 'config/governance/github-bootstrap.json'
           data = json.loads(p.read_text(encoding='utf-8-sig'))
 
@@ -85,7 +85,6 @@ jobs:
 
           p.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
 
-          # backlog-policy.yaml
           p = root / 'config/governance/backlog-policy.yaml'
           text = p.read_text(encoding='utf-8-sig')
           text = text.replace(
@@ -117,7 +116,6 @@ jobs:
           )
           p.write_text(text, encoding='utf-8')
 
-          # WP-11 roadmap
           p = root / 'docs/roadmap/work-packages/WP-11-eventstorming-multi-agent-orchestration.md'
           text = p.read_text(encoding='utf-8-sig')
           if '| #52 |' not in text:
@@ -135,7 +133,6 @@ jobs:
               )
           p.write_text(text, encoding='utf-8')
 
-          # Sanity checks
           data2 = json.loads((root / 'config/governance/github-bootstrap.json').read_text(encoding='utf-8'))
           assert 52 in next(x['children'] for x in data2['hierarchy'] if x['parent'] == 20)
           for blocked in (35, 41, 46):
@@ -163,7 +160,6 @@ jobs:
               return
             fi
             gh api --method POST "repos/$GH_REPO/issues/$parent/sub_issues" -F sub_issue_id="$(issue_id "$child")" >/dev/null
-            echo "Added #$child as sub-issue of #$parent"
           }
 
           add_dependency() {
@@ -174,7 +170,6 @@ jobs:
               return
             fi
             gh api --method POST "repos/$GH_REPO/issues/$blocked/dependencies/blocked_by" -F issue_id="$(issue_id "$blocker")" >/dev/null
-            echo "Added dependency #$blocked blocked by #$blocker"
           }
 
           add_subissue 20 52
@@ -184,26 +179,16 @@ jobs:
 
           test "$(gh api "repos/$GH_REPO/issues/52" --jq '.parent_issue_url')" = "https://api.github.com/repos/$GH_REPO/issues/20"
 
-      - name: Verify automatic Project V2 membership
+      - name: Add CHR52 directly to Project V2
         env:
           GH_TOKEN: ${{ github.token }}
-          GH_REPO: romanhlavac/ddd-accelerator
         shell: bash
         run: |
           set -euo pipefail
-          found=0
-          for _ in $(seq 1 15); do
-            if gh api "repos/$GH_REPO/issues/52/events?per_page=100" --jq '.[] | select(.event=="added_to_project_v2") | .event' | grep -qx 'added_to_project_v2'; then
-              found=1
-              break
-            fi
-            sleep 2
-          done
-          if [ "$found" -ne 1 ]; then
-            echo "Issue #52 was not automatically added to the linked Project V2 within the verification window." >&2
-            exit 1
-          fi
-          echo "Issue #52 has added_to_project_v2 evidence."
+          gh project item-add 2 \
+            --owner romanhlavac \
+            --url https://github.com/romanhlavac/ddd-accelerator/issues/52 \
+            --format json
 
       - name: Commit versioned alignment and remove one-shot workflow
         shell: bash
