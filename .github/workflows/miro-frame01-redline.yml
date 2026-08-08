@@ -24,6 +24,7 @@ jobs:
     timeout-minutes: 120
     env:
       SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+      CONNECTOR_READBACK_PARENT_SHA: a35ef64c5f3e610a8cb1adb41e4153a4fce1782f
       FRAME00_REPLACEMENT_PARENT_SHA: c842a6e00bc757ddd41b0e1010843cfccc30aa63
       POPULATED_RESIZE_PARENT_SHA: b8d4b89461e4a97fe3cb8f17b7c4c725d37c80fa
       ATOMIC_RESIZE_PARENT_SHA: 3bf5925d934766cb71ae95540189667df428def3
@@ -72,6 +73,7 @@ jobs:
               )
 
           source = os.environ['SOURCE_SHA']
+          connector_readback_parent = os.environ['CONNECTOR_READBACK_PARENT_SHA']
           frame00_replacement_parent = os.environ['FRAME00_REPLACEMENT_PARENT_SHA']
           populated_resize_parent = os.environ['POPULATED_RESIZE_PARENT_SHA']
           atomic_resize_parent = os.environ['ATOMIC_RESIZE_PARENT_SHA']
@@ -89,7 +91,8 @@ jobs:
           base = os.environ['BASE_SHA']
 
           chain = [
-              (source, frame00_replacement_parent, 'fix(miro): replace irreducible Frame 00 container'),
+              (source, connector_readback_parent, 'fix(miro): canonicalize connector read-back'),
+              (connector_readback_parent, frame00_replacement_parent, 'fix(miro): replace irreducible Frame 00 container'),
               (frame00_replacement_parent, populated_resize_parent, 'fix(miro): resize Frame 00 after accepted children'),
               (populated_resize_parent, atomic_resize_parent, 'fix(miro): atomically resize empty Frame 00'),
               (atomic_resize_parent, test_corrective_parent, 'fix(test): correct REM-012.5 companion target typo'),
@@ -110,6 +113,11 @@ jobs:
               assert g('show', '-s', '--format=%s', current) == subject, f'subject mismatch at {current}'
 
           assert paths(source) == sorted([
+              '.github/workflows/miro-frame01-redline.yml',
+              'runtime/miro/ddda_miro/connector_readback_wirefix.py',
+              'runtime/miro/tests/test_rem_012_5_connector_readback.py',
+          ])
+          assert paths(connector_readback_parent) == sorted([
               '.github/workflows/miro-frame01-redline.yml',
               'docs/reviews/REM-PR8-HVA-CC-012-5-frame-01-redline.md',
               'runtime/miro/ddda_miro/frame00_resize_ordering_wirefix.py',
@@ -229,7 +237,7 @@ jobs:
         run: |
           python -m pip install --disable-pip-version-check --no-input pytest 'ruamel.yaml>=0.18,<0.19' requests pyyaml
           $env:PYTHONPATH=Join-Path $PWD.Path 'runtime\miro'
-          python -m pytest runtime/miro/tests/test_rem_012_5_frame_01.py runtime/miro/tests/test_rem_012_5_frame00_position_payload.py -q
+          python -m pytest runtime/miro/tests/test_rem_012_5_frame_01.py runtime/miro/tests/test_rem_012_5_frame00_position_payload.py runtime/miro/tests/test_rem_012_5_connector_readback.py -q
           if($LASTEXITCODE -ne 0){throw 'targeted tests failed'}
 
       - name: Verify Miro secret
@@ -255,7 +263,7 @@ jobs:
           $root=Join-Path $env:RUNNER_TEMP 'rem-012-5-frame01-package'; if(Test-Path $root){Remove-Item $root -Recurse -Force}; Expand-Archive $candidate[0].FullName $root -Force
           $runtime=Join-Path $root 'runtime\miro'; python -m pip install --disable-pip-version-check --no-input $runtime; $env:PYTHONPATH=$runtime
           $manifest=Join-Path $root 'scaffolds\miro\rem-012-5-frame-01.yaml'; $report=Join-Path $env:EVIDENCE_ROOT 'result.json'
-          python -m ddda_miro.frame00_resize_ordering_wirefix --manifest $manifest --report $report --source-sha $env:SOURCE_SHA --apply
+          python -m ddda_miro.connector_readback_wirefix --manifest $manifest --report $report --source-sha $env:SOURCE_SHA --apply
           if($LASTEXITCODE -ne 0){Get-Content $report -ErrorAction SilentlyContinue; throw 'REM-012.5 replacement failed'}
           $r=Get-Content $report -Raw | ConvertFrom-Json
           if($r.technical_status -ne 'PASS' -or $r.human_review_status -ne 'PENDING' -or $r.overall_status -ne 'READY_FOR_HUMAN_REVIEW'){throw 'acceptance state mismatch'}
