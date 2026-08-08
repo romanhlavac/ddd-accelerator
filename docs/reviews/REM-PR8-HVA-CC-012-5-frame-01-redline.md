@@ -22,14 +22,18 @@ The ordinary Platform CI online acceptance did not delete that board: it creates
 
 Target board: `uXjVH0doLYY=`
 
-Recovered Frame 00: `3458764680243144441`
+Legacy Frame 00 container: `3458764680243144441`
 
 Target Frame 01: `3458764680243144449`
 
-The preserved board initially contains a generic generated Control Center rather than the Human-accepted REM-012.4 cockpit. Recovery therefore performs two bounded operations in one exact-SHA transaction:
+The preserved board initially contains a generic generated Control Center rather than the Human-accepted REM-012.4 cockpit. The legacy Frame-00 container later proved irreducible through Miro API `PATCH`: both empty- and populated-container shrink attempts returned deterministic `3.0204` although all eight accepted children fit the target bounds. Recovery therefore treats the legacy ID as a migration anchor, not as a permanent identity.
 
-1. reconstruct Frame 00 from the versioned Human-accepted `rem-012-4-frame-00.yaml` contract, using the accepted frame geometry and sticky role palette and retargeting only the Frame-01 navigation URL;
-2. resize target Frame 01 to the source redline geometry and reconcile all supported Frame-01 children and connectors from the selected redline.
+The exact-SHA remediation performs two bounded operations:
+
+1. resolve an already verified final replacement Frame 00 or transactionally create a verified staging copy, remove the legacy container only after staging is complete, create/read-back a second target-sized replacement directly at the accepted final position, and delete staging only after the final copy is verified; no Frame-00 geometry or position PATCH is used;
+2. resize/replace target Frame 01 as already defined and reconcile all supported Frame-01 children, connectors and visual companions from the selected redline.
+
+The versioned manifest keeps `3458764680243144441` as `legacy_frame_id` and defines the replacement discovery contract (title, target top-left and staging position). Subsequent remediation runs rediscover verified staging and final candidates only at those deterministic positions, so a Miro-generated replacement ID is not hard-coded into Git and a partial run can resume safely. The two-copy swap deliberately avoids every Frame-00 PATCH because the legacy container rejects resize mutations with deterministic Miro `3.0204`.
 
 All other 16 method frames are protected by a canonical before/after snapshot digest.
 
@@ -49,7 +53,8 @@ Technical PASS requires:
 
 - exact-SHA repository CI and candidate package provenance;
 - targeted source/recovery regression tests;
-- successful reconstruction and read-back of the eight-item accepted Frame 00;
+- successful discovery or transactional replacement of Frame 00, read-back of its eight accepted children, accepted `7000 × 4914.42` geometry and accepted top-left;
+- removal of the legacy Frame-00 container only after a verified replacement exists;
 - successful source-to-target Frame 01 reconcile;
 - zero-mutation second Frame-00 and Frame-01 runs;
 - unchanged digest for all 16 protected frames;

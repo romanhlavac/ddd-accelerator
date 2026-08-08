@@ -161,68 +161,115 @@ def test_connector_payload_preserves_endpoint_layout_and_enforces_readable_capti
     assert payload["style"]["textOrientation"] == "horizontal"
 
 
-class _OrderingClient:
-    def __init__(self):
-        self.frame = {
-            "id": "frame00",
-            "geometry": {"width": 9000.0, "height": 8000.0},
-            "position": {"x": -17000.0, "y": 1000.0, "origin": "center"},
+class _ReplacementClient:
+    def __init__(self, *, legacy_children: int = 8):
+        self.frames = {
+            "legacy": {
+                "id": "legacy",
+                "data": {"title": "00 – Control"},
+                "style": {"fillColor": "#f8fafc"},
+                "geometry": {"width": 9000.0, "height": 8000.0},
+                "position": {"x": -17000.0, "y": 1000.0, "origin": "center"},
+                "parent": None,
+            }
         }
-        self.children = []
+        self.children = {
+            "legacy": [
+                {"id": f"legacy-child-{i}", "_accepted": True}
+                for i in range(legacy_children)
+            ]
+        }
         self.events = []
-        self.update_payloads = []
-        self.atomic_patch_applied = False
-        self.resize_read_back = False
+        self.next_frame = 1
+        self.next_child = 1
+
+    def list_items(self, board, item_type=None):
+        assert board == "target"
+        if item_type == "frame":
+            return [dict(frame) for frame in self.frames.values()]
+        return []
+
+    def create_item(self, board, item_type, payload):
+        assert board == "target" and item_type == "frame"
+        frame_id = f"replacement-{self.next_frame}"
+        self.next_frame += 1
+        frame = {
+            "id": frame_id,
+            "data": dict(payload.get("data") or {}),
+            "style": dict(payload.get("style") or {}),
+            "geometry": dict(payload["geometry"]),
+            "position": dict(payload["position"]),
+            "parent": None,
+        }
+        self.frames[frame_id] = frame
+        self.children[frame_id] = []
+        self.events.append(
+            f"create_frame:{frame_id}:{frame['position']['x']}:{frame['position']['y']}"
+        )
+        return dict(frame)
+
+    def update_item(self, *_args, **_kwargs):
+        raise AssertionError("Frame 00 replacement must never PATCH a frame")
+
+    def delete_item(self, board, item_id):
+        assert board == "target"
+        for frame_id, children in list(self.children.items()):
+            for child in list(children):
+                if child["id"] == item_id:
+                    children.remove(child)
+                    self.events.append(f"delete_child:{item_id}")
+                    return
+        if item_id in self.frames:
+            self.frames.pop(item_id)
+            self.children.pop(item_id, None)
+            self.events.append(f"delete_frame:{item_id}")
+            return
+        raise AssertionError(f"unknown delete item {item_id}")
 
     def delete_connector(self, *_args):
-        raise AssertionError("accepted Frame 00 fixture has no connectors")
-
-    def delete_item(self, *_args):
-        raise AssertionError("FAST-LOOP recovery must not delete accepted Frame 00 children")
+        raise AssertionError("replacement fixture has no connectors")
 
     def _request(self, method, path, body=None):
         if method == "POST":
-            assert path == "boards/target/texts"
-            item_id = f"new-{len(self.children)}"
-            item = {"id": item_id, "_expected": body}
-            self.children.append(item)
-            self.events.append(f"create:{item_id}")
-            return {"id": item_id}
+            parent = str((body.get("parent") or {}).get("id") or "")
+            assert parent in self.frames and parent != "legacy"
+            child_id = f"new-child-{self.next_child}"
+            self.next_child += 1
+            child = {"id": child_id, "_accepted": True, "_expected": body}
+            self.children[parent].append(child)
+            self.events.append(f"create_child:{parent}:{child_id}")
+            return {"id": child_id}
         if method == "GET" and "/items/" in path:
             item_id = path.rsplit("/", 1)[-1]
-            item = next(item for item in self.children if item["id"] == item_id)
-            if not self.atomic_patch_applied:
-                self.events.append(f"child_readback:{item_id}")
-            return dict(item)
+            for frame_id, children in self.children.items():
+                for child in children:
+                    if child["id"] == item_id:
+                        self.events.append(f"read_child:{frame_id}:{item_id}")
+                        return dict(child)
+            raise AssertionError(f"unknown child {item_id}")
         if method == "PATCH":
-            raise AssertionError("accepted child payloads should not need reapply in this fixture")
+            raise AssertionError("replacement fixture should not patch child payloads")
         raise AssertionError(f"unexpected request: {method} {path}")
 
-    def update_item(self, board, item_type, item_id, payload):
-        assert board == "target" and item_type == "frame" and item_id == "frame00"
-        assert len(self.children) == 8
-        assert set(payload) == {"geometry", "position"}
-        assert payload["geometry"] == {"width": 7000.0, "height": 4914.42}
-        assert abs(payload["position"]["x"] - (-18000.0)) < 0.001
-        assert abs(payload["position"]["y"] - (-542.79)) < 0.001
-        self.events.append("atomic_resize")
-        self.update_payloads.append(payload)
-        self.atomic_patch_applied = True
-        self.frame["geometry"] = dict(payload["geometry"])
-        self.frame["position"] = dict(payload["position"])
-        return dict(self.frame)
 
-
-def _ordering_manifest():
+def _replacement_manifest():
     return {
         "board_id": "target",
-        "frame00_id": "frame00",
+        "frame00_id": "legacy",
         "frame_id": "frame01",
         "frame00_sticky_colors": {},
+        "frame00_replacement": {
+            "policy": "discover_verified_or_replace_legacy_container",
+            "legacy_frame_id": "legacy",
+            "title": "00 – Control",
+            "target_top_left": {"x": -21500.0, "y": -3000.0},
+            "staging_center": {"x": -28000.0, "y": -542.79},
+            "fill_color": "#f8fafc",
+        },
     }
 
 
-def _ordering_contract():
+def _replacement_contract():
     return {
         "frame": {"width": 7000.0, "height": 4914.42},
         "managed_updates": [
@@ -241,40 +288,39 @@ def _ordering_contract():
     }
 
 
-def _wire_ordering_fixture(monkeypatch, client, contract):
+def _wire_replacement_fixture(monkeypatch, client, contract):
     def fake_get_frame(_client, board, frame_id):
-        assert board == "target" and frame_id == "frame00"
-        if client.atomic_patch_applied and not client.resize_read_back:
-            client.events.append("resize_readback")
-            client.resize_read_back = True
-        return {
-            "id": client.frame["id"],
-            "geometry": dict(client.frame["geometry"]),
-            "position": dict(client.frame["position"]),
-        }
+        assert board == "target"
+        return dict(client.frames[frame_id])
 
     def fake_children(_client, board, frame_id):
-        assert board == "target" and frame_id == "frame00"
-        return [dict(item) for item in client.children]
+        assert board == "target"
+        return [dict(item) for item in client.children.get(frame_id, [])]
 
-    def role_mapping():
+    def role_mapping(frame_id):
         return {
-            update["role"]: client.children[i]["id"]
+            update["role"]: client.children[frame_id][i]["id"]
             for i, update in enumerate(contract["managed_updates"])
         }
 
-    def fake_items_state(*_args):
-        if len(client.children) != 8:
+    def fake_items_state(_client, manifest, _contract):
+        frame_id = str(manifest["frame00_id"])
+        children = client.children.get(frame_id, [])
+        if len(children) != 8 or not all(item.get("_accepted") for item in children):
             return False, {}
-        return True, role_mapping()
+        return True, role_mapping(frame_id)
 
-    def fake_container_state(*_args):
-        if (
-            len(client.children) == 8
-            and client.frame["geometry"] == {"width": 7000.0, "height": 4914.42}
-        ):
-            return True, role_mapping()
-        return False, {}
+    def fake_container_state(_client, manifest, _contract):
+        frame_id = str(manifest["frame00_id"])
+        frame = client.frames.get(frame_id)
+        if frame is None:
+            return False, {}
+        items_ok, mapping = fake_items_state(_client, manifest, _contract)
+        if not items_ok:
+            return False, {}
+        if frame["geometry"] != {"width": 7000.0, "height": 4914.42}:
+            return False, {}
+        return True, mapping
 
     monkeypatch.setattr(wirefix.base, "_get_frame", fake_get_frame)
     monkeypatch.setattr(wirefix.base, "_children", fake_children)
@@ -288,85 +334,179 @@ def _wire_ordering_fixture(monkeypatch, client, contract):
     )
 
 
-def test_frame00_creates_accepted_children_before_single_atomic_resize(monkeypatch):
-    client = _OrderingClient()
-    manifest = _ordering_manifest()
-    contract = _ordering_contract()
-    _wire_ordering_fixture(monkeypatch, client, contract)
+def _install_verified_frame(client, frame_id, x, y):
+    client.frames[frame_id] = {
+        "id": frame_id,
+        "data": {"title": "00 – Control"},
+        "style": {"fillColor": "#f8fafc"},
+        "geometry": {"width": 7000.0, "height": 4914.42},
+        "position": {"x": x, "y": y, "origin": "center"},
+        "parent": None,
+    }
+    client.children[frame_id] = [
+        {"id": f"{frame_id}-child-{i}", "_accepted": True}
+        for i in range(8)
+    ]
+
+
+def test_frame00_two_copy_swap_has_no_frame_patch_and_deletes_legacy_only_after_staging_verified(monkeypatch):
+    client = _ReplacementClient(legacy_children=8)
+    manifest = _replacement_manifest()
+    contract = _replacement_contract()
+    _wire_replacement_fixture(monkeypatch, client, contract)
 
     result = wirefix.restore_frame00_accepted_geometry_preserve_top_left(
         client, manifest, contract
     )
 
-    create_indexes = [i for i, event in enumerate(client.events) if event.startswith("create:")]
-    readback_indexes = [
-        i for i, event in enumerate(client.events) if event.startswith("child_readback:")
-    ]
-    assert len(create_indexes) == 8
-    assert len(readback_indexes) == 8
-    assert max(readback_indexes) < client.events.index("atomic_resize")
-    assert client.events.index("atomic_resize") < client.events.index("resize_readback")
-    assert len(client.update_payloads) == 1
-    assert client.frame["geometry"] == {"width": 7000.0, "height": 4914.42}
-    assert abs(client.frame["position"]["x"] - (-18000.0)) < 0.001
-    assert abs(client.frame["position"]["y"] - (-542.79)) < 0.001
-    assert result["created"] == 8
-    assert result["deleted"] == 0
-    assert result["connectors_deleted"] == 0
-    assert result["container_resized"] == 1
-    assert result["container_moved"] == 1
-    assert result["top_left_preserved"] is True
+    final_id = manifest["frame00_id"]
+    assert final_id == "replacement-2"
+    assert set(client.frames) == {"replacement-2"}
+    assert client.frames[final_id]["geometry"] == {
+        "width": 7000.0,
+        "height": 4914.42,
+    }
+    assert client.frames[final_id]["position"] == {
+        "x": -18000.0,
+        "y": -542.79,
+        "origin": "center",
+    }
 
-    events_before_second_run = list(client.events)
+    staging_create = client.events.index("create_frame:replacement-1:-28000.0:-542.79")
+    staging_reads = [
+        i for i, event in enumerate(client.events)
+        if event.startswith("read_child:replacement-1:")
+    ]
+    legacy_delete = client.events.index("delete_frame:legacy")
+    final_create = client.events.index("create_frame:replacement-2:-18000.0:-542.79")
+    final_reads = [
+        i for i, event in enumerate(client.events)
+        if event.startswith("read_child:replacement-2:")
+    ]
+    staging_delete = client.events.index("delete_frame:replacement-1")
+
+    assert staging_create < min(staging_reads)
+    assert max(staging_reads[:8]) < legacy_delete < final_create
+    assert final_create < min(final_reads)
+    assert max(final_reads[:8]) < staging_delete
+    assert result["container_replaced"] == 1
+    assert result["legacy_container_deleted"] == 1
+    assert result["staging_container_deleted"] == 1
+    assert result["replacement_frame_id"] == "replacement-2"
+    assert result["container_resized"] == 0
+    assert result["container_moved"] == 0
+
+    mutations_before = [
+        event for event in client.events
+        if event.startswith(("create_", "delete_"))
+    ]
     second = wirefix.restore_frame00_accepted_geometry_preserve_top_left(
         client, manifest, contract
     )
-    assert client.events == events_before_second_run
+    mutations_after = [
+        event for event in client.events
+        if event.startswith(("create_", "delete_"))
+    ]
+    assert mutations_after == mutations_before
     assert second["created"] == 0
     assert second["deleted"] == 0
     assert second["updated"] == 0
     assert second["unchanged"] == 8
-    assert second["container_resized"] == 0
 
 
-def test_frame00_partial_populated_state_fails_closed_without_mutation(monkeypatch):
-    client = _OrderingClient()
-    client.children = [{"id": "partial", "_expected": {}}]
-    manifest = _ordering_manifest()
-    contract = _ordering_contract()
+def test_frame00_cross_process_run_rediscovers_verified_final_replacement(monkeypatch):
+    client = _ReplacementClient(legacy_children=8)
+    manifest = _replacement_manifest()
+    contract = _replacement_contract()
+    _wire_replacement_fixture(monkeypatch, client, contract)
 
-    monkeypatch.setattr(
-        wirefix,
-        "frame00_state_accepted_container",
-        lambda *_args: (False, {}),
+    wirefix.restore_frame00_accepted_geometry_preserve_top_left(
+        client, manifest, contract
     )
-    monkeypatch.setattr(wirefix.base, "_get_frame", lambda *_args: dict(client.frame))
-    monkeypatch.setattr(wirefix.base, "_children", lambda *_args: list(client.children))
+    final_id = manifest["frame00_id"]
+    mutations_before = [
+        event for event in client.events
+        if event.startswith(("create_", "delete_"))
+    ]
+
+    fresh_manifest = _replacement_manifest()
+    second = wirefix.restore_frame00_accepted_geometry_preserve_top_left(
+        client, fresh_manifest, contract
+    )
+    mutations_after = [
+        event for event in client.events
+        if event.startswith(("create_", "delete_"))
+    ]
+    assert fresh_manifest["frame00_id"] == final_id
+    assert mutations_after == mutations_before
+    assert second["replacement_reused"] == 1
+    assert second["unchanged"] == 8
+
+
+def test_frame00_partial_legacy_fails_closed_before_staging_creation(monkeypatch):
+    client = _ReplacementClient(legacy_children=3)
+    manifest = _replacement_manifest()
+    contract = _replacement_contract()
+    _wire_replacement_fixture(monkeypatch, client, contract)
 
     with pytest.raises(ValueError, match="partially populated"):
         wirefix.restore_frame00_accepted_geometry_preserve_top_left(
             client, manifest, contract
         )
     assert client.events == []
-    assert client.update_payloads == []
+    assert set(client.frames) == {"legacy"}
+
+
+def test_frame00_verified_staging_resumes_after_partial_legacy_cleanup(monkeypatch):
+    client = _ReplacementClient(legacy_children=3)
+    contract = _replacement_contract()
+    manifest = _replacement_manifest()
+    _install_verified_frame(client, "replacement-1", -28000.0, -542.79)
+    client.next_frame = 2
+    _wire_replacement_fixture(monkeypatch, client, contract)
+
+    result = wirefix.restore_frame00_accepted_geometry_preserve_top_left(
+        client, manifest, contract
+    )
+
+    assert manifest["frame00_id"] == "replacement-2"
+    assert set(client.frames) == {"replacement-2"}
+    assert result["replacement_reused"] == 1
+    assert result["legacy_container_deleted"] == 1
+    assert result["staging_container_deleted"] == 1
+    assert client.frames["replacement-2"]["position"]["x"] == -18000.0
+
+
+def test_frame00_verified_final_finishes_deferred_cleanup_without_recreation(monkeypatch):
+    client = _ReplacementClient(legacy_children=3)
+    contract = _replacement_contract()
+    manifest = _replacement_manifest()
+    _install_verified_frame(client, "replacement-final", -18000.0, -542.79)
+    _install_verified_frame(client, "replacement-stage", -28000.0, -542.79)
+    _wire_replacement_fixture(monkeypatch, client, contract)
+
+    result = wirefix.restore_frame00_accepted_geometry_preserve_top_left(
+        client, manifest, contract
+    )
+
+    assert manifest["frame00_id"] == "replacement-final"
+    assert set(client.frames) == {"replacement-final"}
+    assert result["replacement_reused"] == 1
+    assert result["legacy_container_deleted"] == 1
+    assert result["staging_container_deleted"] == 1
+    assert not any(event.startswith("create_frame:") for event in client.events)
 
 
 def test_frame00_target_envelope_is_checked_before_external_mutation(monkeypatch):
-    client = _OrderingClient()
-    manifest = _ordering_manifest()
-    contract = _ordering_contract()
+    client = _ReplacementClient(legacy_children=8)
+    manifest = _replacement_manifest()
+    contract = _replacement_contract()
     contract["managed_updates"][-1]["x"] = 6900.0
     contract["managed_updates"][-1]["width"] = 500.0
-
-    monkeypatch.setattr(
-        wirefix,
-        "frame00_state_accepted_container",
-        lambda *_args: (False, {}),
-    )
+    _wire_replacement_fixture(monkeypatch, client, contract)
 
     with pytest.raises(ValueError, match="does not fit accepted"):
         wirefix.restore_frame00_accepted_geometry_preserve_top_left(
             client, manifest, contract
         )
     assert client.events == []
-    assert client.update_payloads == []

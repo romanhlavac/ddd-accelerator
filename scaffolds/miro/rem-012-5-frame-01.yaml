@@ -3,6 +3,17 @@ remediation_id: REM-PR8-HVA-CC-012.5
 authorized_base_sha: ed14f57363c359e60633f9f1da9ad69dee8b5bda
 board_id: uXjVH0doLYY=
 frame00_id: '3458764680243144441'
+frame00_replacement:
+  policy: discover_verified_or_replace_legacy_container
+  legacy_frame_id: '3458764680243144441'
+  title: 00 – Navigace, legenda a stav artefaktů (Control Center)
+  target_top_left:
+    x: -21500
+    y: -3000
+  staging_center:
+    x: -28000
+    y: -542.79
+  fill_color: '#f8fafc'
 frame_id: '3458764680243144449'
 source_board_id: uXjVH2vcvRI=
 source_frame_id: '3458764679494310883'
@@ -12,7 +23,7 @@ frame00_sticky_colors:
   phase_gate_state: light_yellow
   owner_next_action: light_blue
   attention_blockers: light_green
-frame00_container_policy: restore_accepted_geometry_preserve_top_left_pending_human_equivalence_check
+frame00_container_policy: transactional_replace_irreducible_container_preserve_accepted_top_left_pending_human_equivalence_check
 replace_entire_frame_children: true
 readability:
   methodology_min_font_size: 80
