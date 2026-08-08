@@ -1,3 +1,5 @@
+import pytest
+
 import ddda_miro.frame00_resize_ordering_wirefix as wirefix
 
 from ddda_miro.review_board_recovery_wirefix import (
@@ -166,7 +168,7 @@ class _OrderingClient:
             "geometry": {"width": 9000.0, "height": 8000.0},
             "position": {"x": -17000.0, "y": 1000.0, "origin": "center"},
         }
-        self.children = [{"id": f"child-{i}"} for i in range(8)]
+        self.children = []
         self.events = []
         self.update_payloads = []
         self.atomic_patch_applied = False
@@ -175,13 +177,30 @@ class _OrderingClient:
     def delete_connector(self, *_args):
         raise AssertionError("accepted Frame 00 fixture has no connectors")
 
-    def delete_item(self, board, item_id):
-        assert board == "target"
-        self.events.append(f"delete:{item_id}")
-        self.children = [item for item in self.children if item["id"] != item_id]
+    def delete_item(self, *_args):
+        raise AssertionError("FAST-LOOP recovery must not delete accepted Frame 00 children")
+
+    def _request(self, method, path, body=None):
+        if method == "POST":
+            assert path == "boards/target/texts"
+            item_id = f"new-{len(self.children)}"
+            item = {"id": item_id, "_expected": body}
+            self.children.append(item)
+            self.events.append(f"create:{item_id}")
+            return {"id": item_id}
+        if method == "GET" and "/items/" in path:
+            item_id = path.rsplit("/", 1)[-1]
+            item = next(item for item in self.children if item["id"] == item_id)
+            if not self.atomic_patch_applied:
+                self.events.append(f"child_readback:{item_id}")
+            return dict(item)
+        if method == "PATCH":
+            raise AssertionError("accepted child payloads should not need reapply in this fixture")
+        raise AssertionError(f"unexpected request: {method} {path}")
 
     def update_item(self, board, item_type, item_id, payload):
         assert board == "target" and item_type == "frame" and item_id == "frame00"
+        assert len(self.children) == 8
         assert set(payload) == {"geometry", "position"}
         assert payload["geometry"] == {"width": 7000.0, "height": 4914.42}
         assert abs(payload["position"]["x"] - (-18000.0)) < 0.001
@@ -194,11 +213,35 @@ class _OrderingClient:
         return dict(self.frame)
 
 
-def test_frame00_empty_shrink_happens_before_recreate_and_preserves_top_left(monkeypatch):
-    client = _OrderingClient()
-    manifest = {"board_id": "target", "frame00_id": "frame00"}
-    contract = {"frame": {"width": 7000.0, "height": 4914.42}, "managed_updates": [{}] * 8}
+def _ordering_manifest():
+    return {
+        "board_id": "target",
+        "frame00_id": "frame00",
+        "frame_id": "frame01",
+        "frame00_sticky_colors": {},
+    }
 
+
+def _ordering_contract():
+    return {
+        "frame": {"width": 7000.0, "height": 4914.42},
+        "managed_updates": [
+            {
+                "role": f"role-{i}",
+                "type": "text",
+                "x": 500.0 + i * 800.0,
+                "y": 500.0 + (i % 2) * 700.0,
+                "width": 500.0,
+                "visual_height": 300.0,
+                "font_size": 48,
+                "content": f"<p>role-{i}</p>",
+            }
+            for i in range(8)
+        ],
+    }
+
+
+def _wire_ordering_fixture(monkeypatch, client, contract):
     def fake_get_frame(_client, board, frame_id):
         assert board == "target" and frame_id == "frame00"
         if client.atomic_patch_applied and not client.resize_read_back:
@@ -214,68 +257,116 @@ def test_frame00_empty_shrink_happens_before_recreate_and_preserves_top_left(mon
         assert board == "target" and frame_id == "frame00"
         return [dict(item) for item in client.children]
 
-    def fake_wait_empty(_client, board, frame_id):
-        assert board == "target" and frame_id == "frame00"
-        assert client.children == []
-        client.events.append("empty")
-
-    helper_calls = []
-
-    def fake_atomic_payload(frame, target_width, target_height):
-        helper_calls.append((dict(frame), target_width, target_height))
-        return frame00_container_payload_preserve_top_left(frame, target_width, target_height)
-
-    def fake_restore(_client, _manifest, _contract):
-        assert len(client.update_payloads) == 1
-        assert client.resize_read_back is True
-        assert client.children == []
-        assert client.frame["geometry"] == {"width": 7000.0, "height": 4914.42}
-        client.events.append("recreate")
-        client.children = [{"id": f"new-{i}"} for i in range(8)]
+    def role_mapping():
         return {
-            "created": 8,
-            "deleted": 0,
-            "connectors_deleted": 0,
-            "unchanged": 0,
-            "role_ids": {"accepted": "ids"},
+            update["role"]: client.children[i]["id"]
+            for i, update in enumerate(contract["managed_updates"])
         }
+
+    def fake_items_state(*_args):
+        if len(client.children) != 8:
+            return False, {}
+        return True, role_mapping()
+
+    def fake_container_state(*_args):
+        if (
+            len(client.children) == 8
+            and client.frame["geometry"] == {"width": 7000.0, "height": 4914.42}
+        ):
+            return True, role_mapping()
+        return False, {}
 
     monkeypatch.setattr(wirefix.base, "_get_frame", fake_get_frame)
     monkeypatch.setattr(wirefix.base, "_children", fake_children)
     monkeypatch.setattr(wirefix.base, "_related_connectors", lambda *_args: [])
-    monkeypatch.setattr(wirefix.base, "_wait_frame_empty", fake_wait_empty)
-    monkeypatch.setattr(
-        wirefix.wirefix,
-        "frame00_container_payload_preserve_top_left",
-        fake_atomic_payload,
-    )
-    monkeypatch.setattr(wirefix, "_frame00_items_state", lambda *_args: (True, {"accepted": "old"}))
-    monkeypatch.setattr(wirefix, "_ORIGINAL_RESTORE_FRAME00", fake_restore)
+    monkeypatch.setattr(wirefix, "_frame00_items_state", fake_items_state)
+    monkeypatch.setattr(wirefix, "frame00_state_accepted_container", fake_container_state)
     monkeypatch.setattr(
         wirefix,
-        "frame00_state_accepted_container",
-        lambda *_args: (
-            (True, {"accepted": "ids"})
-            if len(client.children) == 8 and client.frame["geometry"]["width"] == 7000.0
-            else (False, {})
-        ),
+        "same_item",
+        lambda remote, expected: remote.get("_expected") == expected,
     )
 
-    result = wirefix.restore_frame00_accepted_geometry_preserve_top_left(client, manifest, contract)
 
-    delete_indexes = [i for i, event in enumerate(client.events) if event.startswith("delete:")]
-    assert len(delete_indexes) == 8
-    assert max(delete_indexes) < client.events.index("empty")
-    assert client.events.index("empty") < client.events.index("atomic_resize")
+def test_frame00_creates_accepted_children_before_single_atomic_resize(monkeypatch):
+    client = _OrderingClient()
+    manifest = _ordering_manifest()
+    contract = _ordering_contract()
+    _wire_ordering_fixture(monkeypatch, client, contract)
+
+    result = wirefix.restore_frame00_accepted_geometry_preserve_top_left(
+        client, manifest, contract
+    )
+
+    create_indexes = [i for i, event in enumerate(client.events) if event.startswith("create:")]
+    readback_indexes = [
+        i for i, event in enumerate(client.events) if event.startswith("child_readback:")
+    ]
+    assert len(create_indexes) == 8
+    assert len(readback_indexes) == 8
+    assert max(readback_indexes) < client.events.index("atomic_resize")
     assert client.events.index("atomic_resize") < client.events.index("resize_readback")
-    assert client.events.index("resize_readback") < client.events.index("recreate")
     assert len(client.update_payloads) == 1
-    assert len(helper_calls) == 1
     assert client.frame["geometry"] == {"width": 7000.0, "height": 4914.42}
     assert abs(client.frame["position"]["x"] - (-18000.0)) < 0.001
     assert abs(client.frame["position"]["y"] - (-542.79)) < 0.001
     assert result["created"] == 8
-    assert result["deleted"] == 8
+    assert result["deleted"] == 0
+    assert result["connectors_deleted"] == 0
     assert result["container_resized"] == 1
     assert result["container_moved"] == 1
     assert result["top_left_preserved"] is True
+
+    events_before_second_run = list(client.events)
+    second = wirefix.restore_frame00_accepted_geometry_preserve_top_left(
+        client, manifest, contract
+    )
+    assert client.events == events_before_second_run
+    assert second["created"] == 0
+    assert second["deleted"] == 0
+    assert second["updated"] == 0
+    assert second["unchanged"] == 8
+    assert second["container_resized"] == 0
+
+
+def test_frame00_partial_populated_state_fails_closed_without_mutation(monkeypatch):
+    client = _OrderingClient()
+    client.children = [{"id": "partial", "_expected": {}}]
+    manifest = _ordering_manifest()
+    contract = _ordering_contract()
+
+    monkeypatch.setattr(
+        wirefix,
+        "frame00_state_accepted_container",
+        lambda *_args: (False, {}),
+    )
+    monkeypatch.setattr(wirefix.base, "_get_frame", lambda *_args: dict(client.frame))
+    monkeypatch.setattr(wirefix.base, "_children", lambda *_args: list(client.children))
+
+    with pytest.raises(ValueError, match="partially populated"):
+        wirefix.restore_frame00_accepted_geometry_preserve_top_left(
+            client, manifest, contract
+        )
+    assert client.events == []
+    assert client.update_payloads == []
+
+
+def test_frame00_target_envelope_is_checked_before_external_mutation(monkeypatch):
+    client = _OrderingClient()
+    manifest = _ordering_manifest()
+    contract = _ordering_contract()
+    contract["managed_updates"][-1]["x"] = 6900.0
+    contract["managed_updates"][-1]["width"] = 500.0
+
+    monkeypatch.setattr(
+        wirefix,
+        "frame00_state_accepted_container",
+        lambda *_args: (False, {}),
+    )
+
+    with pytest.raises(ValueError, match="does not fit accepted"):
+        wirefix.restore_frame00_accepted_geometry_preserve_top_left(
+            client, manifest, contract
+        )
+    assert client.events == []
+    assert client.update_payloads == []
