@@ -24,6 +24,7 @@ jobs:
     timeout-minutes: 120
     env:
       SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+      ATOMIC_RESIZE_PARENT_SHA: 3bf5925d934766cb71ae95540189667df428def3
       TEST_CORRECTIVE_PARENT_SHA: ca4640ae2301676afc01ba470952eb8c62dc431c
       RECOVERY_PARENT_SHA: 60fce2b5527ed96902b3db126597dc713d8217a5
       NOOP3_SHA: e87087865c5de76f0ee973b65b63ce32f6579dd4
@@ -69,6 +70,7 @@ jobs:
               )
 
           source = os.environ['SOURCE_SHA']
+          atomic_resize_parent = os.environ['ATOMIC_RESIZE_PARENT_SHA']
           test_corrective_parent = os.environ['TEST_CORRECTIVE_PARENT_SHA']
           recovery_parent = os.environ['RECOVERY_PARENT_SHA']
           noop3 = os.environ['NOOP3_SHA']
@@ -83,7 +85,8 @@ jobs:
           base = os.environ['BASE_SHA']
 
           chain = [
-              (source, test_corrective_parent, 'fix(test): correct REM-012.5 companion target typo'),
+              (source, atomic_resize_parent, 'fix(miro): atomically resize empty Frame 00'),
+              (atomic_resize_parent, test_corrective_parent, 'fix(test): correct REM-012.5 companion target typo'),
               (test_corrective_parent, recovery_parent, 'fix(miro): shrink empty Frame 00 before recreate'),
               (recovery_parent, noop3, 'x'),
               (noop3, noop2, 'noop3'),
@@ -101,6 +104,11 @@ jobs:
               assert g('show', '-s', '--format=%s', current) == subject, f'subject mismatch at {current}'
 
           assert paths(source) == sorted([
+              '.github/workflows/miro-frame01-redline.yml',
+              'runtime/miro/ddda_miro/frame00_resize_ordering_wirefix.py',
+              'runtime/miro/tests/test_rem_012_5_frame00_position_payload.py',
+          ])
+          assert paths(atomic_resize_parent) == sorted([
               '.github/workflows/miro-frame01-redline.yml',
               'runtime/miro/tests/test_rem_012_5_frame00_position_payload.py',
           ])

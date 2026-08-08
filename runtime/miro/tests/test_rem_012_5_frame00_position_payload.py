@@ -168,6 +168,9 @@ class _OrderingClient:
         }
         self.children = [{"id": f"child-{i}"} for i in range(8)]
         self.events = []
+        self.update_payloads = []
+        self.atomic_patch_applied = False
+        self.resize_read_back = False
 
     def delete_connector(self, *_args):
         raise AssertionError("accepted Frame 00 fixture has no connectors")
@@ -179,8 +182,14 @@ class _OrderingClient:
 
     def update_item(self, board, item_type, item_id, payload):
         assert board == "target" and item_type == "frame" and item_id == "frame00"
-        assert "geometry" not in payload
-        self.events.append("move")
+        assert set(payload) == {"geometry", "position"}
+        assert payload["geometry"] == {"width": 7000.0, "height": 4914.42}
+        assert abs(payload["position"]["x"] - (-18000.0)) < 0.001
+        assert abs(payload["position"]["y"] - (-542.79)) < 0.001
+        self.events.append("atomic_resize")
+        self.update_payloads.append(payload)
+        self.atomic_patch_applied = True
+        self.frame["geometry"] = dict(payload["geometry"])
         self.frame["position"] = dict(payload["position"])
         return dict(self.frame)
 
@@ -192,6 +201,9 @@ def test_frame00_empty_shrink_happens_before_recreate_and_preserves_top_left(mon
 
     def fake_get_frame(_client, board, frame_id):
         assert board == "target" and frame_id == "frame00"
+        if client.atomic_patch_applied and not client.resize_read_back:
+            client.events.append("resize_readback")
+            client.resize_read_back = True
         return {
             "id": client.frame["id"],
             "geometry": dict(client.frame["geometry"]),
@@ -207,15 +219,17 @@ def test_frame00_empty_shrink_happens_before_recreate_and_preserves_top_left(mon
         assert client.children == []
         client.events.append("empty")
 
-    def fake_resize(_client, board, frame_id, _contract):
-        assert board == "target" and frame_id == "frame00"
-        assert client.children == []
-        client.events.append("resize")
-        client.frame["geometry"] = {"width": 7000.0, "height": 4914.42}
+    helper_calls = []
+
+    def fake_atomic_payload(frame, target_width, target_height):
+        helper_calls.append((dict(frame), target_width, target_height))
+        return frame00_container_payload_preserve_top_left(frame, target_width, target_height)
 
     def fake_restore(_client, _manifest, _contract):
-        assert client.events.index("resize") < client.events.index("move")
+        assert len(client.update_payloads) == 1
+        assert client.resize_read_back is True
         assert client.children == []
+        assert client.frame["geometry"] == {"width": 7000.0, "height": 4914.42}
         client.events.append("recreate")
         client.children = [{"id": f"new-{i}"} for i in range(8)]
         return {
@@ -230,7 +244,11 @@ def test_frame00_empty_shrink_happens_before_recreate_and_preserves_top_left(mon
     monkeypatch.setattr(wirefix.base, "_children", fake_children)
     monkeypatch.setattr(wirefix.base, "_related_connectors", lambda *_args: [])
     monkeypatch.setattr(wirefix.base, "_wait_frame_empty", fake_wait_empty)
-    monkeypatch.setattr(wirefix.base, "_resize_frame00", fake_resize)
+    monkeypatch.setattr(
+        wirefix.wirefix,
+        "frame00_container_payload_preserve_top_left",
+        fake_atomic_payload,
+    )
     monkeypatch.setattr(wirefix, "_frame00_items_state", lambda *_args: (True, {"accepted": "old"}))
     monkeypatch.setattr(wirefix, "_ORIGINAL_RESTORE_FRAME00", fake_restore)
     monkeypatch.setattr(
@@ -248,9 +266,11 @@ def test_frame00_empty_shrink_happens_before_recreate_and_preserves_top_left(mon
     delete_indexes = [i for i, event in enumerate(client.events) if event.startswith("delete:")]
     assert len(delete_indexes) == 8
     assert max(delete_indexes) < client.events.index("empty")
-    assert client.events.index("empty") < client.events.index("resize")
-    assert client.events.index("resize") < client.events.index("move")
-    assert client.events.index("move") < client.events.index("recreate")
+    assert client.events.index("empty") < client.events.index("atomic_resize")
+    assert client.events.index("atomic_resize") < client.events.index("resize_readback")
+    assert client.events.index("resize_readback") < client.events.index("recreate")
+    assert len(client.update_payloads) == 1
+    assert len(helper_calls) == 1
     assert client.frame["geometry"] == {"width": 7000.0, "height": 4914.42}
     assert abs(client.frame["position"]["x"] - (-18000.0)) < 0.001
     assert abs(client.frame["position"]["y"] - (-542.79)) < 0.001

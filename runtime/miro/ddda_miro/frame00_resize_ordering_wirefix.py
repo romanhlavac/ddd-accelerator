@@ -21,38 +21,6 @@ def _frame_top_left(frame: dict[str, Any]) -> tuple[float, float]:
     )
 
 
-def _restore_parent_top_left(
-    client: Any,
-    board: str,
-    frame_id: str,
-    old_top_left: tuple[float, float],
-    target_width: float,
-    target_height: float,
-) -> int:
-    frame = base._get_frame(client, board, frame_id)
-    desired_x = old_top_left[0] + target_width / 2.0
-    desired_y = old_top_left[1] + target_height / 2.0
-    position = frame.get("position") or {}
-    moved = not (
-        base._close(position.get("x"), desired_x)
-        and base._close(position.get("y"), desired_y)
-    )
-    if moved:
-        client.update_item(
-            board,
-            "frame",
-            frame_id,
-            {
-                "position": {
-                    "x": desired_x,
-                    "y": desired_y,
-                    "origin": "center",
-                }
-            },
-        )
-    return int(moved)
-
-
 def restore_frame00_accepted_geometry_preserve_top_left(
     client: Any, manifest: dict[str, Any], contract: dict[str, Any]
 ) -> dict[str, Any]:
@@ -102,26 +70,38 @@ def restore_frame00_accepted_geometry_preserve_top_left(
     # Hard precondition for the shrink: Miro must report the parent as empty.
     base._wait_frame_empty(client, board, frame_id)
 
-    # review_board_recovery._resize_frame00 is already bounded: it retries the Miro
-    # 3.0204 / child-out-of-bounds condition at most five times, then fails closed.
-    base._resize_frame00(client, board, frame_id, contract)
+    # Miro validates parent bounds against the complete frame mutation. Apply geometry
+    # and the top-left-preserving position atomically so no invalid intermediate frame
+    # state is exposed between a geometry-only shrink and a later move.
+    moved = 0
+    if resized:
+        frame_empty = base._get_frame(client, board, frame_id)
+        resize_payload = wirefix.frame00_container_payload_preserve_top_left(
+            frame_empty, target_width, target_height
+        )
+        current_position = frame_empty.get("position") or {}
+        target_position = resize_payload.get("position") or {}
+        moved = int(
+            not (
+                base._close(current_position.get("x"), target_position.get("x"))
+                and base._close(current_position.get("y"), target_position.get("y"))
+            )
+        )
+        client.update_item(board, "frame", frame_id, resize_payload)
 
     frame_after_shrink = base._get_frame(client, board, frame_id)
     geometry = frame_after_shrink.get("geometry") or {}
+    shrink_top_left = _frame_top_left(frame_after_shrink)
     if not (
         base._close(geometry.get("width"), target_width)
         and base._close(geometry.get("height"), target_height)
     ):
         raise ValueError("Frame 00 empty-frame shrink did not converge to accepted geometry")
-
-    moved = _restore_parent_top_left(
-        client,
-        board,
-        frame_id,
-        old_top_left,
-        target_width,
-        target_height,
-    )
+    if not (
+        base._close(old_top_left[0], shrink_top_left[0])
+        and base._close(old_top_left[1], shrink_top_left[1])
+    ):
+        raise ValueError("Frame 00 top-left changed during atomic empty-frame shrink")
 
     # Reuse the existing accepted-child recovery after geometry/top-left are final.
     # Because the parent is already at target geometry and empty, its internal resize is a no-op.
