@@ -1,0 +1,88 @@
+schema_version: 1
+remediation_id: REM-PR8-HVA-CC-012.5
+authorized_base_sha: ed14f57363c359e60633f9f1da9ad69dee8b5bda
+board_id: uXjVH0doLYY=
+frame00_id: '3458764680243144441'
+frame00_replacement:
+  policy: discover_verified_or_replace_legacy_container
+  legacy_frame_id: '3458764680243144441'
+  title: 00 – Navigace, legenda a stav artefaktů (Control Center)
+  target_top_left:
+    x: -21500
+    y: -3000
+  staging_center:
+    x: -28000
+    y: -542.79
+  fill_color: '#f8fafc'
+frame_id: '3458764680243144449'
+source_board_id: uXjVH2vcvRI=
+source_frame_id: '3458764679494310883'
+source_frame_title: 01 – DDD Starter journey, gates a iterace
+accepted_frame00_contract: rem-012-4-frame-00.yaml
+frame00_sticky_colors:
+  phase_gate_state: light_yellow
+  owner_next_action: light_blue
+  attention_blockers: light_green
+frame00_container_policy: transactional_replace_irreducible_container_preserve_accepted_top_left_pending_human_equivalence_check
+replace_entire_frame_children: true
+readability:
+  methodology_min_font_size: 80
+  methodology_width: 4800
+  methodology_x: 2600
+  methodology_y: 850
+  connector_caption_min_font_size: 48
+source_companion_frames:
+  - id: '3458764679531043366'
+    title: Miro Tips
+    min_images: 1
+  - id: '3458764679531716415'
+    title: Align
+    min_images: 2
+  - id: '3458764679532531400'
+    title: Discover
+    min_images: 2
+  - id: '3458764679532531576'
+    title: Decompose
+    min_images: 2
+  - id: '3458764679532531636'
+    title: Strategize
+    min_images: 2
+  - id: '3458764679532834577'
+    title: Connect
+    min_images: 2
+  - id: '3458764679532834532'
+    title: Organize
+    min_images: 2
+  - id: '3458764679532834637'
+    title: Define
+    min_images: 2
+  - id: '3458764679532834681'
+    title: Code
+    min_images: 2
+source_sentinels:
+  - G1 · Align
+  - G8 · Code
+  - METODIKA A ZDROJE
+  - ALIGN & UNDERSTAND
+  - STRATEGIC ARCHITECTURE
+  - STRATEGY & ORG DESIGN
+  - TACTICAL ARCHITECTURE
+source_forbidden_sentinels:
+  - JAK ČÍST STAV GATE
+protected_frames:
+  - '3458764680243144458'
+  - '3458764680243144461'
+  - '3458764680243144467'
+  - '3458764680243144471'
+  - '3458764680243144475'
+  - '3458764680243144485'
+  - '3458764680243144495'
+  - '3458764680243144501'
+  - '3458764680243144503'
+  - '3458764680243144505'
+  - '3458764680243144507'
+  - '3458764680243144510'
+  - '3458764680243144512'
+  - '3458764680243144515'
+  - '3458764680243144516'
+  - '3458764680243144520'

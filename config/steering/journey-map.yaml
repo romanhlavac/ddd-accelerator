@@ -1,0 +1,53 @@
+schema_version: 1
+journey:
+  starter_method: align-discover-decompose-strategize-connect-organize-define-code
+  rule: Chat navrhuje a vysvětluje. Deterministický skript zapisuje. Gate schvaluje člověk.
+  actions:
+    G1:
+      actions:
+        - Zkontrolovat business problém, rozhodnutí, scope, out-of-scope a ownery.
+        - Potvrdit project charter nebo doplnit chybějící intake evidence.
+      prompt: Proveď Align review. Odděl cíle, scope, omezení, předpoklady a otevřené otázky. Nic neschvaluj bez potvrzení decision ownera.
+      mode_guidance: {consult: Plan, execute: Agent, decision: reasoning}
+    G2:
+      actions:
+        - Zkatalogizovat vstupy s provenance.
+        - Připravit Big Picture EventStorming a glossary.
+      prompt: Navrhni nejmenší discovery krok. Zachovej terminologii zdrojů a rozpory zapiš jako hotspoty.
+      mode_guidance: {consult: Plan, execute: Agent, decision: reasoning}
+    G3:
+      actions:
+        - Seskupit pravidla, lifecycle a jazykové rozdíly.
+        - Navrhnout kandidátní subdomény a bounded contexts s rationale.
+      prompt: Navrhni kandidátní hranice bez mapování jedna služba, systém nebo tým na jeden bounded context.
+      mode_guidance: {consult: Plan, execute: Agent, decision: reasoning}
+    G4:
+      actions:
+        - Klasifikovat core, supporting a generic subdomény.
+        - Připravit build, buy, partner nebo retire hypotézy.
+      prompt: Proveď strategické framing bez automatického investičního rozhodnutí. Uveď evidence a nejistoty.
+      mode_guidance: {consult: Plan, execute: Agent, decision: reasoning}
+    G5:
+      actions:
+        - Doplnit upstream/downstream, source of truth a integrační patterns.
+        - Popsat consistency, latency a failure modes.
+      prompt: Zkontroluj context map a data ownership. Nevytvářej sdílenou databázi jako implicitní integrační kontrakt.
+      mode_guidance: {consult: Plan, execute: Agent, decision: reasoning}
+    G6:
+      actions:
+        - Ověřit ownership, cognitive load a interaction modes.
+        - Rozlišit stream-aligned, platform, enabling a complicated-subsystem role.
+      prompt: Posuď socio-technickou proveditelnost hranic a explicitně popiš týmové závislosti.
+      mode_guidance: {consult: Plan, execute: Agent, decision: reasoning}
+    G7:
+      actions:
+        - Připravit Bounded Context Canvas a Design-Level EventStorming.
+        - Potvrdit lifecycle, quality attributes a kontrakty.
+      prompt: Zúž návrh na jeden bounded context a ověř jeho purpose, ubiquitous language, lifecycle a kontrakty.
+      mode_guidance: {consult: Plan, execute: Agent, decision: reasoning}
+    G8:
+      actions:
+        - Navrhnout agregáty, invarianty, porty, ADR a testy.
+        - Ověřit observabilitu, rollout a rollback.
+      prompt: Navrhni nejjednodušší implementaci chránící skutečné invarianty. CQRS nebo Event Sourcing použij jen s explicitním zdůvodněním.
+      mode_guidance: {consult: Plan, execute: Agent, decision: reasoning}

@@ -1,0 +1,351 @@
+name: DDDA platform CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ddda-platform-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-platform:
+    name: Platform validation
+    runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+    steps:
+      - name: Checkout exact source state
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.SOURCE_SHA }}
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Show source identity
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $actual = (git rev-parse HEAD).Trim()
+          if ($actual -ne $env:SOURCE_SHA) {
+              throw "Checkout SHA '$actual' neodpovídá SOURCE_SHA '$env:SOURCE_SHA'."
+          }
+          git status --short
+          Write-Host "Source SHA: $actual"
+          pwsh --version
+          python --version
+
+      - name: Platform doctor
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          .\ddda.ps1 doctor
+
+      - name: Source-level validation
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          .\ddda.ps1 test -Suite lint -NonInteractive
+          .\ddda.ps1 test -Suite schema -NonInteractive
+          .\ddda.ps1 test -Suite unit -NonInteractive
+          .\ddda.ps1 test -Suite component -NonInteractive
+          .\ddda.ps1 test -Suite regression -NonInteractive
+          .\ddda.ps1 test -Suite security -NonInteractive
+
+      - name: Build candidate package
+        id: package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version = 'ci.' + $env:GITHUB_RUN_ID + '.' + $env:SOURCE_SHA.Substring(0, 12)
+          $output = Join-Path $env:RUNNER_TEMP ('ddda-candidate-' + $env:SOURCE_SHA.Substring(0, 12) + '.zip')
+          $json = .\scripts\platform\New-DDDAPlatformPackage.ps1 -PlatformPath $PWD.Path -Kind candidate -Version $version -SourceRef $env:SOURCE_SHA -OutputPath $output -Json | Out-String
+          $package = $json.Trim() | ConvertFrom-Json
+          if ($package.source_commit -ne $env:SOURCE_SHA) {
+              throw 'Candidate package source_commit does not match exact source SHA.'
+          }
+          if (-not (Test-Path -LiteralPath $package.path -PathType Leaf)) {
+              throw 'Candidate package was not created.'
+          }
+          "package_path=$($package.path)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "package_sha256=$($package.sha256)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Package-first validation
+        shell: pwsh
+        run: |
+          $log = Join-Path $env:RUNNER_TEMP 'platform-package-first.log'
+          $previousPreference = $ErrorActionPreference
+          $code = 1
+          try {
+            $ErrorActionPreference = 'Continue'
+            & {
+              $packagePath = '${{ steps.package.outputs.package_path }}'
+              .\scripts\platform\Test-DDDAPlatformPackage.ps1 -PackagePath $packagePath -ExpectedCommit $env:SOURCE_SHA -ExpectedKind candidate
+              .\ddda.ps1 test -Suite integration -PackagePath $packagePath -NonInteractive
+              .\ddda.ps1 test -Suite smoke -PackagePath $packagePath -NonInteractive
+              .\ddda.ps1 test -Suite security -PackagePath $packagePath -NonInteractive
+              .\ddda.ps1 test -Suite e2e -PackagePath $packagePath -NonInteractive
+              .\ddda.ps1 test -Suite acceptance -PackagePath $packagePath -CleanupOnFailure -NonInteractive
+            } *> $log
+            $code = $LASTEXITCODE
+            if ($null -eq $code) { $code = 0 }
+          }
+          catch {
+            ($_ | Out-String) | Add-Content -LiteralPath $log -Encoding UTF8
+            $code = 1
+          }
+          finally {
+            $ErrorActionPreference = $previousPreference
+          }
+          Get-Content -LiteralPath $log -Tail 240
+          exit $code
+
+      - name: Upload package-first diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: platform-package-first-${{ github.run_id }}
+          path: ${{ runner.temp }}/platform-package-first.log
+          if-no-files-found: error
+
+      - name: Verify repository remains clean
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $changes = git status --porcelain
+          if (-not [string]::IsNullOrWhiteSpace(($changes -join "`n"))) {
+              throw "CI validation modified the platform repository:`n$($changes -join "`n")"
+          }
+
+      - name: Upload candidate package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ddda-candidate-${{ env.SOURCE_SHA }}
+          path: ${{ steps.package.outputs.package_path }}
+          if-no-files-found: error
+          retention-days: 7
+
+  validate-pr-command:
+    name: One-command PR validation
+    if: github.event_name == 'pull_request'
+    runs-on: windows-latest
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.SOURCE_SHA }}
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run exact validate-pr command
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $actual = (git rev-parse HEAD).Trim()
+          if ($actual -ne $env:SOURCE_SHA) {
+              throw "Checkout SHA '$actual' neodpovídá PR head '$env:SOURCE_SHA'."
+          }
+          .\ddda.ps1 validate-pr -Pr ([int]$env:PR_NUMBER) -CleanupOnFailure -NonInteractive
+
+      - name: Verify PASS report for exact SHA
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $reportRoot = Join-Path $env:LOCALAPPDATA ("DDDA\validation-reports\pr-{0}-{1}" -f $env:PR_NUMBER, $env:SOURCE_SHA)
+          $reports = @(Get-ChildItem -LiteralPath $reportRoot -Filter result.json -File -Recurse -ErrorAction Stop | Sort-Object LastWriteTimeUtc -Descending)
+          if ($reports.Count -eq 0) {
+              throw "validate-pr nevytvořil report pod $reportRoot."
+          }
+          $report = Get-Content -LiteralPath $reports[0].FullName -Raw -Encoding UTF8 | ConvertFrom-Json
+          if ($report.status -ne 'PASS' -or $report.source.commit -ne $env:SOURCE_SHA -or [int]$report.source.pr -ne [int]$env:PR_NUMBER) {
+              throw "Validation report není PASS pro exact PR head. Report: $($reports[0].FullName)"
+          }
+          Write-Host "Validated report: $($reports[0].FullName)"
+
+      - name: Stage validate-pr reports
+        if: always()
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $source = Join-Path $env:LOCALAPPDATA ("DDDA\validation-reports\pr-{0}-{1}" -f $env:PR_NUMBER, $env:SOURCE_SHA)
+          $target = Join-Path $env:RUNNER_TEMP 'validate-pr-reports'
+          New-Item -ItemType Directory -Path $target -Force | Out-Null
+          if (Test-Path -LiteralPath $source -PathType Container) {
+              Copy-Item -LiteralPath $source -Destination $target -Recurse -Force
+          }
+          else {
+              Set-Content -LiteralPath (Join-Path $target 'missing-report.txt') -Encoding UTF8 -Value "Validation report root was not created: $source"
+          }
+
+      - name: Upload validate-pr reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: validate-pr-${{ env.PR_NUMBER }}-${{ env.SOURCE_SHA }}
+          path: ${{ runner.temp }}/validate-pr-reports/**
+          if-no-files-found: error
+          retention-days: 14
+
+  online-miro-acceptance:
+    name: Online Miro acceptance
+    needs:
+      - validate-platform
+      - validate-pr-command
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.action == 'synchronize' &&
+      github.event.pull_request.number == 8 &&
+      github.actor == 'romanhlavac' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: windows-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    env:
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      MIRO_TEAM_ID: "3458764678971681560"
+
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.SOURCE_SHA }}
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Check online secret availability
+        id: online-secret
+        shell: pwsh
+        env:
+          MIRO_ACCESS_TOKEN: ${{ secrets.MIRO_ACCESS_TOKEN }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:MIRO_ACCESS_TOKEN)) {
+            "available=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            "MIRO_ACCESS_TOKEN is not configured; online acceptance is skipped." | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
+          }
+          else {
+            "available=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          }
+
+      - name: Download exact-SHA candidate package
+        if: steps.online-secret.outputs.available == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: ddda-candidate-${{ env.SOURCE_SHA }}
+          path: ${{ runner.temp }}/candidate
+
+      - name: Run exact-SHA online Miro acceptance only
+        if: steps.online-secret.outputs.available == 'true'
+        shell: pwsh
+        env:
+          MIRO_ACCESS_TOKEN: ${{ secrets.MIRO_ACCESS_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $actual = (git rev-parse HEAD).Trim()
+          if ($actual -ne $env:SOURCE_SHA) {
+            throw "Checkout SHA '$actual' neodpovídá PR head '$env:SOURCE_SHA'."
+          }
+          $candidate = @(Get-ChildItem -LiteralPath (Join-Path $env:RUNNER_TEMP 'candidate') -Filter '*.zip' -File)
+          if ($candidate.Count -ne 1) {
+            throw "Expected exactly one candidate package, found $($candidate.Count)."
+          }
+          .\scripts\platform\Test-DDDAPlatformPackage.ps1 `
+            -PackagePath $candidate[0].FullName `
+            -ExpectedCommit $env:SOURCE_SHA `
+            -ExpectedKind candidate
+
+          $packageRoot = Join-Path $env:RUNNER_TEMP 'online-miro-package'
+          if (Test-Path -LiteralPath $packageRoot) {
+            Remove-Item -LiteralPath $packageRoot -Recurse -Force
+          }
+          Expand-Archive -LiteralPath $candidate[0].FullName -DestinationPath $packageRoot -Force
+
+          $manifestPath = Join-Path $packageRoot 'ddda-package.json'
+          if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
+            throw "Expanded candidate package is missing ddda-package.json: $manifestPath"
+          }
+          $manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+          if ([string]$manifest.source_commit -ne $env:SOURCE_SHA -or [string]$manifest.kind -ne 'candidate') {
+            throw "Expanded candidate package provenance does not match exact SHA '$env:SOURCE_SHA'."
+          }
+
+          git -C $packageRoot init --initial-branch=acceptance
+          git -C $packageRoot config user.name 'DDDA Online Acceptance'
+          git -C $packageRoot config user.email 'ddda-online-acceptance@example.invalid'
+          git -C $packageRoot add --all
+          git -C $packageRoot commit -m "test: initialize candidate package $env:SOURCE_SHA"
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Failed to create the temporary candidate-package Git baseline.'
+          }
+          $packageGitRoot = (git -C $packageRoot rev-parse --show-toplevel).Trim()
+          if ([IO.Path]::GetFullPath($packageGitRoot).TrimEnd('\', '/') -ne [IO.Path]::GetFullPath($packageRoot).TrimEnd('\', '/')) {
+            throw "Temporary package Git root '$packageGitRoot' does not match package root '$packageRoot'."
+          }
+          $packageChanges = @(git -C $packageRoot status --porcelain)
+          if (-not [string]::IsNullOrWhiteSpace(($packageChanges -join "`n"))) {
+            throw "Temporary package Git baseline is not clean:`n$($packageChanges -join "`n")"
+          }
+
+          & (Join-Path $packageRoot 'scripts\platform\Invoke-DDDAMiroAcceptanceEvidence.ps1') `
+            -PlatformPath $packageRoot `
+            -Suite project-steering `
+            -Full `
+            -KeepReviewBoard `
+            -MiroTeamId $env:MIRO_TEAM_ID `
+            -NonInteractive
+
+      - name: Stage online acceptance evidence
+        if: always() && steps.online-secret.outputs.available == 'true'
+        shell: pwsh
+        run: |
+          $target = Join-Path $env:RUNNER_TEMP 'online-miro-acceptance'
+          New-Item -ItemType Directory -Path $target -Force | Out-Null
+          foreach ($source in @(
+            (Join-Path $env:LOCALAPPDATA "DDDA\validation-reports"),
+            (Join-Path $env:LOCALAPPDATA "DDDA\acceptance-reports")
+          )) {
+            if (Test-Path -LiteralPath $source) {
+              Copy-Item -LiteralPath $source -Destination $target -Recurse -Force
+            }
+          }
+
+      - name: Upload online acceptance evidence
+        if: always() && steps.online-secret.outputs.available == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: online-miro-acceptance-${{ env.PR_NUMBER }}-${{ env.SOURCE_SHA }}
+          path: ${{ runner.temp }}/online-miro-acceptance/**
+          if-no-files-found: warn
+          retention-days: 14

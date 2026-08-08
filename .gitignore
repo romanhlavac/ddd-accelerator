@@ -1,4 +1,8 @@
 .ddda/
+.tmp/
+.reports/
+.releases/
+dist/
 __pycache__/
 .pytest_cache/
 *.pyc

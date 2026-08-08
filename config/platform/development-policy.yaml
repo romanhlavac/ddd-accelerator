@@ -1,0 +1,122 @@
+{
+  "schema_version": 1,
+  "base_branch": "main",
+  "merge_method": "squash",
+  "minimum_approvals": 0,
+  "require_explicit_confirmation": true,
+  "execution_interfaces": {
+    "schema_version": 2,
+    "platform_development": {
+      "allowed": [
+        "chat",
+        "work"
+      ],
+      "forbidden": [
+        "codex",
+        "cursor",
+        "agent"
+      ],
+      "default_mode": "chat",
+      "authoritative_execution_plane": "github-actions",
+      "operator_local_shell_required": false,
+      "assistant_runtime_secret_access": false,
+      "repository_write_scope": "platform-pr-branch-only",
+      "main_branch_write_allowed": false,
+      "require_transparent_access_failure": true,
+      "require_standard_ci_after_write": true,
+      "preferred_implementation_mode": "work",
+      "allowed_implementation_modes": [
+        "work",
+        "chat-atomic"
+      ],
+      "chat_atomic_implementation": {
+        "enabled": true,
+        "transport": "github-git-data-api",
+        "exact_base_sha_required": true,
+        "atomic_tree_commit_required": true,
+        "direct_contents_api_multi_file_write_allowed": false,
+        "target_scope": "platform-pr-branch-only",
+        "maximum_commits_per_change": 1,
+        "force_update_allowed": false,
+        "prewrite_source_snapshot_required": true,
+        "standard_ci_after_write_required": true,
+        "evidence_required": true,
+        "protected_paths": [
+          "config/platform/development-policy.yaml",
+          "docs/adr/",
+          "docs/developer-guide/",
+          "knowledge/ddda-platform-development-skill.md",
+          ".github/workflows/"
+        ],
+        "bootstrap_exception": {
+          "change_id": "REM-PR8-HVA-CC-012.1A",
+          "explicit_authorization_required": true,
+          "maximum_staging_commits": 1,
+          "maximum_final_commits": 1,
+          "self_removing_script_required": true
+        }
+      }
+    },
+    "ddda_project_runtime": {
+      "required_system": "cursor",
+      "primary_interaction": "cursor-chat",
+      "agentic_execution_enabled": true,
+      "project_artifact_management_enabled": true,
+      "project_repository_write_allowed": true,
+      "platform_repository_write_allowed": false,
+      "cross_repository_commit_allowed": false,
+      "human_gate_decision_required": true,
+      "cursor_runtime_assets_required": [
+        ".cursor/rules/010-ddda-project-steering.mdc",
+        ".cursor/rules/ddda-chat-first.mdc",
+        ".cursor/rules/ddda-repository-scope.mdc",
+        ".cursor/skills.md"
+      ]
+    },
+    "security_preconditions": [
+      "corporate-policy-allows-chatgpt-work-for-platform-development",
+      "cursor-is-approved-for-ddda-project-data",
+      "connected-apps-approved-for-data-classification",
+      "least-privilege-app-permissions"
+    ]
+  },
+  "required_documents": [
+    "CHANGELOG.md",
+    "docs/adr/0001-platform-development-lifecycle.md",
+    "docs/adr/0002-project-steering-and-gate-semantics.md",
+    "docs/adr/0005-chat-work-only-development-operating-model.md",
+    "docs/developer-guide/chat-work-operating-model.md",
+    "docs/migration/pr8-non-breaking-steering-extension.md",
+    "docs/adr/0006-chat-atomic-platform-implementation.md"
+  ],
+  "remote_execution": {
+    "schema_version": 1,
+    "enabled": true,
+    "allowed_actors": [
+      "romanhlavac"
+    ],
+    "same_repository_only": true,
+    "exact_sha_required": true,
+    "miro_team_id": "3458764678971681560",
+    "required_secret_names": [
+      "MIRO_ACCESS_TOKEN"
+    ],
+    "allowed_validate_commands": [
+      "/ddda validate-pr --with-miro --full --keep-review-board"
+    ],
+    "remediation": {
+      "enabled": true,
+      "allowed_path_prefix": "scripts/remediation/",
+      "require_no_push_switch": true,
+      "maximum_new_commits": 1
+    },
+    "forbidden_operations": [
+      "merge",
+      "tag",
+      "release",
+      "promotion",
+      "force-push"
+    ],
+    "evidence_retention_days": 14
+  }
+}

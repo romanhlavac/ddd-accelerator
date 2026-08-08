@@ -1,56 +1,48 @@
 ---
-description: Oddělení platformních a projektových změn v DDDA
+description: DDDA project repository scope guard for Cursor
 alwaysApply: true
 ---
 
-# DDDA Repository Scope Guard
+# DDDA repository scope guard
 
-Před jakýmkoli zápisem, commitem nebo návrhem PR explicitně určuj:
+Cursor je povinný agentic runtime pro práci architekta v konkrétním DDDA projektu. Nesmí být použit pro vývoj DDDA platformy.
 
-- `scope: platform`, nebo
-- `scope: project`,
-- aktivní Git root,
-- aktivní projekt, pokud je scope `project`.
+Před zápisem vždy určuj:
 
-## Platform scope
+- `scope: project`;
+- aktivní project ID;
+- aktivní project Git root;
+- očekávané projektové cesty a artefakty.
 
-Povoleno měnit obecné části DDDA, například:
+## Povolený scope
 
-- `.cursor/`,
-- `.github/`,
-- `docs/`,
-- `schemas/`,
-- `scripts/`,
-- `templates/`,
-- `migrations/`,
-- obecné scaffoldy a synchronizační runtime.
+Cursor smí v aktivním project repository pracovat zejména s:
 
-Zakázáno zahrnout ingestion, artefakty, ADR nebo klientská data konkrétního projektu.
+- `project.yaml` a `ddda.lock.yaml`;
+- `ingestion/`;
+- `artifacts/`;
+- `decisions/`;
+- `workshops/`;
+- `miro/`;
+- `reports/` a `exports/`;
+- projektovou dokumentací a projektovým kódem, pokud je součástí schváleného zadání.
 
-## Project scope
+## Zakázaný scope
 
-Povoleno měnit pouze aktivní projektový repozitář, zejména:
+Cursor nesmí měnit DDDA platform repository, zejména obecné platformní části:
 
-- `project.yaml`,
-- `ddda.lock.yaml`,
-- `ingestion/`,
-- `artifacts/`,
-- `decisions/`,
-- `workshops/`,
-- `miro/`,
-- `reports/`,
-- `exports/`.
+- `config/platform/`;
+- `runtime/platform/`;
+- `scripts/platform/`;
+- platformní `templates/`, `schemas/`, `knowledge/` nebo `.github/workflows/`;
+- release, package a promotion kontrakty.
 
-Zakázáno měnit platformní repozitář DDDA.
+Nález platformního defectu nebo potřeby změny převeď na explicitní change request a předej do Chat/Work platform-development flow.
 
 ## Povinné kontroly
 
-Před commitem:
-
-1. ověř `git rev-parse --show-toplevel`,
-2. ověř `git status --short` v platformě i aktivním projektu,
-3. odmítni cross-repository commit,
-4. odděl obecné zlepšení DDDA od jeho použití v projektu do dvou PR,
-5. nepushuj ani nemerguj bez explicitního pokynu uživatele.
-
-Když scope není z požadavku jednoznačný, navrhni scope a vyžádej potvrzení před zápisem. Při read-only analýze potvrzení nepotřebuješ.
+1. Ověř `git rev-parse --show-toplevel`.
+2. Ověř, že root odpovídá aktivnímu project repository, nikoli platform repo.
+3. Odmítni cross-repository commit.
+4. Odděl projektovou změnu od obecného platformního enhancementu.
+5. Neprováděj push, merge ani gate approval bez explicitního pokynu.

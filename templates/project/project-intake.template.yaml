@@ -1,0 +1,33 @@
+intake:
+  schema_version: 1
+  project_id: my-project
+  name: Můj DDDA projekt
+  type: domain-discovery
+  type_alias: null
+  business_problem: Popiš business problém bez názvu technologie jako řešení.
+  decision_to_enable: Popiš konkrétní rozhodnutí, které má projekt umožnit.
+  goal: Popiš očekávaný měřitelný výsledek.
+  scope:
+    in:
+      - první oblast v rozsahu
+    out:
+      - explicitně vyloučená oblast
+  actors:
+    - business decision owner
+    - domain expert
+  constraints:
+    - regulační, časové nebo provozní omezení
+  assumptions:
+    - předpoklad, který musí být ověřen
+  quality_attributes:
+    - auditability
+    - modifiability
+  existing_systems: []
+  teams: []
+  sources: []
+  owners:
+    business_owner: DOPLŇ KONKRÉTNÍ OSOBU NEBO AUDITOVATELNOU ROLI
+    architecture_owner: DOPLŇ KONKRÉTNÍ OSOBU NEBO AUDITOVATELNOU ROLI
+  classification:
+    data_sensitivity: internal
+    contains_health_data: false

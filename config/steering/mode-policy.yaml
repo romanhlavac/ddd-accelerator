@@ -1,0 +1,12 @@
+schema_version: 1
+policy:
+  principles:
+    - Ask nebo Plan slouží pro porozumění, review, varianty a rozhodovací framing.
+    - Agent slouží pro potvrzené změny souborů, generování artefaktů a spuštění skriptů.
+    - Debug slouží pro reprodukci a izolaci technického problému.
+    - Gate, bounded-context boundaries, ADR a investiční rozhodnutí vyžadují explicitní reasoning a lidské potvrzení.
+    - Auto lze použít pro nízkorizikové drafting operace, ne pro finální gate nebo architektonické rozhodnutí.
+  context_budget:
+    read_first: [project.yaml, project-intake.yaml, lifecycle-tailoring.yaml, artifacts/status/current-status.yaml]
+    load_on_demand: [knowledge, cookbooks, ingestion, individual artifacts]
+    avoid: [loading whole repository without task reason, duplicating full source documents into chat]

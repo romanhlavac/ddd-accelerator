@@ -1,0 +1,30 @@
+intake:
+  schema_version: 1
+  project_id: minimal-claims-modernization
+  name: Minimal Claims Modernization
+  type: legacy-modernization
+  business_problem: Legacy claims processing contains hidden rules and slows safe change.
+  decision_to_enable: Confirm the first bounded modernization slice and evidence needed for discovery.
+  goal: Prove that a DDDA package can create and steer a synthetic modernization project end to end.
+  scope:
+    in:
+      - claim intake
+      - claim assessment
+    out:
+      - pricing
+      - policy sales
+  actors:
+    - claim handler
+    - customer
+  constraints:
+    - preserve operational continuity
+    - use synthetic data only
+  assumptions:
+    - an audit trail can be exported
+  quality_attributes:
+    - auditability
+    - modifiability
+    - recoverability
+  owners:
+    business_owner: Synthetic Claims Owner
+    architecture_owner: DDDA Validation Architect

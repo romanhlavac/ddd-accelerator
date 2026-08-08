@@ -14,6 +14,7 @@ from .model import (
     update_artifact_from_remote,
 )
 from .state import load_map, load_state, save_map, save_state, utc_now
+from .render import assert_utf8_contract
 from .yamlio import save_yaml
 
 
@@ -68,6 +69,27 @@ def _frame_id_for_remote(mapping: dict[str, Any], remote_item: dict[str, Any]) -
     return None
 
 
+
+def _validate_required_placements(artifacts: list[Any], mapping: dict[str, Any]) -> dict[str, Any]:
+    required = [
+        artifact for artifact in artifacts
+        if artifact.artifact_type in {"project-charter", "project-status", "next-actions"}
+        or artifact.artifact_id in {"ddda.current-status", "ddda.next-actions"}
+    ]
+    failures: list[str] = []
+    for artifact in required:
+        if artifact.frame_id != "control-center":
+            failures.append(f"{artifact.artifact_id}: frame_id must be control-center")
+        if "x" not in artifact.position or "y" not in artifact.position:
+            failures.append(f"{artifact.artifact_id}: deterministic x/y position is required")
+        if "width" not in artifact.geometry:
+            failures.append(f"{artifact.artifact_id}: deterministic width is required")
+        if not (mapping.get("frames", {}).get("control-center") or {}).get("miro_item_id"):
+            failures.append("control-center frame mapping is missing")
+    if failures:
+        raise ValueError("Managed steering placement contract failed: " + "; ".join(failures))
+    return {"status": "PASS", "required_count": len(required)}
+
 def sync_project(config: ProjectConfig, client: MiroClient, *, direction: str, dry_run: bool, include_layout: bool,
                  confirm_delete: bool, recreate_missing: bool = False, promote_new: bool = False) -> dict[str, Any]:
     if not config.board_id:
@@ -75,8 +97,10 @@ def sync_project(config: ProjectConfig, client: MiroClient, *, direction: str, d
     if config.synchronization == "disabled":
         raise ValueError("project.yaml has miro.synchronization: disabled")
     artifacts = load_artifacts(config.root, config.artifact_root)
+    assert_utf8_contract([artifact.document for artifact in artifacts], label="managed YAML artifacts")
     local_by_id = {artifact.artifact_id: artifact for artifact in artifacts}
     mapping = load_map(config.root, config.project_id, config.board_id)
+    placement_contract = _validate_required_placements(artifacts, mapping)
     state = load_state(config.root, config.project_id, config.board_id)
     remote_by_id = _remote_index(client.list_items(config.board_id), config.project_id)
     operations: list[dict[str, Any]] = []
@@ -90,7 +114,11 @@ def sync_project(config: ProjectConfig, client: MiroClient, *, direction: str, d
         remote_data = remote_pair[1] if remote_pair else None
         entry = state["items"].get(artifact_id) or {}
         map_entry = mapping["items"].get(artifact_id) or {}
-        if map_entry.get("system_item"):
+        if (
+            map_entry.get("system_item")
+            or str(map_entry.get("sync_policy") or "") == "ignore"
+            or bool(map_entry.get("exclude_from_ingestion"))
+        ):
             continue
         base_local_hash, base_remote_hash = entry.get("local_hash"), entry.get("remote_hash")
         local_hash = artifact.semantic_hash() if artifact else None
@@ -208,6 +236,8 @@ def sync_project(config: ProjectConfig, client: MiroClient, *, direction: str, d
                     "item_type": artifact.item_type,
                     "yaml_path": str(artifact.source_path.relative_to(config.root)).replace("\\", "/"),
                     "frame_id": artifact.frame_id,
+                    "position": dict(artifact.position),
+                    "geometry": dict(artifact.geometry),
                     "managed": True,
                     "updated_at": utc_now(),
                 }
@@ -235,6 +265,12 @@ def sync_project(config: ProjectConfig, client: MiroClient, *, direction: str, d
             "completed_at": utc_now(),
             "operations": operations,
             "conflicts": conflicts,
+            "technical_sync_status": "PASS" if not conflicts else "FAIL",
+            "layout_contract_status": str(mapping.get("layout_contract_status") or placement_contract["status"]),
+            "remote_layout_status": str(mapping.get("remote_layout_status") or "NOT_RUN"),
+            "utf8_status": "PASS",
+            "human_visual_acceptance_status": str(mapping.get("human_visual_acceptance_status") or "PENDING"),
+            "overall_status": "PENDING_HUMAN_REVIEW" if not conflicts else "FAIL",
         }
         report_path = config.root / "reports" / "miro-sync" / f"sync-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}.yaml"
         save_yaml(report_path, report)
@@ -247,4 +283,10 @@ def sync_project(config: ProjectConfig, client: MiroClient, *, direction: str, d
         "operation_count": len(operations),
         "conflicts": conflicts,
         "conflict_count": len(conflicts),
+        "technical_sync_status": "PASS" if not conflicts else "FAIL",
+        "layout_contract_status": str(mapping.get("layout_contract_status") or placement_contract["status"]),
+        "remote_layout_status": str(mapping.get("remote_layout_status") or "NOT_RUN"),
+        "utf8_status": "PASS",
+        "human_visual_acceptance_status": str(mapping.get("human_visual_acceptance_status") or "PENDING"),
+        "overall_status": "PENDING_HUMAN_REVIEW" if not conflicts else "FAIL",
     }

@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ddda.local/schemas/project-intake.schema.json",
+  "title": "DDDA Project Intake",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["intake"],
+  "properties": {
+    "intake": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["project_id", "name", "type", "business_problem", "decision_to_enable", "goal", "scope", "actors", "quality_attributes"],
+      "properties": {
+        "schema_version": {"type": "integer", "minimum": 1},
+        "project_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,62}$"},
+        "name": {"type": "string", "minLength": 1},
+        "type": {"enum": ["portfolio-program", "greenfield-product", "legacy-modernization", "legacy-transformation", "integration-landscape", "purchased-product-adoption", "domain-discovery", "architecture-review", "operating-model-and-teams", "bounded-context-design"]},
+        "type_alias": {"type": ["string", "null"]},
+        "business_problem": {"type": "string", "minLength": 1},
+        "decision_to_enable": {"type": "string", "minLength": 1},
+        "goal": {"type": "string", "minLength": 1},
+        "scope": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["in"],
+          "properties": {
+            "in": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+            "out": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true}
+          }
+        },
+        "actors": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+        "constraints": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "assumptions": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "quality_attributes": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+        "existing_systems": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "teams": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "sources": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "owners": {"type": "object", "additionalProperties": {"type": ["string", "null"]}},
+        "classification": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "data_sensitivity": {"enum": ["public", "internal", "confidential", "restricted"]},
+            "contains_health_data": {"type": "boolean"}
+          }
+        }
+      }
+    }
+  }
+}
