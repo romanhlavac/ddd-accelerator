@@ -1,3 +1,5 @@
+import ddda_miro.frame00_resize_ordering_wirefix as wirefix
+
 from ddda_miro.review_board_recovery_wirefix import (
     companion_frame_payload,
     frame00_container_payload_preserve_top_left,
@@ -159,3 +161,65 @@ def test_connector_payload_preserves_endpoint_layout_and_enforces_readable_capti
     assert payload["style"]["fontSize"] >= 48
     assert payload["style"]["color"] == "#1a1a1a"
     assert payload["style"]["textOrientation"] == "horizontal"
+
+
+class _OrderingClient:
+    def __init__(self):
+        self.frame = {
+            "id": "frame00",
+            "geometry": {"width": 9000.0, "height": 8000.0},
+            "position": {"x": -17000.0, "y": 1000.0, "origin": "center"},
+        }
+        self.events = []
+
+    def update_item(self, board, item_type, item_id, payload):
+        assert board == "target" and item_type == "frame" and item_id == "frame00"
+        assert "geometry" not in payload
+        self.events.append("move")
+        self.frame["position"] = dict(payload["position"])
+        return dict(self.frame)
+
+
+def test_frame00_safe_recovery_shrinks_before_restoring_top_left(monkeypatch):
+    client = _OrderingClient()
+    manifest = {"board_id": "target", "frame00_id": "frame00"}
+    contract = {"frame": {"width": 7000.0, "height": 4914.42}}
+
+    def fake_get_frame(_client, board, frame_id):
+        assert board == "target" and frame_id == "frame00"
+        return {
+            "id": client.frame["id"],
+            "geometry": dict(client.frame["geometry"]),
+            "position": dict(client.frame["position"]),
+        }
+
+    def fake_safe_restore(_client, _manifest, _contract):
+        client.events.extend(["create"] * 8)
+        client.frame["geometry"] = {"width": 7000.0, "height": 4914.42}
+        client.events.append("resize")
+        return {
+            "created": 8,
+            "deleted": 8,
+            "connectors_deleted": 0,
+            "unchanged": 0,
+            "role_ids": {"accepted": "ids"},
+        }
+
+    monkeypatch.setattr(wirefix.base, "_get_frame", fake_get_frame)
+    monkeypatch.setattr(wirefix, "_ORIGINAL_RESTORE_FRAME00", fake_safe_restore)
+    monkeypatch.setattr(
+        wirefix,
+        "frame00_state_accepted_container",
+        lambda *_args: (True, {"accepted": "ids"}),
+    )
+
+    result = wirefix.restore_frame00_accepted_geometry_preserve_top_left(client, manifest, contract)
+
+    assert max(i for i, event in enumerate(client.events) if event == "create") < client.events.index("resize")
+    assert client.events.index("resize") < client.events.index("move")
+    assert client.frame["geometry"] == {"width": 7000.0, "height": 4914.42}
+    assert abs(client.frame["position"]["x"] - (-18000.0)) < 0.001
+    assert abs(client.frame["position"]["y"] - (-542.79)) < 0.001
+    assert result["container_resized"] == 1
+    assert result["container_moved"] == 1
+    assert result["top_left_preserved"] is True
