@@ -24,7 +24,12 @@ jobs:
     timeout-minutes: 120
     env:
       SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
-      RECOVERY_PARENT_SHA: 7945bed7666ca040cad2a154561088e0685ee1c1
+      RECOVERY_PARENT_SHA: 60fce2b5527ed96902b3db126597dc713d8217a5
+      NOOP3_SHA: e87087865c5de76f0ee973b65b63ce32f6579dd4
+      NOOP2_SHA: 4188bfaf1b7849d61db807c057d1e23f236c6ca9
+      NOOP1_SHA: e123f188ed5f56174ea0bb9bf59b4515c1aeb40c
+      FRAME00_RECOVERY_SHA: ce08270e97f95d08dc3d48cf5cfa96a00d8eae61
+      DUMMY_SHA: 7945bed7666ca040cad2a154561088e0685ee1c1
       VISUAL_SHA: ce1cf2a9a8b8ea9bfe8e7dcdd2b05d8302170d8f
       PREVIOUS_SHA: 5edbd87b999a81ee234ad617999d31c518144231
       CORRECTIVE_SHA: d1a75aa49f60e72d6377274d8e52ee7fb19d704b
@@ -51,21 +56,100 @@ jobs:
           @'
           import os, subprocess
           from pathlib import Path
-          def g(*a): return subprocess.check_output(['git',*a],text=True).strip()
-          def paths(c): return sorted(x for x in g('diff-tree','--no-commit-id','--name-only','-r',c).splitlines() if x)
-          s=os.environ['SOURCE_SHA']; r=os.environ['RECOVERY_PARENT_SHA']; v=os.environ['VISUAL_SHA']; p=os.environ['PREVIOUS_SHA']; c=os.environ['CORRECTIVE_SHA']; i=os.environ['IMPLEMENTATION_SHA']; b=os.environ['BASE_SHA']
-          chain=[(s,r,'fix(miro): recover Frame 00 resize ordering'),(r,v,'dummy'),(v,p,'fix(miro): restore Frame 01 visual companions'),(p,c,'fix(ci): validate REM-012.5 corrective lineage'),(c,i,'fix(ci): correct REM-012.5 evidence path expression'),(i,b,'fix(miro): replace Frame 01 container from redline')]
-          for cur,parent,subject in chain:
-              assert g('rev-parse',cur+'^')==parent, f'lineage mismatch at {cur}'
-              assert g('show','-s','--format=%s',cur)==subject, f'subject mismatch at {cur}'
-          assert paths(s)==sorted(['.github/workflows/miro-frame01-redline.yml','dummy','runtime/miro/ddda_miro/frame00_resize_ordering_wirefix.py','runtime/miro/tests/test_rem_012_5_frame00_position_payload.py'])
-          assert paths(r)==['dummy']
-          assert paths(v)==sorted(['.github/workflows/miro-frame01-redline.yml','runtime/miro/ddda_miro/review_board_recovery_wirefix.py','runtime/miro/tests/test_rem_012_5_frame00_position_payload.py','scaffolds/miro/rem-012-5-frame-01.yaml'])
-          assert paths(p)==['.github/workflows/miro-frame01-redline.yml'] and paths(c)==['.github/workflows/miro-frame01-redline.yml']
-          assert paths(i)==sorted(['.github/workflows/miro-frame01-redline.yml','runtime/miro/ddda_miro/review_board_recovery_wirefix.py','runtime/miro/tests/test_rem_012_5_frame00_position_payload.py','scaffolds/miro/rem-012-5-frame-01.yaml'])
-          assert not Path('dummy').exists()
-          m=Path('scaffolds/miro/rem-012-5-frame-01.yaml').read_text(encoding='utf-8')
-          for x in (f'authorized_base_sha: {b}','source_companion_frames:','methodology_min_font_size: 80','connector_caption_min_font_size: 48','frame00_container_policy: restore_accepted_geometry_preserve_top_left_pending_human_equivalence_check'): assert x in m
+
+          def g(*args):
+              return subprocess.check_output(['git', *args], text=True).strip()
+
+          def paths(commit):
+              return sorted(
+                  line
+                  for line in g('diff-tree', '--no-commit-id', '--name-only', '-r', commit).splitlines()
+                  if line
+              )
+
+          source = os.environ['SOURCE_SHA']
+          recovery_parent = os.environ['RECOVERY_PARENT_SHA']
+          noop3 = os.environ['NOOP3_SHA']
+          noop2 = os.environ['NOOP2_SHA']
+          noop1 = os.environ['NOOP1_SHA']
+          frame00_recovery = os.environ['FRAME00_RECOVERY_SHA']
+          dummy = os.environ['DUMMY_SHA']
+          visual = os.environ['VISUAL_SHA']
+          previous = os.environ['PREVIOUS_SHA']
+          corrective = os.environ['CORRECTIVE_SHA']
+          implementation = os.environ['IMPLEMENTATION_SHA']
+          base = os.environ['BASE_SHA']
+
+          chain = [
+              (source, recovery_parent, 'fix(miro): shrink empty Frame 00 before recreate'),
+              (recovery_parent, noop3, 'x'),
+              (noop3, noop2, 'noop3'),
+              (noop2, noop1, 'noop2'),
+              (noop1, frame00_recovery, 'noop'),
+              (frame00_recovery, dummy, 'fix(miro): recover Frame 00 resize ordering'),
+              (dummy, visual, 'dummy'),
+              (visual, previous, 'fix(miro): restore Frame 01 visual companions'),
+              (previous, corrective, 'fix(ci): validate REM-012.5 corrective lineage'),
+              (corrective, implementation, 'fix(ci): correct REM-012.5 evidence path expression'),
+              (implementation, base, 'fix(miro): replace Frame 01 container from redline'),
+          ]
+          for current, parent, subject in chain:
+              assert g('rev-parse', current + '^') == parent, f'lineage mismatch at {current}'
+              assert g('show', '-s', '--format=%s', current) == subject, f'subject mismatch at {current}'
+
+          assert paths(source) == sorted([
+              '.github/workflows/miro-frame01-redline.yml',
+              '__placeholder_should_not_write__',
+              '__should_never_happen__',
+              '__should_not_use__',
+              '__x',
+              'runtime/miro/ddda_miro/frame00_resize_ordering_wirefix.py',
+              'runtime/miro/tests/test_rem_012_5_frame00_position_payload.py',
+          ])
+          assert paths(recovery_parent) == ['__x']
+          assert paths(noop3) == ['__should_never_happen__']
+          assert paths(noop2) == ['__placeholder_should_not_write__']
+          assert paths(noop1) == ['__should_not_use__']
+          assert paths(frame00_recovery) == sorted([
+              '.github/workflows/miro-frame01-redline.yml',
+              'dummy',
+              'runtime/miro/ddda_miro/frame00_resize_ordering_wirefix.py',
+              'runtime/miro/tests/test_rem_012_5_frame00_position_payload.py',
+          ])
+          assert paths(dummy) == ['dummy']
+          assert paths(visual) == sorted([
+              '.github/workflows/miro-frame01-redline.yml',
+              'runtime/miro/ddda_miro/review_board_recovery_wirefix.py',
+              'runtime/miro/tests/test_rem_012_5_frame00_position_payload.py',
+              'scaffolds/miro/rem-012-5-frame-01.yaml',
+          ])
+          assert paths(previous) == ['.github/workflows/miro-frame01-redline.yml']
+          assert paths(corrective) == ['.github/workflows/miro-frame01-redline.yml']
+          assert paths(implementation) == sorted([
+              '.github/workflows/miro-frame01-redline.yml',
+              'runtime/miro/ddda_miro/review_board_recovery_wirefix.py',
+              'runtime/miro/tests/test_rem_012_5_frame00_position_payload.py',
+              'scaffolds/miro/rem-012-5-frame-01.yaml',
+          ])
+
+          for forbidden in (
+              'dummy',
+              '__should_not_use__',
+              '__placeholder_should_not_write__',
+              '__should_never_happen__',
+              '__x',
+          ):
+              assert not Path(forbidden).exists(), f'forbidden recovery helper remains: {forbidden}'
+
+          manifest = Path('scaffolds/miro/rem-012-5-frame-01.yaml').read_text(encoding='utf-8')
+          for marker in (
+              f'authorized_base_sha: {base}',
+              'source_companion_frames:',
+              'methodology_min_font_size: 80',
+              'connector_caption_min_font_size: 48',
+              'frame00_container_policy: restore_accepted_geometry_preserve_top_left_pending_human_equivalence_check',
+          ):
+              assert marker in manifest
           '@ | python -
 
       - name: Wait for authoritative exact-SHA evidence and candidate

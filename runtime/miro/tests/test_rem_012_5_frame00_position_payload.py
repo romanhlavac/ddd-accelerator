@@ -79,19 +79,15 @@ def test_frame00_accepted_resize_preserves_canvas_top_left():
 
 
 def test_companion_frame_preserves_reference_offset_from_main_journey():
-    source_main = {
-        "position": {"x": 9076.78, "y": -8458.92},
-    }
-    target_main = {
-        "position": {"x": 8004.426, "y": -8927.845},
-    }
+    source_main = {"position": {"x": 9076.78, "y": -8458.92}}
+    target_main = {"position": {"x": 8004.426, "y": -8927.845}}
     source_align = {
         "data": {"title": "Align"},
         "geometry": {"width": 1583.26, "height": 890.156},
         "position": {"x": -15623.039, "y": -9826.156},
         "style": {"fillColor": "#e0e7ee"},
     }
-    payload = companion_frame_payload(source_align, source_main, target_main)
+    payload = companion_frame_payload(source_align, source_main, target_mai)
     assert payload["data"]["title"] == "Align"
     assert payload["geometry"] == {"width": 1583.26, "height": 890.156}
     assert abs(
@@ -170,7 +166,16 @@ class _OrderingClient:
             "geometry": {"width": 9000.0, "height": 8000.0},
             "position": {"x": -17000.0, "y": 1000.0, "origin": "center"},
         }
+        self.children = [{"id": f"child-{i}"} for i in range(8)]
         self.events = []
+
+    def delete_connector(self, *_args):
+        raise AssertionError("accepted Frame 00 fixture has no connectors")
+
+    def delete_item(self, board, item_id):
+        assert board == "target"
+        self.events.append(f"delete:{item_id}")
+        self.children = [item for item in self.children if item["id"] != item_id]
 
     def update_item(self, board, item_type, item_id, payload):
         assert board == "target" and item_type == "frame" and item_id == "frame00"
@@ -180,10 +185,10 @@ class _OrderingClient:
         return dict(self.frame)
 
 
-def test_frame00_safe_recovery_shrinks_before_restoring_top_left(monkeypatch):
+def test_frame00_empty_shrink_happens_before_recreate_and_preserves_top_left(monkeypatch):
     client = _OrderingClient()
     manifest = {"board_id": "target", "frame00_id": "frame00"}
-    contract = {"frame": {"width": 7000.0, "height": 4914.42}}
+    contract = {"frame": {"width": 7000.0, "height": 4914.42}, "managed_updates": [{}] * 8}
 
     def fake_get_frame(_client, board, frame_id):
         assert board == "target" and frame_id == "frame00"
@@ -193,33 +198,64 @@ def test_frame00_safe_recovery_shrinks_before_restoring_top_left(monkeypatch):
             "position": dict(client.frame["position"]),
         }
 
-    def fake_safe_restore(_client, _manifest, _contract):
-        client.events.extend(["create"] * 8)
-        client.frame["geometry"] = {"width": 7000.0, "height": 4914.42}
+    def fake_children(_client, board, frame_id):
+        assert board == "target" and frame_id == "frame00"
+        return [dict(item) for item in client.children]
+
+    def fake_wait_empty(_client, board, frame_id):
+        assert board == "target" and frame_id == "frame00"
+        assert client.children == []
+        client.events.append("empty")
+
+    def fake_resize(_client, board, frame_id, _contract):
+        assert board == "target" and frame_id == "frame00"
+        assert client.children == []
         client.events.append("resize")
+        client.frame["geometry"] = {"width": 7000.0, "height": 4914.42}
+
+    def fake_restore(_client, _manifest, _contract):
+        assert client.events.index("resize") < client.events.index("move")
+        assert client.children == []
+        client.events.append("recreate")
+        client.children = [{"id": f"new-{i}"} for i in range(8)]
         return {
             "created": 8,
-            "deleted": 8,
+            "deleted": 0,
             "connectors_deleted": 0,
             "unchanged": 0,
             "role_ids": {"accepted": "ids"},
         }
 
     monkeypatch.setattr(wirefix.base, "_get_frame", fake_get_frame)
-    monkeypatch.setattr(wirefix, "_ORIGINAL_RESTORE_FRAME00", fake_safe_restore)
+    monkeypatch.setattr(wirefix.base, "_children", fake_children)
+    monkeypatch.setattr(wirefix.base, "_related_connectors", lambda *_args: [])
+    monkeypatch.setattr(wirefix.base, "_wait_frame_empty", fake_wait_empty)
+    monkeypatch.setattr(wirefix.base, "_resize_frame00", fake_resize)
+    monkeypatch.setattr(wirefix, "_frame00_items_state", lambda *_args: (True, {"accepted": "old"}))
+    monkeypatch.setattr(wirefix, "_ORIGINAL_RESTORE_FRAME00", fake_restore)
     monkeypatch.setattr(
         wirefix,
         "frame00_state_accepted_container",
-        lambda *_args: (True, {"accepted": "ids"}),
+        lambda *_args: (
+            (True, {"accepted": "ids"})
+            if len(client.children) == 8 and client.frame["geometry"]["width"] == 7000.0
+            else (False, {})
+        ),
     )
 
     result = wirefix.restore_frame00_accepted_geometry_preserve_top_left(client, manifest, contract)
 
-    assert max(i for i, event in enumerate(client.events) if event == "create") < client.events.index("resize")
+    delete_indexes = [i for i, event in enumerate(client.events) if event.startswith("delete:")]
+    assert len(delete_indexes) == 8
+    assert max(delete_indexes) < client.events.index("empty")
+    assert client.events.index("empty") < client.events.index("resize")
     assert client.events.index("resize") < client.events.index("move")
+    assert client.events.index("move") < client.events.index("recreate")
     assert client.frame["geometry"] == {"width": 7000.0, "height": 4914.42}
     assert abs(client.frame["position"]["x"] - (-18000.0)) < 0.001
     assert abs(client.frame["position"]["y"] - (-542.79)) < 0.001
+    assert result["created"] == 8
+    assert result["deleted"] == 8
     assert result["container_resized"] == 1
     assert result["container_moved"] == 1
     assert result["top_left_preserved"] is True
