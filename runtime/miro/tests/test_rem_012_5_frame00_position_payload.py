@@ -87,7 +87,7 @@ def test_companion_frame_preserves_reference_offset_from_main_journey():
         "position": {"x": -15623.039, "y": -9826.156},
         "style": {"fillColor": "#e0e7ee"},
     }
-    payload = companion_frame_payload(source_align, source_main, target_mai)
+    payload = companion_frame_payload(source_align, source_main, target_main)
     assert payload["data"]["title"] == "Align"
     assert payload["geometry"] == {"width": 1583.26, "height": 890.156}
     assert abs(
