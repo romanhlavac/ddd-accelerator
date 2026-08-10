@@ -10,6 +10,7 @@ from . import review_board_recovery_wirefix as visual
 MIRO_TIPS_TITLE = "Miro Tips"
 MIRO_TIPS_MODE = "reference_ui_tutorial"
 MIRO_TIPS_CONTAINER_POLICY = "transactional_replace_irreducible_companion"
+MIRO_TIPS_LAYER_POLICY = "image_below_native_callouts"
 DEFAULT_READBACK_ATTEMPTS = 20
 DEFAULT_READBACK_DELAY_SECONDS = 0.5
 DEFAULT_MIN_IMAGES = 1
@@ -48,6 +49,8 @@ def _config(manifest: dict[str, Any]) -> dict[str, Any]:
     min_images = int(raw.get("min_images") or DEFAULT_MIN_IMAGES)
     min_connectors = int(raw.get("min_connectors") or DEFAULT_MIN_CONNECTORS)
     policy = str(raw.get("container_policy") or MIRO_TIPS_CONTAINER_POLICY)
+    layer_policy = str(raw.get("layer_policy") or MIRO_TIPS_LAYER_POLICY)
+    legacy_frame_ids = tuple(str(value) for value in (raw.get("legacy_frame_ids") or ()))
     required = tuple(
         str(value).casefold()
         for value in (raw.get("required_markers") or DEFAULT_REQUIRED_MARKERS)
@@ -62,6 +65,10 @@ def _config(manifest: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("Miro Tips visual tutorial requires at least eight callout connectors")
     if policy != MIRO_TIPS_CONTAINER_POLICY:
         raise ValueError("Miro Tips requires transactional replacement for an irreducible companion container")
+    if layer_policy != MIRO_TIPS_LAYER_POLICY:
+        raise ValueError("Miro Tips requires the reference screenshot below native callout overlays")
+    if any(not value for value in legacy_frame_ids):
+        raise ValueError("Miro Tips legacy frame ids must be non-empty strings")
     for marker in DEFAULT_REQUIRED_MARKERS:
         if marker.casefold() not in required:
             raise ValueError(f"Miro Tips required-marker contract is missing: {marker}")
@@ -71,6 +78,8 @@ def _config(manifest: dict[str, Any]) -> dict[str, Any]:
         "min_images": min_images,
         "min_connectors": min_connectors,
         "container_policy": policy,
+        "layer_policy": layer_policy,
+        "legacy_frame_ids": legacy_frame_ids,
         "required_markers": required,
     }
 
@@ -240,6 +249,34 @@ def _cleanup_replacement_frame(client: Any, board: str, frame_id: str) -> None:
         pass
 
 
+def _prime_reference_background_images(
+    client: Any,
+    source_board: str,
+    source_frame_id: str,
+    target_board: str,
+    target_frame_id: str,
+) -> int:
+    """Create the Miro UI screenshot before native callouts so it stays behind them."""
+    source_items = base._children(client, source_board, source_frame_id)
+    source_images = [item for item in source_items if str(item.get("type") or "") == "image"]
+    target_items = base._children(client, target_board, target_frame_id)
+    created = 0
+    for source in sorted(source_images, key=lambda item: str(item.get("id") or "")):
+        hits = [
+            item
+            for item in target_items
+            if visual._same_image(item, source, target_frame_id)
+        ]
+        if len(hits) > 1:
+            raise ValueError(f"multiple matching target images for source {source['id']}")
+        if hits:
+            continue
+        target = visual._create_image(client, target_board, target_frame_id, source)
+        target_items.append(target)
+        created += 1
+    return created
+
+
 def _populate_reference_tutorial(
     client: Any,
     source_board: str,
@@ -249,6 +286,9 @@ def _populate_reference_tutorial(
     manifest: dict[str, Any],
     cfg: dict[str, Any],
 ) -> tuple[dict[str, Any], dict[str, Any]]:
+    background_images_primed = _prime_reference_background_images(
+        client, source_board, source_frame_id, target_board, target_frame_id
+    )
     child_result = _ORIGINAL_RECONCILE_COMPANION_CHILDREN(
         client,
         source_board,
@@ -258,6 +298,7 @@ def _populate_reference_tutorial(
         cfg["min_images"],
         manifest,
     )
+    child_result["background_images_primed"] = background_images_primed
     target_state = _tutorial_state(client, target_board, target_frame_id, cfg)
     _assert_tutorial_state(target_state, cfg, "Miro Tips target")
     return child_result, target_state
@@ -285,9 +326,10 @@ def reconcile_miro_tips_children(
     current_frame = base._get_frame(client, target_board, target_frame_id)
     legacy_frame_id: str | None = None
     frame_replaced = False
+    forced_layer_rebuild = str(target_frame_id) in set(cfg["legacy_frame_ids"])
     active_frame_id = target_frame_id
 
-    if _frame_equal(current_frame, expected_frame):
+    if _frame_equal(current_frame, expected_frame) and not forced_layer_rebuild:
         child_result, target_state = _populate_reference_tutorial(
             client,
             source_board,
@@ -327,6 +369,8 @@ def reconcile_miro_tips_children(
     return {
         "mode": MIRO_TIPS_MODE,
         "container_policy": cfg["container_policy"],
+        "layer_policy": cfg["layer_policy"],
+        "forced_layer_rebuild": int(forced_layer_rebuild),
         **child_result,
         "target_image_count": len(target_state["images"]),
         "target_connector_count": len(target_state["connectors"]),

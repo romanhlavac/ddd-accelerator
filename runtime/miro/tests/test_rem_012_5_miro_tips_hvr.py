@@ -21,6 +21,8 @@ def manifest():
             "min_images": 1,
             "min_connectors": 8,
             "container_policy": tips.MIRO_TIPS_CONTAINER_POLICY,
+            "layer_policy": tips.MIRO_TIPS_LAYER_POLICY,
+            "legacy_frame_ids": ["known-bad-layer-frame"],
             "readback_attempts": 4,
             "readback_delay_seconds": 0,
             "required_markers": list(tips.DEFAULT_REQUIRED_MARKERS),
@@ -204,6 +206,25 @@ def _install_fakes(monkeypatch, client):
         ),
     )
     monkeypatch.setattr(tips.visual, "_cleanup_frame", lambda c, board, frame_id: c.delete_item(board, frame_id))
+    monkeypatch.setattr(
+        tips.visual,
+        "_same_image",
+        lambda remote, source, frame_id: (
+            remote.get("type") == "image"
+            and (remote.get("parent") or {}).get("id") == frame_id
+            and remote.get("position") == source.get("position")
+            and remote.get("geometry") == source.get("geometry")
+        ),
+    )
+
+    def create_image(c, board, frame_id, source):
+        copied = deepcopy(source)
+        copied["id"] = "target-image"
+        copied["parent"] = {"id": frame_id}
+        c.items[board].append(copied)
+        return deepcopy(copied)
+
+    monkeypatch.setattr(tips.visual, "_create_image", create_image)
 
     def source_copy(c, source_board, source_frame_id, target_board, target_frame_id, min_images, manifest_value):
         del source_frame_id, min_images, manifest_value
@@ -212,34 +233,37 @@ def _install_fakes(monkeypatch, client):
             for item in c.items[target_board]
             if (item.get("parent") or {}).get("id") == target_frame_id
         ]
-        if current:
-            return {
-                "source_item_count": 2,
-                "source_image_count": 1,
-                "source_connector_count": 8,
-                "items": {"created": 0, "updated": 0, "unchanged": 2, "deleted": 0},
-                "connectors": {"created": 0, "updated": 0, "unchanged": 8, "deleted": 0},
-            }
-
         id_map = {"source-image": "target-image", "source-text": "target-text"}
+        existing_ids = {item["id"] for item in current}
+        created_items = 0
+        unchanged_items = 0
         for item in c.items[source_board]:
+            target_id = id_map[item["id"]]
+            if target_id in existing_ids:
+                unchanged_items += 1
+                continue
             copied = deepcopy(item)
-            copied["id"] = id_map[item["id"]]
+            copied["id"] = target_id
             copied["parent"] = {"id": target_frame_id}
             c.items[target_board].append(copied)
-        c.connectors[target_board] = []
-        for connector in c.connectors[source_board]:
-            copied = deepcopy(connector)
-            copied["id"] = connector["id"].replace("source-", "target-")
-            copied["startItem"]["id"] = id_map[copied["startItem"]["id"]]
-            copied["endItem"]["id"] = id_map[copied["endItem"]["id"]]
-            c.connectors[target_board].append(copied)
+            created_items += 1
+
+        if not c.connectors[target_board]:
+            for connector in c.connectors[source_board]:
+                copied = deepcopy(connector)
+                copied["id"] = connector["id"].replace("source-", "target-")
+                copied["startItem"]["id"] = id_map[copied["startItem"]["id"]]
+                copied["endItem"]["id"] = id_map[copied["endItem"]["id"]]
+                c.connectors[target_board].append(copied)
+            connector_counts = {"created": 8, "updated": 0, "unchanged": 0, "deleted": 0}
+        else:
+            connector_counts = {"created": 0, "updated": 0, "unchanged": 8, "deleted": 0}
         return {
             "source_item_count": 2,
             "source_image_count": 1,
             "source_connector_count": 8,
-            "items": {"created": 2, "updated": 0, "unchanged": 0, "deleted": 0},
-            "connectors": {"created": 8, "updated": 0, "unchanged": 0, "deleted": 0},
+            "items": {"created": created_items, "updated": 0, "unchanged": unchanged_items, "deleted": 0},
+            "connectors": connector_counts,
         }
 
     monkeypatch.setattr(tips, "_ORIGINAL_RECONCILE_COMPANION_CHILDREN", source_copy)
@@ -295,3 +319,39 @@ def test_miro_tips_contract_rejects_card_only_or_unanchored_source_before_write(
         assert client.next_frame == 1
     else:
         raise AssertionError("expected reference tutorial connector contract failure")
+
+
+def test_miro_tips_primes_reference_image_before_generic_callout_reconcile(monkeypatch):
+    client = FakeClient()
+    _install_fakes(monkeypatch, client)
+    client.items["target"] = []
+
+    primed = tips._prime_reference_background_images(
+        client, "source", "source-tips", "target", "target-tips"
+    )
+
+    assert primed == 1
+    children = [
+        item for item in client.items["target"]
+        if (item.get("parent") or {}).get("id") == "target-tips"
+    ]
+    assert [item["type"] for item in children] == ["image"]
+
+
+def test_miro_tips_known_bad_layer_frame_is_replaced_even_at_reference_geometry(monkeypatch):
+    client = FakeClient()
+    _install_fakes(monkeypatch, client)
+    client.frames[("target", "target-tips")] = frame(
+        "target-tips", "Miro Tips", -19834.447, -12327.533, 1919.43, 1079.68
+    )
+    m = manifest()
+    m["miro_tips"]["legacy_frame_ids"] = ["target-tips"]
+
+    result = tips.reconcile_miro_tips_children(
+        client, "source", "source-tips", "target", "target-tips", m
+    )
+
+    assert result["frame_replaced"] == 1
+    assert result["forced_layer_rebuild"] == 1
+    assert result["legacy_frame_id"] == "target-tips"
+    assert result["layer_policy"] == tips.MIRO_TIPS_LAYER_POLICY

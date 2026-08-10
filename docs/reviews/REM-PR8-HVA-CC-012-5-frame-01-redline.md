@@ -94,6 +94,23 @@ This latest Human Review supersedes the earlier requirement to avoid screenshot 
 
 The main Frame 01 journey, methodology block and eight DDD Starter phase companions remain unchanged by this correction.
 
+
+### HVR-2 follow-up finding — callouts hidden behind screenshot
+
+Human Review again returned `CHANGES_REQUIRED` after exact SHA `7082b6724c99349d7466083c0ab8360959e6c98e`. The generated target contained the Miro UI screenshot and black connectors, but the explanatory yellow/green stickies and text were visually obscured. The resulting arrows therefore appeared detached from any explanation.
+
+Gap analysis identified a rendering-order defect in the companion copier: native callout items were created first and the full-frame Miro screenshot image was created afterwards. Because overlapping Miro items are stacked by creation order, the screenshot covered the callout stickies/text while connectors remained visible above it. Structural checks for image count, marker text and connector count therefore passed even though first-viewer usability failed.
+
+The corrective contract is now explicit:
+
+- the Miro UI screenshot is the background layer and MUST be created/reconciled before native stickies/text;
+- native callout items MUST be visually above the screenshot;
+- connectors are created only after both layers exist;
+- the currently generated but visually invalid target Miro Tips frame `3458764680388504033` is a bounded legacy migration anchor and MUST be transactionally replaced even though its geometry already matches the reference;
+- the replacement is populated in image → native callouts → connectors order;
+- the second run MUST be zero mutation;
+- technical validation still leaves HVR-2 pending for an explicit human verdict.
+
 ## HVR-2 review boundary
 
 After exact-SHA technical PASS, Human Review must inspect the actual target Frame 01 and specifically verify:
