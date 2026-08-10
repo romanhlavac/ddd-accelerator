@@ -31,10 +31,21 @@ readability:
   methodology_x: 2600
   methodology_y: 850
   connector_caption_min_font_size: 48
+miro_tips:
+  width: 4600
+  height: 2600
+  min_font_size: 48
+  required_sections:
+    - MIRO QUICK START
+    - 1 · NAVIGACE
+    - 2 · POZNÁMKY A VÝBĚR
+    - 3 · SPOLUPRÁCE
+    - 4 · DDDA PRAVIDLA
 source_companion_frames:
   - id: '3458764679531043366'
     title: Miro Tips
-    min_images: 1
+    min_images: 0
+    mode: ddda_owned_hvr_correction
   - id: '3458764679531716415'
     title: Align
     min_images: 2

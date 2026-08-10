@@ -1,6 +1,6 @@
 # REM-PR8-HVA-CC-012.5 — Frame 01 redline adoption and review-board recovery
 
-Status: corrective recovery authorized; Human Visual Review pending
+Status: corrective recovery authorized; HVR-2 CHANGES_REQUIRED
 
 Date: 2026-08-07
 
@@ -71,6 +71,27 @@ frame00_visual_equivalence_spot_check: PENDING
 ```
 
 HVR-2 must then assess Frame 01 first-viewer clarity, fidelity to the selected redline, gate semantics, iteration semantics, terminology, readability and cross-frame consistency. Technical PASS does not imply HVR acceptance.
+
+## HVR-2 finding — Miro Tips
+
+HVR-2 verdict: `CHANGES_REQUIRED` on 2026-08-10.
+
+The reviewer rejected the `Miro Tips` companion as unreadable, semantically weak and incomplete. Connector-side inspection confirms that the target reproduced the selected redline closely, including its screenshot-dependent composition: a roughly `1919 × 1080` frame, small ~118 px tip stickies and connectors pointing into an underlying Miro UI screenshot. The defect is therefore not a missing-copy transport error; the copied visual itself is unsuitable for first-viewer onboarding.
+
+This finding activates the semantic-correction boundary stated above. The main Frame 01 journey and the eight DDD Starter phase companions remain source-driven. `Miro Tips` becomes one explicit DDDA-owned HVR correction rather than being recopied verbatim from the redline.
+
+The corrected DDDA-owned Miro Tips contract must:
+
+- be readable at practical `Fit to frame` scale and use at least 48 px authored text;
+- avoid dependency on a screenshot or tiny Miro UI chrome;
+- explain board navigation, edit/navigation mode, sticky creation, multi-selection, duplication and undo;
+- explain collaboration/facilitator following and how to mark ambiguity with the workshop legend;
+- distinguish participant-editable workshop areas from DDDA-managed `00 Control Center`, `01 Journey` and Git/YAML projections;
+- state that gate and architectural decisions remain explicit human actions;
+- reconcile idempotently and prove a zero-mutation second run;
+- keep `human_review_status=PENDING` after technical PASS.
+
+HVR-3 remains blocked until this corrected companion set passes exact-SHA technical validation and HVR-2 is explicitly accepted by the human reviewer.
 
 ## Governance
 
