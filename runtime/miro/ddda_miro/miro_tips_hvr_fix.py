@@ -9,6 +9,7 @@ from . import review_board_recovery_wirefix as visual
 
 MIRO_TIPS_TITLE = "Miro Tips"
 MIRO_TIPS_MODE = "reference_ui_tutorial"
+MIRO_TIPS_CONTAINER_POLICY = "transactional_replace_irreducible_companion"
 DEFAULT_READBACK_ATTEMPTS = 20
 DEFAULT_READBACK_DELAY_SECONDS = 0.5
 DEFAULT_MIN_IMAGES = 1
@@ -46,7 +47,11 @@ def _config(manifest: dict[str, Any]) -> dict[str, Any]:
     )
     min_images = int(raw.get("min_images") or DEFAULT_MIN_IMAGES)
     min_connectors = int(raw.get("min_connectors") or DEFAULT_MIN_CONNECTORS)
-    required = tuple(str(value).casefold() for value in (raw.get("required_markers") or DEFAULT_REQUIRED_MARKERS))
+    policy = str(raw.get("container_policy") or MIRO_TIPS_CONTAINER_POLICY)
+    required = tuple(
+        str(value).casefold()
+        for value in (raw.get("required_markers") or DEFAULT_REQUIRED_MARKERS)
+    )
     if not 2 <= attempts <= 60:
         raise ValueError("Miro Tips read-back attempts must be between 2 and 60")
     if not 0 <= delay <= 2:
@@ -55,6 +60,8 @@ def _config(manifest: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("Miro Tips visual tutorial requires at least one Miro UI image")
     if min_connectors < DEFAULT_MIN_CONNECTORS:
         raise ValueError("Miro Tips visual tutorial requires at least eight callout connectors")
+    if policy != MIRO_TIPS_CONTAINER_POLICY:
+        raise ValueError("Miro Tips requires transactional replacement for an irreducible companion container")
     for marker in DEFAULT_REQUIRED_MARKERS:
         if marker.casefold() not in required:
             raise ValueError(f"Miro Tips required-marker contract is missing: {marker}")
@@ -63,6 +70,7 @@ def _config(manifest: dict[str, Any]) -> dict[str, Any]:
         "readback_delay_seconds": delay,
         "min_images": min_images,
         "min_connectors": min_connectors,
+        "container_policy": policy,
         "required_markers": required,
     }
 
@@ -109,7 +117,7 @@ def companion_frame_payload_with_miro_tips(
 
 
 def same_frame_defer_miro_tips(remote: dict[str, Any], expected: dict[str, Any]) -> bool:
-    """Defer a Miro Tips shrink/move until its old oversized children are removed."""
+    """Prevent the outer loop from PATCH-shrinking an irreducible Miro Tips container."""
     title = str((expected.get("data") or {}).get("title") or "")
     if title == MIRO_TIPS_TITLE and str((remote.get("data") or {}).get("title") or "") == title:
         return True
@@ -161,21 +169,17 @@ def _tutorial_state(
     }
 
 
-def _wait_for_empty_frame(
-    client: Any,
-    board: str,
-    frame_id: str,
-    old_item_ids: set[str],
-    cfg: dict[str, Any],
+def _assert_tutorial_state(
+    state: dict[str, Any], cfg: dict[str, Any], label: str
 ) -> None:
-    for attempt in range(cfg["readback_attempts"]):
-        children = base._children(client, board, frame_id)
-        related = base._related_connectors(client, board, old_item_ids) if old_item_ids else []
-        if not children and not related:
-            return
-        if attempt + 1 < cfg["readback_attempts"] and cfg["readback_delay_seconds"]:
-            time.sleep(cfg["readback_delay_seconds"])
-    raise ValueError("Miro Tips did not become empty before reference-geometry restore")
+    if len(state["images"]) < cfg["min_images"]:
+        raise ValueError(f"{label} is missing the Miro UI tutorial image")
+    if len(state["connectors"]) < cfg["min_connectors"]:
+        raise ValueError(f"{label} is missing callout connectors")
+    if state["image_anchor_connector_count"] < cfg["min_connectors"]:
+        raise ValueError(f"{label} callouts are not anchored to the Miro UI image")
+    if state["missing_markers"]:
+        raise ValueError(f"{label} is missing required tutorial markers: {state['missing_markers']}")
 
 
 def _wait_for_frame_geometry(
@@ -192,31 +196,71 @@ def _wait_for_frame_geometry(
             return last
         if attempt + 1 < cfg["readback_attempts"] and cfg["readback_delay_seconds"]:
             time.sleep(cfg["readback_delay_seconds"])
-    raise ValueError("Miro Tips frame did not converge to reference geometry and placement")
+    raise ValueError("Miro Tips replacement frame did not converge to reference geometry and placement")
 
 
-def _reset_frame_to_reference(
+def _wait_for_empty_frame(
     client: Any,
+    board: str,
+    frame_id: str,
+    old_item_ids: set[str],
+    cfg: dict[str, Any],
+) -> None:
+    for attempt in range(cfg["readback_attempts"]):
+        children = base._children(client, board, frame_id)
+        related = base._related_connectors(client, board, old_item_ids) if old_item_ids else []
+        if not children and not related:
+            return
+        if attempt + 1 < cfg["readback_attempts"] and cfg["readback_delay_seconds"]:
+            time.sleep(cfg["readback_delay_seconds"])
+    raise ValueError(f"Miro Tips legacy frame {frame_id} did not become empty before deletion")
+
+
+def _delete_legacy_frame(
+    client: Any,
+    board: str,
+    frame_id: str,
+    cfg: dict[str, Any],
+) -> None:
+    children = base._children(client, board, frame_id)
+    old_item_ids = {str(item["id"]) for item in children}
+    for connector in base._related_connectors(client, board, old_item_ids):
+        client.delete_connector(board, str(connector["id"]))
+    for item in children:
+        client.delete_item(board, str(item["id"]))
+    _wait_for_empty_frame(client, board, frame_id, old_item_ids, cfg)
+    client.delete_item(board, frame_id)
+
+
+def _cleanup_replacement_frame(client: Any, board: str, frame_id: str) -> None:
+    try:
+        visual._cleanup_frame(client, board, frame_id)
+    except Exception:
+        # The original exception remains authoritative; cleanup is best effort.
+        pass
+
+
+def _populate_reference_tutorial(
+    client: Any,
+    source_board: str,
+    source_frame_id: str,
     target_board: str,
     target_frame_id: str,
-    expected_frame: dict[str, Any],
+    manifest: dict[str, Any],
     cfg: dict[str, Any],
-) -> bool:
-    current = base._get_frame(client, target_board, target_frame_id)
-    if _frame_equal(current, expected_frame):
-        return False
-
-    children = base._children(client, target_board, target_frame_id)
-    old_item_ids = {str(item["id"]) for item in children}
-    for connector in base._related_connectors(client, target_board, old_item_ids):
-        client.delete_connector(target_board, str(connector["id"]))
-    for item in children:
-        client.delete_item(target_board, str(item["id"]))
-    _wait_for_empty_frame(client, target_board, target_frame_id, old_item_ids, cfg)
-
-    client.update_item(target_board, "frame", target_frame_id, expected_frame)
-    _wait_for_frame_geometry(client, target_board, target_frame_id, expected_frame, cfg)
-    return True
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    child_result = _ORIGINAL_RECONCILE_COMPANION_CHILDREN(
+        client,
+        source_board,
+        source_frame_id,
+        target_board,
+        target_frame_id,
+        cfg["min_images"],
+        manifest,
+    )
+    target_state = _tutorial_state(client, target_board, target_frame_id, cfg)
+    _assert_tutorial_state(target_state, cfg, "Miro Tips target")
+    return child_result, target_state
 
 
 def reconcile_miro_tips_children(
@@ -231,58 +275,68 @@ def reconcile_miro_tips_children(
     source_main = base._get_frame(client, source_board, str(manifest["source_frame_id"]))
     target_main = base._get_frame(client, target_board, str(manifest["frame_id"]))
     source_frame = base._get_frame(client, source_board, source_frame_id)
-    expected_frame = miro_tips_companion_frame_payload(source_frame, source_main, target_main, manifest)
+    expected_frame = miro_tips_companion_frame_payload(
+        source_frame, source_main, target_main, manifest
+    )
 
     source_state = _tutorial_state(client, source_board, source_frame_id, cfg)
-    if len(source_state["images"]) < cfg["min_images"]:
-        raise ValueError(
-            f"Miro Tips source has {len(source_state['images'])} images; expected at least {cfg['min_images']}"
-        )
-    if len(source_state["connectors"]) < cfg["min_connectors"]:
-        raise ValueError(
-            f"Miro Tips source has {len(source_state['connectors'])} connectors; expected at least {cfg['min_connectors']}"
-        )
-    if source_state["image_anchor_connector_count"] < cfg["min_connectors"]:
-        raise ValueError("Miro Tips source callouts are not anchored to the Miro UI image")
-    if source_state["missing_markers"]:
-        raise ValueError(f"Miro Tips source is missing required tutorial markers: {source_state['missing_markers']}")
+    _assert_tutorial_state(source_state, cfg, "Miro Tips source")
 
-    frame_reinitialized = _reset_frame_to_reference(
-        client, target_board, target_frame_id, expected_frame, cfg
-    )
+    current_frame = base._get_frame(client, target_board, target_frame_id)
+    legacy_frame_id: str | None = None
+    frame_replaced = False
+    active_frame_id = target_frame_id
 
-    child_result = _ORIGINAL_RECONCILE_COMPANION_CHILDREN(
-        client,
-        source_board,
-        source_frame_id,
-        target_board,
-        target_frame_id,
-        cfg["min_images"],
-        manifest,
-    )
+    if _frame_equal(current_frame, expected_frame):
+        child_result, target_state = _populate_reference_tutorial(
+            client,
+            source_board,
+            source_frame_id,
+            target_board,
+            active_frame_id,
+            manifest,
+            cfg,
+        )
+    else:
+        legacy_frame_id = target_frame_id
+        created = client.create_item(target_board, "frame", expected_frame)
+        active_frame_id = str(created["id"])
+        frame_replaced = True
+        try:
+            _wait_for_frame_geometry(
+                client, target_board, active_frame_id, expected_frame, cfg
+            )
+            child_result, target_state = _populate_reference_tutorial(
+                client,
+                source_board,
+                source_frame_id,
+                target_board,
+                active_frame_id,
+                manifest,
+                cfg,
+            )
+            _delete_legacy_frame(client, target_board, legacy_frame_id, cfg)
+        except Exception:
+            _cleanup_replacement_frame(client, target_board, active_frame_id)
+            raise
 
     target_frame = _wait_for_frame_geometry(
-        client, target_board, target_frame_id, expected_frame, cfg
+        client, target_board, active_frame_id, expected_frame, cfg
     )
-    target_state = _tutorial_state(client, target_board, target_frame_id, cfg)
-    if len(target_state["images"]) < cfg["min_images"]:
-        raise ValueError("Miro Tips target is missing the Miro UI tutorial image")
-    if len(target_state["connectors"]) < cfg["min_connectors"]:
-        raise ValueError("Miro Tips target is missing callout connectors")
-    if target_state["image_anchor_connector_count"] < cfg["min_connectors"]:
-        raise ValueError("Miro Tips target callouts are not anchored to the Miro UI image")
-    if target_state["missing_markers"]:
-        raise ValueError(f"Miro Tips target is missing required tutorial markers: {target_state['missing_markers']}")
 
     return {
         "mode": MIRO_TIPS_MODE,
+        "container_policy": cfg["container_policy"],
         **child_result,
         "target_image_count": len(target_state["images"]),
         "target_connector_count": len(target_state["connectors"]),
         "source_image_anchor_connector_count": source_state["image_anchor_connector_count"],
         "target_image_anchor_connector_count": target_state["image_anchor_connector_count"],
         "required_marker_count": len(cfg["required_markers"]),
-        "frame_reinitialized": int(frame_reinitialized),
+        "frame_reinitialized": int(frame_replaced),
+        "frame_replaced": int(frame_replaced),
+        "legacy_frame_id": legacy_frame_id,
+        "replacement_frame_id": active_frame_id,
         "reference_geometry": dict(expected_frame.get("geometry") or {}),
         "target_geometry": dict(target_frame.get("geometry") or {}),
         "reference_position": dict(expected_frame.get("position") or {}),

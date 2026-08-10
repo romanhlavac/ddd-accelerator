@@ -86,8 +86,10 @@ This latest Human Review supersedes the earlier requirement to avoid screenshot 
 - retain the green `add your own tips here` sticky;
 - contain at least eight black callout connectors whose endpoint is anchored to the Miro UI image, preserving the source endpoint position/snap semantics so the arrows point at the actual controls;
 - not replace the visual tutorial with generic colored text cards;
-- if the previous oversized card-only companion is present, remove its children/connectors first, restore the empty frame to reference geometry/placement, then reconcile the source image/items/connectors. This ordering avoids an invalid parent shrink with out-of-bounds children;
-- reconcile idempotently and prove a zero-mutation second run;
+- treat the current oversized `Miro Tips` container as irreducible for in-place shrink. Exact-SHA online remediation on `fe6e5f0ad7aade600e988c11d961a2f7141da691` removed its visible children and still received deterministic Miro `HTTP 400 / 3.0204` (`Child item cannot be placed outside the bounds of its parent`) when PATCHing the frame to reference size;
+- recover it transactionally: create a new companion at the reference geometry/placement, populate and verify the full UI image/items/connectors, and only then delete the legacy oversized companion. No geometry PATCH of the irreducible legacy frame is allowed;
+- permit the physical Miro item ID of the `Miro Tips` companion to change as part of this bounded container migration; the replacement ID becomes the active review object while Frame 01 and all other companion IDs remain outside this correction;
+- reconcile idempotently and prove a zero-mutation second run against the replacement frame;
 - keep `human_review_status=PENDING` after technical PASS.
 
 The main Frame 01 journey, methodology block and eight DDD Starter phase companions remain unchanged by this correction.

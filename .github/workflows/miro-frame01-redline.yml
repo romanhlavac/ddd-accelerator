@@ -24,7 +24,7 @@ jobs:
     timeout-minutes: 120
     env:
       SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
-      PREVIOUS_SHA: 3bd812549b579ec03dbaf38f70e1d3fb07caeae8
+      PREVIOUS_SHA: fe6e5f0ad7aade600e988c11d961a2f7141da691
       BASE_SHA: ed14f57363c359e60633f9f1da9ad69dee8b5bda
       GH_TOKEN: ${{ github.token }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -57,7 +57,7 @@ jobs:
           base=os.environ['BASE_SHA']
 
           assert g('rev-parse', source + '^') == previous, 'corrective parent SHA mismatch'
-          assert g('show', '-s', '--format=%s', source) == 'fix(miro): restore HVR-2 visual Miro tutorial'
+          assert g('show', '-s', '--format=%s', source) == 'fix(miro): transactionally replace HVR-2 Miro Tips'
           subprocess.check_call(['git','merge-base','--is-ancestor',base,source])
 
           observed=sorted(
@@ -68,9 +68,7 @@ jobs:
               '.github/workflows/miro-frame01-redline.yml',
               'docs/reviews/REM-PR8-HVA-CC-012-5-frame-01-redline.md',
               'runtime/miro/ddda_miro/miro_tips_hvr_fix.py',
-              'runtime/miro/ddda_miro/miro_tips_hvr_semantic_fix.py',
               'runtime/miro/tests/test_rem_012_5_miro_tips_hvr.py',
-              'runtime/miro/tests/test_rem_012_5_miro_tips_semantic.py',
               'scaffolds/miro/rem-012-5-frame-01.yaml',
           ])
           assert observed == expected, f'corrective path mismatch: {observed}'
@@ -80,6 +78,7 @@ jobs:
               'miro_tips:',
               'min_images: 1',
               'min_connectors: 8',
+              'container_policy: transactional_replace_irreducible_companion',
               'mode: reference_ui_tutorial',
               'right-click-drag to drag the board around',
               'methodology_min_font_size: 80',
@@ -94,6 +93,8 @@ jobs:
               'Rejected corrective interpretation',
               'Authoritative reference UI tutorial contract',
               'at least eight black callout connectors',
+              'irreducible for in-place shrink',
+              'recover it transactionally',
               'HVR-3 remains blocked',
           ):
               assert marker in review, f'review marker missing: {marker}'
@@ -201,6 +202,7 @@ jobs:
           if($tips1.Count -ne 1 -or $tips2.Count -ne 1){throw 'Miro Tips evidence missing'}
           foreach($tips in @($tips1[0],$tips2[0])){
             if($tips.mode -ne 'reference_ui_tutorial'){throw 'Miro Tips correction mode mismatch'}
+            if($tips.container_policy -ne 'transactional_replace_irreducible_companion'){throw 'Miro Tips container policy mismatch'}
             if([int]$tips.source_image_count -lt 1 -or [int]$tips.target_image_count -lt 1){throw 'Miro Tips UI screenshot missing'}
             if([int]$tips.source_connector_count -lt 8 -or [int]$tips.target_connector_count -lt 8){throw 'Miro Tips callout connector count mismatch'}
             if([int]$tips.source_image_anchor_connector_count -lt 8 -or [int]$tips.target_image_anchor_connector_count -lt 8){throw 'Miro Tips callouts are not anchored to UI image'}
@@ -208,7 +210,11 @@ jobs:
             if([math]::Abs([double]$tips.target_geometry.width-1919.43)-gt .5 -or [math]::Abs([double]$tips.target_geometry.height-1079.68)-gt .5){throw 'Miro Tips reference geometry mismatch'}
             if([math]::Abs([double]$tips.target_position.x-(-19834.447))-gt 1 -or [math]::Abs([double]$tips.target_position.y-(-12327.533))-gt 1){throw 'Miro Tips relative placement mismatch'}
           }
-          if([int]$tips2[0].frame_reinitialized -ne 0){throw 'Miro Tips second run changed frame geometry'}
+          if([int]$tips1[0].frame_replaced -ne 1){throw 'Miro Tips legacy frame was not transactionally replaced'}
+          if($tips1[0].legacy_frame_id -ne '3458764680288859419'){throw 'Miro Tips legacy migration anchor mismatch'}
+          if([string]::IsNullOrWhiteSpace([string]$tips1[0].replacement_frame_id) -or $tips1[0].replacement_frame_id -eq $tips1[0].legacy_frame_id){throw 'Miro Tips replacement frame id mismatch'}
+          if([int]$tips2[0].frame_replaced -ne 0 -or [int]$tips2[0].frame_reinitialized -ne 0){throw 'Miro Tips second run changed frame geometry'}
+          if($tips2[0].replacement_frame_id -ne $tips1[0].replacement_frame_id){throw 'Miro Tips replacement identity is not stable'}
           if($tips2[0].items.created -ne 0 -or $tips2[0].items.updated -ne 0 -or $tips2[0].items.deleted -ne 0){throw 'Miro Tips second run mutated items'}
           if($tips2[0].connectors.created -ne 0 -or $tips2[0].connectors.updated -ne 0 -or $tips2[0].connectors.deleted -ne 0){throw 'Miro Tips second run mutated connectors'}
 

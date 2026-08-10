@@ -34,6 +34,7 @@ readability:
 miro_tips:
   min_images: 1
   min_connectors: 8
+  container_policy: transactional_replace_irreducible_companion
   readback_attempts: 20
   readback_delay_seconds: 0.5
   required_markers:

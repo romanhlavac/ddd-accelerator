@@ -20,6 +20,7 @@ def manifest():
         "miro_tips": {
             "min_images": 1,
             "min_connectors": 8,
+            "container_policy": tips.MIRO_TIPS_CONTAINER_POLICY,
             "readback_attempts": 4,
             "readback_delay_seconds": 0,
             "required_markers": list(tips.DEFAULT_REQUIRED_MARKERS),
@@ -53,7 +54,7 @@ def test_miro_tips_frame_payload_preserves_reference_geometry_and_relative_place
     assert tips.desired_miro_tips_items("target-tips", manifest()) == []
 
 
-def test_miro_tips_outer_frame_comparison_defers_shrink_until_children_are_removed(monkeypatch):
+def test_miro_tips_outer_frame_comparison_defers_irreducible_container_patch(monkeypatch):
     remote = frame("target-tips", "Miro Tips", -19834.447, -12327.533, 4600, 2600)
     expected = frame("target-tips", "Miro Tips", -19834.447, -12327.533, 1919.43, 1079.68)
     monkeypatch.setattr(tips, "_ORIGINAL_SAME_FRAME", lambda left, right: left == right)
@@ -73,6 +74,7 @@ class FakeClient:
             ("source", "source-tips"): frame("source-tips", "Miro Tips", -18762.093, -11858.608, 1919.43, 1079.68),
             ("target", "target-tips"): frame("target-tips", "Miro Tips", -19834.447, -12327.533, 4600, 2600),
         }
+        self.next_frame = 1
         all_markers = " | ".join(tips.DEFAULT_REQUIRED_MARKERS)
         self.items = {
             "source": [
@@ -117,19 +119,28 @@ class FakeClient:
             "target": [],
         }
 
+    def create_item(self, board, item_type, payload):
+        assert board == "target"
+        assert item_type == "frame"
+        frame_id = f"replacement-tips-{self.next_frame}"
+        self.next_frame += 1
+        created = deepcopy(payload)
+        created["id"] = frame_id
+        created["type"] = "frame"
+        self.frames[(board, frame_id)] = created
+        return deepcopy(created)
+
     def delete_connector(self, board, connector_id):
         self.connectors[board] = [c for c in self.connectors[board] if c["id"] != connector_id]
 
     def delete_item(self, board, item_id):
+        if (board, item_id) in self.frames:
+            del self.frames[(board, item_id)]
+            return
         self.items[board] = [item for item in self.items[board] if item["id"] != item_id]
 
     def update_item(self, board, item_type, item_id, payload):
-        assert item_type == "frame"
-        updated = deepcopy(payload)
-        updated["id"] = item_id
-        updated["type"] = "frame"
-        self.frames[(board, item_id)] = updated
-        return deepcopy(updated)
+        raise AssertionError("transactional Miro Tips replacement must not PATCH an irreducible frame")
 
 
 def _install_fakes(monkeypatch, client):
@@ -192,6 +203,7 @@ def _install_fakes(monkeypatch, client):
             and abs(remote["position"]["y"] - expected["position"]["y"]) < 0.01
         ),
     )
+    monkeypatch.setattr(tips.visual, "_cleanup_frame", lambda c, board, frame_id: c.delete_item(board, frame_id))
 
     def source_copy(c, source_board, source_frame_id, target_board, target_frame_id, min_images, manifest_value):
         del source_frame_id, min_images, manifest_value
@@ -233,7 +245,7 @@ def _install_fakes(monkeypatch, client):
     monkeypatch.setattr(tips, "_ORIGINAL_RECONCILE_COMPANION_CHILDREN", source_copy)
 
 
-def test_miro_tips_replaces_oversized_card_only_guide_with_reference_ui_tutorial(monkeypatch):
+def test_miro_tips_transactionally_replaces_irreducible_card_only_guide(monkeypatch):
     client = FakeClient()
     _install_fakes(monkeypatch, client)
 
@@ -241,8 +253,14 @@ def test_miro_tips_replaces_oversized_card_only_guide_with_reference_ui_tutorial
         client, "source", "source-tips", "target", "target-tips", manifest()
     )
 
+    replacement_id = first["replacement_frame_id"]
     assert first["mode"] == tips.MIRO_TIPS_MODE
-    assert first["frame_reinitialized"] == 1
+    assert first["container_policy"] == tips.MIRO_TIPS_CONTAINER_POLICY
+    assert first["frame_replaced"] == 1
+    assert first["legacy_frame_id"] == "target-tips"
+    assert replacement_id != "target-tips"
+    assert ("target", "target-tips") not in client.frames
+    assert ("target", replacement_id) in client.frames
     assert first["source_image_count"] == 1
     assert first["target_image_count"] == 1
     assert first["source_connector_count"] == 8
@@ -254,14 +272,16 @@ def test_miro_tips_replaces_oversized_card_only_guide_with_reference_ui_tutorial
     assert not any(item["id"] == "legacy-card" for item in client.items["target"])
 
     second = tips.reconcile_miro_tips_children(
-        client, "source", "source-tips", "target", "target-tips", manifest()
+        client, "source", "source-tips", "target", replacement_id, manifest()
     )
-    assert second["frame_reinitialized"] == 0
+    assert second["frame_replaced"] == 0
+    assert second["legacy_frame_id"] is None
+    assert second["replacement_frame_id"] == replacement_id
     assert second["items"] == {"created": 0, "updated": 0, "unchanged": 2, "deleted": 0}
     assert second["connectors"] == {"created": 0, "updated": 0, "unchanged": 8, "deleted": 0}
 
 
-def test_miro_tips_contract_rejects_card_only_or_unanchored_source(monkeypatch):
+def test_miro_tips_contract_rejects_card_only_or_unanchored_source_before_write(monkeypatch):
     client = FakeClient()
     _install_fakes(monkeypatch, client)
     client.connectors["source"] = client.connectors["source"][:7]
@@ -272,5 +292,6 @@ def test_miro_tips_contract_rejects_card_only_or_unanchored_source(monkeypatch):
         )
     except ValueError as exc:
         assert "connectors" in str(exc)
+        assert client.next_frame == 1
     else:
         raise AssertionError("expected reference tutorial connector contract failure")
