@@ -22,6 +22,8 @@ def manifest():
             "width": 4600,
             "height": 2600,
             "min_font_size": 48,
+            "readback_attempts": 4,
+            "readback_delay_seconds": 0,
             "required_sections": [
                 "MIRO QUICK START",
                 "1 · NAVIGACE",
@@ -151,9 +153,6 @@ class FakeClient:
                     self.items[board][index] = updated
                     return deepcopy(updated)
             raise AssertionError(item_id)
-        if method == "GET" and parts[2] == "items":
-            item_id = parts[3]
-            return deepcopy(next(item for item in self.items[board] if item["id"] == item_id))
         raise AssertionError((method, path, body))
 
     def delete_connector(self, board, connector_id):
@@ -165,6 +164,38 @@ class FakeClient:
 
     def delete_item(self, board, item_id):
         self.items[board] = [item for item in self.items[board] if item["id"] != item_id]
+
+
+class DelayedReadClient(FakeClient):
+    """Simulate Miro returning one stale list read immediately after a write."""
+
+    def __init__(self):
+        super().__init__()
+        self.stale_once: set[str] = set()
+
+    def _request(self, method, path, query=None, body=None, reconcile=None):
+        item = super()._request(method, path, query=query, body=body, reconcile=reconcile)
+        if method in {"POST", "PATCH"}:
+            self.stale_once.add(str(item["id"]))
+        return item
+
+    def list_items(self, board, item_type=None):
+        result = super().list_items(board, item_type=item_type)
+        for item in result:
+            item_id = str(item.get("id") or "")
+            if item_id in self.stale_once:
+                self.stale_once.remove(item_id)
+                item.setdefault("style", {})["fontSize"] = 14
+        return result
+
+
+def _managed_item(managed, item_id):
+    item = deepcopy(managed["payload"])
+    item["id"] = item_id
+    item["type"] = "shape" if "shape" in item["data"] else "text"
+    if item["type"] == "text":
+        item.setdefault("geometry", {})["height"] = 100
+    return item
 
 
 def test_miro_tips_reconcile_replaces_legacy_screenshot_and_is_idempotent():
@@ -212,3 +243,45 @@ def test_miro_tips_reconcile_replaces_legacy_screenshot_and_is_idempotent():
         "unchanged": 0,
         "deleted": 0,
     }
+
+
+def test_miro_tips_tolerates_eventual_consistency_on_fresh_list_readback():
+    client = DelayedReadClient()
+    result = reconcile_miro_tips_children(
+        client,
+        "source",
+        "source-tips",
+        "target",
+        "target-tips",
+        manifest(),
+    )
+    assert result["items"]["created"] == 6
+    assert result["target_image_count"] == 0
+    assert result["readback_attempts"] == 4
+
+
+def test_miro_tips_resumes_after_partial_online_application():
+    client = FakeClient()
+    desired = desired_miro_tips_items("target-tips", manifest())
+    client.items["target"].extend(
+        _managed_item(managed, f"partial-{index}")
+        for index, managed in enumerate(desired[:3], start=1)
+    )
+
+    result = reconcile_miro_tips_children(
+        client,
+        "source",
+        "source-tips",
+        "target",
+        "target-tips",
+        manifest(),
+    )
+    assert result["items"]["unchanged"] == 3
+    assert result["items"]["created"] == 3
+    assert result["items"]["deleted"] == 2
+    final_text = " ".join(
+        str((item.get("data") or {}).get("content") or "")
+        for item in client.items["target"]
+    )
+    assert "4 · DDDA PRAVIDLA" in final_text
+    assert not any(item["type"] == "image" for item in client.items["target"])

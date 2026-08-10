@@ -24,6 +24,7 @@ jobs:
     timeout-minutes: 120
     env:
       SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+      HVR2_READBACK_PARENT_SHA: 260559e1491bfc7aadc077e3ded88c31e19d46c7
       HVR2_MIRO_TIPS_PARENT_SHA: 07f4514676b3c17d351155ce084f2098927a0b91
       CONNECTOR_READBACK_PARENT_SHA: a35ef64c5f3e610a8cb1adb41e4153a4fce1782f
       FRAME00_REPLACEMENT_PARENT_SHA: c842a6e00bc757ddd41b0e1010843cfccc30aa63
@@ -74,6 +75,7 @@ jobs:
               )
 
           source = os.environ['SOURCE_SHA']
+          hvr2_readback_parent = os.environ['HVR2_READBACK_PARENT_SHA']
           hvr2_miro_tips_parent = os.environ['HVR2_MIRO_TIPS_PARENT_SHA']
           connector_readback_parent = os.environ['CONNECTOR_READBACK_PARENT_SHA']
           frame00_replacement_parent = os.environ['FRAME00_REPLACEMENT_PARENT_SHA']
@@ -93,7 +95,8 @@ jobs:
           base = os.environ['BASE_SHA']
 
           chain = [
-              (source, hvr2_miro_tips_parent, 'fix(miro): remediate HVR-2 Miro Tips'),
+              (source, hvr2_readback_parent, 'fix(miro): tolerate Miro item read-after-write'),
+              (hvr2_readback_parent, hvr2_miro_tips_parent, 'fix(miro): remediate HVR-2 Miro Tips'),
               (hvr2_miro_tips_parent, connector_readback_parent, 'fix(miro): canonicalize connector read-back'),
               (connector_readback_parent, frame00_replacement_parent, 'fix(miro): replace irreducible Frame 00 container'),
               (frame00_replacement_parent, populated_resize_parent, 'fix(miro): resize Frame 00 after accepted children'),
@@ -116,6 +119,11 @@ jobs:
               assert g('show', '-s', '--format=%s', current) == subject, f'subject mismatch at {current}'
 
           assert paths(source) == sorted([
+              '.github/workflows/miro-frame01-redline.yml',
+              'runtime/miro/ddda_miro/miro_tips_hvr_fix.py',
+              'runtime/miro/tests/test_rem_012_5_miro_tips_hvr.py',
+          ])
+          assert paths(hvr2_readback_parent) == sorted([
               '.github/workflows/miro-frame01-redline.yml',
               'docs/reviews/REM-PR8-HVA-CC-012-5-frame-01-redline.md',
               'runtime/miro/ddda_miro/connector_readback_wirefix.py',
@@ -301,6 +309,7 @@ jobs:
           if($tips[0].mode -ne 'ddda_owned_hvr_correction'){throw 'Miro Tips correction mode mismatch'}
           if([int]$tips[0].target_image_count -ne 0){throw 'Miro Tips still depends on image content'}
           if([int]$tips[0].min_font_size -lt 48 -or [int]$tips[0].required_sections_count -lt 5 -or [int]$tips[0].managed_item_count -ne 6){throw 'Miro Tips readability/content contract mismatch'}
+          if([int]$tips[0].readback_attempts -lt 20){throw 'Miro Tips read-back tolerance mismatch'}
 
       - name: Upload evidence
         if: always()

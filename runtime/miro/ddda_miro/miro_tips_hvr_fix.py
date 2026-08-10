@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from copy import deepcopy
 from typing import Any
 
@@ -13,6 +14,8 @@ MIRO_TIPS_MODE = "ddda_owned_hvr_correction"
 DEFAULT_WIDTH = 4600.0
 DEFAULT_HEIGHT = 2600.0
 DEFAULT_MIN_FONT_SIZE = 48
+DEFAULT_READBACK_ATTEMPTS = 20
+DEFAULT_READBACK_DELAY_SECONDS = 0.5
 DEFAULT_REQUIRED_SECTIONS = (
     "MIRO QUICK START",
     "1 · NAVIGACE",
@@ -31,11 +34,21 @@ def _config(manifest: dict[str, Any]) -> dict[str, Any]:
     width = float(raw.get("width") or DEFAULT_WIDTH)
     height = float(raw.get("height") or DEFAULT_HEIGHT)
     min_font_size = int(raw.get("min_font_size") or DEFAULT_MIN_FONT_SIZE)
+    readback_attempts = int(raw.get("readback_attempts") or DEFAULT_READBACK_ATTEMPTS)
+    readback_delay_seconds = float(
+        raw.get("readback_delay_seconds")
+        if raw.get("readback_delay_seconds") is not None
+        else DEFAULT_READBACK_DELAY_SECONDS
+    )
     required = tuple(str(value) for value in (raw.get("required_sections") or DEFAULT_REQUIRED_SECTIONS))
     if width < 4200 or height < 2300:
         raise ValueError("Miro Tips frame is below the HVR-2 readable geometry contract")
     if min_font_size < DEFAULT_MIN_FONT_SIZE:
         raise ValueError("Miro Tips minimum font size is below the HVR-2 readability contract")
+    if readback_attempts < 2 or readback_attempts > 60:
+        raise ValueError("Miro Tips read-back attempts must be between 2 and 60")
+    if readback_delay_seconds < 0 or readback_delay_seconds > 2:
+        raise ValueError("Miro Tips read-back delay must be between 0 and 2 seconds")
     if len(required) < len(DEFAULT_REQUIRED_SECTIONS):
         raise ValueError("Miro Tips required-section contract is incomplete")
     for marker in DEFAULT_REQUIRED_SECTIONS:
@@ -45,6 +58,8 @@ def _config(manifest: dict[str, Any]) -> dict[str, Any]:
         "width": width,
         "height": height,
         "min_font_size": min_font_size,
+        "readback_attempts": readback_attempts,
+        "readback_delay_seconds": readback_delay_seconds,
         "required_sections": required,
     }
 
@@ -258,8 +273,58 @@ def companion_frame_payload_with_miro_tips(
     return miro_tips_companion_frame_payload(source_frame, source_main, target_main, manifest)
 
 
-def _fresh_item(client: Any, board: str, item_id: str) -> dict[str, Any]:
-    return client._request("GET", f"boards/{base._seg(board)}/items/{base._seg(item_id)}")
+def _fresh_list_item(client: Any, board: str, item_id: str) -> dict[str, Any]:
+    hits = [
+        item
+        for item in client.list_items(board)
+        if str(item.get("id") or "") == str(item_id)
+    ]
+    if len(hits) != 1:
+        raise ValueError(f"Miro Tips fresh list read expected one item {item_id}, got {len(hits)}")
+    return hits[0]
+
+
+def _wait_for_item_convergence(
+    client: Any,
+    board: str,
+    item_id: str,
+    expected: dict[str, Any],
+    cfg: dict[str, Any],
+    role: str,
+) -> dict[str, Any]:
+    last: dict[str, Any] | None = None
+    for attempt in range(cfg["readback_attempts"]):
+        last = _fresh_list_item(client, board, item_id)
+        if visual.redline.same_item(last, expected):
+            return last
+        if attempt + 1 < cfg["readback_attempts"] and cfg["readback_delay_seconds"]:
+            time.sleep(cfg["readback_delay_seconds"])
+    raise ValueError(
+        f"Miro Tips managed item {role} did not converge after "
+        f"{cfg['readback_attempts']} fresh list reads"
+    )
+
+
+def _wait_for_final_children(
+    client: Any,
+    board: str,
+    frame_id: str,
+    expected_ids: set[str],
+    cfg: dict[str, Any],
+) -> list[dict[str, Any]]:
+    last: list[dict[str, Any]] = []
+    for attempt in range(cfg["readback_attempts"]):
+        last = base._children(client, board, frame_id)
+        ids = {str(item.get("id") or "") for item in last}
+        if ids == expected_ids and not any(str(item.get("type") or "") == "image" for item in last):
+            return last
+        if attempt + 1 < cfg["readback_attempts"] and cfg["readback_delay_seconds"]:
+            time.sleep(cfg["readback_delay_seconds"])
+    raise ValueError(
+        "Miro Tips final children did not converge after "
+        f"{cfg['readback_attempts']} fresh list reads; "
+        f"expected={sorted(expected_ids)} observed={sorted(str(item.get('id') or '') for item in last)}"
+    )
 
 
 def reconcile_miro_tips_children(
@@ -309,7 +374,14 @@ def reconcile_miro_tips_children(
                 f"boards/{base._seg(target_board)}/{endpoint}",
                 body=payload,
             )
-            item = _fresh_item(client, target_board, str(created["id"]))
+            item = _wait_for_item_convergence(
+                client,
+                target_board,
+                str(created["id"]),
+                payload,
+                cfg,
+                str(managed["role"]),
+            )
             target_items.append(item)
             counts["created"] += 1
         else:
@@ -323,10 +395,15 @@ def reconcile_miro_tips_children(
                     f"boards/{base._seg(target_board)}/{endpoint}/{base._seg(str(item['id']))}",
                     body=payload,
                 )
-                item = _fresh_item(client, target_board, str(item["id"]))
+                item = _wait_for_item_convergence(
+                    client,
+                    target_board,
+                    str(item["id"]),
+                    payload,
+                    cfg,
+                    str(managed["role"]),
+                )
                 counts["updated"] += 1
-        if not visual.redline.same_item(item, payload):
-            raise ValueError(f"Miro Tips managed item {managed['role']} did not converge")
         used.add(str(item["id"]))
 
     extras = [item for item in target_items if str(item.get("id") or "") not in used]
@@ -334,13 +411,11 @@ def reconcile_miro_tips_children(
         client.delete_item(target_board, str(item["id"]))
         counts["deleted"] += 1
 
-    final_items = base._children(client, target_board, target_frame_id)
+    final_items = _wait_for_final_children(client, target_board, target_frame_id, used, cfg)
     if len(final_items) != len(desired):
         raise ValueError(
             f"Miro Tips final item count mismatch: {len(final_items)} != {len(desired)}"
         )
-    if any(str(item.get("type") or "") == "image" for item in final_items):
-        raise ValueError("Miro Tips must not depend on screenshot/image content")
 
     final_text = " ".join(
         base._visible((item.get("data") or {}).get("content")) for item in final_items
@@ -364,6 +439,7 @@ def reconcile_miro_tips_children(
         "min_font_size": cfg["min_font_size"],
         "required_sections_count": len(cfg["required_sections"]),
         "managed_item_count": len(desired),
+        "readback_attempts": cfg["readback_attempts"],
         "items": counts,
         "connectors": connector_counts,
     }
