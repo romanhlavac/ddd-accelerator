@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from . import review_board_recovery as base
 from . import review_board_recovery_wirefix as visual
 from . import miro_tips_hvr_fix as tips
 
@@ -44,8 +43,6 @@ def semantic_mismatches(remote: dict[str, Any], expected: dict[str, Any]) -> lis
 
     remote_style = remote.get("style") or {}
     expected_style = expected.get("style") or {}
-
-    # These are HVR-critical and must be observable on REST read-back.
     for key in ("fontSize", "fillColor", "color", "borderColor"):
         if key not in expected_style:
             continue
@@ -57,7 +54,6 @@ def semantic_mismatches(remote: dict[str, Any], expected: dict[str, Any]) -> lis
         elif not _same_color(actual, authored):
             mismatches.append(f"style.{key}")
 
-    # Miro may omit/default these fields on list read-back. If returned, they must agree.
     for key in ("fontFamily", "textAlign", "textAlignVertical"):
         if key in expected_style and key in remote_style and remote_style.get(key) != expected_style.get(key):
             mismatches.append(f"style.{key}")
@@ -106,24 +102,6 @@ def reconcile_with_semantic_comparator(
             min_images,
             manifest,
         )
-    except ValueError as exc:
-        # Improve evidence if an authored invariant still differs after wire normalization.
-        if "did not converge" in str(exc):
-            desired = tips.desired_miro_tips_items(target_frame_id, manifest)
-            current = base._children(client, target_board, target_frame_id)
-            diagnostics: list[str] = []
-            for managed in desired:
-                marker = str(managed["marker"])
-                hits = [
-                    item
-                    for item in current
-                    if marker in base._visible((item.get("data") or {}).get("content"))
-                ]
-                if len(hits) == 1:
-                    diff = semantic_mismatches(hits[0], managed["payload"])
-                    diagnostics.append(f"{managed['role']}={','.join(diff) if diff else 'semantic-match'}")
-            raise ValueError(f"{exc}; semantic_diagnostics={';'.join(diagnostics)}") from exc
-        raise
     finally:
         visual.redline.same_item = _ORIGINAL_SAME_ITEM
 

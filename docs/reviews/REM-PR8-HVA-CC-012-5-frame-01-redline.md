@@ -2,61 +2,53 @@
 
 Status: corrective recovery authorized; HVR-2 CHANGES_REQUIRED
 
-Date: 2026-08-07
+Date: 2026-08-10
 
 ## Human direction
 
-Frame `01 – DDD Starter journey, gates a iterace` must be taken from the explicitly selected human-review redline board before HVR-2 continues. The redline is authoritative for this adoption step; semantic corrections discovered during the subsequent HVR must not be silently folded into the copy operation.
+Frame `01 – DDD Starter journey, gates a iterace` must be taken from the explicitly selected human-review redline board before HVR-2 continues. The redline is authoritative for the journey, phase companions and the visual composition unless a later explicit Human Review finding overrides a specific part.
 
 Source board: `uXjVH2vcvRI=`
 
 Source Frame 01: `3458764679494310883`
 
-## Failed first target and diagnosis
-
-The first REM-012.5 exact-SHA run targeted the previously reviewed board `uXjVH1phki0=`. Before the first target mutation, the secret-bearing Miro API returned HTTP 404 for target Frame 01. The approved Miro connector independently reported board access denied, while the source redline remained readable. Therefore no partial Frame-01 copy occurred; the old physical review board is no longer a usable HVR target.
-
-The ordinary Platform CI online acceptance did not delete that board: it creates its own isolated smoke/review boards. A previously preserved validation review board remains available and is used as the recovery target.
-
-## Recovery target
-
-Target board: `uXjVH0doLYY=`
+Recovery target board: `uXjVH0doLYY=`
 
 Legacy Frame 00 container: `3458764680243144441`
 
-Target Frame 01: `3458764680243144449`
+The preserved target board is the active HVR board. All 16 method frames outside Frame 00/01 recovery scope remain protected by before/after canonical snapshots.
 
-The preserved board initially contains a generic generated Control Center rather than the Human-accepted REM-012.4 cockpit. The legacy Frame-00 container later proved irreducible through Miro API `PATCH`: both empty- and populated-container shrink attempts returned deterministic `3.0204` although all eight accepted children fit the target bounds. Recovery therefore treats the legacy ID as a migration anchor, not as a permanent identity.
+## Frame 00 recovery boundary
 
-The exact-SHA remediation performs two bounded operations:
+HVR-1 / Frame 00 was Human ACCEPTED on exact SHA `ddc8e68bbab1bf64c680050347d881d5b485f225`. The legacy Frame 00 container later proved irreducible through Miro API `PATCH` with deterministic `3.0204`.
 
-1. resolve an already verified final replacement Frame 00 or transactionally create a verified staging copy, remove the legacy container only after staging is complete, create/read-back a second target-sized replacement directly at the accepted final position, and delete staging only after the final copy is verified; no Frame-00 geometry or position PATCH is used;
-2. resize/replace target Frame 01 as already defined and reconcile all supported Frame-01 children, connectors and visual companions from the selected redline.
-
-The versioned manifest keeps `3458764680243144441` as `legacy_frame_id` and defines the replacement discovery contract (title, target top-left and staging position). Subsequent remediation runs rediscover verified staging and final candidates only at those deterministic positions, so a Miro-generated replacement ID is not hard-coded into Git and a partial run can resume safely. The two-copy swap deliberately avoids every Frame-00 PATCH because the legacy container rejects resize mutations with deterministic Miro `3.0204`.
-
-All other 16 method frames are protected by a canonical before/after snapshot digest.
-
-## Frame 00 acceptance boundary
-
-HVR-1 / Frame 00 was Human ACCEPTED on exact SHA `ddc8e68bbab1bf64c680050347d881d5b485f225`. Recovery does not reopen the methodological decision. Because the physical Miro board changes, a short Human visual-equivalence spot check is required after technical recovery PASS before the prior acceptance is treated as operational on the recovered board.
+Recovery therefore treats the legacy ID as a migration anchor. It uses the verified two-copy swap and no Frame-00 geometry or position PATCH is used. The accepted `7000 × 4914.42` geometry and accepted top-left are preserved. A Human visual-equivalence spot check remains pending on the recovered physical board; this does not reopen the accepted methodological decision.
 
 ## Frame 01 source-copy contract
 
-The platform scaffold already declares `uXjVH2vcvRI=` as the read-only Frame-01 review redline. Source content, layout, style and connector semantics are copied as-is. The transport intentionally preserves any semantic inconsistency present in the redline; for example, cross-frame G1 readiness is a new HVR-2 question rather than something the copy operation may silently correct.
+The platform scaffold declares `uXjVH2vcvRI=` as the read-only Frame-01 review redline. The main Frame 01 journey and the eight DDD Starter phase companions remain source-driven.
 
-The source-driven reconcile preserves target IDs where semantic identity permits, creates missing source items, removes target Frame-01 children/connectors absent from the redline, remaps connectors, and requires a zero-mutation second run.
+The source-driven reconcile:
+
+- preserves target IDs where semantic identity permits;
+- creates missing source items;
+- removes target Frame-01 children/connectors absent from the redline;
+- remaps connectors;
+- preserves companion-frame geometry by translating it with the Frame-01 center delta;
+- requires a zero-mutation second run.
+
+Semantic inconsistencies discovered during HVR are not silently corrected unless the Human Review explicitly authorizes that correction.
 
 ## Acceptance contract
 
 Technical PASS requires:
 
-- exact-SHA repository CI and candidate package provenance;
+- exact-SHA repository CI and candidate-package provenance;
 - targeted source/recovery regression tests;
-- successful discovery or transactional replacement of Frame 00, read-back of its eight accepted children, accepted `7000 × 4914.42` geometry and accepted top-left;
-- removal of the legacy Frame-00 container only after a verified replacement exists;
+- verified Frame 00 recovery and eight accepted children;
 - successful source-to-target Frame 01 reconcile;
-- zero-mutation second Frame-00 and Frame-01 runs;
+- successful companion-frame reconcile;
+- zero-mutation second Frame-00 and Frame-01/companion runs;
 - unchanged digest for all 16 protected frames;
 - machine-readable evidence.
 
@@ -70,28 +62,48 @@ frame00_hvr_original_decision: ACCEPTED
 frame00_visual_equivalence_spot_check: PENDING
 ```
 
-HVR-2 must then assess Frame 01 first-viewer clarity, fidelity to the selected redline, gate semantics, iteration semantics, terminology, readability and cross-frame consistency. Technical PASS does not imply HVR acceptance.
+Technical PASS does not imply HVR acceptance.
 
 ## HVR-2 finding — Miro Tips
 
 HVR-2 verdict: `CHANGES_REQUIRED` on 2026-08-10.
 
-The reviewer rejected the `Miro Tips` companion as unreadable, semantically weak and incomplete. Connector-side inspection confirms that the target reproduced the selected redline closely, including its screenshot-dependent composition: a roughly `1919 × 1080` frame, small ~118 px tip stickies and connectors pointing into an underlying Miro UI screenshot. The defect is therefore not a missing-copy transport error; the copied visual itself is unsuitable for first-viewer onboarding.
+### Rejected corrective interpretation
 
-This finding activates the semantic-correction boundary stated above. The main Frame 01 journey and the eight DDD Starter phase companions remain source-driven. `Miro Tips` becomes one explicit DDDA-owned HVR correction rather than being recopied verbatim from the redline.
+An earlier corrective interpretation replaced the reference visual tutorial with a DDDA-authored `4600 × 2600` card-only guide and explicitly removed the Miro UI screenshot. That implementation was technically testable but failed Human Review.
 
-The corrected DDDA-owned Miro Tips contract must:
+The reviewer clarified that, for a first-time Miro user, the screenshot/template and callout arrows are not incidental decoration. They are the essential explanatory mechanism: each tip must be visually tied to the actual Miro control it describes. The card-only substitute is therefore rejected.
 
-- be readable at practical `Fit to frame` scale and use at least 48 px authored text;
-- avoid dependency on a screenshot or tiny Miro UI chrome;
-- explain board navigation, edit/navigation mode, sticky creation, multi-selection, duplication and undo;
-- explain collaboration/facilitator following and how to mark ambiguity with the workshop legend;
-- distinguish participant-editable workshop areas from DDDA-managed `00 Control Center`, `01 Journey` and Git/YAML projections;
-- state that gate and architectural decisions remain explicit human actions;
+This latest Human Review supersedes the earlier requirement to avoid screenshot dependency.
+
+### Authoritative reference UI tutorial contract
+
+`Miro Tips` must now preserve the reference-board tutorial concept and relative layout:
+
+- use the reference companion frame geometry and relative placement, approximately `1919.43 × 1079.68`, translated with Frame 01 rather than expanded to `4600 × 2600`;
+- contain at least one full Miro UI screenshot/template image;
+- retain the reference tutorial stickies/text, including navigation/edit mode, sticky creation, connection lines, Tab, Alt+drag, Shift+drag, right-click drag, undo, frames overview, other-user cursors, facilitator following, map and 100% zoom;
+- retain the green `add your own tips here` sticky;
+- contain at least eight black callout connectors whose endpoint is anchored to the Miro UI image, preserving the source endpoint position/snap semantics so the arrows point at the actual controls;
+- not replace the visual tutorial with generic colored text cards;
+- if the previous oversized card-only companion is present, remove its children/connectors first, restore the empty frame to reference geometry/placement, then reconcile the source image/items/connectors. This ordering avoids an invalid parent shrink with out-of-bounds children;
 - reconcile idempotently and prove a zero-mutation second run;
 - keep `human_review_status=PENDING` after technical PASS.
 
-HVR-3 remains blocked until this corrected companion set passes exact-SHA technical validation and HVR-2 is explicitly accepted by the human reviewer.
+The main Frame 01 journey, methodology block and eight DDD Starter phase companions remain unchanged by this correction.
+
+## HVR-2 review boundary
+
+After exact-SHA technical PASS, Human Review must inspect the actual target Frame 01 and specifically verify:
+
+- Miro Tips is at the same relative position and scale as the reference;
+- the full Miro UI template is visible;
+- yellow/green tips are legible at practical review zoom;
+- black arrows visibly point to the intended UI controls;
+- the tutorial is understandable to a first-time Miro user;
+- the rest of Frame 01 remains visually and semantically consistent.
+
+HVR-3 remains blocked until HVR-2 is explicitly accepted by the human reviewer.
 
 ## Governance
 

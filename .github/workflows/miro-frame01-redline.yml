@@ -24,24 +24,7 @@ jobs:
     timeout-minutes: 120
     env:
       SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
-      HVR2_SEMANTIC_PARENT_SHA: ad5b061028a6e40815bdcc7a174e1678b38ef919
-      HVR2_READBACK_PARENT_SHA: 260559e1491bfc7aadc077e3ded88c31e19d46c7
-      HVR2_MIRO_TIPS_PARENT_SHA: 07f4514676b3c17d351155ce084f2098927a0b91
-      CONNECTOR_READBACK_PARENT_SHA: a35ef64c5f3e610a8cb1adb41e4153a4fce1782f
-      FRAME00_REPLACEMENT_PARENT_SHA: c842a6e00bc757ddd41b0e1010843cfccc30aa63
-      POPULATED_RESIZE_PARENT_SHA: b8d4b89461e4a97fe3cb8f17b7c4c725d37c80fa
-      ATOMIC_RESIZE_PARENT_SHA: 3bf5925d934766cb71ae95540189667df428def3
-      TEST_CORRECTIVE_PARENT_SHA: ca4640ae2301676afc01ba470952eb8c62dc431c
-      RECOVERY_PARENT_SHA: 60fce2b5527ed96902b3db126597dc713d8217a5
-      NOOP3_SHA: e87087865c5de76f0ee973b65b63ce32f6579dd4
-      NOOP2_SHA: 4188bfaf1b7849d61db807c057d1e23f236c6ca9
-      NOOP1_SHA: e123f188ed5f56174ea0bb9bf59b4515c1aeb40c
-      FRAME00_RECOVERY_SHA: ce08270e97f95d08dc3d48cf5cfa96a00d8eae61
-      DUMMY_SHA: 7945bed7666ca040cad2a154561088e0685ee1c1
-      VISUAL_SHA: ce1cf2a9a8b8ea9bfe8e7dcdd2b05d8302170d8f
-      PREVIOUS_SHA: 5edbd87b999a81ee234ad617999d31c518144231
-      CORRECTIVE_SHA: d1a75aa49f60e72d6377274d8e52ee7fb19d704b
-      IMPLEMENTATION_SHA: aca563951d6480dfc24fddafd11a3f1fdb6c2938
+      PREVIOUS_SHA: 3bd812549b579ec03dbaf38f70e1d3fb07caeae8
       BASE_SHA: ed14f57363c359e60633f9f1da9ad69dee8b5bda
       GH_TOKEN: ${{ github.token }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -55,10 +38,11 @@ jobs:
       - name: Initialize evidence
         shell: pwsh
         run: |
-          $root=Join-Path $env:RUNNER_TEMP 'rem-012-5-frame01-replacement'; New-Item -ItemType Directory -Path $root -Force | Out-Null
+          $root=Join-Path $env:RUNNER_TEMP 'rem-012-5-frame01-replacement'
+          New-Item -ItemType Directory -Path $root -Force | Out-Null
           "EVIDENCE_ROOT=$root" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
 
-      - name: Verify exact lineage and path allowlist
+      - name: Verify exact corrective lineage and path allowlist
         shell: pwsh
         run: |
           @'
@@ -68,173 +52,51 @@ jobs:
           def g(*args):
               return subprocess.check_output(['git', *args], text=True).strip()
 
-          def paths(commit):
-              return sorted(
-                  line
-                  for line in g('diff-tree', '--no-commit-id', '--name-only', '-r', commit).splitlines()
-                  if line
-              )
+          source=os.environ['SOURCE_SHA']
+          previous=os.environ['PREVIOUS_SHA']
+          base=os.environ['BASE_SHA']
 
-          source = os.environ['SOURCE_SHA']
-          hvr2_semantic_parent = os.environ['HVR2_SEMANTIC_PARENT_SHA']
-          hvr2_readback_parent = os.environ['HVR2_READBACK_PARENT_SHA']
-          hvr2_miro_tips_parent = os.environ['HVR2_MIRO_TIPS_PARENT_SHA']
-          connector_readback_parent = os.environ['CONNECTOR_READBACK_PARENT_SHA']
-          frame00_replacement_parent = os.environ['FRAME00_REPLACEMENT_PARENT_SHA']
-          populated_resize_parent = os.environ['POPULATED_RESIZE_PARENT_SHA']
-          atomic_resize_parent = os.environ['ATOMIC_RESIZE_PARENT_SHA']
-          test_corrective_parent = os.environ['TEST_CORRECTIVE_PARENT_SHA']
-          recovery_parent = os.environ['RECOVERY_PARENT_SHA']
-          noop3 = os.environ['NOOP3_SHA']
-          noop2 = os.environ['NOOP2_SHA']
-          noop1 = os.environ['NOOP1_SHA']
-          frame00_recovery = os.environ['FRAME00_RECOVERY_SHA']
-          dummy = os.environ['DUMMY_SHA']
-          visual = os.environ['VISUAL_SHA']
-          previous = os.environ['PREVIOUS_SHA']
-          corrective = os.environ['CORRECTIVE_SHA']
-          implementation = os.environ['IMPLEMENTATION_SHA']
-          base = os.environ['BASE_SHA']
+          assert g('rev-parse', source + '^') == previous, 'corrective parent SHA mismatch'
+          assert g('show', '-s', '--format=%s', source) == 'fix(miro): restore HVR-2 visual Miro tutorial'
+          subprocess.check_call(['git','merge-base','--is-ancestor',base,source])
 
-          chain = [
-              (source, hvr2_semantic_parent, 'fix(miro): validate HVR-2 authored semantics'),
-              (hvr2_semantic_parent, hvr2_readback_parent, 'fix(miro): tolerate Miro item read-after-write'),
-              (hvr2_readback_parent, hvr2_miro_tips_parent, 'fix(miro): remediate HVR-2 Miro Tips'),
-              (hvr2_miro_tips_parent, connector_readback_parent, 'fix(miro): canonicalize connector read-back'),
-              (connector_readback_parent, frame00_replacement_parent, 'fix(miro): replace irreducible Frame 00 container'),
-              (frame00_replacement_parent, populated_resize_parent, 'fix(miro): resize Frame 00 after accepted children'),
-              (populated_resize_parent, atomic_resize_parent, 'fix(miro): atomically resize empty Frame 00'),
-              (atomic_resize_parent, test_corrective_parent, 'fix(test): correct REM-012.5 companion target typo'),
-              (test_corrective_parent, recovery_parent, 'fix(miro): shrink empty Frame 00 before recreate'),
-              (recovery_parent, noop3, 'x'),
-              (noop3, noop2, 'noop3'),
-              (noop2, noop1, 'noop2'),
-              (noop1, frame00_recovery, 'noop'),
-              (frame00_recovery, dummy, 'fix(miro): recover Frame 00 resize ordering'),
-              (dummy, visual, 'dummy'),
-              (visual, previous, 'fix(miro): restore Frame 01 visual companions'),
-              (previous, corrective, 'fix(ci): validate REM-012.5 corrective lineage'),
-              (corrective, implementation, 'fix(ci): correct REM-012.5 evidence path expression'),
-              (implementation, base, 'fix(miro): replace Frame 01 container from redline'),
-          ]
-          for current, parent, subject in chain:
-              assert g('rev-parse', current + '^') == parent, f'lineage mismatch at {current}'
-              assert g('show', '-s', '--format=%s', current) == subject, f'subject mismatch at {current}'
-
-          assert paths(source) == sorted([
+          observed=sorted(
+              line for line in g('diff-tree','--no-commit-id','--name-only','-r',source).splitlines()
+              if line
+          )
+          expected=sorted([
               '.github/workflows/miro-frame01-redline.yml',
-              'runtime/miro/ddda_miro/connector_readback_wirefix.py',
+              'docs/reviews/REM-PR8-HVA-CC-012-5-frame-01-redline.md',
+              'runtime/miro/ddda_miro/miro_tips_hvr_fix.py',
               'runtime/miro/ddda_miro/miro_tips_hvr_semantic_fix.py',
+              'runtime/miro/tests/test_rem_012_5_miro_tips_hvr.py',
               'runtime/miro/tests/test_rem_012_5_miro_tips_semantic.py',
-          ])
-          assert paths(hvr2_semantic_parent) == sorted([
-              '.github/workflows/miro-frame01-redline.yml',
-              'runtime/miro/ddda_miro/miro_tips_hvr_fix.py',
-              'runtime/miro/tests/test_rem_012_5_miro_tips_hvr.py',
-          ])
-          assert paths(hvr2_readback_parent) == sorted([
-              '.github/workflows/miro-frame01-redline.yml',
-              'docs/reviews/REM-PR8-HVA-CC-012-5-frame-01-redline.md',
-              'runtime/miro/ddda_miro/connector_readback_wirefix.py',
-              'runtime/miro/ddda_miro/miro_tips_hvr_fix.py',
-              'runtime/miro/tests/test_rem_012_5_miro_tips_hvr.py',
               'scaffolds/miro/rem-012-5-frame-01.yaml',
           ])
-          assert paths(hvr2_miro_tips_parent) == sorted([
-              '.github/workflows/miro-frame01-redline.yml',
-              'runtime/miro/ddda_miro/connector_readback_wirefix.py',
-              'runtime/miro/tests/test_rem_012_5_connector_readback.py',
-          ])
-          assert paths(connector_readback_parent) == sorted([
-              '.github/workflows/miro-frame01-redline.yml',
-              'docs/reviews/REM-PR8-HVA-CC-012-5-frame-01-redline.md',
-              'runtime/miro/ddda_miro/frame00_resize_ordering_wirefix.py',
-              'runtime/miro/tests/test_rem_012_5_frame00_position_payload.py',
-              'scaffolds/miro/rem-012-5-frame-01.yaml',
-          ])
-          assert paths(frame00_replacement_parent) == sorted([
-              '.github/workflows/miro-frame01-redline.yml',
-              'runtime/miro/ddda_miro/frame00_resize_ordering_wirefix.py',
-              'runtime/miro/tests/test_rem_012_5_frame00_position_payload.py',
-          ])
-          assert paths(populated_resize_parent) == sorted([
-              '.github/workflows/miro-frame01-redline.yml',
-              'runtime/miro/ddda_miro/frame00_resize_ordering_wirefix.py',
-              'runtime/miro/tests/test_rem_012_5_frame00_position_payload.py',
-          ])
-          assert paths(atomic_resize_parent) == sorted([
-              '.github/workflows/miro-frame01-redline.yml',
-              'runtime/miro/tests/test_rem_012_5_frame00_position_payload.py',
-          ])
-          assert paths(test_corrective_parent) == sorted([
-              '.github/workflows/miro-frame01-redline.yml',
-              '__placeholder_should_not_write__',
-              '__should_never_happen__',
-              '__should_not_use__',
-              '__x',
-              'runtime/miro/ddda_miro/frame00_resize_ordering_wirefix.py',
-              'runtime/miro/tests/test_rem_012_5_frame00_position_payload.py',
-          ])
-          assert paths(recovery_parent) == ['__x']
-          assert paths(noop3) == ['__should_never_happen__']
-          assert paths(noop2) == ['__placeholder_should_not_write__']
-          assert paths(noop1) == ['__should_not_use__']
-          assert paths(frame00_recovery) == sorted([
-              '.github/workflows/miro-frame01-redline.yml',
-              'dummy',
-              'runtime/miro/ddda_miro/frame00_resize_ordering_wirefix.py',
-              'runtime/miro/tests/test_rem_012_5_frame00_position_payload.py',
-          ])
-          assert paths(dummy) == ['dummy']
-          assert paths(visual) == sorted([
-              '.github/workflows/miro-frame01-redline.yml',
-              'runtime/miro/ddda_miro/review_board_recovery_wirefix.py',
-              'runtime/miro/tests/test_rem_012_5_frame00_position_payload.py',
-              'scaffolds/miro/rem-012-5-frame-01.yaml',
-          ])
-          assert paths(previous) == ['.github/workflows/miro-frame01-redline.yml']
-          assert paths(corrective) == ['.github/workflows/miro-frame01-redline.yml']
-          assert paths(implementation) == sorted([
-              '.github/workflows/miro-frame01-redline.yml',
-              'runtime/miro/ddda_miro/review_board_recovery_wirefix.py',
-              'runtime/miro/tests/test_rem_012_5_frame00_position_payload.py',
-              'scaffolds/miro/rem-012-5-frame-01.yaml',
-          ])
+          assert observed == expected, f'corrective path mismatch: {observed}'
 
-          for forbidden in (
-              'dummy',
-              '__should_not_use__',
-              '__placeholder_should_not_write__',
-              '__should_never_happen__',
-              '__x',
-          ):
-              assert not Path(forbidden).exists(), f'forbidden recovery helper remains: {forbidden}'
-
-          manifest = Path('scaffolds/miro/rem-012-5-frame-01.yaml').read_text(encoding='utf-8')
+          manifest=Path('scaffolds/miro/rem-012-5-frame-01.yaml').read_text(encoding='utf-8')
           for marker in (
-              f'authorized_base_sha: {base}',
-              'source_companion_frames:',
+              'miro_tips:',
+              'min_images: 1',
+              'min_connectors: 8',
+              'mode: reference_ui_tutorial',
+              'right-click-drag to drag the board around',
               'methodology_min_font_size: 80',
               'connector_caption_min_font_size: 48',
-              'miro_tips:',
-              'min_font_size: 48',
-              'mode: ddda_owned_hvr_correction',
-              'frame00_container_policy: transactional_replace_irreducible_container_preserve_accepted_top_left_pending_human_equivalence_check',
-              'policy: discover_verified_or_replace_legacy_container',
               "legacy_frame_id: '3458764680243144441'",
           ):
-              assert marker in manifest
+              assert marker in manifest, f'manifest marker missing: {marker}'
 
-          review = Path('docs/reviews/REM-PR8-HVA-CC-012-5-frame-01-redline.md').read_text(encoding='utf-8')
+          review=Path('docs/reviews/REM-PR8-HVA-CC-012-5-frame-01-redline.md').read_text(encoding='utf-8')
           for marker in (
-              'Legacy Frame 00 container',
-              'migration anchor',
-              'two-copy swap',
-              'no Frame-00 geometry or position PATCH is used',
               'HVR-2 verdict: `CHANGES_REQUIRED`',
-              'DDDA-owned Miro Tips contract',
+              'Rejected corrective interpretation',
+              'Authoritative reference UI tutorial contract',
+              'at least eight black callout connectors',
+              'HVR-3 remains blocked',
           ):
-              assert marker in review
+              assert marker in review, f'review marker missing: {marker}'
           '@ | python -
 
       - name: Wait for authoritative exact-SHA evidence and candidate
@@ -243,26 +105,38 @@ jobs:
         run: |
           @'
           import json,os,time,urllib.request
-          repo,sha,t=os.environ['GITHUB_REPOSITORY'],os.environ['SOURCE_SHA'],os.environ['GH_TOKEN']; h={'Authorization':f'Bearer {t}','Accept':'application/vnd.github+json'}
-          def get(u): return json.load(urllib.request.urlopen(urllib.request.Request(u,headers=h)))
+          repo,sha,t=os.environ['GITHUB_REPOSITORY'],os.environ['SOURCE_SHA'],os.environ['GH_TOKEN']
+          h={'Authorization':f'Bearer {t}','Accept':'application/vnd.github+json'}
+          def get(u):
+              return json.load(urllib.request.urlopen(urllib.request.Request(u,headers=h)))
           def latest(xs,n):
-              z=[x for x in xs if x['name']==n]; return max(z,key=lambda x:x['run_number']) if z else None
+              rows=[x for x in xs if x['name']==n]
+              return max(rows,key=lambda x:x['run_number']) if rows else None
+
           for _ in range(240):
               runs=get(f'https://api.github.com/repos/{repo}/actions/runs?head_sha={sha}&event=pull_request&per_page=100')['workflow_runs']
-              v,q,p=latest(runs,'Validate DDDA'),latest(runs,'DDDA exact-code Miro image probe'),latest(runs,'DDDA platform CI')
-              for x,n in ((v,'Validate DDDA'),(q,'Miro image probe')):
-                  if x and x['status']=='completed' and x.get('conclusion')!='success': raise SystemExit(f'{n} failed')
-              if p:
-                  jobs=get(f'https://api.github.com/repos/{repo}/actions/runs/{p["id"]}/jobs?per_page=100')['jobs']; names=('Platform validation','One-command PR validation')
-                  js=[next((j for j in jobs if j['name']==n),None) for n in names]
-                  if any(j and j['status']=='completed' and j.get('conclusion')!='success' for j in js): raise SystemExit('platform validation failed')
-                  arts=get(f'https://api.github.com/repos/{repo}/actions/runs/{p["id"]}/artifacts?per_page=100')['artifacts']
-                  ready=all(x and x['status']=='completed' and x.get('conclusion')=='success' for x in (v,q,*js)) and any(a['name']==f'ddda-candidate-{sha}' and not a['expired'] for a in arts)
-                  if ready:
-                      with open(os.environ['GITHUB_OUTPUT'],'a') as o:o.write(f'platform_run_id={p["id"]}\n')
+              validate=latest(runs,'Validate DDDA')
+              probe=latest(runs,'DDDA exact-code Miro image probe')
+              platform=latest(runs,'DDDA platform CI')
+              for run,name in ((validate,'Validate DDDA'),(probe,'Miro image probe')):
+                  if run and run['status']=='completed' and run.get('conclusion')!='success':
+                      raise SystemExit(f'{name} failed')
+              if platform:
+                  jobs=get(f'https://api.github.com/repos/{repo}/actions/runs/{platform["id"]}/jobs?per_page=100')['jobs']
+                  required_names=('Platform validation','One-command PR validation')
+                  required=[next((j for j in jobs if j['name']==n),None) for n in required_names]
+                  if any(j and j['status']=='completed' and j.get('conclusion')!='success' for j in required):
+                      raise SystemExit('platform validation failed')
+                  artifacts=get(f'https://api.github.com/repos/{repo}/actions/runs/{platform["id"]}/artifacts?per_page=100')['artifacts']
+                  candidate=any(a['name']==f'ddda-candidate-{sha}' and not a['expired'] for a in artifacts)
+                  ready=all(x and x['status']=='completed' and x.get('conclusion')=='success' for x in (validate,probe,*required))
+                  if ready and candidate:
+                      with open(os.environ['GITHUB_OUTPUT'],'a') as out:
+                          out.write(f'platform_run_id={platform["id"]}\n')
                       break
               time.sleep(15)
-          else: raise SystemExit('exact-SHA evidence/candidate timeout')
+          else:
+              raise SystemExit('exact-SHA evidence/candidate timeout')
           '@ | python -
 
       - name: Run targeted REM-012.5 tests
@@ -291,13 +165,21 @@ jobs:
         shell: pwsh
         env: {MIRO_ACCESS_TOKEN: '${{ secrets.MIRO_ACCESS_TOKEN }}'}
         run: |
-          $ErrorActionPreference='Stop'; $candidate=@(Get-ChildItem (Join-Path $env:RUNNER_TEMP 'candidate') -Filter '*.zip' -File -Recurse); if($candidate.Count -ne 1){throw 'candidate count mismatch'}
+          $ErrorActionPreference='Stop'
+          $candidate=@(Get-ChildItem (Join-Path $env:RUNNER_TEMP 'candidate') -Filter '*.zip' -File -Recurse)
+          if($candidate.Count -ne 1){throw 'candidate count mismatch'}
           .\scripts\platform\Test-DDDAPlatformPackage.ps1 -PackagePath $candidate[0].FullName -ExpectedCommit $env:SOURCE_SHA -ExpectedKind candidate
-          $root=Join-Path $env:RUNNER_TEMP 'rem-012-5-frame01-package'; if(Test-Path $root){Remove-Item $root -Recurse -Force}; Expand-Archive $candidate[0].FullName $root -Force
-          $runtime=Join-Path $root 'runtime\miro'; python -m pip install --disable-pip-version-check --no-input $runtime; $env:PYTHONPATH=$runtime
-          $manifest=Join-Path $root 'scaffolds\miro\rem-012-5-frame-01.yaml'; $report=Join-Path $env:EVIDENCE_ROOT 'result.json'
+          $root=Join-Path $env:RUNNER_TEMP 'rem-012-5-frame01-package'
+          if(Test-Path $root){Remove-Item $root -Recurse -Force}
+          Expand-Archive $candidate[0].FullName $root -Force
+          $runtime=Join-Path $root 'runtime\miro'
+          python -m pip install --disable-pip-version-check --no-input $runtime
+          $env:PYTHONPATH=$runtime
+          $manifest=Join-Path $root 'scaffolds\miro\rem-012-5-frame-01.yaml'
+          $report=Join-Path $env:EVIDENCE_ROOT 'result.json'
           python -m ddda_miro.connector_readback_wirefix --manifest $manifest --report $report --source-sha $env:SOURCE_SHA --apply
           if($LASTEXITCODE -ne 0){Get-Content $report -ErrorAction SilentlyContinue; throw 'REM-012.5 replacement failed'}
+
           $r=Get-Content $report -Raw | ConvertFrom-Json
           if($r.technical_status -ne 'PASS' -or $r.human_review_status -ne 'PENDING' -or $r.overall_status -ne 'READY_FOR_HUMAN_REVIEW'){throw 'acceptance state mismatch'}
           if(-not $r.protected_frames.unchanged -or $r.protected_frames.count -ne 16){throw 'protected frames changed'}
@@ -313,12 +195,22 @@ jobs:
           if($r.frame01_recovery.second_run.connectors.created -ne 0 -or $r.frame01_recovery.second_run.connectors.updated -ne 0 -or $r.frame01_recovery.second_run.connectors.deleted -ne 0){throw 'Frame01 second reconcile mutated connectors'}
           if($r.companion_frames.second_run.frames.created -ne 0 -or $r.companion_frames.second_run.frames.updated -ne 0 -or $r.companion_frames.second_run.frames.unchanged -ne 9){throw 'companion second reconcile mismatch'}
           if([int]$r.readability_contract.methodology_min_font_size -lt 80 -or [int]$r.readability_contract.connector_caption_min_font_size -lt 48){throw 'readability contract mismatch'}
-          $tips=@($r.companion_frames.first_run.details | Where-Object {$_.title -eq 'Miro Tips'})
-          if($tips.Count -ne 1){throw 'Miro Tips evidence missing'}
-          if($tips[0].mode -ne 'ddda_owned_hvr_correction'){throw 'Miro Tips correction mode mismatch'}
-          if([int]$tips[0].target_image_count -ne 0){throw 'Miro Tips still depends on image content'}
-          if([int]$tips[0].min_font_size -lt 48 -or [int]$tips[0].required_sections_count -lt 5 -or [int]$tips[0].managed_item_count -ne 6){throw 'Miro Tips readability/content contract mismatch'}
-          if([int]$tips[0].readback_attempts -lt 20){throw 'Miro Tips read-back tolerance mismatch'}
+
+          $tips1=@($r.companion_frames.first_run.details | Where-Object {$_.title -eq 'Miro Tips'})
+          $tips2=@($r.companion_frames.second_run.details | Where-Object {$_.title -eq 'Miro Tips'})
+          if($tips1.Count -ne 1 -or $tips2.Count -ne 1){throw 'Miro Tips evidence missing'}
+          foreach($tips in @($tips1[0],$tips2[0])){
+            if($tips.mode -ne 'reference_ui_tutorial'){throw 'Miro Tips correction mode mismatch'}
+            if([int]$tips.source_image_count -lt 1 -or [int]$tips.target_image_count -lt 1){throw 'Miro Tips UI screenshot missing'}
+            if([int]$tips.source_connector_count -lt 8 -or [int]$tips.target_connector_count -lt 8){throw 'Miro Tips callout connector count mismatch'}
+            if([int]$tips.source_image_anchor_connector_count -lt 8 -or [int]$tips.target_image_anchor_connector_count -lt 8){throw 'Miro Tips callouts are not anchored to UI image'}
+            if([int]$tips.required_marker_count -lt 14){throw 'Miro Tips tutorial content incomplete'}
+            if([math]::Abs([double]$tips.target_geometry.width-1919.43)-gt .5 -or [math]::Abs([double]$tips.target_geometry.height-1079.68)-gt .5){throw 'Miro Tips reference geometry mismatch'}
+            if([math]::Abs([double]$tips.target_position.x-(-19834.447))-gt 1 -or [math]::Abs([double]$tips.target_position.y-(-12327.533))-gt 1){throw 'Miro Tips relative placement mismatch'}
+          }
+          if([int]$tips2[0].frame_reinitialized -ne 0){throw 'Miro Tips second run changed frame geometry'}
+          if($tips2[0].items.created -ne 0 -or $tips2[0].items.updated -ne 0 -or $tips2[0].items.deleted -ne 0){throw 'Miro Tips second run mutated items'}
+          if($tips2[0].connectors.created -ne 0 -or $tips2[0].connectors.updated -ne 0 -or $tips2[0].connectors.deleted -ne 0){throw 'Miro Tips second run mutated connectors'}
 
       - name: Upload evidence
         if: always()

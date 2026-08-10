@@ -32,20 +32,30 @@ readability:
   methodology_y: 850
   connector_caption_min_font_size: 48
 miro_tips:
-  width: 4600
-  height: 2600
-  min_font_size: 48
-  required_sections:
-    - MIRO QUICK START
-    - 1 · NAVIGACE
-    - 2 · POZNÁMKY A VÝBĚR
-    - 3 · SPOLUPRÁCE
-    - 4 · DDDA PRAVIDLA
+  min_images: 1
+  min_connectors: 8
+  readback_attempts: 20
+  readback_delay_seconds: 0.5
+  required_markers:
+    - toggle between navigation mode & edit mode
+    - stickies / post-its
+    - arrows / connection lines
+    - press tab after typing a sticky
+    - alt-drag copies whatever you selected
+    - shift-drag to select multiple items at once
+    - right-click-drag to drag the board around
+    - moved something by accident
+    - an overview of all frames
+    - enable or disable seeing the mouse pointers of others
+    - click on the avator of the facilitator
+    - consult a map of the board
+    - zoom to a 100%
+    - add your own tips here
 source_companion_frames:
   - id: '3458764679531043366'
     title: Miro Tips
-    min_images: 0
-    mode: ddda_owned_hvr_correction
+    min_images: 1
+    mode: reference_ui_tutorial
   - id: '3458764679531716415'
     title: Align
     min_images: 2

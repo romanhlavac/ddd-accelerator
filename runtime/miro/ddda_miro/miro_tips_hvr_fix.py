@@ -1,66 +1,69 @@
 from __future__ import annotations
 
 import time
-from copy import deepcopy
 from typing import Any
 
 from . import review_board_recovery as base
 from . import review_board_recovery_wirefix as visual
-from .client import normalize_miro_font_size
 
 
 MIRO_TIPS_TITLE = "Miro Tips"
-MIRO_TIPS_MODE = "ddda_owned_hvr_correction"
-DEFAULT_WIDTH = 4600.0
-DEFAULT_HEIGHT = 2600.0
-DEFAULT_MIN_FONT_SIZE = 48
+MIRO_TIPS_MODE = "reference_ui_tutorial"
 DEFAULT_READBACK_ATTEMPTS = 20
 DEFAULT_READBACK_DELAY_SECONDS = 0.5
-DEFAULT_REQUIRED_SECTIONS = (
-    "MIRO QUICK START",
-    "1 · NAVIGACE",
-    "2 · POZNÁMKY A VÝBĚR",
-    "3 · SPOLUPRÁCE",
-    "4 · DDDA PRAVIDLA",
+DEFAULT_MIN_IMAGES = 1
+DEFAULT_MIN_CONNECTORS = 8
+DEFAULT_REQUIRED_MARKERS = (
+    "toggle between navigation mode & edit mode",
+    "stickies / post-its",
+    "arrows / connection lines",
+    "press tab after typing a sticky",
+    "alt-drag copies whatever you selected",
+    "shift-drag to select multiple items at once",
+    "right-click-drag to drag the board around",
+    "moved something by accident",
+    "an overview of all frames",
+    "enable or disable seeing the mouse pointers of others",
+    "click on the avator of the facilitator",
+    "consult a map of the board",
+    "zoom to a 100%",
+    "add your own tips here",
 )
 
 _ORIGINAL_COMPANION_FRAME_PAYLOAD = visual.companion_frame_payload
+_ORIGINAL_SAME_FRAME = visual._same_frame
 _ORIGINAL_RECONCILE_COMPANION_CHILDREN = visual._reconcile_companion_children
 _INSTALLED = False
 
 
 def _config(manifest: dict[str, Any]) -> dict[str, Any]:
     raw = dict(manifest.get("miro_tips") or {})
-    width = float(raw.get("width") or DEFAULT_WIDTH)
-    height = float(raw.get("height") or DEFAULT_HEIGHT)
-    min_font_size = int(raw.get("min_font_size") or DEFAULT_MIN_FONT_SIZE)
-    readback_attempts = int(raw.get("readback_attempts") or DEFAULT_READBACK_ATTEMPTS)
-    readback_delay_seconds = float(
+    attempts = int(raw.get("readback_attempts") or DEFAULT_READBACK_ATTEMPTS)
+    delay = float(
         raw.get("readback_delay_seconds")
         if raw.get("readback_delay_seconds") is not None
         else DEFAULT_READBACK_DELAY_SECONDS
     )
-    required = tuple(str(value) for value in (raw.get("required_sections") or DEFAULT_REQUIRED_SECTIONS))
-    if width < 4200 or height < 2300:
-        raise ValueError("Miro Tips frame is below the HVR-2 readable geometry contract")
-    if min_font_size < DEFAULT_MIN_FONT_SIZE:
-        raise ValueError("Miro Tips minimum font size is below the HVR-2 readability contract")
-    if readback_attempts < 2 or readback_attempts > 60:
+    min_images = int(raw.get("min_images") or DEFAULT_MIN_IMAGES)
+    min_connectors = int(raw.get("min_connectors") or DEFAULT_MIN_CONNECTORS)
+    required = tuple(str(value).casefold() for value in (raw.get("required_markers") or DEFAULT_REQUIRED_MARKERS))
+    if not 2 <= attempts <= 60:
         raise ValueError("Miro Tips read-back attempts must be between 2 and 60")
-    if readback_delay_seconds < 0 or readback_delay_seconds > 2:
+    if not 0 <= delay <= 2:
         raise ValueError("Miro Tips read-back delay must be between 0 and 2 seconds")
-    if len(required) < len(DEFAULT_REQUIRED_SECTIONS):
-        raise ValueError("Miro Tips required-section contract is incomplete")
-    for marker in DEFAULT_REQUIRED_SECTIONS:
-        if marker not in required:
-            raise ValueError(f"Miro Tips required-section contract is missing: {marker}")
+    if min_images < DEFAULT_MIN_IMAGES:
+        raise ValueError("Miro Tips visual tutorial requires at least one Miro UI image")
+    if min_connectors < DEFAULT_MIN_CONNECTORS:
+        raise ValueError("Miro Tips visual tutorial requires at least eight callout connectors")
+    for marker in DEFAULT_REQUIRED_MARKERS:
+        if marker.casefold() not in required:
+            raise ValueError(f"Miro Tips required-marker contract is missing: {marker}")
     return {
-        "width": width,
-        "height": height,
-        "min_font_size": min_font_size,
-        "readback_attempts": readback_attempts,
-        "readback_delay_seconds": readback_delay_seconds,
-        "required_sections": required,
+        "readback_attempts": attempts,
+        "readback_delay_seconds": delay,
+        "min_images": min_images,
+        "min_connectors": min_connectors,
+        "required_markers": required,
     }
 
 
@@ -73,181 +76,15 @@ def _source_spec(manifest: dict[str, Any]) -> dict[str, Any]:
     if len(hits) != 1:
         raise ValueError(f"expected exactly one {MIRO_TIPS_TITLE!r} companion spec, got {len(hits)}")
     if str(hits[0].get("mode") or "") != MIRO_TIPS_MODE:
-        raise ValueError("Miro Tips companion must opt in to the DDDA-owned HVR correction mode")
+        raise ValueError("Miro Tips companion must opt in to the reference UI tutorial mode")
     return hits[0]
 
 
-def _shape_payload(
-    frame_id: str,
-    *,
-    content: str,
-    x: float,
-    y: float,
-    width: float,
-    height: float,
-    font_size: int,
-    fill_color: str,
-    border_color: str = "#4b79a1",
-) -> dict[str, Any]:
-    return {
-        "data": {"content": content, "shape": "round_rectangle"},
-        "style": {
-            "fillColor": fill_color,
-            "fontFamily": "arial",
-            "fontSize": normalize_miro_font_size(font_size),
-            "textAlign": "left",
-            "textAlignVertical": "top",
-            "color": "#102a43",
-            "borderColor": border_color,
-            "borderWidth": 2,
-        },
-        "geometry": {"width": float(width), "height": float(height)},
-        "position": {"x": float(x), "y": float(y), "origin": "center"},
-        "parent": {"id": frame_id},
-    }
-
-
-def _text_payload(
-    frame_id: str,
-    *,
-    content: str,
-    x: float,
-    y: float,
-    width: float,
-    font_size: int,
-    color: str,
-) -> dict[str, Any]:
-    return {
-        "data": {"content": content},
-        "style": {
-            "fontFamily": "arial",
-            "fontSize": normalize_miro_font_size(font_size),
-            "textAlign": "left",
-            "color": color,
-        },
-        "geometry": {"width": float(width)},
-        "position": {"x": float(x), "y": float(y), "origin": "center"},
-        "parent": {"id": frame_id},
-    }
-
-
 def desired_miro_tips_items(frame_id: str, manifest: dict[str, Any]) -> list[dict[str, Any]]:
-    cfg = _config(manifest)
-    body_font = max(cfg["min_font_size"], 64)
-    return [
-        {
-            "role": "title",
-            "marker": "MIRO QUICK START",
-            "payload": _text_payload(
-                frame_id,
-                content="<p><strong>MIRO QUICK START — DDDA WORKSHOP</strong></p>",
-                x=2300,
-                y=150,
-                width=4200,
-                font_size=80,
-                color="#1f3b64",
-            ),
-        },
-        {
-            "role": "purpose",
-            "marker": "2 MINUTY PŘED WORKSHOPEM",
-            "payload": _text_payload(
-                frame_id,
-                content=(
-                    "<p><strong>2 MINUTY PŘED WORKSHOPEM:</strong> "
-                    "naviguj bezpečně, zapisuj rychle a neměň managed části boardu.</p>"
-                ),
-                x=2300,
-                y=350,
-                width=4200,
-                font_size=cfg["min_font_size"],
-                color="#365a8c",
-            ),
-        },
-        {
-            "role": "navigation",
-            "marker": "1 · NAVIGACE",
-            "payload": _shape_payload(
-                frame_id,
-                content=(
-                    "<p><strong>1 · NAVIGACE</strong></p>"
-                    "<p><strong>V</strong> = přepnout navigaci / editaci</p>"
-                    "<p><strong>Pravé tlačítko + drag</strong> = posun boardu</p>"
-                    "<p><strong>Kolečko / trackpad</strong> = zoom</p>"
-                    "<p><strong>Frames / mapa</strong> = rychlý skok mezi oblastmi</p>"
-                ),
-                x=1200,
-                y=950,
-                width=2100,
-                height=900,
-                font_size=body_font,
-                fill_color="#e0f2fe",
-            ),
-        },
-        {
-            "role": "editing",
-            "marker": "2 · POZNÁMKY A VÝBĚR",
-            "payload": _shape_payload(
-                frame_id,
-                content=(
-                    "<p><strong>2 · POZNÁMKY A VÝBĚR</strong></p>"
-                    "<p><strong>Dvojklik</strong> = nový sticky · <strong>Tab</strong> = další sticky</p>"
-                    "<p><strong>Shift + drag</strong> = vybrat více položek</p>"
-                    "<p><strong>Alt + drag</strong> = kopie vybraného prvku</p>"
-                    "<p><strong>Ctrl+Z</strong> = vrátit nechtěnou změnu</p>"
-                ),
-                x=3400,
-                y=950,
-                width=2100,
-                height=900,
-                font_size=body_font,
-                fill_color="#fef3c7",
-                border_color="#b45309",
-            ),
-        },
-        {
-            "role": "collaboration",
-            "marker": "3 · SPOLUPRÁCE",
-            "payload": _shape_payload(
-                frame_id,
-                content=(
-                    "<p><strong>3 · SPOLUPRÁCE</strong></p>"
-                    "<p><strong>Klikni na avatar facilitátora</strong> = Follow jeho pohledu</p>"
-                    "<p>Kurzory ostatních můžeš podle potřeby skrýt / zobrazit.</p>"
-                    "<p>Pracuj v právě otevřené workshopové oblasti.</p>"
-                    "<p>Nejasnost označ podle legendy jako <strong>HOTSPOT</strong> nebo <strong>OTÁZKA?</strong></p>"
-                ),
-                x=1200,
-                y=1950,
-                width=2100,
-                height=900,
-                font_size=body_font,
-                fill_color="#dcfce7",
-                border_color="#3f7d4a",
-            ),
-        },
-        {
-            "role": "ddda_rules",
-            "marker": "4 · DDDA PRAVIDLA",
-            "payload": _shape_payload(
-                frame_id,
-                content=(
-                    "<p><strong>4 · DDDA PRAVIDLA</strong></p>"
-                    "<p><strong>Neupravuj 00 Control Center ani 01 Journey.</strong></p>"
-                    "<p>Managed části jsou projekce Git/YAML; edituj jen plochy určené účastníkům.</p>"
-                    "<p>Barvy a notaci určuje legenda aktuálního workshopu.</p>"
-                    "<p>Gate a architektonické rozhodnutí je vždy explicitní lidský krok.</p>"
-                ),
-                x=3400,
-                y=1950,
-                width=2100,
-                height=900,
-                font_size=body_font,
-                fill_color="#ede9fe",
-                border_color="#6d5aa8",
-            ),
-        },
-    ]
+    """Compatibility surface: HVR-2 no longer authors a parallel card-only tutorial."""
+    _ = frame_id
+    _config(manifest)
+    return []
 
 
 def miro_tips_companion_frame_payload(
@@ -256,12 +93,8 @@ def miro_tips_companion_frame_payload(
     target_main: dict[str, Any],
     manifest: dict[str, Any],
 ) -> dict[str, Any]:
-    payload = _ORIGINAL_COMPANION_FRAME_PAYLOAD(source_frame, source_main, target_main)
-    if str((source_frame.get("data") or {}).get("title") or "") != MIRO_TIPS_TITLE:
-        return payload
-    cfg = _config(manifest)
-    payload["geometry"] = {"width": cfg["width"], "height": cfg["height"]}
-    return payload
+    _config(manifest)
+    return _ORIGINAL_COMPANION_FRAME_PAYLOAD(source_frame, source_main, target_main)
 
 
 def companion_frame_payload_with_miro_tips(
@@ -270,61 +103,120 @@ def companion_frame_payload_with_miro_tips(
     target_main: dict[str, Any],
 ) -> dict[str, Any]:
     manifest = visual._ACTIVE_MANIFEST
+    if str((source_frame.get("data") or {}).get("title") or "") != MIRO_TIPS_TITLE:
+        return _ORIGINAL_COMPANION_FRAME_PAYLOAD(source_frame, source_main, target_main)
     return miro_tips_companion_frame_payload(source_frame, source_main, target_main, manifest)
 
 
-def _fresh_list_item(client: Any, board: str, item_id: str) -> dict[str, Any]:
-    hits = [
-        item
-        for item in client.list_items(board)
-        if str(item.get("id") or "") == str(item_id)
-    ]
-    if len(hits) != 1:
-        raise ValueError(f"Miro Tips fresh list read expected one item {item_id}, got {len(hits)}")
-    return hits[0]
+def same_frame_defer_miro_tips(remote: dict[str, Any], expected: dict[str, Any]) -> bool:
+    """Defer a Miro Tips shrink/move until its old oversized children are removed."""
+    title = str((expected.get("data") or {}).get("title") or "")
+    if title == MIRO_TIPS_TITLE and str((remote.get("data") or {}).get("title") or "") == title:
+        return True
+    return _ORIGINAL_SAME_FRAME(remote, expected)
 
 
-def _wait_for_item_convergence(
-    client: Any,
-    board: str,
-    item_id: str,
-    expected: dict[str, Any],
-    cfg: dict[str, Any],
-    role: str,
-) -> dict[str, Any]:
-    last: dict[str, Any] | None = None
-    for attempt in range(cfg["readback_attempts"]):
-        last = _fresh_list_item(client, board, item_id)
-        if visual.redline.same_item(last, expected):
-            return last
-        if attempt + 1 < cfg["readback_attempts"] and cfg["readback_delay_seconds"]:
-            time.sleep(cfg["readback_delay_seconds"])
-    raise ValueError(
-        f"Miro Tips managed item {role} did not converge after "
-        f"{cfg['readback_attempts']} fresh list reads"
+def _frame_equal(remote: dict[str, Any], expected: dict[str, Any]) -> bool:
+    return _ORIGINAL_SAME_FRAME(remote, expected)
+
+
+def _children_text(items: list[dict[str, Any]]) -> str:
+    return " ".join(
+        base._visible((item.get("data") or {}).get("content")).casefold()
+        for item in items
     )
 
 
-def _wait_for_final_children(
+def _image_anchor_connector_count(
+    connectors: list[dict[str, Any]], image_ids: set[str]
+) -> int:
+    return sum(
+        1
+        for connector in connectors
+        if str((connector.get("startItem") or {}).get("id") or "") in image_ids
+        or str((connector.get("endItem") or {}).get("id") or "") in image_ids
+    )
+
+
+def _tutorial_state(
     client: Any,
     board: str,
     frame_id: str,
-    expected_ids: set[str],
     cfg: dict[str, Any],
-) -> list[dict[str, Any]]:
-    last: list[dict[str, Any]] = []
+) -> dict[str, Any]:
+    items = base._children(client, board, frame_id)
+    images = [item for item in items if str(item.get("type") or "") == "image"]
+    ids = {str(item["id"]) for item in items}
+    connectors = visual._companion_source_connectors(client, board, ids)
+    text = _children_text(items)
+    missing = [marker for marker in cfg["required_markers"] if marker not in text]
+    image_ids = {str(item["id"]) for item in images}
+    anchors = _image_anchor_connector_count(connectors, image_ids)
+    return {
+        "items": items,
+        "images": images,
+        "connectors": connectors,
+        "missing_markers": missing,
+        "image_anchor_connector_count": anchors,
+    }
+
+
+def _wait_for_empty_frame(
+    client: Any,
+    board: str,
+    frame_id: str,
+    old_item_ids: set[str],
+    cfg: dict[str, Any],
+) -> None:
     for attempt in range(cfg["readback_attempts"]):
-        last = base._children(client, board, frame_id)
-        ids = {str(item.get("id") or "") for item in last}
-        if ids == expected_ids and not any(str(item.get("type") or "") == "image" for item in last):
+        children = base._children(client, board, frame_id)
+        related = base._related_connectors(client, board, old_item_ids) if old_item_ids else []
+        if not children and not related:
+            return
+        if attempt + 1 < cfg["readback_attempts"] and cfg["readback_delay_seconds"]:
+            time.sleep(cfg["readback_delay_seconds"])
+    raise ValueError("Miro Tips did not become empty before reference-geometry restore")
+
+
+def _wait_for_frame_geometry(
+    client: Any,
+    board: str,
+    frame_id: str,
+    expected: dict[str, Any],
+    cfg: dict[str, Any],
+) -> dict[str, Any]:
+    last: dict[str, Any] | None = None
+    for attempt in range(cfg["readback_attempts"]):
+        last = base._get_frame(client, board, frame_id)
+        if _frame_equal(last, expected):
             return last
         if attempt + 1 < cfg["readback_attempts"] and cfg["readback_delay_seconds"]:
             time.sleep(cfg["readback_delay_seconds"])
-    raise ValueError(
-        "Miro Tips final children did not converge after "
-        f"{cfg['readback_attempts']} fresh list reads; "
-        f"expected={sorted(expected_ids)} observed={sorted(str(item.get('id') or '') for item in last)}"
-    )
+    raise ValueError("Miro Tips frame did not converge to reference geometry and placement")
+
+
+def _reset_frame_to_reference(
+    client: Any,
+    target_board: str,
+    target_frame_id: str,
+    expected_frame: dict[str, Any],
+    cfg: dict[str, Any],
+) -> bool:
+    current = base._get_frame(client, target_board, target_frame_id)
+    if _frame_equal(current, expected_frame):
+        return False
+
+    children = base._children(client, target_board, target_frame_id)
+    old_item_ids = {str(item["id"]) for item in children}
+    for connector in base._related_connectors(client, target_board, old_item_ids):
+        client.delete_connector(target_board, str(connector["id"]))
+    for item in children:
+        client.delete_item(target_board, str(item["id"]))
+    _wait_for_empty_frame(client, target_board, target_frame_id, old_item_ids, cfg)
+
+    client.update_item(target_board, "frame", target_frame_id, expected_frame)
+    _wait_for_frame_geometry(client, target_board, target_frame_id, expected_frame, cfg)
+    return True
 
 
 def reconcile_miro_tips_children(
@@ -336,112 +228,66 @@ def reconcile_miro_tips_children(
     manifest: dict[str, Any],
 ) -> dict[str, Any]:
     cfg = _config(manifest)
-    desired = desired_miro_tips_items(target_frame_id, manifest)
-    target_items = base._children(client, target_board, target_frame_id)
-    original_target_ids = {str(item["id"]) for item in target_items}
+    source_main = base._get_frame(client, source_board, str(manifest["source_frame_id"]))
+    target_main = base._get_frame(client, target_board, str(manifest["frame_id"]))
+    source_frame = base._get_frame(client, source_board, source_frame_id)
+    expected_frame = miro_tips_companion_frame_payload(source_frame, source_main, target_main, manifest)
 
-    source_items = base._children(client, source_board, source_frame_id)
-    source_images = [item for item in source_items if str(item.get("type") or "") == "image"]
-    source_connectors = visual._companion_source_connectors(
-        client, source_board, {str(item["id"]) for item in source_items}
-    )
-
-    target_connectors = base._related_connectors(client, target_board, original_target_ids)
-    connector_counts = {"created": 0, "updated": 0, "unchanged": 0, "deleted": 0}
-    for connector in target_connectors:
-        client.delete_connector(target_board, str(connector["id"]))
-        connector_counts["deleted"] += 1
-
-    used: set[str] = set()
-    counts = {"created": 0, "updated": 0, "unchanged": 0, "deleted": 0}
-    for managed in desired:
-        marker = str(managed["marker"])
-        payload = deepcopy(managed["payload"])
-        item_type = "shape" if "shape" in (payload.get("data") or {}) else "text"
-        hits = [
-            item
-            for item in target_items
-            if str(item.get("id") or "") not in used
-            and str(item.get("type") or "") == item_type
-            and marker in base._visible((item.get("data") or {}).get("content"))
-        ]
-        if len(hits) > 1:
-            raise ValueError(f"multiple Miro Tips items match managed marker {marker!r}")
-        if not hits:
-            endpoint = base.EP[item_type]
-            created = client._request(
-                "POST",
-                f"boards/{base._seg(target_board)}/{endpoint}",
-                body=payload,
-            )
-            item = _wait_for_item_convergence(
-                client,
-                target_board,
-                str(created["id"]),
-                payload,
-                cfg,
-                str(managed["role"]),
-            )
-            target_items.append(item)
-            counts["created"] += 1
-        else:
-            item = hits[0]
-            if visual.redline.same_item(item, payload):
-                counts["unchanged"] += 1
-            else:
-                endpoint = base.EP[item_type]
-                client._request(
-                    "PATCH",
-                    f"boards/{base._seg(target_board)}/{endpoint}/{base._seg(str(item['id']))}",
-                    body=payload,
-                )
-                item = _wait_for_item_convergence(
-                    client,
-                    target_board,
-                    str(item["id"]),
-                    payload,
-                    cfg,
-                    str(managed["role"]),
-                )
-                counts["updated"] += 1
-        used.add(str(item["id"]))
-
-    extras = [item for item in target_items if str(item.get("id") or "") not in used]
-    for item in extras:
-        client.delete_item(target_board, str(item["id"]))
-        counts["deleted"] += 1
-
-    final_items = _wait_for_final_children(client, target_board, target_frame_id, used, cfg)
-    if len(final_items) != len(desired):
+    source_state = _tutorial_state(client, source_board, source_frame_id, cfg)
+    if len(source_state["images"]) < cfg["min_images"]:
         raise ValueError(
-            f"Miro Tips final item count mismatch: {len(final_items)} != {len(desired)}"
+            f"Miro Tips source has {len(source_state['images'])} images; expected at least {cfg['min_images']}"
         )
+    if len(source_state["connectors"]) < cfg["min_connectors"]:
+        raise ValueError(
+            f"Miro Tips source has {len(source_state['connectors'])} connectors; expected at least {cfg['min_connectors']}"
+        )
+    if source_state["image_anchor_connector_count"] < cfg["min_connectors"]:
+        raise ValueError("Miro Tips source callouts are not anchored to the Miro UI image")
+    if source_state["missing_markers"]:
+        raise ValueError(f"Miro Tips source is missing required tutorial markers: {source_state['missing_markers']}")
 
-    final_text = " ".join(
-        base._visible((item.get("data") or {}).get("content")) for item in final_items
+    frame_reinitialized = _reset_frame_to_reference(
+        client, target_board, target_frame_id, expected_frame, cfg
     )
-    for marker in cfg["required_sections"]:
-        if marker not in final_text:
-            raise ValueError(f"Miro Tips final content missing required section: {marker}")
 
-    for managed in desired:
-        payload = managed["payload"]
-        style = payload.get("style") or {}
-        if int(style.get("fontSize") or 0) < cfg["min_font_size"]:
-            raise ValueError(f"Miro Tips managed item below minimum font size: {managed['role']}")
+    child_result = _ORIGINAL_RECONCILE_COMPANION_CHILDREN(
+        client,
+        source_board,
+        source_frame_id,
+        target_board,
+        target_frame_id,
+        cfg["min_images"],
+        manifest,
+    )
+
+    target_frame = _wait_for_frame_geometry(
+        client, target_board, target_frame_id, expected_frame, cfg
+    )
+    target_state = _tutorial_state(client, target_board, target_frame_id, cfg)
+    if len(target_state["images"]) < cfg["min_images"]:
+        raise ValueError("Miro Tips target is missing the Miro UI tutorial image")
+    if len(target_state["connectors"]) < cfg["min_connectors"]:
+        raise ValueError("Miro Tips target is missing callout connectors")
+    if target_state["image_anchor_connector_count"] < cfg["min_connectors"]:
+        raise ValueError("Miro Tips target callouts are not anchored to the Miro UI image")
+    if target_state["missing_markers"]:
+        raise ValueError(f"Miro Tips target is missing required tutorial markers: {target_state['missing_markers']}")
 
     return {
         "mode": MIRO_TIPS_MODE,
-        "source_item_count": len(source_items),
-        "source_image_count": len(source_images),
-        "source_connector_count": len(source_connectors),
-        "target_image_count": 0,
-        "min_font_size": cfg["min_font_size"],
-        "required_sections_count": len(cfg["required_sections"]),
-        "managed_item_count": len(desired),
+        **child_result,
+        "target_image_count": len(target_state["images"]),
+        "target_connector_count": len(target_state["connectors"]),
+        "source_image_anchor_connector_count": source_state["image_anchor_connector_count"],
+        "target_image_anchor_connector_count": target_state["image_anchor_connector_count"],
+        "required_marker_count": len(cfg["required_markers"]),
+        "frame_reinitialized": int(frame_reinitialized),
+        "reference_geometry": dict(expected_frame.get("geometry") or {}),
+        "target_geometry": dict(target_frame.get("geometry") or {}),
+        "reference_position": dict(expected_frame.get("position") or {}),
+        "target_position": dict(target_frame.get("position") or {}),
         "readback_attempts": cfg["readback_attempts"],
-        "items": counts,
-        "connectors": connector_counts,
     }
 
 
@@ -480,6 +326,7 @@ def install() -> None:
     if _INSTALLED:
         return
     visual.companion_frame_payload = companion_frame_payload_with_miro_tips
+    visual._same_frame = same_frame_defer_miro_tips
     visual._reconcile_companion_children = reconcile_companion_children_with_miro_tips
     _INSTALLED = True
 
@@ -489,5 +336,6 @@ def uninstall() -> None:
     if not _INSTALLED:
         return
     visual.companion_frame_payload = _ORIGINAL_COMPANION_FRAME_PAYLOAD
+    visual._same_frame = _ORIGINAL_SAME_FRAME
     visual._reconcile_companion_children = _ORIGINAL_RECONCILE_COMPANION_CHILDREN
     _INSTALLED = False

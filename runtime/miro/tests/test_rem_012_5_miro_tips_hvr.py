@@ -1,287 +1,276 @@
+from __future__ import annotations
+
 from copy import deepcopy
 
-from ddda_miro.miro_tips_hvr_fix import (
-    MIRO_TIPS_MODE,
-    desired_miro_tips_items,
-    miro_tips_companion_frame_payload,
-    reconcile_miro_tips_children,
-)
+from ddda_miro import miro_tips_hvr_fix as tips
 
 
 def manifest():
     return {
+        "source_frame_id": "source-main",
+        "frame_id": "target-main",
         "source_companion_frames": [
             {
                 "id": "source-tips",
                 "title": "Miro Tips",
-                "min_images": 0,
-                "mode": MIRO_TIPS_MODE,
+                "min_images": 1,
+                "mode": tips.MIRO_TIPS_MODE,
             }
         ],
         "miro_tips": {
-            "width": 4600,
-            "height": 2600,
-            "min_font_size": 48,
+            "min_images": 1,
+            "min_connectors": 8,
             "readback_attempts": 4,
             "readback_delay_seconds": 0,
-            "required_sections": [
-                "MIRO QUICK START",
-                "1 · NAVIGACE",
-                "2 · POZNÁMKY A VÝBĚR",
-                "3 · SPOLUPRÁCE",
-                "4 · DDDA PRAVIDLA",
-            ],
+            "required_markers": list(tips.DEFAULT_REQUIRED_MARKERS),
         },
     }
 
 
-def test_miro_tips_contract_is_readable_complete_and_image_independent():
-    items = desired_miro_tips_items("target-tips", manifest())
-    assert len(items) == 6
-    assert all(item["payload"]["parent"] == {"id": "target-tips"} for item in items)
-    assert all(
-        int((item["payload"].get("style") or {}).get("fontSize") or 0) >= 48
-        for item in items
-    )
-    text = " ".join(str(item["payload"]["data"]["content"]) for item in items)
-    for marker in manifest()["miro_tips"]["required_sections"]:
-        assert marker in text
-    assert "00 Control Center" in text
-    assert "01 Journey" in text
-    assert "HOTSPOT" in text
-    assert "OTÁZKA?" in text
-
-
-def test_miro_tips_frame_payload_expands_readability_without_changing_translated_center():
-    source_main = {"position": {"x": 9076.78, "y": -8458.92}}
-    target_main = {"position": {"x": 8004.426, "y": -8927.845}}
-    source_tips = {
-        "data": {"title": "Miro Tips"},
-        "geometry": {"width": 1919.43, "height": 1079.68},
-        "position": {"x": -18762.093, "y": -11858.608},
+def frame(frame_id, title, x, y, width, height):
+    return {
+        "id": frame_id,
+        "type": "frame",
+        "data": {"title": title},
+        "position": {"x": x, "y": y},
+        "geometry": {"width": width, "height": height},
         "style": {"fillColor": "#ffffff"},
     }
-    payload = miro_tips_companion_frame_payload(
+
+
+def test_miro_tips_frame_payload_preserves_reference_geometry_and_relative_placement():
+    source_main = frame("source-main", "01 – DDD Starter journey, gates a iterace", 9076.78, -8458.92, 58008.9, 10144.3)
+    target_main = frame("target-main", "01 – DDD Starter journey, gates a iterace", 8004.426, -8927.845, 58008.9, 10144.3)
+    source_tips = frame("source-tips", "Miro Tips", -18762.093, -11858.608, 1919.43, 1079.68)
+
+    payload = tips.miro_tips_companion_frame_payload(
         source_tips, source_main, target_main, manifest()
     )
-    assert payload["geometry"] == {"width": 4600.0, "height": 2600.0}
+
+    assert payload["geometry"] == {"width": 1919.43, "height": 1079.68}
     assert abs(payload["position"]["x"] - (-19834.447)) < 0.01
     assert abs(payload["position"]["y"] - (-12327.533)) < 0.01
+    assert tips.desired_miro_tips_items("target-tips", manifest()) == []
+
+
+def test_miro_tips_outer_frame_comparison_defers_shrink_until_children_are_removed(monkeypatch):
+    remote = frame("target-tips", "Miro Tips", -19834.447, -12327.533, 4600, 2600)
+    expected = frame("target-tips", "Miro Tips", -19834.447, -12327.533, 1919.43, 1079.68)
+    monkeypatch.setattr(tips, "_ORIGINAL_SAME_FRAME", lambda left, right: left == right)
+
+    assert tips.same_frame_defer_miro_tips(remote, expected) is True
+
+    other_remote = frame("x", "Align", 1, 1, 10, 10)
+    other_expected = frame("x", "Align", 1, 1, 20, 10)
+    assert tips.same_frame_defer_miro_tips(other_remote, other_expected) is False
 
 
 class FakeClient:
     def __init__(self):
+        self.frames = {
+            ("source", "source-main"): frame("source-main", "01 – DDD Starter journey, gates a iterace", 9076.78, -8458.92, 58008.9, 10144.3),
+            ("target", "target-main"): frame("target-main", "01 – DDD Starter journey, gates a iterace", 8004.426, -8927.845, 58008.9, 10144.3),
+            ("source", "source-tips"): frame("source-tips", "Miro Tips", -18762.093, -11858.608, 1919.43, 1079.68),
+            ("target", "target-tips"): frame("target-tips", "Miro Tips", -19834.447, -12327.533, 4600, 2600),
+        }
+        all_markers = " | ".join(tips.DEFAULT_REQUIRED_MARKERS)
         self.items = {
             "source": [
                 {
                     "id": "source-image",
                     "type": "image",
                     "parent": {"id": "source-tips"},
-                    "position": {"x": 1000, "y": 500},
+                    "position": {"x": 960, "y": 540},
                     "geometry": {"width": 1900, "height": 1000},
-                    "data": {},
-                }
+                    "data": {"title": "Miro UI"},
+                },
+                {
+                    "id": "source-text",
+                    "type": "text",
+                    "parent": {"id": "source-tips"},
+                    "position": {"x": 500, "y": 400},
+                    "geometry": {"width": 500},
+                    "data": {"content": f"<p>{all_markers}</p>"},
+                    "style": {"fontSize": 20},
+                },
             ],
             "target": [
                 {
-                    "id": "legacy-image",
-                    "type": "image",
+                    "id": "legacy-card",
+                    "type": "shape",
                     "parent": {"id": "target-tips"},
-                    "position": {"x": 1000, "y": 500},
-                    "geometry": {"width": 1900, "height": 1000},
-                    "data": {},
-                },
-                {
-                    "id": "legacy-tip",
-                    "type": "sticky_note",
-                    "parent": {"id": "target-tips"},
-                    "position": {"x": 200, "y": 200},
-                    "geometry": {"width": 118, "height": 118},
-                    "data": {"content": "<p>take a look at the shortcuts</p>"},
-                    "style": {"fillColor": "light_yellow"},
-                },
+                    "position": {"x": 1200, "y": 950},
+                    "geometry": {"width": 2100, "height": 900},
+                    "data": {"content": "<p>1 · NAVIGACE</p>", "shape": "round_rectangle"},
+                }
             ],
         }
         self.connectors = {
-            "source": [],
-            "target": [
+            "source": [
                 {
-                    "id": "legacy-connector",
-                    "startItem": {"id": "legacy-tip"},
-                    "endItem": {"id": "legacy-image"},
+                    "id": f"source-c-{index}",
+                    "startItem": {"id": "source-text"},
+                    "endItem": {"id": "source-image", "position": {"x": index * 10, "y": index * 10}},
                 }
+                for index in range(8)
             ],
+            "target": [],
         }
-        self.next_id = 1
-
-    def list_items(self, board, item_type=None):
-        result = deepcopy(self.items[board])
-        return [
-            item for item in result if item_type is None or item.get("type") == item_type
-        ]
-
-    def list_connectors(self, board):
-        return deepcopy(self.connectors[board])
-
-    def _request(self, method, path, query=None, body=None, reconcile=None):
-        parts = path.split("/")
-        board = parts[1]
-        if method == "POST":
-            endpoint = parts[2]
-            item_type = {"texts": "text", "shapes": "shape"}[endpoint]
-            item = deepcopy(body)
-            item["id"] = f"managed-{self.next_id}"
-            self.next_id += 1
-            item["type"] = item_type
-            if item_type == "text":
-                item.setdefault("geometry", {})["height"] = 100
-            self.items[board].append(item)
-            return deepcopy(item)
-        if method == "PATCH":
-            item_id = parts[3]
-            endpoint = parts[2]
-            item_type = {"texts": "text", "shapes": "shape"}[endpoint]
-            for index, item in enumerate(self.items[board]):
-                if item["id"] == item_id:
-                    updated = deepcopy(body)
-                    updated["id"] = item_id
-                    updated["type"] = item_type
-                    if item_type == "text":
-                        updated.setdefault("geometry", {})["height"] = item.get(
-                            "geometry", {}
-                        ).get("height", 100)
-                    self.items[board][index] = updated
-                    return deepcopy(updated)
-            raise AssertionError(item_id)
-        raise AssertionError((method, path, body))
 
     def delete_connector(self, board, connector_id):
-        self.connectors[board] = [
-            connector
-            for connector in self.connectors[board]
-            if connector["id"] != connector_id
-        ]
+        self.connectors[board] = [c for c in self.connectors[board] if c["id"] != connector_id]
 
     def delete_item(self, board, item_id):
         self.items[board] = [item for item in self.items[board] if item["id"] != item_id]
 
-
-class DelayedReadClient(FakeClient):
-    """Simulate Miro returning one stale list read immediately after a write."""
-
-    def __init__(self):
-        super().__init__()
-        self.stale_once: set[str] = set()
-
-    def _request(self, method, path, query=None, body=None, reconcile=None):
-        item = super()._request(method, path, query=query, body=body, reconcile=reconcile)
-        if method in {"POST", "PATCH"}:
-            self.stale_once.add(str(item["id"]))
-        return item
-
-    def list_items(self, board, item_type=None):
-        result = super().list_items(board, item_type=item_type)
-        for item in result:
-            item_id = str(item.get("id") or "")
-            if item_id in self.stale_once:
-                self.stale_once.remove(item_id)
-                item.setdefault("style", {})["fontSize"] = 14
-        return result
+    def update_item(self, board, item_type, item_id, payload):
+        assert item_type == "frame"
+        updated = deepcopy(payload)
+        updated["id"] = item_id
+        updated["type"] = "frame"
+        self.frames[(board, item_id)] = updated
+        return deepcopy(updated)
 
 
-def _managed_item(managed, item_id):
-    item = deepcopy(managed["payload"])
-    item["id"] = item_id
-    item["type"] = "shape" if "shape" in item["data"] else "text"
-    if item["type"] == "text":
-        item.setdefault("geometry", {})["height"] = 100
-    return item
-
-
-def test_miro_tips_reconcile_replaces_legacy_screenshot_and_is_idempotent():
-    client = FakeClient()
-    first = reconcile_miro_tips_children(
-        client,
-        "source",
-        "source-tips",
-        "target",
-        "target-tips",
-        manifest(),
+def _install_fakes(monkeypatch, client):
+    monkeypatch.setattr(
+        tips.base,
+        "_get_frame",
+        lambda c, board, frame_id: deepcopy(c.frames[(board, frame_id)]),
     )
-    assert first["mode"] == MIRO_TIPS_MODE
+    monkeypatch.setattr(
+        tips.base,
+        "_children",
+        lambda c, board, frame_id: [
+            deepcopy(item)
+            for item in c.items[board]
+            if str((item.get("parent") or {}).get("id") or "") == frame_id
+        ],
+    )
+    monkeypatch.setattr(
+        tips.base,
+        "_related_connectors",
+        lambda c, board, ids: [
+            deepcopy(connector)
+            for connector in c.connectors[board]
+            if str((connector.get("startItem") or {}).get("id") or "") in ids
+            or str((connector.get("endItem") or {}).get("id") or "") in ids
+        ],
+    )
+    monkeypatch.setattr(
+        tips.visual,
+        "_companion_source_connectors",
+        lambda c, board, ids: [
+            deepcopy(connector)
+            for connector in c.connectors[board]
+            if str((connector.get("startItem") or {}).get("id") or "") in ids
+            and str((connector.get("endItem") or {}).get("id") or "") in ids
+        ],
+    )
+    monkeypatch.setattr(
+        tips,
+        "_ORIGINAL_COMPANION_FRAME_PAYLOAD",
+        lambda source_frame, source_main, target_main: {
+            "data": {"title": source_frame["data"]["title"]},
+            "geometry": deepcopy(source_frame["geometry"]),
+            "position": {
+                "x": source_frame["position"]["x"] + target_main["position"]["x"] - source_main["position"]["x"],
+                "y": source_frame["position"]["y"] + target_main["position"]["y"] - source_main["position"]["y"],
+                "origin": "center",
+            },
+            "style": deepcopy(source_frame["style"]),
+        },
+    )
+    monkeypatch.setattr(
+        tips,
+        "_ORIGINAL_SAME_FRAME",
+        lambda remote, expected: (
+            remote["data"]["title"] == expected["data"]["title"]
+            and abs(remote["geometry"]["width"] - expected["geometry"]["width"]) < 0.01
+            and abs(remote["geometry"]["height"] - expected["geometry"]["height"]) < 0.01
+            and abs(remote["position"]["x"] - expected["position"]["x"]) < 0.01
+            and abs(remote["position"]["y"] - expected["position"]["y"]) < 0.01
+        ),
+    )
+
+    def source_copy(c, source_board, source_frame_id, target_board, target_frame_id, min_images, manifest_value):
+        del source_frame_id, min_images, manifest_value
+        current = [
+            item
+            for item in c.items[target_board]
+            if (item.get("parent") or {}).get("id") == target_frame_id
+        ]
+        if current:
+            return {
+                "source_item_count": 2,
+                "source_image_count": 1,
+                "source_connector_count": 8,
+                "items": {"created": 0, "updated": 0, "unchanged": 2, "deleted": 0},
+                "connectors": {"created": 0, "updated": 0, "unchanged": 8, "deleted": 0},
+            }
+
+        id_map = {"source-image": "target-image", "source-text": "target-text"}
+        for item in c.items[source_board]:
+            copied = deepcopy(item)
+            copied["id"] = id_map[item["id"]]
+            copied["parent"] = {"id": target_frame_id}
+            c.items[target_board].append(copied)
+        c.connectors[target_board] = []
+        for connector in c.connectors[source_board]:
+            copied = deepcopy(connector)
+            copied["id"] = connector["id"].replace("source-", "target-")
+            copied["startItem"]["id"] = id_map[copied["startItem"]["id"]]
+            copied["endItem"]["id"] = id_map[copied["endItem"]["id"]]
+            c.connectors[target_board].append(copied)
+        return {
+            "source_item_count": 2,
+            "source_image_count": 1,
+            "source_connector_count": 8,
+            "items": {"created": 2, "updated": 0, "unchanged": 0, "deleted": 0},
+            "connectors": {"created": 8, "updated": 0, "unchanged": 0, "deleted": 0},
+        }
+
+    monkeypatch.setattr(tips, "_ORIGINAL_RECONCILE_COMPANION_CHILDREN", source_copy)
+
+
+def test_miro_tips_replaces_oversized_card_only_guide_with_reference_ui_tutorial(monkeypatch):
+    client = FakeClient()
+    _install_fakes(monkeypatch, client)
+
+    first = tips.reconcile_miro_tips_children(
+        client, "source", "source-tips", "target", "target-tips", manifest()
+    )
+
+    assert first["mode"] == tips.MIRO_TIPS_MODE
+    assert first["frame_reinitialized"] == 1
     assert first["source_image_count"] == 1
-    assert first["target_image_count"] == 0
-    assert first["items"]["created"] == 6
-    assert first["items"]["deleted"] == 2
-    assert first["connectors"]["deleted"] == 1
+    assert first["target_image_count"] == 1
+    assert first["source_connector_count"] == 8
+    assert first["target_connector_count"] == 8
+    assert first["source_image_anchor_connector_count"] == 8
+    assert first["target_image_anchor_connector_count"] == 8
+    assert first["required_marker_count"] == len(tips.DEFAULT_REQUIRED_MARKERS)
+    assert first["target_geometry"] == {"width": 1919.43, "height": 1079.68}
+    assert not any(item["id"] == "legacy-card" for item in client.items["target"])
 
-    final = [
-        item
-        for item in client.items["target"]
-        if (item.get("parent") or {}).get("id") == "target-tips"
-    ]
-    assert len(final) == 6
-    assert not any(item["type"] == "image" for item in final)
-
-    second = reconcile_miro_tips_children(
-        client,
-        "source",
-        "source-tips",
-        "target",
-        "target-tips",
-        manifest(),
+    second = tips.reconcile_miro_tips_children(
+        client, "source", "source-tips", "target", "target-tips", manifest()
     )
-    assert second["items"] == {
-        "created": 0,
-        "updated": 0,
-        "unchanged": 6,
-        "deleted": 0,
-    }
-    assert second["connectors"] == {
-        "created": 0,
-        "updated": 0,
-        "unchanged": 0,
-        "deleted": 0,
-    }
+    assert second["frame_reinitialized"] == 0
+    assert second["items"] == {"created": 0, "updated": 0, "unchanged": 2, "deleted": 0}
+    assert second["connectors"] == {"created": 0, "updated": 0, "unchanged": 8, "deleted": 0}
 
 
-def test_miro_tips_tolerates_eventual_consistency_on_fresh_list_readback():
-    client = DelayedReadClient()
-    result = reconcile_miro_tips_children(
-        client,
-        "source",
-        "source-tips",
-        "target",
-        "target-tips",
-        manifest(),
-    )
-    assert result["items"]["created"] == 6
-    assert result["target_image_count"] == 0
-    assert result["readback_attempts"] == 4
-
-
-def test_miro_tips_resumes_after_partial_online_application():
+def test_miro_tips_contract_rejects_card_only_or_unanchored_source(monkeypatch):
     client = FakeClient()
-    desired = desired_miro_tips_items("target-tips", manifest())
-    client.items["target"].extend(
-        _managed_item(managed, f"partial-{index}")
-        for index, managed in enumerate(desired[:3], start=1)
-    )
+    _install_fakes(monkeypatch, client)
+    client.connectors["source"] = client.connectors["source"][:7]
 
-    result = reconcile_miro_tips_children(
-        client,
-        "source",
-        "source-tips",
-        "target",
-        "target-tips",
-        manifest(),
-    )
-    assert result["items"]["unchanged"] == 3
-    assert result["items"]["created"] == 3
-    assert result["items"]["deleted"] == 2
-    final_text = " ".join(
-        str((item.get("data") or {}).get("content") or "")
-        for item in client.items["target"]
-    )
-    assert "4 · DDDA PRAVIDLA" in final_text
-    assert not any(item["type"] == "image" for item in client.items["target"])
+    try:
+        tips.reconcile_miro_tips_children(
+            client, "source", "source-tips", "target", "target-tips", manifest()
+        )
+    except ValueError as exc:
+        assert "connectors" in str(exc)
+    else:
+        raise AssertionError("expected reference tutorial connector contract failure")

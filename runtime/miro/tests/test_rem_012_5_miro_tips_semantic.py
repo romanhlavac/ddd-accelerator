@@ -2,74 +2,61 @@ from copy import deepcopy
 
 from ddda_miro import frame01_redline as redline
 from ddda_miro import miro_tips_hvr_semantic_fix as semantic
-from ddda_miro.miro_tips_hvr_fix import desired_miro_tips_items
 
 
-def manifest():
+def expected_item():
     return {
-        "source_companion_frames": [
-            {"id": "source-tips", "title": "Miro Tips", "min_images": 0, "mode": "ddda_owned_hvr_correction"}
-        ],
-        "miro_tips": {
-            "width": 4600,
-            "height": 2600,
-            "min_font_size": 48,
-            "readback_attempts": 4,
-            "readback_delay_seconds": 0,
-            "required_sections": [
-                "MIRO QUICK START",
-                "1 · NAVIGACE",
-                "2 · POZNÁMKY A VÝBĚR",
-                "3 · SPOLUPRÁCE",
-                "4 · DDDA PRAVIDLA",
-            ],
+        "data": {"content": "<p>stickies / post-its</p>"},
+        "parent": {"id": "target-tips"},
+        "position": {"x": 223.867, "y": 392.085, "origin": "center"},
+        "geometry": {"width": 160.296},
+        "style": {
+            "fontFamily": "open_sans",
+            "fontSize": 20,
+            "textAlign": "left",
+            "color": "#1a1a1a",
         },
     }
 
 
-def remote_from(managed):
-    item = deepcopy(managed["payload"])
-    item["id"] = "remote-1"
-    item["type"] = "shape" if "shape" in item["data"] else "text"
-    item["style"].pop("fontFamily", None)
-    item["style"].pop("textAlignVertical", None)
-    item["style"].pop("borderWidth", None)
-    return item
+def remote_from_expected():
+    remote = deepcopy(expected_item())
+    remote["id"] = "remote-1"
+    remote["type"] = "text"
+    remote["style"].pop("fontFamily", None)
+    return remote
 
 
 def test_semantic_comparator_accepts_miro_omitted_default_wire_fields():
-    managed = desired_miro_tips_items("target-tips", manifest())[2]
-    remote = remote_from(managed)
-    assert redline.same_item(remote, managed["payload"]) is False
-    assert semantic.semantic_mismatches(remote, managed["payload"]) == []
-    assert semantic.same_miro_tips_item(remote, managed["payload"]) is True
+    remote = remote_from_expected()
+    assert redline.same_item(remote, expected_item()) is False
+    assert semantic.semantic_mismatches(remote, expected_item()) == []
+    assert semantic.same_miro_tips_item(remote, expected_item()) is True
 
 
 def test_semantic_comparator_rejects_hvr_critical_drift():
-    managed = desired_miro_tips_items("target-tips", manifest())[2]
-    expected = managed["payload"]
+    expected = expected_item()
 
-    wrong_text = remote_from(managed)
+    wrong_text = remote_from_expected()
     wrong_text["data"]["content"] = "<p>wrong</p>"
     assert "data.content" in semantic.semantic_mismatches(wrong_text, expected)
 
-    wrong_font = remote_from(managed)
-    wrong_font["style"]["fontSize"] = 24
+    wrong_font = remote_from_expected()
+    wrong_font["style"]["fontSize"] = 14
     assert "style.fontSize" in semantic.semantic_mismatches(wrong_font, expected)
 
-    wrong_position = remote_from(managed)
+    wrong_position = remote_from_expected()
     wrong_position["position"]["x"] += 100
     assert "position.x" in semantic.semantic_mismatches(wrong_position, expected)
 
-    wrong_fill = remote_from(managed)
-    wrong_fill["style"]["fillColor"] = "#ffffff"
-    assert "style.fillColor" in semantic.semantic_mismatches(wrong_fill, expected)
+    wrong_color = remote_from_expected()
+    wrong_color["style"]["color"] = "#ffffff"
+    assert "style.color" in semantic.semantic_mismatches(wrong_color, expected)
 
 
 def test_semantic_comparator_keeps_returned_optional_fields_strict():
-    managed = desired_miro_tips_items("target-tips", manifest())[2]
-    remote = deepcopy(managed["payload"])
+    remote = deepcopy(expected_item())
     remote["id"] = "remote-1"
-    remote["type"] = "shape"
-    remote["style"]["textAlignVertical"] = "middle"
-    assert "style.textAlignVertical" in semantic.semantic_mismatches(remote, managed["payload"])
+    remote["type"] = "text"
+    remote["style"]["textAlign"] = "center"
+    assert "style.textAlign" in semantic.semantic_mismatches(remote, expected_item())
