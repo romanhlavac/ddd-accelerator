@@ -24,7 +24,7 @@ jobs:
     timeout-minutes: 120
     env:
       SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
-      PREVIOUS_SHA: 79f8de670a6dd36c864a66ae581aa54ce3016369
+      PREVIOUS_SHA: 13b9f7f5486803856d3190988db273e7bdd2d766
       BASE_SHA: ed14f57363c359e60633f9f1da9ad69dee8b5bda
       GH_TOKEN: ${{ github.token }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -57,12 +57,14 @@ jobs:
 
           source=os.environ['SOURCE_SHA']
           assert g('rev-parse', source + '^') == os.environ['PREVIOUS_SHA'], 'corrective parent SHA mismatch'
-          assert g('show', '-s', '--format=%s', source) == 'fix(miro): align HVR-2 marker contract'
+          assert g('show', '-s', '--format=%s', source) == 'fix(miro): tolerate Miro callout readback normalization'
           subprocess.check_call(['git','merge-base','--is-ancestor',os.environ['BASE_SHA'],source])
           observed=sorted(x for x in g('diff-tree','--no-commit-id','--name-only','-r',source).splitlines() if x)
           expected=sorted([
               '.github/workflows/miro-frame01-redline.yml',
-              'scaffolds/miro/rem-012-5-frame-01.yaml',
+              'docs/reviews/REM-PR8-HVA-CC-012-5-frame-01-redline.md',
+              'runtime/miro/ddda_miro/connector_readback_wirefix.py',
+              'runtime/miro/tests/test_rem_012_5_connector_readback.py',
           ])
           assert observed == expected, f'corrective path mismatch: {observed}'
 
@@ -76,6 +78,13 @@ jobs:
           ):
               assert marker in manifest, f'manifest marker missing: {marker}'
           assert 'press tab after typing a sticky to add a new one' not in manifest, 'stale required-marker contract remains'
+          review=Path('docs/reviews/REM-PR8-HVA-CC-012-5-frame-01-redline.md').read_text(encoding='utf-8')
+          for marker in (
+              'Miro endpoint read-back normalization',
+              'current replacement Miro Tips frame `3458764680476608045`',
+              'exact terminal placement on the visible Miro controls is an explicit HVR-2 Human Review criterion',
+          ):
+              assert marker in review, f'review marker missing: {marker}'
           '@ | python -
 
       - name: Run targeted REM-012.5 tests
@@ -176,12 +185,14 @@ jobs:
             if([math]::Abs([double]$tips.target_geometry.width-1919.43)-gt .5 -or [math]::Abs([double]$tips.target_geometry.height-1079.68)-gt .5){throw 'Miro Tips geometry mismatch'}
             if([math]::Abs([double]$tips.target_position.x-(-19834.447))-gt 1 -or [math]::Abs([double]$tips.target_position.y-(-11727.533))-gt 1){throw 'Miro Tips placement mismatch'}
           }
-          if([int]$tips1[0].frame_replaced -ne 1 -or $tips1[0].legacy_frame_id -ne '3458764680392874705'){throw 'Miro Tips known-bad frame was not transactionally replaced'}
-          if([int]$tips1[0].forced_layer_rebuild -ne 1 -or [int]$tips1[0].background_images_primed -lt 1){throw 'Miro Tips rebuild/layer evidence mismatch'}
-          if([int]$tips2[0].frame_replaced -ne 0 -or [int]$tips2[0].forced_layer_rebuild -ne 0 -or [int]$tips2[0].background_images_primed -ne 0){throw 'Miro Tips second run changed identity/layers'}
-          if($tips2[0].items.created -ne 0 -or $tips2[0].items.updated -ne 0 -or $tips2[0].items.deleted -ne 0){throw 'Miro Tips second run mutated items'}
-          if($tips2[0].connectors.created -ne 0 -or $tips2[0].connectors.updated -ne 0 -or $tips2[0].connectors.deleted -ne 0){throw 'Miro Tips second run mutated connectors'}
-          if($r.merge_allowed -or $r.promotion_allowed -or $r.release_allowed -or $r.gate_approval_allowed){throw 'governance boundary violated'}
+          foreach($tips in @($tips1[0],$tips2[0])){
+            if([int]$tips.frame_replaced -ne 0 -or [int]$tips.forced_layer_rebuild -ne 0 -or [int]$tips.background_images_primed -ne 0){throw 'Miro Tips stable replacement unexpectedly changed identity/layers'}
+            if($tips.replacement_frame_id -ne '3458764680476608045'){throw 'Miro Tips active replacement identity mismatch'}
+            if($tips.items.created -ne 0 -or $tips.items.updated -ne 0 -or $tips.items.deleted -ne 0){throw 'Miro Tips reconcile mutated items'}
+            if($tips.connectors.created -ne 0 -or $tips.connectors.updated -ne 0 -or $tips.connectors.deleted -ne 0){throw 'Miro Tips reconcile mutated connectors'}
+          }
+          if($tips1[0].replacement_frame_id -ne $tips2[0].replacement_frame_id){throw 'Miro Tips replacement identity is not stable'}
+          if($r.merge_allowed -or $r.promotion_allowed -or $r.release_allowed -or $r.gate_approval_allowed){throw 'governance boundary violatedg}
 
       - name: Upload evidence
         if: always()

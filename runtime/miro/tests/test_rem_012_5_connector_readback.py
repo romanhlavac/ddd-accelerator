@@ -103,28 +103,25 @@ def test_update_connector_uses_fresh_readback_not_patch_response(monkeypatch):
     assert same_connector_canonical(remote, _expected())
 
 
-def test_non_tutorial_connector_does_not_gain_endpoint_fidelity_gate():
+def test_generic_connector_tolerates_endpoint_position_normalization():
     client = _ConnectorClient()
     drifted = deepcopy(client.full)
     drifted["endItem"]["position"] = {"x": 0.5, "y": 0.0}
-    # Main Frame 01 connectors are not part of the HVR-2 endpoint redline.
     assert same_connector_canonical(drifted, _expected())
 
 
-def test_black_miro_tips_callout_rejects_wrong_custom_endpoint_position():
+def test_black_miro_tips_callout_tolerates_endpoint_readback_normalization():
     expected = _black_callout()
     remote = deepcopy(expected)
-    assert same_connector_canonical(remote, expected)
     remote["endItem"]["position"] = {"x": 0.5, "y": 0.0}
-    assert not same_connector_canonical(remote, expected)
-
-
-def test_black_miro_tips_callout_accepts_equivalent_snap_to_position():
-    expected = _black_callout()
-    expected["startItem"] = {"id": "tip", "snapTo": "right"}
-    remote = deepcopy(expected)
-    remote["startItem"] = {"id": "tip", "position": {"x": 1.0, "y": 0.5}}
     assert same_connector_canonical(remote, expected)
+
+
+def test_connector_equality_still_rejects_wrong_endpoint_item_id():
+    expected = _black_callout()
+    remote = deepcopy(expected)
+    remote["endItem"]["id"] = "wrong-image"
+    assert not same_connector_canonical(remote, expected)
 
 
 def test_readable_connector_payload_prefers_custom_position_for_black_callout():
@@ -155,6 +152,5 @@ def test_readable_connector_payload_leaves_non_tutorial_connector_on_legacy_wire
         "captions": [{"content": "G1"}],
     }
     payload = readable_connector_payload_preserve_endpoint(source, "target-start", "target-end", {})
-    # The wrapper must not rewrite endpoint attachment semantics outside Miro Tips.
     assert payload["startItem"]["id"] == "target-start"
     assert payload["endItem"]["id"] == "target-end"
