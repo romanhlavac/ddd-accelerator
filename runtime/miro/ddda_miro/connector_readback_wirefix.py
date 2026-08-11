@@ -4,6 +4,7 @@ from typing import Any
 
 from . import frame00_resize_ordering_wirefix as recovery
 from . import frame01_redline as redline
+from . import miro_tips_control_anchor_fix
 from . import miro_tips_endpoint_wirefix
 from . import miro_tips_hvr_fix
 from . import miro_tips_hvr_semantic_fix
@@ -86,15 +87,27 @@ def _requires_precise_arrowhead_contract(expected: dict[str, Any]) -> bool:
 
 
 def same_connector_canonical(remote: dict[str, Any], expected: dict[str, Any]) -> bool:
-    """Compare stable semantics and the HVR-2 screenshot-side arrowhead location."""
+    """Compare stable connector semantics.
+
+    HVR-2 tutorial callouts now terminate on explicit tiny control-anchor items, so
+    exact endpoint coordinates are required only when an authored endpoint position
+    is still present in the expected payload. The anchor item identity itself is the
+    durable visual contract.
+    """
     precise_arrowhead = _requires_precise_arrowhead_contract(expected)
     for name in ("startItem", "endItem"):
         remote_endpoint = remote.get(name) or {}
         expected_endpoint = expected.get(name) or {}
         if str(remote_endpoint.get("id") or "") != str(expected_endpoint.get("id") or ""):
             return False
-        if name == "endItem" and precise_arrowhead and not _same_endpoint_location(
-            remote_endpoint, expected_endpoint
+        if (
+            name == "endItem"
+            and precise_arrowhead
+            and (
+                isinstance(expected_endpoint.get("position"), dict)
+                or "snapTo" in expected_endpoint
+            )
+            and not _same_endpoint_location(remote_endpoint, expected_endpoint)
         ):
             return False
 
@@ -139,9 +152,11 @@ def main(argv: list[str] | None = None) -> int:
     miro_tips_endpoint_wirefix.install()
     miro_tips_hvr_fix.install()
     miro_tips_hvr_semantic_fix.install()
+    miro_tips_control_anchor_fix.install()
     try:
         return recovery.main(argv)
     finally:
+        miro_tips_control_anchor_fix.uninstall()
         miro_tips_hvr_semantic_fix.uninstall()
         miro_tips_hvr_fix.uninstall()
         miro_tips_endpoint_wirefix.uninstall()

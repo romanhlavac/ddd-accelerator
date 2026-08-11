@@ -35,7 +35,9 @@ miro_tips:
   min_images: 1
   min_connectors: 8
   vertical_offset_y: 600
-  endpoint_position_policy: preserve_source_arrowhead_position_for_black_captionless_callouts_only
+  endpoint_position_policy: explicit_control_anchor_from_reference_arrowhead_position
+  control_anchor_policy: explicit_transparent_child_anchor_per_reference_ui_control
+  control_anchor_size: 8
   container_policy: transactional_replace_irreducible_companion
   layer_policy: image_below_native_callouts
   legacy_frame_ids:
