@@ -24,7 +24,7 @@ jobs:
     timeout-minutes: 120
     env:
       SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
-      PREVIOUS_SHA: f534fdfc2fc72a8ffdd3793dc6ab849c67db73f3
+      PREVIOUS_SHA: 33e2653aeb27ff1ee7c2564576ec6a2a3022cb02
       BASE_SHA: ed14f57363c359e60633f9f1da9ad69dee8b5bda
       GH_TOKEN: ${{ github.token }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -57,16 +57,13 @@ jobs:
 
           source=os.environ['SOURCE_SHA']
           assert g('rev-parse', source + '^') == os.environ['PREVIOUS_SHA'], 'corrective parent SHA mismatch'
-          assert g('show', '-s', '--format=%s', source) == 'fix(miro): anchor HVR-2 callouts to UI controls'
+          assert g('show', '-s', '--format=%s', source) == 'fix(miro): parse percentage HVR-2 control anchors'
           subprocess.check_call(['git','merge-base','--is-ancestor',os.environ['BASE_SHA'],source])
           observed=sorted(x for x in g('diff-tree','--no-commit-id','--name-only','-r',source).splitlines() if x)
           expected=sorted([
               '.github/workflows/miro-frame01-redline.yml',
-              'docs/reviews/REM-PR8-HVR2-miro-tips-control-anchors.md',
-              'runtime/miro/ddda_miro/connector_readback_wirefix.py',
               'runtime/miro/ddda_miro/miro_tips_control_anchor_fix.py',
               'runtime/miro/tests/test_rem_012_5_miro_tips_control_anchors.py',
-              'scaffolds/miro/rem-012-5-frame-01.yaml',
           ])
           assert observed == expected, f'corrective path mismatch: {observed}'
 

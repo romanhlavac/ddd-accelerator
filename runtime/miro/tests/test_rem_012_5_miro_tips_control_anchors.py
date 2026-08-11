@@ -14,6 +14,20 @@ def test_normalized_control_position_maps_reference_arrowhead_to_target_image():
     assert anchors._normalized_control_position(connector, image) == (485.0, 140.0)
 
 
+def test_normalized_control_position_accepts_miro_percentage_strings():
+    connector = {
+        "id": "c-percent",
+        "endItem": {"position": {"x": "15.7494%", "y": "8.5%"}},
+    }
+    image = {
+        "position": {"x": 960.0, "y": 540.0},
+        "geometry": {"width": 1900.0, "height": 1000.0},
+    }
+    x, y = anchors._normalized_control_position(connector, image)
+    assert abs(x - 309.2386) < 1e-9
+    assert abs(y - 125.0) < 1e-9
+
+
 def test_control_connector_payload_terminates_on_anchor_without_image_endpoint(monkeypatch):
     def base_payload(source, start, end, manifest):
         del source, manifest

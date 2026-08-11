@@ -95,6 +95,15 @@ def _same_anchor(remote: dict[str, Any], expected: dict[str, Any]) -> bool:
     )
 
 
+def _normalized_endpoint_value(raw: Any) -> float:
+    """Accept Miro endpoint coordinates as normalized numbers or percentage strings."""
+    if isinstance(raw, str):
+        text = raw.strip()
+        if text.endswith("%"):
+            return float(text[:-1].strip()) / 100.0
+    return float(raw)
+
+
 def _normalized_control_position(
     source_connector: dict[str, Any],
     target_image: dict[str, Any],
@@ -104,7 +113,8 @@ def _normalized_control_position(
         raise ValueError(
             f"Miro Tips source connector {source_connector.get('id')} has no authored end position"
         )
-    px, py = float(position["x"]), float(position["y"])
+    px = _normalized_endpoint_value(position["x"])
+    py = _normalized_endpoint_value(position["y"])
     if not (0.0 <= px <= 1.0 and 0.0 <= py <= 1.0):
         raise ValueError(
             f"Miro Tips source connector {source_connector.get('id')} endpoint is outside normalized image bounds"
