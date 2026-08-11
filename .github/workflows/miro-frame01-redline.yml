@@ -24,7 +24,7 @@ jobs:
     timeout-minutes: 120
     env:
       SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
-      PREVIOUS_SHA: 67770a0095e6e2139bced738bc7214a62fccf716
+      PREVIOUS_SHA: fe19caa861ae3476d9940c2c4565b8e1d42b03b0
       BASE_SHA: ed14f57363c359e60633f9f1da9ad69dee8b5bda
       GH_TOKEN: ${{ github.token }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -57,20 +57,23 @@ jobs:
 
           source=os.environ['SOURCE_SHA']
           assert g('rev-parse', source + '^') == os.environ['PREVIOUS_SHA'], 'corrective parent SHA mismatch'
-          assert g('show', '-s', '--format=%s', source) == 'fix(miro): repair HVR-2 corrective workflow'
+          assert g('show', '-s', '--format=%s', source) == 'fix(miro): preserve HVR-2 arrowheads only'
           subprocess.check_call(['git','merge-base','--is-ancestor',os.environ['BASE_SHA'],source])
           observed=sorted(x for x in g('diff-tree','--no-commit-id','--name-only','-r',source).splitlines() if x)
           expected=sorted([
               '.github/workflows/miro-frame01-redline.yml',
-              'docs/reviews/REM-PR8-HVA-CC-012-5-frame-01-redline.md',
               'docs/reviews/REM-PR8-HVR2-miro-tips-readback-normalization.md',
+              'runtime/miro/ddda_miro/connector_readback_wirefix.py',
+              'runtime/miro/ddda_miro/miro_tips_endpoint_wirefix.py',
+              'runtime/miro/tests/test_rem_012_5_connector_readback.py',
+              'scaffolds/miro/rem-012-5-frame-01.yaml',
           ])
           assert observed == expected, f'corrective path mismatch: {observed}'
 
           manifest=Path('scaffolds/miro/rem-012-5-frame-01.yaml').read_text(encoding='utf-8')
           for marker in (
               'vertical_offset_y: 600',
-              'endpoint_position_policy: preserve_source_position_for_black_captionless_callouts_only',
+              'endpoint_position_policy: preserve_source_arrowhead_position_for_black_captionless_callouts_only',
               'layer_policy: image_below_native_callouts',
               'press tab after typing a sticky',
           ):
@@ -78,13 +81,13 @@ jobs:
 
           note=Path('docs/reviews/REM-PR8-HVR2-miro-tips-readback-normalization.md').read_text(encoding='utf-8')
           for marker in (
-              'Miro REST connector endpoint normalization',
+              'arrowhead landing point',
+              'screenshot-side `endItem`',
               '3458764680476608045',
-              '600 px vertical offset',
-              'Human Review criterion',
+              '+600 Miro units',
               'HVR-3 remains blocked',
           ):
-              assert marker in note, f'clarification marker missing: {marker}'
+              assert marker in note, f'review marker missing: {marker}'
           '@ | python -
 
       - name: Run targeted REM-012.5 tests
@@ -187,6 +190,7 @@ jobs:
             if([math]::Abs([double]$tips.target_position.x-(-19834.447))-gt 1 -or [math]::Abs([double]$tips.target_position.y-(-11727.533))-gt 1){throw 'Miro Tips placement mismatch'}
             if($tips.replacement_frame_id -ne '3458764680476608045'){throw 'Miro Tips active replacement identity mismatch'}
           }
+          if([int]$tips1[0].frame_replaced -ne 0 -or [int]$tips1[0].forced_layer_rebuild -ne 0){throw 'Miro Tips stable frame was unexpectedly replaced'}
           if([int]$tips2[0].frame_replaced -ne 0 -or [int]$tips2[0].forced_layer_rebuild -ne 0 -or [int]$tips2[0].background_images_primed -ne 0){throw 'Miro Tips second run changed stable identity/layers'}
           if($tips2[0].items.created -ne 0 -or $tips2[0].items.updated -ne 0 -or $tips2[0].items.deleted -ne 0){throw 'Miro Tips second run mutated items'}
           if($tips2[0].connectors.created -ne 0 -or $tips2[0].connectors.updated -ne 0 -or $tips2[0].connectors.deleted -ne 0){throw 'Miro Tips second run mutated connectors'}

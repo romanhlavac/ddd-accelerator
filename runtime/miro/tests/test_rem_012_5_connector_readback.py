@@ -103,28 +103,29 @@ def test_update_connector_uses_fresh_readback_not_patch_response(monkeypatch):
     assert same_connector_canonical(remote, _expected())
 
 
-def test_generic_connector_tolerates_endpoint_position_normalization():
+def test_non_tutorial_connector_does_not_gain_endpoint_fidelity_gate():
     client = _ConnectorClient()
     drifted = deepcopy(client.full)
     drifted["endItem"]["position"] = {"x": 0.5, "y": 0.0}
     assert same_connector_canonical(drifted, _expected())
 
 
-def test_black_miro_tips_callout_tolerates_endpoint_readback_normalization():
+def test_black_miro_tips_callout_rejects_wrong_arrowhead_position():
     expected = _black_callout()
     remote = deepcopy(expected)
-    remote["endItem"]["position"] = {"x": 0.5, "y": 0.0}
     assert same_connector_canonical(remote, expected)
-
-
-def test_connector_equality_still_rejects_wrong_endpoint_item_id():
-    expected = _black_callout()
-    remote = deepcopy(expected)
-    remote["endItem"]["id"] = "wrong-image"
+    remote["endItem"]["position"] = {"x": 0.5, "y": 0.0}
     assert not same_connector_canonical(remote, expected)
 
 
-def test_readable_connector_payload_prefers_custom_position_for_black_callout():
+def test_black_miro_tips_callout_allows_sticky_start_anchor_normalization():
+    expected = _black_callout()
+    remote = deepcopy(expected)
+    remote["startItem"] = {"id": "tip", "position": {"x": 1.0, "y": 0.5}}
+    assert same_connector_canonical(remote, expected)
+
+
+def test_readable_connector_payload_preserves_arrowhead_and_stable_start_snap():
     source = {
         "startItem": {"id": "source-start", "position": {"x": 0.18, "y": 0.04}, "snapTo": "top"},
         "endItem": {"id": "source-end", "position": {"x": 0.81, "y": 0.92}, "snapTo": "bottom"},
@@ -137,9 +138,9 @@ def test_readable_connector_payload_prefers_custom_position_for_black_callout():
         "captions": [],
     }
     payload = readable_connector_payload_preserve_endpoint(source, "target-start", "target-end", {})
-    assert payload["startItem"] == {"id": "target-start", "position": {"x": 0.18, "y": 0.04}}
+    assert payload["startItem"] == {"id": "target-start", "snapTo": "top"}
     assert payload["endItem"] == {"id": "target-end", "position": {"x": 0.81, "y": 0.92}}
-    assert "snapTo" not in payload["startItem"]
+    assert "position" not in payload["startItem"]
     assert "snapTo" not in payload["endItem"]
 
 

@@ -11,37 +11,51 @@ _INSTALLED = False
 
 
 def _is_miro_tips_callout(src: dict[str, Any]) -> bool:
-    """Bound precise endpoint semantics to the black, captionless Miro Tips callouts."""
+    """Identify the black, captionless Miro Tips tutorial callouts."""
     style = src.get("style") or {}
     stroke = str(style.get("strokeColor") or "").casefold()
     return stroke in {"#000000", "#000"} and not (src.get("captions") or [])
 
 
+def _copy_endpoint_location(
+    source_endpoint: dict[str, Any], target_endpoint: dict[str, Any]
+) -> None:
+    position = source_endpoint.get("position")
+    snap_to = source_endpoint.get("snapTo")
+    if (
+        isinstance(position, dict)
+        and position.get("x") is not None
+        and position.get("y") is not None
+    ):
+        target_endpoint.pop("snapTo", None)
+        target_endpoint["position"] = deepcopy(position)
+    elif snap_to is not None:
+        target_endpoint.pop("position", None)
+        target_endpoint["snapTo"] = deepcopy(snap_to)
+
+
 def readable_connector_payload_preserve_endpoint(
     src: dict[str, Any], start: str, end: str, manifest: dict[str, Any]
 ) -> dict[str, Any]:
-    """Preserve one precise endpoint-location contract for Miro Tips callouts only."""
+    """Preserve the screenshot-side arrowhead target for Miro Tips callouts.
+
+    HVR-2 requires the arrowhead to land on the intended visible Miro control.
+    The sticky-side start attachment only affects routing and may be normalized by
+    Miro, so it is deliberately not promoted to a precise visual contract.
+    """
     payload = _ORIGINAL_READABLE_CONNECTOR_PAYLOAD(src, start, end, manifest)
     if not _is_miro_tips_callout(src):
         return payload
 
-    for name in ("startItem", "endItem"):
-        source_endpoint = src.get(name) or {}
-        target_endpoint = payload.setdefault(name, {})
-        position = source_endpoint.get("position")
-        snap_to = source_endpoint.get("snapTo")
-        if (
-            isinstance(position, dict)
-            and position.get("x") is not None
-            and position.get("y") is not None
-        ):
-            # Miro accepts a precise normalized position OR snapTo. For the
-            # tutorial callouts, the source position is the visual redline.
-            target_endpoint.pop("snapTo", None)
-            target_endpoint["position"] = deepcopy(position)
-        elif snap_to is not None:
-            target_endpoint.pop("position", None)
-            target_endpoint["snapTo"] = deepcopy(snap_to)
+    source_end = src.get("endItem") or {}
+    target_end = payload.setdefault("endItem", {})
+    _copy_endpoint_location(source_end, target_end)
+
+    source_start = src.get("startItem") or {}
+    target_start = payload.setdefault("startItem", {})
+    if source_start.get("snapTo") is not None:
+        target_start.pop("position", None)
+        target_start["snapTo"] = deepcopy(source_start["snapTo"])
     return payload
 
 

@@ -30,7 +30,7 @@ def _fresh_connector(client: MiroClient, board_id: str, connector_id: str) -> di
 def update_connector_with_fresh_readback(
     self: MiroClient, board_id: str, connector_id: str, payload: dict[str, Any]
 ) -> dict[str, Any]:
-    """PATCH a connector, then return a fresh list read instead of the partial PATCH response."""
+    """PATCH a connector, then verify against a fresh list read."""
     remote = _ORIGINAL_UPDATE_CONNECTOR(self, board_id, connector_id, payload)
     resolved_id = str((remote or {}).get("id") or connector_id)
     return _fresh_connector(self, board_id, resolved_id)
@@ -40,17 +40,62 @@ def _same_color(left: Any, right: Any) -> bool:
     return str(left or "").casefold() == str(right or "").casefold()
 
 
-def same_connector_canonical(remote: dict[str, Any], expected: dict[str, Any]) -> bool:
-    """Compare stable authored semantics while tolerating Miro endpoint normalization.
+def _endpoint_close(left: Any, right: Any, tolerance: float = 0.015) -> bool:
+    try:
+        return abs(float(left) - float(right)) <= tolerance
+    except (TypeError, ValueError):
+        return False
 
-    Miro may normalize connector endpoint positions on read-back even when the create/update
-    payload contains the intended custom position. Endpoint IDs remain part of the mechanical
-    contract; exact visual terminal placement is therefore a Human Review criterion.
-    """
+
+def _same_endpoint_location(remote: dict[str, Any], expected: dict[str, Any]) -> bool:
+    expected_position = expected.get("position")
+    if isinstance(expected_position, dict):
+        remote_position = remote.get("position")
+        if not isinstance(remote_position, dict):
+            return False
+        return _endpoint_close(
+            remote_position.get("x"), expected_position.get("x")
+        ) and _endpoint_close(remote_position.get("y"), expected_position.get("y"))
+
+    if "snapTo" in expected:
+        expected_snap = str(expected.get("snapTo") or "")
+        remote_snap = str(remote.get("snapTo") or "")
+        if remote_snap == expected_snap:
+            return True
+        canonical = {
+            "top": (0.5, 0.0),
+            "left": (0.0, 0.5),
+            "bottom": (0.5, 1.0),
+            "right": (1.0, 0.5),
+        }.get(expected_snap)
+        remote_position = remote.get("position")
+        return bool(
+            canonical
+            and isinstance(remote_position, dict)
+            and _endpoint_close(remote_position.get("x"), canonical[0])
+            and _endpoint_close(remote_position.get("y"), canonical[1])
+        )
+
+    return True
+
+
+def _requires_precise_arrowhead_contract(expected: dict[str, Any]) -> bool:
+    style = expected.get("style") or {}
+    stroke = str(style.get("strokeColor") or "").casefold()
+    return stroke in {"#000000", "#000"} and not (expected.get("captions") or [])
+
+
+def same_connector_canonical(remote: dict[str, Any], expected: dict[str, Any]) -> bool:
+    """Compare stable semantics and the HVR-2 screenshot-side arrowhead location."""
+    precise_arrowhead = _requires_precise_arrowhead_contract(expected)
     for name in ("startItem", "endItem"):
         remote_endpoint = remote.get(name) or {}
         expected_endpoint = expected.get(name) or {}
         if str(remote_endpoint.get("id") or "") != str(expected_endpoint.get("id") or ""):
+            return False
+        if name == "endItem" and precise_arrowhead and not _same_endpoint_location(
+            remote_endpoint, expected_endpoint
+        ):
             return False
 
     if expected.get("shape") and remote.get("shape") != expected["shape"]:
