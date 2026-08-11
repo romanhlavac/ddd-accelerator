@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from copy import deepcopy
+
 from ddda_miro.connector_readback_wirefix import (
     same_connector_canonical,
     update_connector_with_fresh_readback,
@@ -52,6 +54,21 @@ def _expected():
     }
 
 
+def _black_callout():
+    return {
+        "startItem": {"id": "tip", "position": {"x": 0.5, "y": 0.5}},
+        "endItem": {"id": "image", "position": {"x": 0.237, "y": 0.081}},
+        "shape": "curved",
+        "style": {
+            "startStrokeCap": "none",
+            "endStrokeCap": "stealth",
+            "strokeColor": "#000000",
+            "strokeStyle": "normal",
+        },
+        "captions": [],
+    }
+
+
 def test_connector_equality_canonicalizes_percentage_numeric_font_and_hex_case():
     client = _ConnectorClient()
     assert same_connector_canonical(client.full, _expected())
@@ -86,35 +103,58 @@ def test_update_connector_uses_fresh_readback_not_patch_response(monkeypatch):
     assert same_connector_canonical(remote, _expected())
 
 
-def test_connector_equality_rejects_wrong_custom_endpoint_position():
+def test_non_tutorial_connector_does_not_gain_endpoint_fidelity_gate():
     client = _ConnectorClient()
-    client.full["endItem"]["position"] = {"x": 0.5, "y": 0.0}
-    assert not same_connector_canonical(client.full, _expected())
+    drifted = deepcopy(client.full)
+    drifted["endItem"]["position"] = {"x": 0.5, "y": 0.0}
+    # Main Frame 01 connectors are not part of the HVR-2 endpoint redline.
+    assert same_connector_canonical(drifted, _expected())
 
 
-def test_connector_equality_accepts_equivalent_snap_to_position():
-    client = _ConnectorClient()
-    client.full["startItem"] = {"id": "start", "position": {"x": 1.0, "y": 0.5}}
-    expected = _expected()
-    expected["startItem"] = {"id": "start", "snapTo": "right"}
-    assert same_connector_canonical(client.full, expected)
+def test_black_miro_tips_callout_rejects_wrong_custom_endpoint_position():
+    expected = _black_callout()
+    remote = deepcopy(expected)
+    assert same_connector_canonical(remote, expected)
+    remote["endItem"]["position"] = {"x": 0.5, "y": 0.0}
+    assert not same_connector_canonical(remote, expected)
 
 
-def test_connector_equality_rejects_small_but_visible_endpoint_drift():
-    client = _ConnectorClient()
-    client.full["endItem"]["position"] = {"x": 0.27, "y": 0.081}
-    assert not same_connector_canonical(client.full, _expected())
+def test_black_miro_tips_callout_accepts_equivalent_snap_to_position():
+    expected = _black_callout()
+    expected["startItem"] = {"id": "tip", "snapTo": "right"}
+    remote = deepcopy(expected)
+    remote["startItem"] = {"id": "tip", "position": {"x": 1.0, "y": 0.5}}
+    assert same_connector_canonical(remote, expected)
 
 
-def test_readable_connector_payload_prefers_custom_position_over_snap_to():
+def test_readable_connector_payload_prefers_custom_position_for_black_callout():
     source = {
         "startItem": {"id": "source-start", "position": {"x": 0.18, "y": 0.04}, "snapTo": "top"},
         "endItem": {"id": "source-end", "position": {"x": 0.81, "y": 0.92}, "snapTo": "bottom"},
         "shape": "curved",
-        "style": {"startStrokeCap": "none", "endStrokeCap": "stealth"},
+        "style": {
+            "strokeColor": "#000000",
+            "startStrokeCap": "none",
+            "endStrokeCap": "stealth",
+        },
+        "captions": [],
     }
     payload = readable_connector_payload_preserve_endpoint(source, "target-start", "target-end", {})
     assert payload["startItem"] == {"id": "target-start", "position": {"x": 0.18, "y": 0.04}}
     assert payload["endItem"] == {"id": "target-end", "position": {"x": 0.81, "y": 0.92}}
     assert "snapTo" not in payload["startItem"]
     assert "snapTo" not in payload["endItem"]
+
+
+def test_readable_connector_payload_leaves_non_tutorial_connector_on_legacy_wire_contract():
+    source = {
+        "startItem": {"id": "source-start", "position": {"x": 0.18, "y": 0.04}, "snapTo": "top"},
+        "endItem": {"id": "source-end", "position": {"x": 0.81, "y": 0.92}, "snapTo": "bottom"},
+        "shape": "straight",
+        "style": {"strokeColor": "#365A8C"},
+        "captions": [{"content": "G1"}],
+    }
+    payload = readable_connector_payload_preserve_endpoint(source, "target-start", "target-end", {})
+    # The wrapper must not rewrite endpoint attachment semantics outside Miro Tips.
+    assert payload["startItem"]["id"] == "target-start"
+    assert payload["endItem"]["id"] == "target-end"

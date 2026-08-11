@@ -79,14 +79,24 @@ def _same_endpoint_location(remote: dict[str, Any], expected: dict[str, Any]) ->
     return True
 
 
+def _requires_precise_endpoint_contract(expected: dict[str, Any]) -> bool:
+    """Only Miro Tips black captionless callouts carry HVR endpoint-fidelity semantics."""
+    style = expected.get("style") or {}
+    stroke = str(style.get("strokeColor") or "").casefold()
+    return stroke in {"#000000", "#000"} and not (expected.get("captions") or [])
+
+
 def same_connector_canonical(remote: dict[str, Any], expected: dict[str, Any]) -> bool:
     """Compare authored connector semantics while tolerating Miro wire-format normalization."""
+    precise_endpoint_contract = _requires_precise_endpoint_contract(expected)
     for name in ("startItem", "endItem"):
         remote_endpoint = remote.get(name) or {}
         expected_endpoint = expected.get(name) or {}
         if str(remote_endpoint.get("id") or "") != str(expected_endpoint.get("id") or ""):
             return False
-        if not _same_endpoint_location(remote_endpoint, expected_endpoint):
+        if precise_endpoint_contract and not _same_endpoint_location(
+            remote_endpoint, expected_endpoint
+        ):
             return False
 
     if expected.get("shape") and remote.get("shape") != expected["shape"]:
