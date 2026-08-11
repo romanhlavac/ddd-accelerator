@@ -5,13 +5,16 @@ from copy import deepcopy
 from ddda_miro import miro_tips_control_anchor_fix as anchors
 
 
-def test_normalized_control_position_maps_reference_arrowhead_to_target_image():
+FRAME_GEOMETRY = {"width": 1920.0, "height": 1080.0}
+
+
+def test_normalized_control_position_maps_reference_arrowhead_to_ddda_frame_coordinates():
     connector = {"id": "c1", "endItem": {"position": {"x": 0.25, "y": 0.10}}}
     image = {
         "position": {"x": 960.0, "y": 540.0},
         "geometry": {"width": 1900.0, "height": 1000.0},
     }
-    assert anchors._normalized_control_position(connector, image) == (485.0, 140.0)
+    assert anchors._normalized_control_position(connector, image, FRAME_GEOMETRY) == (-475.0, -400.0)
 
 
 def test_normalized_control_position_accepts_miro_percentage_strings():
@@ -23,9 +26,18 @@ def test_normalized_control_position_accepts_miro_percentage_strings():
         "position": {"x": 960.0, "y": 540.0},
         "geometry": {"width": 1900.0, "height": 1000.0},
     }
-    x, y = anchors._normalized_control_position(connector, image)
-    assert abs(x - 309.2386) < 1e-9
-    assert abs(y - 125.0) < 1e-9
+    x, y = anchors._normalized_control_position(connector, image, FRAME_GEOMETRY)
+    assert abs(x - (-650.7614)) < 1e-9
+    assert abs(y - (-415.0)) < 1e-9
+
+
+def test_same_anchor_compares_miro_readback_to_converted_ddda_payload():
+    expected = anchors._anchor_payload("target-tips", "ddda.hvr2.control-anchor:c1", -475.0, -400.0, 8.0)
+    remote = deepcopy(expected)
+    remote["id"] = "anchor-1"
+    remote["type"] = "shape"
+    remote["position"] = {"x": 485.0, "y": 140.0, "origin": "center"}
+    assert anchors._same_anchor(remote, expected, FRAME_GEOMETRY)
 
 
 def test_control_connector_payload_terminates_on_anchor_without_image_endpoint(monkeypatch):
@@ -60,9 +72,26 @@ class FakeClient:
         self.connectors = {"source": [], "target": []}
         self.next_item = 1
         self.next_connector = 1
+        self.frame_geometry = {
+            ("target", "target-tips"): deepcopy(FRAME_GEOMETRY),
+            ("source", "source-tips"): deepcopy(FRAME_GEOMETRY),
+        }
+
+    def _frame_geometry(self, board, frame_id):
+        return deepcopy(self.frame_geometry[(board, frame_id)])
+
+    def _prepared_item(self, board, item_type, payload):
+        item = deepcopy(payload)
+        parent_id = str((item.get("parent") or {}).get("id") or "")
+        if item_type != "frame" and parent_id and item.get("position"):
+            geometry = self._frame_geometry(board, parent_id)
+            item["position"] = dict(item["position"])
+            item["position"]["x"] = geometry["width"] / 2.0 + float(item["position"]["x"])
+            item["position"]["y"] = geometry["height"] / 2.0 + float(item["position"]["y"])
+        return item
 
     def create_item(self, board, item_type, payload):
-        item = deepcopy(payload)
+        item = self._prepared_item(board, item_type, payload)
         item["id"] = f"anchor-{self.next_item}"
         item["type"] = item_type
         self.next_item += 1
@@ -72,7 +101,7 @@ class FakeClient:
     def update_item(self, board, item_type, item_id, payload):
         for index, item in enumerate(self.items[board]):
             if item["id"] == item_id:
-                updated = deepcopy(payload)
+                updated = self._prepared_item(board, item_type, payload)
                 updated["id"] = item_id
                 updated["type"] = item_type
                 self.items[board][index] = updated

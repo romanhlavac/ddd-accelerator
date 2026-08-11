@@ -76,7 +76,24 @@ def _close(left: Any, right: Any, tolerance: float = 1.0) -> bool:
         return False
 
 
-def _same_anchor(remote: dict[str, Any], expected: dict[str, Any]) -> bool:
+def _target_frame_geometry(client: Any, board: str, frame_id: str) -> dict[str, float]:
+    getter = getattr(client, "_frame_geometry", None)
+    if not callable(getter):
+        raise ValueError("Miro Tips control-anchor reconciliation requires parent frame geometry")
+    raw = dict(getter(board, frame_id) or {})
+    if "width" not in raw or "height" not in raw:
+        raise ValueError("Miro Tips parent frame geometry requires width and height")
+    width, height = float(raw["width"]), float(raw["height"])
+    if width <= 0 or height <= 0:
+        raise ValueError("Miro Tips parent frame geometry must be positive")
+    return {"width": width, "height": height}
+
+
+def _same_anchor(
+    remote: dict[str, Any],
+    expected: dict[str, Any],
+    frame_geometry: dict[str, float],
+) -> bool:
     if not _is_control_anchor(remote):
         return False
     if _visible(remote) != _visible(expected):
@@ -87,9 +104,11 @@ def _same_anchor(remote: dict[str, Any], expected: dict[str, Any]) -> bool:
         return False
     remote_pos, expected_pos = remote.get("position") or {}, expected.get("position") or {}
     remote_geo, expected_geo = remote.get("geometry") or {}, expected.get("geometry") or {}
+    expected_remote_x = float(frame_geometry["width"]) / 2.0 + float(expected_pos.get("x") or 0.0)
+    expected_remote_y = float(frame_geometry["height"]) / 2.0 + float(expected_pos.get("y") or 0.0)
     return (
-        _close(remote_pos.get("x"), expected_pos.get("x"))
-        and _close(remote_pos.get("y"), expected_pos.get("y"))
+        _close(remote_pos.get("x"), expected_remote_x)
+        and _close(remote_pos.get("y"), expected_remote_y)
         and _close(remote_geo.get("width"), expected_geo.get("width"), 0.5)
         and _close(remote_geo.get("height"), expected_geo.get("height"), 0.5)
     )
@@ -107,7 +126,15 @@ def _normalized_endpoint_value(raw: Any) -> float:
 def _normalized_control_position(
     source_connector: dict[str, Any],
     target_image: dict[str, Any],
+    target_frame_geometry: dict[str, float],
 ) -> tuple[float, float]:
+    """Map a reference image endpoint into DDDA frame-center child coordinates.
+
+    Miro read-back exposes child/image positions in parent-top-left coordinates,
+    while MiroClient.create_item/update_item accept DDDA frame-center coordinates
+    and convert them at the API boundary. Calculate the UI control point in the
+    read-back coordinate system first, then translate it back to DDDA coordinates.
+    """
     position = (source_connector.get("endItem") or {}).get("position")
     if not isinstance(position, dict):
         raise ValueError(
@@ -122,9 +149,12 @@ def _normalized_control_position(
     image_position = target_image.get("position") or {}
     image_geometry = target_image.get("geometry") or {}
     width, height = float(image_geometry["width"]), float(image_geometry["height"])
-    x = float(image_position["x"]) - width / 2.0 + px * width
-    y = float(image_position["y"]) - height / 2.0 + py * height
-    return x, y
+    parent_x = float(image_position["x"]) - width / 2.0 + px * width
+    parent_y = float(image_position["y"]) - height / 2.0 + py * height
+    return (
+        parent_x - float(target_frame_geometry["width"]) / 2.0,
+        parent_y - float(target_frame_geometry["height"]) / 2.0,
+    )
 
 
 def _target_native(
@@ -212,6 +242,7 @@ def _reconcile_control_anchors_and_connectors(
     if len(source_images) != 1:
         raise ValueError(f"Miro Tips control anchors require exactly one reference image, got {len(source_images)}")
     target_image = _target_image(source_images[0], target_items, target_frame_id)
+    frame_geometry = _target_frame_geometry(client, target_board, target_frame_id)
 
     size = _anchor_size(manifest)
     anchor_counts = {"created": 0, "updated": 0, "unchanged": 0, "deleted": 0}
@@ -229,7 +260,7 @@ def _reconcile_control_anchors_and_connectors(
         if source_start is None:
             raise ValueError(f"Miro Tips source connector {source_connector.get('id')} start item is missing")
         target_start = _target_native(source_start, target_items)
-        x, y = _normalized_control_position(source_connector, target_image)
+        x, y = _normalized_control_position(source_connector, target_image, frame_geometry)
         marker = _marker(str(source_connector["id"]))
         payload = _anchor_payload(target_frame_id, marker, x, y, size)
         hits = [
@@ -246,11 +277,11 @@ def _reconcile_control_anchors_and_connectors(
             anchor_counts["created"] += 1
         else:
             anchor = hits[0]
-            if _same_anchor(anchor, payload):
+            if _same_anchor(anchor, payload, frame_geometry):
                 anchor_counts["unchanged"] += 1
             else:
                 anchor = client.update_item(target_board, "shape", str(anchor["id"]), payload)
-                if not _same_anchor(anchor, payload):
+                if not _same_anchor(anchor, payload, frame_geometry):
                     raise ValueError(f"Miro Tips control anchor {anchor.get('id')} read-back mismatch")
                 anchor_counts["updated"] += 1
         used_anchor_ids.add(str(anchor["id"]))
