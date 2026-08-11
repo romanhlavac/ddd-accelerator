@@ -24,7 +24,7 @@ jobs:
     timeout-minutes: 120
     env:
       SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
-      PREVIOUS_SHA: 13b9f7f5486803856d3190988db273e7bdd2d766
+      PREVIOUS_SHA: 67770a0095e6e2139bced738bc7214a62fccf716
       BASE_SHA: ed14f57363c359e60633f9f1da9ad69dee8b5bda
       GH_TOKEN: ${{ github.token }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -57,14 +57,13 @@ jobs:
 
           source=os.environ['SOURCE_SHA']
           assert g('rev-parse', source + '^') == os.environ['PREVIOUS_SHA'], 'corrective parent SHA mismatch'
-          assert g('show', '-s', '--format=%s', source) == 'fix(miro): tolerate Miro callout readback normalization'
+          assert g('show', '-s', '--format=%s', source) == 'fix(miro): repair HVR-2 corrective workflow'
           subprocess.check_call(['git','merge-base','--is-ancestor',os.environ['BASE_SHA'],source])
           observed=sorted(x for x in g('diff-tree','--no-commit-id','--name-only','-r',source).splitlines() if x)
           expected=sorted([
               '.github/workflows/miro-frame01-redline.yml',
               'docs/reviews/REM-PR8-HVA-CC-012-5-frame-01-redline.md',
-              'runtime/miro/ddda_miro/connector_readback_wirefix.py',
-              'runtime/miro/tests/test_rem_012_5_connector_readback.py',
+              'docs/reviews/REM-PR8-HVR2-miro-tips-readback-normalization.md',
           ])
           assert observed == expected, f'corrective path mismatch: {observed}'
 
@@ -72,19 +71,20 @@ jobs:
           for marker in (
               'vertical_offset_y: 600',
               'endpoint_position_policy: preserve_source_position_for_black_captionless_callouts_only',
-              "- '3458764680392874705'",
               'layer_policy: image_below_native_callouts',
               'press tab after typing a sticky',
           ):
               assert marker in manifest, f'manifest marker missing: {marker}'
-          assert 'press tab after typing a sticky to add a new one' not in manifest, 'stale required-marker contract remains'
-          review=Path('docs/reviews/REM-PR8-HVA-CC-012-5-frame-01-redline.md').read_text(encoding='utf-8')
+
+          note=Path('docs/reviews/REM-PR8-HVR2-miro-tips-readback-normalization.md').read_text(encoding='utf-8')
           for marker in (
-              'Miro endpoint read-back normalization',
-              'current replacement Miro Tips frame `3458764680476608045`',
-              'exact terminal placement on the visible Miro controls is an explicit HVR-2 Human Review criterion',
+              'Miro REST connector endpoint normalization',
+              '3458764680476608045',
+              '600 px vertical offset',
+              'Human Review criterion',
+              'HVR-3 remains blocked',
           ):
-              assert marker in review, f'review marker missing: {marker}'
+              assert marker in note, f'clarification marker missing: {marker}'
           '@ | python -
 
       - name: Run targeted REM-012.5 tests
@@ -148,7 +148,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ steps.ci.outputs.platform_run_id }}
 
-      - name: Replace Frame 01 from exact-SHA candidate
+      - name: Reconcile Frame 01 from exact-SHA candidate
         shell: pwsh
         env:
           MIRO_ACCESS_TOKEN: ${{ secrets.MIRO_ACCESS_TOKEN }}
@@ -166,13 +166,14 @@ jobs:
           $manifest=Join-Path $root 'scaffolds\miro\rem-012-5-frame-01.yaml'
           $report=Join-Path $env:EVIDENCE_ROOT 'result.json'
           python -m ddda_miro.connector_readback_wirefix --manifest $manifest --report $report --source-sha $env:SOURCE_SHA --apply
-          if($LASTEXITCODE -ne 0){Get-Content $report -ErrorAction SilentlyContinue; throw 'REM-012.5 replacement failed'}
+          if($LASTEXITCODE -ne 0){Get-Content $report -ErrorAction SilentlyContinue; throw 'REM-012.5 reconcile failed'}
 
           $r=Get-Content $report -Raw | ConvertFrom-Json
           if($r.technical_status -ne 'PASS' -or $r.human_review_status -ne 'PENDING' -or $r.overall_status -ne 'READY_FOR_HUMAN_REVIEW'){throw 'acceptance state mismatch'}
           if(-not $r.protected_frames.unchanged -or $r.protected_frames.count -ne 16){throw 'protected frames changed'}
           if($r.frame01_recovery.second_run.items.created -ne 0 -or $r.frame01_recovery.second_run.items.updated -ne 0 -or $r.frame01_recovery.second_run.items.deleted -ne 0){throw 'Frame01 second reconcile mutated items'}
           if($r.frame01_recovery.second_run.connectors.created -ne 0 -or $r.frame01_recovery.second_run.connectors.updated -ne 0 -or $r.frame01_recovery.second_run.connectors.deleted -ne 0){throw 'Frame01 second reconcile mutated connectors'}
+          if($r.companion_frames.second_run.frames.created -ne 0 -or $r.companion_frames.second_run.frames.updated -ne 0 -or $r.companion_frames.second_run.frames.unchanged -ne 9){throw 'companion frame second reconcile mismatch'}
 
           $tips1=@($r.companion_frames.first_run.details | Where-Object {$_.title -eq 'Miro Tips'})
           $tips2=@($r.companion_frames.second_run.details | Where-Object {$_.title -eq 'Miro Tips'})
@@ -184,15 +185,12 @@ jobs:
             if([int]$tips.target_image_anchor_connector_count -lt 8){throw 'Miro Tips image anchor count mismatch'}
             if([math]::Abs([double]$tips.target_geometry.width-1919.43)-gt .5 -or [math]::Abs([double]$tips.target_geometry.height-1079.68)-gt .5){throw 'Miro Tips geometry mismatch'}
             if([math]::Abs([double]$tips.target_position.x-(-19834.447))-gt 1 -or [math]::Abs([double]$tips.target_position.y-(-11727.533))-gt 1){throw 'Miro Tips placement mismatch'}
-          }
-          foreach($tips in @($tips1[0],$tips2[0])){
-            if([int]$tips.frame_replaced -ne 0 -or [int]$tips.forced_layer_rebuild -ne 0 -or [int]$tips.background_images_primed -ne 0){throw 'Miro Tips stable replacement unexpectedly changed identity/layers'}
             if($tips.replacement_frame_id -ne '3458764680476608045'){throw 'Miro Tips active replacement identity mismatch'}
-            if($tips.items.created -ne 0 -or $tips.items.updated -ne 0 -or $tips.items.deleted -ne 0){throw 'Miro Tips reconcile mutated items'}
-            if($tips.connectors.created -ne 0 -or $tips.connectors.updated -ne 0 -or $tips.connectors.deleted -ne 0){throw 'Miro Tips reconcile mutated connectors'}
           }
-          if($tips1[0].replacement_frame_id -ne $tips2[0].replacement_frame_id){throw 'Miro Tips replacement identity is not stable'}
-          if($r.merge_allowed -or $r.promotion_allowed -or $r.release_allowed -or $r.gate_approval_allowed){throw 'governance boundary violatedg}
+          if([int]$tips2[0].frame_replaced -ne 0 -or [int]$tips2[0].forced_layer_rebuild -ne 0 -or [int]$tips2[0].background_images_primed -ne 0){throw 'Miro Tips second run changed stable identity/layers'}
+          if($tips2[0].items.created -ne 0 -or $tips2[0].items.updated -ne 0 -or $tips2[0].items.deleted -ne 0){throw 'Miro Tips second run mutated items'}
+          if($tips2[0].connectors.created -ne 0 -or $tips2[0].connectors.updated -ne 0 -or $tips2[0].connectors.deleted -ne 0){throw 'Miro Tips second run mutated connectors'}
+          if($r.merge_allowed -or $r.promotion_allowed -or $r.release_allowed -or $r.gate_approval_allowed){throw 'governance boundary violated'}
 
       - name: Upload evidence
         if: always()

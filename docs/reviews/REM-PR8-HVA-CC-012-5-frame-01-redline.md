@@ -97,7 +97,7 @@ The main Frame 01 journey, methodology block and eight DDD Starter phase compani
 
 ### HVR-2 follow-up finding — callouts hidden behind screenshot
 
-Human Review again returned `CHANGES_REQUIRED` after exact SHA `7082b6724c99349d7466083c0ab8360959e6c98e`. The generated target contained the Miro UI screnshot and black connectors, but the explanatory yellow/green stickies and text were visually obscured. The resulting arrows therefore appeared detached from any explanation.
+Human Review again returned `CHANGES_REQUIRED` after exact SHA `7082b6724c99349d7466083c0ab8360959e6c98e`. The generated target contained the Miro UI screenshot and black connectors, but the explanatory yellow/green stickies and text were visually obscured. The resulting arrows therefore appeared detached from any explanation.
 
 Gap analysis identified a rendering-order defect in the companion copier: native callout items were created first and the full-frame Miro screenshot image was created afterwards. Because overlapping Miro items are stacked by creation order, the screenshot covered the callout stickies/text while connectors remained visible above it. Structural checks for image count, marker text and connector count therefore passed even though first-viewer usability failed.
 
@@ -130,9 +130,16 @@ This remediation must not merge PR #8, write to `main`, approve G1, promote or r
 
 ## HVR-2 follow-up — endpoint fidelity and spacing
 
-Latest human verdict remains `CHANGES_REQUIRED@. The reference screenshot and target screenshot show two blocking visual gaps:
+Latest human verdict remains `CHANGES_REQUIRED`. The reference screenshot and target screenshot show two blocking visual gaps:
 
 1. callout arrow terminal points are normalized to the tutorial image border instead of the intended Miro UI controls;
 2. the Miro Tips companion sits too close to the enlarged `METODIKA A ZDROJE` section.
 
-Corrective contract for the next exact-SHA
+Corrective contract for the next exact-SHA remediation run:
+
+- preserve custom connector endpoint `position` as the authored location and never submit `position` together with `snapTo`;
+- validate connector terminal positions during fresh read-back, not only endpoint item IDs/style;
+- shift Miro Tips down by 240 board pixels relative to the translated reference placement;
+- transactionally replace the current known-bad Miro Tips frame `3458764680392874705`;
+- keep the Miro UI screenshot below native callouts and connectors;
+- keep HVR-2 human review `PENDING` and HVR-3 blocked after mechanical PASS.
