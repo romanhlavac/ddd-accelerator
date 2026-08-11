@@ -24,7 +24,7 @@ jobs:
     timeout-minutes: 120
     env:
       SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
-      PREVIOUS_SHA: 7082b6724c99349d7466083c0ab8360959e6c98e
+      PREVIOUS_SHA: ad857517fa3c7fb629dc115998151b465eaee32d
       BASE_SHA: ed14f57363c359e60633f9f1da9ad69dee8b5bda
       GH_TOKEN: ${{ github.token }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -57,7 +57,7 @@ jobs:
           base=os.environ['BASE_SHA']
 
           assert g('rev-parse', source + '^') == previous, 'corrective parent SHA mismatch'
-          assert g('show', '-s', '--format=%s', source) == 'fix(miro): preserve HVR-2 tutorial overlay stacking'
+          assert g('show', '-s', '--format=%s', source) == 'fix(miro): preserve HVR-2 callout endpoints and spacing'
           subprocess.check_call(['git','merge-base','--is-ancestor',base,source])
 
           observed=sorted(
@@ -67,7 +67,10 @@ jobs:
           expected=sorted([
               '.github/workflows/miro-frame01-redline.yml',
               'docs/reviews/REM-PR8-HVA-CC-012-5-frame-01-redline.md',
+              'runtime/miro/ddda_miro/connector_readback_wirefix.py',
               'runtime/miro/ddda_miro/miro_tips_hvr_fix.py',
+              'runtime/miro/ddda_miro/miro_tips_endpoint_wirefix.py',
+              'runtime/miro/tests/test_rem_012_5_connector_readback.py',
               'runtime/miro/tests/test_rem_012_5_miro_tips_hvr.py',
               'scaffolds/miro/rem-012-5-frame-01.yaml',
           ])
@@ -78,9 +81,11 @@ jobs:
               'miro_tips:',
               'min_images: 1',
               'min_connectors: 8',
+              'vertical_offset_y: 240',
               'container_policy: transactional_replace_irreducible_companion',
               'layer_policy: image_below_native_callouts',
               "- '3458764680388504033'",
+              "- '3458764680392874705'",
               'mode: reference_ui_tutorial',
               'right-click-drag to drag the board around',
               'methodology_min_font_size: 80',
@@ -99,6 +104,7 @@ jobs:
               'recover it transactionally',
               'callouts hidden behind screenshot',
               'image → native callouts → connectors order',
+              'endpoint fidelity and spacing',
               'HVR-3 remains blocked',
           ):
               assert marker in review, f'review marker missing: {marker}'
@@ -208,16 +214,17 @@ jobs:
             if($tips.mode -ne 'reference_ui_tutorial'){throw 'Miro Tips correction mode mismatch'}
             if($tips.container_policy -ne 'transactional_replace_irreducible_companion'){throw 'Miro Tips container policy mismatch'}
             if($tips.layer_policy -ne 'image_below_native_callouts'){throw 'Miro Tips layer policy mismatch'}
+            if([math]::Abs([double]$tips.vertical_offset_y-240)-gt .1){throw 'Miro Tips vertical spacing contract mismatch'}
             if([int]$tips.source_image_count -lt 1 -or [int]$tips.target_image_count -lt 1){throw 'Miro Tips UI screenshot missing'}
             if([int]$tips.source_connector_count -lt 8 -or [int]$tips.target_connector_count -lt 8){throw 'Miro Tips callout connector count mismatch'}
             if([int]$tips.source_image_anchor_connector_count -lt 8 -or [int]$tips.target_image_anchor_connector_count -lt 8){throw 'Miro Tips callouts are not anchored to UI image'}
             if([int]$tips.required_marker_count -lt 14){throw 'Miro Tips tutorial content incomplete'}
             if([math]::Abs([double]$tips.target_geometry.width-1919.43)-gt .5 -or [math]::Abs([double]$tips.target_geometry.height-1079.68)-gt .5){throw 'Miro Tips reference geometry mismatch'}
-            if([math]::Abs([double]$tips.target_position.x-(-19834.447))-gt 1 -or [math]::Abs([double]$tips.target_position.y-(-12327.533))-gt 1){throw 'Miro Tips relative placement mismatch'}
+            if([math]::Abs([double]$tips.target_position.x-(-19834.447))-gt 1 -or [math]::Abs([double]$tips.target_position.y-(-12087.533))-gt 1){throw 'Miro Tips relative placement mismatch'}
           }
           if([int]$tips1[0].frame_replaced -ne 1){throw 'Miro Tips legacy frame was not transactionally replaced'}
-          if($tips1[0].legacy_frame_id -ne '3458764680388504033'){throw 'Miro Tips legacy migration anchor mismatch'}
-          if([int]$tips1[0].forced_layer_rebuild -ne 1){throw 'Miro Tips known-bad layer frame was not forced through transactional rebuild'}
+          if($tips1[0].legacy_frame_id -ne '3458764680392874705'){throw 'Miro Tips latest failed HVR frame was not replaced'}
+          if([int]$tips1[0].forced_layer_rebuild -ne 1){throw 'Miro Tips known-bad endpoint frame was not forced through transactional rebuild'}
           if([int]$tips1[0].background_images_primed -lt 1){throw 'Miro Tips background image was not primed before callouts'}
           if([string]::IsNullOrWhiteSpace([string]$tips1[0].replacement_frame_id) -or $tips1[0].replacement_frame_id -eq $tips1[0].legacy_frame_id){throw 'Miro Tips replacement frame id mismatch'}
           if([int]$tips2[0].frame_replaced -ne 0 -or [int]$tips2[0].frame_reinitialized -ne 0 -or [int]$tips2[0].forced_layer_rebuild -ne 0){throw 'Miro Tips second run changed frame/layer identity'}

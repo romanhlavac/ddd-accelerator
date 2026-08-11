@@ -4,6 +4,7 @@ from typing import Any
 
 from . import frame00_resize_ordering_wirefix as recovery
 from . import frame01_redline as redline
+from . import miro_tips_endpoint_wirefix
 from . import miro_tips_hvr_fix
 from . import miro_tips_hvr_semantic_fix
 from .client import MiroClient, normalize_miro_percentage
@@ -39,12 +40,53 @@ def _same_color(left: Any, right: Any) -> bool:
     return str(left or "").casefold() == str(right or "").casefold()
 
 
+def _endpoint_close(left: Any, right: Any, tolerance: float = 0.015) -> bool:
+    try:
+        return abs(float(left) - float(right)) <= tolerance
+    except (TypeError, ValueError):
+        return False
+
+
+def _same_endpoint_location(remote: dict[str, Any], expected: dict[str, Any]) -> bool:
+    expected_position = expected.get("position")
+    if isinstance(expected_position, dict):
+        remote_position = remote.get("position")
+        if not isinstance(remote_position, dict):
+            return False
+        return _endpoint_close(
+            remote_position.get("x"), expected_position.get("x")
+        ) and _endpoint_close(remote_position.get("y"), expected_position.get("y"))
+
+    if "snapTo" in expected:
+        expected_snap = str(expected.get("snapTo") or "")
+        remote_snap = str(remote.get("snapTo") or "")
+        if remote_snap == expected_snap:
+            return True
+        canonical = {
+            "top": (0.5, 0.0),
+            "left": (0.0, 0.5),
+            "bottom": (0.5, 1.0),
+            "right": (1.0, 0.5),
+        }.get(expected_snap)
+        remote_position = remote.get("position")
+        return bool(
+            canonical
+            and isinstance(remote_position, dict)
+            and _endpoint_close(remote_position.get("x"), canonical[0])
+            and _endpoint_close(remote_position.get("y"), canonical[1])
+        )
+
+    return True
+
+
 def same_connector_canonical(remote: dict[str, Any], expected: dict[str, Any]) -> bool:
     """Compare authored connector semantics while tolerating Miro wire-format normalization."""
     for name in ("startItem", "endItem"):
-        if str((remote.get(name) or {}).get("id") or "") != str(
-            (expected.get(name) or {}).get("id") or ""
-        ):
+        remote_endpoint = remote.get(name) or {}
+        expected_endpoint = expected.get(name) or {}
+        if str(remote_endpoint.get("id") or "") != str(expected_endpoint.get("id") or ""):
+            return False
+        if not _same_endpoint_location(remote_endpoint, expected_endpoint):
             return False
 
     if expected.get("shape") and remote.get("shape") != expected["shape"]:
@@ -85,6 +127,7 @@ def same_connector_canonical(remote: dict[str, Any], expected: dict[str, Any]) -
 def main(argv: list[str] | None = None) -> int:
     MiroClient.update_connector = update_connector_with_fresh_readback
     redline.same_connector = same_connector_canonical
+    miro_tips_endpoint_wirefix.install()
     miro_tips_hvr_fix.install()
     miro_tips_hvr_semantic_fix.install()
     try:
@@ -92,6 +135,7 @@ def main(argv: list[str] | None = None) -> int:
     finally:
         miro_tips_hvr_semantic_fix.uninstall()
         miro_tips_hvr_fix.uninstall()
+        miro_tips_endpoint_wirefix.uninstall()
         MiroClient.update_connector = _ORIGINAL_UPDATE_CONNECTOR
         redline.same_connector = _ORIGINAL_SAME_CONNECTOR
 

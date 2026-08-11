@@ -15,6 +15,7 @@ DEFAULT_READBACK_ATTEMPTS = 20
 DEFAULT_READBACK_DELAY_SECONDS = 0.5
 DEFAULT_MIN_IMAGES = 1
 DEFAULT_MIN_CONNECTORS = 8
+DEFAULT_VERTICAL_OFFSET_Y = 240.0
 DEFAULT_REQUIRED_MARKERS = (
     "toggle between navigation mode & edit mode",
     "stickies / post-its",
@@ -48,6 +49,11 @@ def _config(manifest: dict[str, Any]) -> dict[str, Any]:
     )
     min_images = int(raw.get("min_images") or DEFAULT_MIN_IMAGES)
     min_connectors = int(raw.get("min_connectors") or DEFAULT_MIN_CONNECTORS)
+    vertical_offset_y = float(
+        raw.get("vertical_offset_y")
+        if raw.get("vertical_offset_y") is not None
+        else DEFAULT_VERTICAL_OFFSET_Y
+    )
     policy = str(raw.get("container_policy") or MIRO_TIPS_CONTAINER_POLICY)
     layer_policy = str(raw.get("layer_policy") or MIRO_TIPS_LAYER_POLICY)
     legacy_frame_ids = tuple(str(value) for value in (raw.get("legacy_frame_ids") or ()))
@@ -63,6 +69,8 @@ def _config(manifest: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("Miro Tips visual tutorial requires at least one Miro UI image")
     if min_connectors < DEFAULT_MIN_CONNECTORS:
         raise ValueError("Miro Tips visual tutorial requires at least eight callout connectors")
+    if not 0 <= vertical_offset_y <= 1000:
+        raise ValueError("Miro Tips vertical offset must be between 0 and 1000 pixels")
     if policy != MIRO_TIPS_CONTAINER_POLICY:
         raise ValueError("Miro Tips requires transactional replacement for an irreducible companion container")
     if layer_policy != MIRO_TIPS_LAYER_POLICY:
@@ -77,6 +85,7 @@ def _config(manifest: dict[str, Any]) -> dict[str, Any]:
         "readback_delay_seconds": delay,
         "min_images": min_images,
         "min_connectors": min_connectors,
+        "vertical_offset_y": vertical_offset_y,
         "container_policy": policy,
         "layer_policy": layer_policy,
         "legacy_frame_ids": legacy_frame_ids,
@@ -110,8 +119,12 @@ def miro_tips_companion_frame_payload(
     target_main: dict[str, Any],
     manifest: dict[str, Any],
 ) -> dict[str, Any]:
-    _config(manifest)
-    return _ORIGINAL_COMPANION_FRAME_PAYLOAD(source_frame, source_main, target_main)
+    cfg = _config(manifest)
+    payload = _ORIGINAL_COMPANION_FRAME_PAYLOAD(source_frame, source_main, target_main)
+    position = dict(payload.get("position") or {})
+    position["y"] = float(position["y"]) + float(cfg["vertical_offset_y"])
+    payload["position"] = position
+    return payload
 
 
 def companion_frame_payload_with_miro_tips(
@@ -370,6 +383,7 @@ def reconcile_miro_tips_children(
         "mode": MIRO_TIPS_MODE,
         "container_policy": cfg["container_policy"],
         "layer_policy": cfg["layer_policy"],
+        "vertical_offset_y": cfg["vertical_offset_y"],
         "forced_layer_rebuild": int(forced_layer_rebuild),
         **child_result,
         "target_image_count": len(target_state["images"]),

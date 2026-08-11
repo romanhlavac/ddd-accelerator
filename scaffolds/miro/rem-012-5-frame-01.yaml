@@ -34,10 +34,12 @@ readability:
 miro_tips:
   min_images: 1
   min_connectors: 8
+  vertical_offset_y: 240
   container_policy: transactional_replace_irreducible_companion
   layer_policy: image_below_native_callouts
   legacy_frame_ids:
     - '3458764680388504033'
+    - '3458764680392874705'
   readback_attempts: 20
   readback_delay_seconds: 0.5
   required_markers:

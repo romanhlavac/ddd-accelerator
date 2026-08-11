@@ -127,3 +127,19 @@ HVR-3 remains blocked until HVR-2 is explicitly accepted by the human reviewer.
 ## Governance
 
 This remediation must not merge PR #8, write to `main`, approve G1, promote or release the platform, create a tag, or mutate Frame 10/20+.
+
+## HVR-2 follow-up — endpoint fidelity and spacing
+
+Latest human verdict remains `CHANGES_REQUIRED`. The reference screenshot and target screenshot show two blocking visual gaps:
+
+1. callout arrow terminal points are normalized to the tutorial image border instead of the intended Miro UI controls;
+2. the Miro Tips companion sits too close to the enlarged `METODIKA A ZDROJE` section.
+
+Corrective contract for the next exact-SHA remediation run:
+
+- preserve custom connector endpoint `position` as the authored location and never submit `position` together with `snapTo`;
+- validate connector terminal positions during fresh read-back, not only endpoint item IDs/style;
+- shift Miro Tips down by 240 board pixels relative to the translated reference placement;
+- transactionally replace the current known-bad Miro Tips frame `3458764680392874705`;
+- keep the Miro UI screenshot below native callouts and connectors;
+- keep HVR-2 human review `PENDING` and HVR-3 blocked after mechanical PASS.

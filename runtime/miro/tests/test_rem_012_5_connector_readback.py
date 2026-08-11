@@ -4,6 +4,7 @@ from ddda_miro.connector_readback_wirefix import (
     same_connector_canonical,
     update_connector_with_fresh_readback,
 )
+from ddda_miro.miro_tips_endpoint_wirefix import readable_connector_payload_preserve_endpoint
 
 
 class _ConnectorClient:
@@ -11,8 +12,8 @@ class _ConnectorClient:
         self.updated = []
         self.full = {
             "id": "connector-1",
-            "startItem": {"id": "start"},
-            "endItem": {"id": "end"},
+            "startItem": {"id": "start", "position": {"x": 1.0, "y": 0.5}},
+            "endItem": {"id": "end", "position": {"x": 0.237, "y": 0.081}},
             "shape": "straight",
             "style": {
                 "startStrokeCap": "none",
@@ -34,8 +35,8 @@ class _ConnectorClient:
 
 def _expected():
     return {
-        "startItem": {"id": "start"},
-        "endItem": {"id": "end"},
+        "startItem": {"id": "start", "position": {"x": 1.0, "y": 0.5}},
+        "endItem": {"id": "end", "position": {"x": 0.237, "y": 0.081}},
         "shape": "straight",
         "style": {
             "startStrokeCap": "none",
@@ -83,3 +84,37 @@ def test_update_connector_uses_fresh_readback_not_patch_response(monkeypatch):
     assert calls and calls[0][0:2] == ("target", "connector-1")
     assert remote == client.full
     assert same_connector_canonical(remote, _expected())
+
+
+def test_connector_equality_rejects_wrong_custom_endpoint_position():
+    client = _ConnectorClient()
+    client.full["endItem"]["position"] = {"x": 0.5, "y": 0.0}
+    assert not same_connector_canonical(client.full, _expected())
+
+
+def test_connector_equality_accepts_equivalent_snap_to_position():
+    client = _ConnectorClient()
+    client.full["startItem"] = {"id": "start", "position": {"x": 1.0, "y": 0.5}}
+    expected = _expected()
+    expected["startItem"] = {"id": "start", "snapTo": "right"}
+    assert same_connector_canonical(client.full, expected)
+
+
+def test_connector_equality_rejects_small_but_visible_endpoint_drift():
+    client = _ConnectorClient()
+    client.full["endItem"]["position"] = {"x": 0.27, "y": 0.081}
+    assert not same_connector_canonical(client.full, _expected())
+
+
+def test_readable_connector_payload_prefers_custom_position_over_snap_to():
+    source = {
+        "startItem": {"id": "source-start", "position": {"x": 0.18, "y": 0.04}, "snapTo": "top"},
+        "endItem": {"id": "source-end", "position": {"x": 0.81, "y": 0.92}, "snapTo": "bottom"},
+        "shape": "curved",
+        "style": {"startStrokeCap": "none", "endStrokeCap": "stealth"},
+    }
+    payload = readable_connector_payload_preserve_endpoint(source, "target-start", "target-end", {})
+    assert payload["startItem"] == {"id": "target-start", "position": {"x": 0.18, "y": 0.04}}
+    assert payload["endItem"] == {"id": "target-end", "position": {"x": 0.81, "y": 0.92}}
+    assert "snapTo" not in payload["startItem"]
+    assert "snapTo" not in payload["endItem"]
