@@ -313,8 +313,6 @@ jobs:
           params=urllib.parse.urlencode({'team_id':expected_team,'limit':'50','sort':'alphabetically'})
           boards=request('GET','/v2/boards?'+params,htoken).get('data',[])
           hvr=[b for b in boards if b.get('name')==os.environ['DDDA_MIRO_HVR_BOARD_NAME']]
-          if len(hvr)>1:
-              raise SystemExit(f'hvr: expected at most one DDDA_HVR board, found {len(hvr)}')
           if not hvr:
               created=request(
                   'POST',
@@ -341,12 +339,18 @@ jobs:
               'profiles':{
                   'platform_lab':{**pctx,'board_id':platform_id,'board_name':'DDDA_PLATFORM_LAB'},
                   'github_ci':{**cctx,'board_id':ci_id,'board_name':'DDDA_GH_CI'},
-                  'hvr':{**hctx,'board_id':str(hvr[0].get('id')),'board_name':'DDDA_HVR'},
+                  'hvr':{
+                      **hctx,
+                      'board_id':str(hvr[0].get('id')),
+                      'board_name':'DDDA_HVR',
+                      'logical_slot_count':len(hvr),
+                      'duplicate_slots_pending_hvr_normalization':len(hvr)>1,
+                  },
               },
               'technical_status':'PASS',
           }
           Path(os.environ['EVIDENCE_PATH']).write_text(json.dumps(evidence,indent=2),encoding='utf-8')
-          print('Three-profile Miro binding preflight: PASS')
+          print(f'Three-profile Miro binding preflight: PASS (HVR logical slots={len(hvr)})')
           '@ | python -
 
       - name: Upload Miro profile binding evidence

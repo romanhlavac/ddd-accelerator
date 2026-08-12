@@ -24,7 +24,7 @@ jobs:
     timeout-minutes: 120
     env:
       SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
-      PREVIOUS_SHA: 651093aaf4785a24d4e00a191e03cffe11ab3396
+      PREVIOUS_SHA: d76e86477d3b57a957366ddc928d27e81f04262f
       BASE_SHA: ed14f57363c359e60633f9f1da9ad69dee8b5bda
       GH_TOKEN: ${{ github.token }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -68,7 +68,7 @@ jobs:
 
           source=os.environ['SOURCE_SHA']
           assert g('rev-parse', source + '^') == os.environ['PREVIOUS_SHA'], 'corrective parent SHA mismatch'
-          assert g('show', '-s', '--format=%s', source) == 'fix(miro): export profile evidence path in current step', 'corrective commit message mismatch'
+          assert g('show', '-s', '--format=%s', source) == 'fix(miro): normalize duplicate HVR slots on materialization', 'corrective commit message mismatch'
           subprocess.check_call(['git','merge-base','--is-ancestor',os.environ['BASE_SHA'],source])
           observed=sorted(x for x in g('diff-tree','--no-commit-id','--name-only','-r',source).splitlines() if x)
           expected=sorted([
@@ -307,13 +307,22 @@ jobs:
           source_frames=list_items(source,'frame')
 
           old=[b for b in list_boards() if b.get('name')==target_name]
-          if len(old)!=1:
-              raise SystemExit(f'Expected exactly one existing {target_name} logical slot, found {len(old)}')
-          old_id=str(old[0].get('id'))
-          if old_id==source:
-              raise SystemExit('Refusing HVR materialization: HVR target resolves to Platform Lab')
+          old_ids=[str(b.get('id') or '') for b in old if b.get('id')]
+          if source in old_ids:
+              raise SystemExit('Refusing HVR materialization: an HVR logical slot resolves to Platform Lab')
 
-          request('DELETE','/v2/boards/'+urllib.parse.quote(old_id,safe=''))
+          for old_id in old_ids:
+              request('DELETE','/v2/boards/'+urllib.parse.quote(old_id,safe=''),allow404=True)
+
+          remaining=[]
+          for _ in range(30):
+              remaining=[b for b in list_boards() if b.get('name')==target_name]
+              if not remaining:
+                  break
+              time.sleep(1)
+          if remaining:
+              raise SystemExit(f'HVR logical-slot cleanup incomplete: {len(remaining)} exact-name boards remain')
+
           copied=request(
               'PUT',
               '/v2/boards?'+urllib.parse.urlencode({'copy_from':source}),
@@ -326,6 +335,15 @@ jobs:
           target_meta=request('GET','/v2/boards/'+urllib.parse.quote(target,safe=''))
           if target_meta.get('name')!=target_name:
               raise SystemExit('Copied HVR board has unexpected name')
+
+          final_slots=[]
+          for _ in range(30):
+              final_slots=[b for b in list_boards() if b.get('name')==target_name]
+              if len(final_slots)==1 and str(final_slots[0].get('id') or '')==target:
+                  break
+              time.sleep(1)
+          if len(final_slots)!=1 or str(final_slots[0].get('id') or '')!=target:
+              raise SystemExit(f'HVR logical-slot normalization failed: expected exactly copied board {target}, found {len(final_slots)} slots')
 
           target_items=[]
           for _ in range(30):
@@ -372,11 +390,13 @@ jobs:
               'source_board_id':source,
               'source_item_count':len(source_items),
               'target_profile':'hvr',
-              'replaced_hvr_board_id':old_id,
+              'replaced_hvr_board_ids':old_ids,
+              'normalized_previous_slot_count':len(old_ids),
               'target_board_id':target,
               'target_board_name':target_name,
               'target_board_url':f'https://miro.com/app/board/{target}/',
               'target_item_count':len(target_items),
+              'final_logical_slot_count':len(final_slots),
               'review_frames':review_frames,
               'copy_readback_status':'PASS',
               'technical_status':'PASS',
@@ -392,7 +412,7 @@ jobs:
               result['human_review_status']='PENDING'
               result['overall_status']='READY_FOR_HUMAN_REVIEW'
               result_path.write_text(json.dumps(result,indent=2),encoding='utf-8')
-          print('Dedicated DDDA_HVR materialization: PASS')
+          print(f'Dedicated DDDA_HVR materialization: PASS (normalized {len(old_ids)} prior slots)')
           print('HVR board id:',target)
           '@ | python -
 
@@ -401,6 +421,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: rem-012-5-frame01-redline-pr-${{ env.PR_NUMBER }}-${{ env.SOURCE_SHA }}-${{ github.run_id }}
-          path: ${{ env.EVIDENCE_ROOT }}/**
+          path: ${{ env:EVIDENCE_ROOT }}/**
           if-no-files-found: error
           retention-days: 30
