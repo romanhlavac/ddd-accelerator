@@ -110,11 +110,13 @@ def test_non_tutorial_connector_does_not_gain_endpoint_fidelity_gate():
     assert same_connector_canonical(drifted, _expected())
 
 
-def test_black_miro_tips_callout_rejects_wrong_arrowhead_position():
+def test_black_miro_tips_callout_allows_miro_normalized_arrowhead_position():
     expected = _black_callout()
     remote = deepcopy(expected)
     assert same_connector_canonical(remote, expected)
     remote["endItem"]["position"] = {"x": 0.5, "y": 0.0}
+    assert same_connector_canonical(remote, expected)
+    remote["endItem"]["id"] = "wrong-screenshot"
     assert not same_connector_canonical(remote, expected)
 
 

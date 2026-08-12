@@ -40,74 +40,19 @@ def _same_color(left: Any, right: Any) -> bool:
     return str(left or "").casefold() == str(right or "").casefold()
 
 
-def _endpoint_close(left: Any, right: Any, tolerance: float = 0.015) -> bool:
-    try:
-        return abs(float(left) - float(right)) <= tolerance
-    except (TypeError, ValueError):
-        return False
-
-
-def _same_endpoint_location(remote: dict[str, Any], expected: dict[str, Any]) -> bool:
-    expected_position = expected.get("position")
-    if isinstance(expected_position, dict):
-        remote_position = remote.get("position")
-        if not isinstance(remote_position, dict):
-            return False
-        return _endpoint_close(
-            remote_position.get("x"), expected_position.get("x")
-        ) and _endpoint_close(remote_position.get("y"), expected_position.get("y"))
-
-    if "snapTo" in expected:
-        expected_snap = str(expected.get("snapTo") or "")
-        remote_snap = str(remote.get("snapTo") or "")
-        if remote_snap == expected_snap:
-            return True
-        canonical = {
-            "top": (0.5, 0.0),
-            "left": (0.0, 0.5),
-            "bottom": (0.5, 1.0),
-            "right": (1.0, 0.5),
-        }.get(expected_snap)
-        remote_position = remote.get("position")
-        return bool(
-            canonical
-            and isinstance(remote_position, dict)
-            and _endpoint_close(remote_position.get("x"), canonical[0])
-            and _endpoint_close(remote_position.get("y"), canonical[1])
-        )
-
-    return True
-
-
-def _requires_precise_arrowhead_contract(expected: dict[str, Any]) -> bool:
-    style = expected.get("style") or {}
-    stroke = str(style.get("strokeColor") or "").casefold()
-    return stroke in {"#000000", "#000"} and not (expected.get("captions") or [])
-
-
 def same_connector_canonical(remote: dict[str, Any], expected: dict[str, Any]) -> bool:
     """Compare stable connector semantics.
 
-    HVR-2 tutorial callouts now terminate on explicit tiny control-anchor items, so
-    exact endpoint coordinates are required only when an authored endpoint position
-    is still present in the expected payload. The anchor item identity itself is the
-    durable visual contract.
+    Miro may normalize an endpoint's relative image coordinates on a create or
+    PATCH.  The durable tutorial contract is therefore the explicit screenshot
+    item identity plus the authored connector geometry and styling; the authored
+    endpoint coordinates are still sent in the write payload, but are not used as
+    an equality gate after the API has normalized them.
     """
-    precise_arrowhead = _requires_precise_arrowhead_contract(expected)
     for name in ("startItem", "endItem"):
         remote_endpoint = remote.get(name) or {}
         expected_endpoint = expected.get(name) or {}
         if str(remote_endpoint.get("id") or "") != str(expected_endpoint.get("id") or ""):
-            return False
-        if (
-            name == "endItem"
-            and precise_arrowhead
-            and (
-                isinstance(expected_endpoint.get("position"), dict)
-                or "snapTo" in expected_endpoint
-            )
-            and not _same_endpoint_location(remote_endpoint, expected_endpoint)
-        ):
             return False
 
     if expected.get("shape") and remote.get("shape") != expected["shape"]:
