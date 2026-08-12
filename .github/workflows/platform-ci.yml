@@ -415,24 +415,28 @@ jobs:
         run: |
           $ErrorActionPreference='Stop'
           @'
-          import json, os, urllib.error, urllib.parse, urllib.request
+          import json, os, time, urllib.error, urllib.parse, urllib.request
 
           token=os.environ['MIRO_GH_CI_ACCESS_TOKEN']
           board=os.environ['DDDA_MIRO_GH_CI_BOARD_ID']
           base='https://api.miro.com'
 
           def request(method,path):
-              req=urllib.request.Request(base+path,method=method)
-              req.add_header('Authorization','Bearer '+token)
-              req.add_header('Accept','application/json')
-              try:
-                  with urllib.request.urlopen(req,timeout=30) as response:
-                      raw=response.read()
-                      return None if not raw else json.loads(raw.decode('utf-8'))
-              except urllib.error.HTTPError as exc:
-                  if method=='DELETE' and exc.code==404:
-                      return None
-                  raise
+              for attempt in range(1, 4):
+                  req=urllib.request.Request(base+path,method=method)
+                  req.add_header('Authorization','Bearer '+token)
+                  req.add_header('Accept','application/json')
+                  try:
+                      with urllib.request.urlopen(req,timeout=30) as response:
+                          raw=response.read()
+                          return None if not raw else json.loads(raw.decode('utf-8'))
+                  except urllib.error.HTTPError as exc:
+                      if method=='DELETE' and exc.code==404:
+                          return None
+                      if 500 <= exc.code <= 599 and attempt < 3:
+                          time.sleep(attempt * 2)
+                          continue
+                      raise
 
           meta=request('GET','/v2/boards/'+urllib.parse.quote(board,safe=''))
           if meta.get('name')!='DDDA_GH_CI':

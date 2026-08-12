@@ -70,11 +70,7 @@ jobs:
           observed=sorted(x for x in g('diff-tree','--no-commit-id','--name-only','-r',source).splitlines() if x)
           expected=[
               '.github/workflows/miro-frame01-redline.yml',
-              'runtime/miro/ddda_miro/connector_readback_wirefix.py',
-              'runtime/miro/ddda_miro/miro_tips_hvr_fix.py',
-              'runtime/miro/ddda_miro/review_board_recovery_wirefix.py',
-              'runtime/miro/tests/test_rem_012_5_miro_tips_hvr.py',
-              'scaffolds/miro/rem-012-5-frame-01.yaml',
+              '.github/workflows/platform-ci.yml',
           ]
           assert observed == expected, f'corrective path mismatch: {observed}'
 
