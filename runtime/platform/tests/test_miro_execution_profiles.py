@@ -3,14 +3,14 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import yaml
+from ruamel.yaml import YAML
 
 
 ROOT = Path(__file__).resolve().parents[3]
 
 
 def _load_profiles() -> dict:
-    return yaml.safe_load(
+    return YAML(typ="safe").load(
         (ROOT / "config/platform/miro-execution-profiles.yaml").read_text(encoding="utf-8")
     )
 

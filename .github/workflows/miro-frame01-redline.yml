@@ -24,7 +24,7 @@ jobs:
     timeout-minutes: 120
     env:
       SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
-      PREVIOUS_SHA: 08027c8b66ae9064dac582bfa07b7a61977f4510
+      PREVIOUS_SHA: 00565ef39001d88c332fb6a0938289d759ccd0c0
       BASE_SHA: ed14f57363c359e60633f9f1da9ad69dee8b5bda
       GH_TOKEN: ${{ github.token }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -65,12 +65,11 @@ jobs:
 
           source=os.environ['SOURCE_SHA']
           assert g('rev-parse', source + '^') == os.environ['PREVIOUS_SHA'], 'corrective parent SHA mismatch'
-          assert g('show', '-s', '--format=%s', source) == 'fix(miro): repair execution-profile validation', 'corrective commit message mismatch'
+          assert g('show', '-s', '--format=%s', source) == 'fix(miro): use platform YAML dependency in profile tests', 'corrective commit message mismatch'
           subprocess.check_call(['git','merge-base','--is-ancestor',os.environ['BASE_SHA'],source])
           observed=sorted(x for x in g('diff-tree','--no-commit-id','--name-only','-r',source).splitlines() if x)
           expected=sorted([
               '.github/workflows/miro-frame01-redline.yml',
-              'CHANGELOG.md',
               'runtime/platform/tests/test_miro_execution_profiles.py',
           ])
           assert observed == expected, f'corrective path mismatch: {observed}'
