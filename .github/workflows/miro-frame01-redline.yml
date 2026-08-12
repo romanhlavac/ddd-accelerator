@@ -24,7 +24,7 @@ jobs:
     timeout-minutes: 120
     env:
       SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
-      PREVIOUS_SHA: c555abc2a015f85e5fbf4f6403ce5f8c0a44e4b3
+      PREVIOUS_SHA: 08027c8b66ae9064dac582bfa07b7a61977f4510
       BASE_SHA: ed14f57363c359e60633f9f1da9ad69dee8b5bda
       GH_TOKEN: ${{ github.token }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -45,6 +45,13 @@ jobs:
           $root=Join-Path $env:RUNNER_TEMP 'rem-012-5-frame01-replacement'
           New-Item -ItemType Directory -Path $root -Force | Out-Null
           "EVIDENCE_ROOT=$root" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          [ordered]@{
+            source_sha=$env:SOURCE_SHA
+            platform_lab_board_id=$env:DDDA_MIRO_PLATFORM_LAB_BOARD_ID
+            execution_profile='platform_lab'
+            technical_status='PENDING'
+            stage='initialized'
+          } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $root 'preflight.json') -Encoding UTF8
 
       - name: Verify exact corrective lineage and scope
         shell: pwsh
@@ -58,21 +65,12 @@ jobs:
 
           source=os.environ['SOURCE_SHA']
           assert g('rev-parse', source + '^') == os.environ['PREVIOUS_SHA'], 'corrective parent SHA mismatch'
-          assert g('show', '-s', '--format=%s', source) == 'feat(miro): introduce explicit Miro execution profiles', 'corrective commit message mismatch'
+          assert g('show', '-s', '--format=%s', source) == 'fix(miro): repair execution-profile validation', 'corrective commit message mismatch'
           subprocess.check_call(['git','merge-base','--is-ancestor',os.environ['BASE_SHA'],source])
           observed=sorted(x for x in g('diff-tree','--no-commit-id','--name-only','-r',source).splitlines() if x)
           expected=sorted([
               '.github/workflows/miro-frame01-redline.yml',
               'CHANGELOG.md',
-              'config/platform/development-policy.yaml',
-              'config/platform/miro-execution-profiles.yaml',
-              'docs/adr/0007-miro-execution-profiles-and-persistent-validation-boards.md',
-              'docs/developer-guide/miro-execution-profiles.md',
-              'docs/developer-guide/remote-validation-broker.md',
-              'docs/developer-guide/testing-strategy.md',
-              'docs/reviews/PR8-HVR-miro-execution-profile-migration.md',
-              'knowledge/00-knowledge-index.md',
-              'knowledge/13-miro-integration-operating-model.md',
               'runtime/platform/tests/test_miro_execution_profiles.py',
           ])
           assert observed == expected, f'corrective path mismatch: {observed}'
@@ -105,7 +103,7 @@ jobs:
           for marker in (
               'SUPERSEDED_BY_EXECUTION_PROFILE_MIGRATION',
               'HVR-3: BLOCKED_BY_HVR-2',
-              'zero-mutation second reconcile',
+              'second reconcile má zero create/update/delete mutation',
               'MCP availability ani MCP quota není součástí technical PASS',
           ):
               assert marker in note, f'HVR migration marker missing: {marker}'

@@ -8,10 +8,6 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 Změny pro další verzi se během vývoje zapisují sem. Před promotion se všechny položky přesunou do jediné verze `X.Y.Z` s ISO datem a tato sekce zůstane bez release položek.
 
-### Changed
-
-- Miro integration používá explicitní execution profiles: REST API je deterministický automation plane, MCP je volitelný interaktivní kanál bez vlivu na technical gate; PR #8 HVR podporuje oddělený HVR/Platform-Lab credential chain a project runtime zachovává per-project token/team/Space/board binding s automatickým create-board flow.
-
 ## [0.1.0] - 2026-07-28
 
 ### Added
@@ -40,6 +36,7 @@ Změny pro další verzi se během vývoje zapisují sem. Před promotion se vš
 
 ### Changed
 
+- Miro integration používá explicitní execution profiles: REST API je deterministický automation plane, MCP je volitelný interaktivní kanál bez vlivu na technical gate; PR #8 HVR podporuje oddělený HVR/Platform-Lab credential chain a project runtime zachovává per-project token/team/Space/board binding s automatickým create-board flow;
 - Work zůstává preferovaným implementačním režimem, ale Chat může bezpečně realizovat atomickou platformní změnu bez sekvenčních multi-file Contents API commitů;
 - `issue_comment` broker se nepovažuje za dostupný bootstrap mechanismus, dokud jeho workflow není na default branchi;
 - vývoj DDDA platformy používá pouze Chat a Work; GitHub Actions je autoritativní execution plane pro shell, build, testy, candidate package a package-first acceptance, secrets zůstávají mimo Chat/Work runtime a Work zapisuje pouze na explicitní platformní PR branch;

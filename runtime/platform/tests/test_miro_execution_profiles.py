@@ -83,10 +83,11 @@ def test_project_manifest_contract_already_supports_per_project_miro_binding():
     assert "board_id_env:" in template
 
 
-def test_pr8_hvr_uses_rest_secret_chain_and_not_mcp():
+def test_pr8_hvr_uses_rest_secret_chain_and_not_mcp_transport():
     workflow = (ROOT / ".github/workflows/miro-frame01-redline.yml").read_text(encoding="utf-8")
     assert "MIRO_HVR_ACCESS_TOKEN" in workflow
     assert "MIRO_PLATFORM_LAB_ACCESS_TOKEN" in workflow
     assert "DDDA_MIRO_PLATFORM_LAB_BOARD_ID" in workflow
     assert "python -m ddda_miro.connector_readback_wirefix" in workflow
-    assert "MCP" not in workflow
+    assert "api_tool" not in workflow
+    assert "mcp_server" not in workflow.casefold()
