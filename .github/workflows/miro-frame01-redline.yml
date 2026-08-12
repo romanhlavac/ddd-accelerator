@@ -68,10 +68,7 @@ jobs:
           source=os.environ['SOURCE_SHA']
           subprocess.check_call(['git','merge-base','--is-ancestor',os.environ['BASE_SHA'],source])
           observed=sorted(x for x in g('diff-tree','--no-commit-id','--name-only','-r',source).splitlines() if x)
-          expected=[
-              '.github/workflows/miro-frame01-redline.yml',
-              'runtime/miro/ddda_miro/miro_tips_hvr_fix.py',
-          ]
+          expected=['.github/workflows/miro-frame01-redline.yml']
           assert observed == expected, f'corrective path mismatch: {observed}'
 
           profile=Path('config/platform/miro-execution-profiles.yaml').read_text(encoding='utf-8')
