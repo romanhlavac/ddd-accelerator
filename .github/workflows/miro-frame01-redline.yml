@@ -254,20 +254,25 @@ jobs:
           evidence_root=Path(os.environ['EVIDENCE_ROOT'])
 
           def request(method,path,payload=None,allow404=False):
-              data=None if payload is None else json.dumps(payload).encode('utf-8')
-              req=urllib.request.Request(API+path,data=data,method=method)
-              req.add_header('Authorization','Bearer '+token)
-              req.add_header('Accept','application/json')
-              if data is not None:
-                  req.add_header('Content-Type','application/json')
-              try:
-                  with urllib.request.urlopen(req,timeout=60) as response:
-                      raw=response.read()
-                      return None if not raw else json.loads(raw.decode('utf-8'))
-              except urllib.error.HTTPError as exc:
-                  if allow404 and exc.code==404:
-                      return None
-                  raise
+              for attempt in range(5):
+                  data=None if payload is None else json.dumps(payload).encode('utf-8')
+                  req=urllib.request.Request(API+path,data=data,method=method)
+                  req.add_header('Authorization','Bearer '+token)
+                  req.add_header('Accept','application/json')
+                  if data is not None:
+                      req.add_header('Content-Type','application/json')
+                  try:
+                      with urllib.request.urlopen(req,timeout=60) as response:
+                          raw=response.read()
+                          return None if not raw else json.loads(raw.decode('utf-8'))
+                  except urllib.error.HTTPError as exc:
+                      if allow404 and exc.code==404:
+                          return None
+                      # Retry reads only: a failed write can be ambiguous, while a
+                      # GET retry cannot duplicate a board or mutate review state.
+                      if method!='GET' or exc.code not in (429,500,502,503,504) or attempt==4:
+                          raise
+                      time.sleep(2*(attempt+1))
 
           def list_boards():
               rows=[]
