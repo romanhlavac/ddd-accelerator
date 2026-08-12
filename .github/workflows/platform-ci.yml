@@ -312,8 +312,26 @@ jobs:
           params=urllib.parse.urlencode({'team_id':expected_team,'limit':'50','sort':'alphabetically'})
           boards=request('GET','/v2/boards?'+params,htoken).get('data',[])
           hvr=[b for b in boards if b.get('name')==os.environ['DDDA_MIRO_HVR_BOARD_NAME']]
-          if len(hvr)!=1:
-              raise SystemExit(f'hvr: expected exactly one DDDA_HVR board, found {len(hvr)}')
+          if len(hvr)>1:
+              raise SystemExit(f'hvr: expected at most one DDDA_HVR board, found {len(hvr)}')
+          if not hvr:
+              created=request(
+                  'POST',
+                  '/v2/boards',
+                  htoken,
+                  {
+                      'name':os.environ['DDDA_MIRO_HVR_BOARD_NAME'],
+                      'description':'Persistent DDDA HVR logical slot bootstrapped by the dedicated HVR REST credential.',
+                      'teamId':expected_team,
+                  },
+              )
+              created_id=str(created.get('id') or '')
+              if not created_id:
+                  raise SystemExit('hvr: REST bootstrap did not return a board id')
+              verified=request('GET','/v2/boards/'+urllib.parse.quote(created_id,safe=''),htoken)
+              if verified.get('name')!=os.environ['DDDA_MIRO_HVR_BOARD_NAME']:
+                  raise SystemExit('hvr: REST bootstrap board read-back failed')
+              hvr=[verified]
 
           evidence={
               'schema_version':1,
@@ -427,7 +445,6 @@ jobs:
               if not cursor:
                   break
 
-          # Non-frame items first; removing either connector endpoint removes its connector automatically.
           for item in sorted(items,key=lambda x: x.get('type')=='frame'):
               item_id=str(item.get('id') or '')
               if item_id:

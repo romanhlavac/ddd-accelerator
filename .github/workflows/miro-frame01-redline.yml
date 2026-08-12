@@ -24,7 +24,7 @@ jobs:
     timeout-minutes: 120
     env:
       SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
-      PREVIOUS_SHA: 705cbec7a5d00682656487201263d6226b2a61bf
+      PREVIOUS_SHA: 3326472461cdd8f366eb25f2e403abc89f9c435b
       BASE_SHA: ed14f57363c359e60633f9f1da9ad69dee8b5bda
       GH_TOKEN: ${{ github.token }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -68,17 +68,12 @@ jobs:
 
           source=os.environ['SOURCE_SHA']
           assert g('rev-parse', source + '^') == os.environ['PREVIOUS_SHA'], 'corrective parent SHA mismatch'
-          assert g('show', '-s', '--format=%s', source) == 'fix(miro): bind PR8 to three private execution boards', 'corrective commit message mismatch'
+          assert g('show', '-s', '--format=%s', source) == 'fix(miro): bootstrap HVR board with HVR credential', 'corrective commit message mismatch'
           subprocess.check_call(['git','merge-base','--is-ancestor',os.environ['BASE_SHA'],source])
           observed=sorted(x for x in g('diff-tree','--no-commit-id','--name-only','-r',source).splitlines() if x)
           expected=sorted([
               '.github/workflows/miro-frame01-redline.yml',
               '.github/workflows/platform-ci.yml',
-              'config/platform/development-policy.yaml',
-              'config/platform/miro-execution-profiles.yaml',
-              'docs/developer-guide/miro-execution-profiles.md',
-              'docs/reviews/PR8-HVR-miro-execution-profile-migration.md',
-              'runtime/platform/tests/test_miro_execution_profiles.py',
           ])
           assert observed == expected, f'corrective path mismatch: {observed}'
 
