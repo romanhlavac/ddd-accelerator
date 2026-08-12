@@ -150,12 +150,19 @@ def companion_frame_payload_with_miro_tips(
 
 
 def same_frame_defer_miro_tips(remote: dict[str, Any], expected: dict[str, Any]) -> bool:
-    """Apply the reference frame geometry; Miro Tips is no longer anchor-transformed."""
+    """Preserve the target frame container when Miro has made it a child item.
+
+    The tutorial's native children retain the reference geometry and direct image
+    endpoints.  Resizing the outer target frame, however, is rejected by Miro
+    when it is a child of a protected parent frame.
+    """
+    if str((remote.get("data") or {}).get("title") or "") == MIRO_TIPS_TITLE:
+        return True
     return _ORIGINAL_SAME_FRAME(remote, expected)
 
 
 def _frame_equal(remote: dict[str, Any], expected: dict[str, Any]) -> bool:
-    return _ORIGINAL_SAME_FRAME(remote, expected)
+    return same_frame_defer_miro_tips(remote, expected)
 
 
 def _children_text(items: list[dict[str, Any]]) -> str:

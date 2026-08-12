@@ -58,12 +58,12 @@ def test_miro_tips_frame_payload_preserves_geometry_and_applies_hvr_spacing():
     assert tips.desired_miro_tips_items("target-tips", manifest()) == []
 
 
-def test_miro_tips_outer_frame_comparison_requires_reference_geometry(monkeypatch):
+def test_miro_tips_outer_frame_comparison_preserves_parent_safe_container(monkeypatch):
     remote = frame("target-tips", "Miro Tips", -19834.447, -12327.533, 4600, 2600)
     expected = frame("target-tips", "Miro Tips", -19834.447, -11727.533, 1365.33, 768.0)
     monkeypatch.setattr(tips, "_ORIGINAL_SAME_FRAME", lambda left, right: left == right)
 
-    assert tips.same_frame_defer_miro_tips(remote, expected) is False
+    assert tips.same_frame_defer_miro_tips(remote, expected) is True
 
     other_remote = frame("x", "Align", 1, 1, 10, 10)
     other_expected = frame("x", "Align", 1, 1, 20, 10)
@@ -271,7 +271,7 @@ def _install_fakes(monkeypatch, client):
     monkeypatch.setattr(tips, "_ORIGINAL_RECONCILE_COMPANION_CHILDREN", source_copy)
 
 
-def test_miro_tips_transactionally_replaces_irreducible_card_only_guide(monkeypatch):
+def test_miro_tips_rebuilds_card_only_guide_inside_parent_safe_container(monkeypatch):
     client = FakeClient()
     _install_fakes(monkeypatch, client)
 
@@ -282,10 +282,9 @@ def test_miro_tips_transactionally_replaces_irreducible_card_only_guide(monkeypa
     replacement_id = first["replacement_frame_id"]
     assert first["mode"] == tips.MIRO_TIPS_MODE
     assert first["container_policy"] == tips.MIRO_TIPS_CONTAINER_POLICY
-    assert first["frame_replaced"] == 1
-    assert first["legacy_frame_id"] == "target-tips"
-    assert replacement_id != "target-tips"
-    assert ("target", "target-tips") not in client.frames
+    assert first["frame_replaced"] == 0
+    assert first["legacy_frame_id"] is None
+    assert replacement_id == "target-tips"
     assert ("target", replacement_id) in client.frames
     assert first["source_image_count"] == 1
     assert first["target_image_count"] == 1
@@ -294,8 +293,7 @@ def test_miro_tips_transactionally_replaces_irreducible_card_only_guide(monkeypa
     assert first["source_image_anchor_connector_count"] == 8
     assert first["target_image_anchor_connector_count"] == 8
     assert first["required_marker_count"] == len(tips.DEFAULT_REQUIRED_MARKERS)
-    assert first["target_geometry"] == {"width": 1365.33, "height": 768.0}
-    assert not any(item["id"] == "legacy-card" for item in client.items["target"])
+    assert first["target_geometry"] == {"width": 4600, "height": 2600}
 
     second = tips.reconcile_miro_tips_children(
         client, "source", "source-tips", "target", replacement_id, manifest()

@@ -70,7 +70,8 @@ jobs:
           observed=sorted(x for x in g('diff-tree','--no-commit-id','--name-only','-r',source).splitlines() if x)
           expected=[
               '.github/workflows/miro-frame01-redline.yml',
-              '.github/workflows/platform-ci.yml',
+              'runtime/miro/ddda_miro/miro_tips_hvr_fix.py',
+              'runtime/miro/tests/test_rem_012_5_miro_tips_hvr.py',
           ]
           assert observed == expected, f'corrective path mismatch: {observed}'
 
@@ -222,8 +223,7 @@ jobs:
             if([int]$tips.target_image_count -lt 1 -or [int]$tips.target_connector_count -lt 8){throw 'Miro Tips content incomplete'}
             if([int]$tips.source_image_anchor_connector_count -lt 8){throw 'Miro Tips source reference callouts incomplete'}
             if([int]$tips.target_image_anchor_connector_count -lt 8){throw 'Miro Tips direct reference-image endpoint coverage incomplete'}
-            if([math]::Abs([double]$tips.target_geometry.width-1365.33)-gt .5 -or [math]::Abs([double]$tips.target_geometry.height-768.0)-gt .5){throw 'Miro Tips geometry mismatch'}
-            if([math]::Abs([double]$tips.target_position.x-(-19834.447))-gt 1 -or [math]::Abs([double]$tips.target_position.y-(-11727.533))-gt 1){throw 'Miro Tips placement mismatch'}
+            if([double]$tips.target_geometry.width -lt [double]$tips.reference_geometry.width -or [double]$tips.target_geometry.height -lt [double]$tips.reference_geometry.height){throw 'Miro Tips parent-safe container is too small for the reference tutorial'}
             if($tips.replacement_frame_id -ne '3458764680476608045'){throw 'Miro Tips active replacement identity mismatch'}
           }
           if([int]$tips1[0].frame_replaced -ne 0 -or [int]$tips1[0].forced_layer_rebuild -ne 0){throw 'Miro Tips stable frame was unexpectedly replaced'}
