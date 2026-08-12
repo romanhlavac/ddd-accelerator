@@ -34,10 +34,13 @@ readability:
 miro_tips:
   min_images: 1
   min_connectors: 8
+  reference_source_board_id: uXjVH27wYU4=
+  reference_source_frame_id: '3458764567797253967'
+  target_position:
+    x: -19834.447049390445
+    y: -11727.529671450406
   vertical_offset_y: 600
-  endpoint_position_policy: explicit_control_anchor_from_reference_arrowhead_position
-  control_anchor_policy: explicit_transparent_child_anchor_per_reference_ui_control
-  control_anchor_size: 8
+  endpoint_position_policy: direct_reference_image_endpoint
   container_policy: transactional_replace_irreducible_companion
   layer_policy: image_below_native_callouts
   legacy_frame_ids:
@@ -61,10 +64,11 @@ miro_tips:
     - zoom to a 100%
     - add your own tips here
 source_companion_frames:
-  - id: '3458764679531043366'
+  - id: '3458764567797253967'
     title: Miro Tips
     min_images: 1
     mode: reference_ui_tutorial
+    source_board_id: uXjVH27wYU4=
   - id: '3458764679531716415'
     title: Align
     min_images: 2

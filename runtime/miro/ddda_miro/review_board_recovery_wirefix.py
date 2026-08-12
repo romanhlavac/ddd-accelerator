@@ -641,7 +641,8 @@ def reconcile_companion_frames(client: Any, manifest: dict[str, Any]) -> dict[st
     per_frame: list[dict[str, Any]] = []
     try:
         for spec in specs:
-            source_frame = base._get_frame(client, source_board, str(spec["id"]))
+            companion_source_board = str(spec.get("source_board_id") or source_board)
+            source_frame = base._get_frame(client, companion_source_board, str(spec["id"]))
             title = str(spec["title"])
             if str((source_frame.get("data") or {}).get("title") or "") != title:
                 raise ValueError(f"source companion title mismatch for {spec['id']}: {title!r}")
@@ -661,7 +662,7 @@ def reconcile_companion_frames(client: Any, manifest: dict[str, Any]) -> dict[st
 
             child_result = _reconcile_companion_children(
                 client,
-                source_board,
+                companion_source_board,
                 str(source_frame["id"]),
                 target_board,
                 str(target["id"]),

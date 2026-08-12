@@ -21,6 +21,7 @@ def manifest():
             "min_images": 1,
             "min_connectors": 8,
             "vertical_offset_y": 240,
+            "target_position": {"x": -19834.447, "y": -11727.533},
             "container_policy": tips.MIRO_TIPS_CONTAINER_POLICY,
             "layer_policy": tips.MIRO_TIPS_LAYER_POLICY,
             "legacy_frame_ids": ["known-bad-layer-frame"],
@@ -45,24 +46,24 @@ def frame(frame_id, title, x, y, width, height):
 def test_miro_tips_frame_payload_preserves_geometry_and_applies_hvr_spacing():
     source_main = frame("source-main", "01 – DDD Starter journey, gates a iterace", 9076.78, -8458.92, 58008.9, 10144.3)
     target_main = frame("target-main", "01 – DDD Starter journey, gates a iterace", 8004.426, -8927.845, 58008.9, 10144.3)
-    source_tips = frame("source-tips", "Miro Tips", -18762.093, -11858.608, 1919.43, 1079.68)
+    source_tips = frame("source-tips", "Miro Tips", -3218.52, -3205.07, 1365.33, 768.0)
 
     payload = tips.miro_tips_companion_frame_payload(
         source_tips, source_main, target_main, manifest()
     )
 
-    assert payload["geometry"] == {"width": 1919.43, "height": 1079.68}
+    assert payload["geometry"] == {"width": 1365.33, "height": 768.0}
     assert abs(payload["position"]["x"] - (-19834.447)) < 0.01
-    assert abs(payload["position"]["y"] - (-12087.533)) < 0.01
+    assert abs(payload["position"]["y"] - (-11727.533)) < 0.01
     assert tips.desired_miro_tips_items("target-tips", manifest()) == []
 
 
-def test_miro_tips_outer_frame_comparison_defers_irreducible_container_patch(monkeypatch):
+def test_miro_tips_outer_frame_comparison_requires_reference_geometry(monkeypatch):
     remote = frame("target-tips", "Miro Tips", -19834.447, -12327.533, 4600, 2600)
-    expected = frame("target-tips", "Miro Tips", -19834.447, -12087.533, 1919.43, 1079.68)
+    expected = frame("target-tips", "Miro Tips", -19834.447, -11727.533, 1365.33, 768.0)
     monkeypatch.setattr(tips, "_ORIGINAL_SAME_FRAME", lambda left, right: left == right)
 
-    assert tips.same_frame_defer_miro_tips(remote, expected) is True
+    assert tips.same_frame_defer_miro_tips(remote, expected) is False
 
     other_remote = frame("x", "Align", 1, 1, 10, 10)
     other_expected = frame("x", "Align", 1, 1, 20, 10)
@@ -74,7 +75,7 @@ class FakeClient:
         self.frames = {
             ("source", "source-main"): frame("source-main", "01 – DDD Starter journey, gates a iterace", 9076.78, -8458.92, 58008.9, 10144.3),
             ("target", "target-main"): frame("target-main", "01 – DDD Starter journey, gates a iterace", 8004.426, -8927.845, 58008.9, 10144.3),
-            ("source", "source-tips"): frame("source-tips", "Miro Tips", -18762.093, -11858.608, 1919.43, 1079.68),
+            ("source", "source-tips"): frame("source-tips", "Miro Tips", -3218.52, -3205.07, 1365.33, 768.0),
             ("target", "target-tips"): frame("target-tips", "Miro Tips", -19834.447, -12327.533, 4600, 2600),
         }
         self.next_frame = 1
@@ -293,7 +294,7 @@ def test_miro_tips_transactionally_replaces_irreducible_card_only_guide(monkeypa
     assert first["source_image_anchor_connector_count"] == 8
     assert first["target_image_anchor_connector_count"] == 8
     assert first["required_marker_count"] == len(tips.DEFAULT_REQUIRED_MARKERS)
-    assert first["target_geometry"] == {"width": 1919.43, "height": 1079.68}
+    assert first["target_geometry"] == {"width": 1365.33, "height": 768.0}
     assert not any(item["id"] == "legacy-card" for item in client.items["target"])
 
     second = tips.reconcile_miro_tips_children(
@@ -343,7 +344,7 @@ def test_miro_tips_known_bad_layer_frame_is_replaced_even_at_reference_geometry(
     client = FakeClient()
     _install_fakes(monkeypatch, client)
     client.frames[("target", "target-tips")] = frame(
-        "target-tips", "Miro Tips", -19834.447, -12087.533, 1919.43, 1079.68
+        "target-tips", "Miro Tips", -19834.447, -11727.533, 1365.33, 768.0
     )
     m = manifest()
     m["miro_tips"]["legacy_frame_ids"] = ["target-tips"]

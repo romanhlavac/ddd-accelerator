@@ -57,6 +57,7 @@ def _config(manifest: dict[str, Any]) -> dict[str, Any]:
     policy = str(raw.get("container_policy") or MIRO_TIPS_CONTAINER_POLICY)
     layer_policy = str(raw.get("layer_policy") or MIRO_TIPS_LAYER_POLICY)
     legacy_frame_ids = tuple(str(value) for value in (raw.get("legacy_frame_ids") or ()))
+    target_position = dict(raw.get("target_position") or {})
     required = tuple(
         str(value).casefold()
         for value in (raw.get("required_markers") or DEFAULT_REQUIRED_MARKERS)
@@ -77,6 +78,9 @@ def _config(manifest: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("Miro Tips requires the reference screenshot below native callout overlays")
     if any(not value for value in legacy_frame_ids):
         raise ValueError("Miro Tips legacy frame ids must be non-empty strings")
+    for key in ("x", "y"):
+        if key not in target_position:
+            raise ValueError(f"Miro Tips target position is missing {key}")
     for marker in DEFAULT_REQUIRED_MARKERS:
         if marker.casefold() not in required:
             raise ValueError(f"Miro Tips required-marker contract is missing: {marker}")
@@ -89,6 +93,7 @@ def _config(manifest: dict[str, Any]) -> dict[str, Any]:
         "container_policy": policy,
         "layer_policy": layer_policy,
         "legacy_frame_ids": legacy_frame_ids,
+        "target_position": {"x": float(target_position["x"]), "y": float(target_position["y"])},
         "required_markers": required,
     }
 
@@ -120,10 +125,16 @@ def miro_tips_companion_frame_payload(
     manifest: dict[str, Any],
 ) -> dict[str, Any]:
     cfg = _config(manifest)
-    payload = _ORIGINAL_COMPANION_FRAME_PAYLOAD(source_frame, source_main, target_main)
-    position = dict(payload.get("position") or {})
-    position["y"] = float(position["y"]) + float(cfg["vertical_offset_y"])
-    payload["position"] = position
+    _ = source_main
+    _ = target_main
+    payload: dict[str, Any] = {
+        "data": {"title": MIRO_TIPS_TITLE},
+        "geometry": dict(source_frame.get("geometry") or {}),
+        "position": {**cfg["target_position"], "origin": "center"},
+    }
+    style = dict(source_frame.get("style") or {})
+    if style:
+        payload["style"] = style
     return payload
 
 
@@ -139,10 +150,7 @@ def companion_frame_payload_with_miro_tips(
 
 
 def same_frame_defer_miro_tips(remote: dict[str, Any], expected: dict[str, Any]) -> bool:
-    """Prevent the outer loop from PATCH-shrinking an irreducible Miro Tips container."""
-    title = str((expected.get("data") or {}).get("title") or "")
-    if title == MIRO_TIPS_TITLE and str((remote.get("data") or {}).get("title") or "") == title:
-        return True
+    """Apply the reference frame geometry; Miro Tips is no longer anchor-transformed."""
     return _ORIGINAL_SAME_FRAME(remote, expected)
 
 
@@ -326,11 +334,9 @@ def reconcile_miro_tips_children(
     manifest: dict[str, Any],
 ) -> dict[str, Any]:
     cfg = _config(manifest)
-    source_main = base._get_frame(client, source_board, str(manifest["source_frame_id"]))
-    target_main = base._get_frame(client, target_board, str(manifest["frame_id"]))
     source_frame = base._get_frame(client, source_board, source_frame_id)
     expected_frame = miro_tips_companion_frame_payload(
-        source_frame, source_main, target_main, manifest
+        source_frame, {}, {}, manifest
     )
 
     source_state = _tutorial_state(client, source_board, source_frame_id, cfg)
