@@ -71,7 +71,6 @@ jobs:
           expected=[
               '.github/workflows/miro-frame01-redline.yml',
               'runtime/miro/ddda_miro/miro_tips_hvr_fix.py',
-              'runtime/miro/tests/test_rem_012_5_miro_tips_hvr.py',
           ]
           assert observed == expected, f'corrective path mismatch: {observed}'
 
