@@ -269,6 +269,38 @@ def _delete_legacy_frame(
     client.delete_item(board, frame_id)
 
 
+def _clear_tutorial_children(
+    client: Any, board: str, frame_id: str, cfg: dict[str, Any]
+) -> None:
+    children = base._children(client, board, frame_id)
+    child_ids = {str(item["id"]) for item in children}
+    for connector in base._related_connectors(client, board, child_ids):
+        client.delete_connector(board, str(connector["id"]))
+    for item in children:
+        client.delete_item(board, str(item["id"]))
+    _wait_for_empty_frame(client, board, frame_id, child_ids, cfg)
+
+
+def _tutorial_children_require_rebuild(
+    client: Any,
+    source_board: str,
+    source_frame_id: str,
+    target_board: str,
+    target_frame_id: str,
+) -> bool:
+    """Detect legacy children that Miro cannot resize by PATCH.
+
+    A same-content sticky can keep its old geometry after PATCH.  Recreating the
+    child set is deterministic and preserves the protected outer frame.
+    """
+    source_items = base._children(client, source_board, source_frame_id)
+    target_items = base._children(client, target_board, target_frame_id)
+    # The legacy target contains the prior tutorial plus eight transparent
+    # anchors.  A completed native copy has exactly the reference child count;
+    # only the former is cleared, so the second reconcile stays mutation-free.
+    return len(target_items) != len(source_items)
+
+
 def _cleanup_replacement_frame(client: Any, board: str, frame_id: str) -> None:
     try:
         visual._cleanup_frame(client, board, frame_id)
@@ -353,7 +385,13 @@ def reconcile_miro_tips_children(
     legacy_frame_id: str | None = None
     frame_replaced = False
     forced_layer_rebuild = str(target_frame_id) in set(cfg["legacy_frame_ids"])
+    children_rebuilt = _tutorial_children_require_rebuild(
+        client, source_board, source_frame_id, target_board, target_frame_id
+    )
     active_frame_id = target_frame_id
+
+    if children_rebuilt:
+        _clear_tutorial_children(client, target_board, target_frame_id, cfg)
 
     if _frame_equal(current_frame, expected_frame) and not forced_layer_rebuild:
         child_result, target_state = _populate_reference_tutorial(
@@ -398,6 +436,7 @@ def reconcile_miro_tips_children(
         "layer_policy": cfg["layer_policy"],
         "vertical_offset_y": cfg["vertical_offset_y"],
         "forced_layer_rebuild": int(forced_layer_rebuild),
+        "children_rebuilt": int(children_rebuilt),
         **child_result,
         "target_image_count": len(target_state["images"]),
         "target_connector_count": len(target_state["connectors"]),

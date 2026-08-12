@@ -227,7 +227,9 @@ jobs:
             if($tips.replacement_frame_id -ne '3458764680476608045'){throw 'Miro Tips active replacement identity mismatch'}
           }
           if([int]$tips1[0].frame_replaced -ne 0 -or [int]$tips1[0].forced_layer_rebuild -ne 0){throw 'Miro Tips stable frame was unexpectedly replaced'}
+          if([int]$tips1[0].children_rebuilt -ne 1){throw 'Miro Tips legacy child geometry was not rebuilt'}
           if([int]$tips2[0].frame_replaced -ne 0 -or [int]$tips2[0].forced_layer_rebuild -ne 0 -or [int]$tips2[0].background_images_primed -ne 0){throw 'Miro Tips second run changed stable identity/layers'}
+          if([int]$tips2[0].children_rebuilt -ne 0){throw 'Miro Tips second run rebuilt stable children'}
           if($tips2[0].items.created -ne 0 -or $tips2[0].items.updated -ne 0 -or $tips2[0].items.deleted -ne 0){throw 'Miro Tips second run mutated items'}
           if($tips2[0].connectors.created -ne 0 -or $tips2[0].connectors.updated -ne 0 -or $tips2[0].connectors.deleted -ne 0){throw 'Miro Tips second run mutated connectors'}
           if($r.merge_allowed -or $r.promotion_allowed -or $r.release_allowed -or $r.gate_approval_allowed){throw 'governance boundary violated'}
