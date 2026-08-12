@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ddda-rem-012-5-frame-01-${{ github.ref }}
+  group: ddda-miro-platform-lab-${{ github.repository }}
   cancel-in-progress: true
 
 jobs:
@@ -24,10 +24,11 @@ jobs:
     timeout-minutes: 120
     env:
       SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
-      PREVIOUS_SHA: c8d8aa6052cfffd8aa2e15c44f8a04ccf33808e1
+      PREVIOUS_SHA: c555abc2a015f85e5fbf4f6403ce5f8c0a44e4b3
       BASE_SHA: ed14f57363c359e60633f9f1da9ad69dee8b5bda
       GH_TOKEN: ${{ github.token }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
+      DDDA_MIRO_PLATFORM_LAB_BOARD_ID: ${{ vars.DDDA_MIRO_PLATFORM_LAB_BOARD_ID || 'uXjVH0doLYY=' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -57,15 +58,37 @@ jobs:
 
           source=os.environ['SOURCE_SHA']
           assert g('rev-parse', source + '^') == os.environ['PREVIOUS_SHA'], 'corrective parent SHA mismatch'
-          assert g('show', '-s', '--format=%s', source) == 'fix(miro): map HVR-2 anchors into frame coordinates'
+          assert g('show', '-s', '--format=%s', source) == 'feat(miro): introduce explicit Miro execution profiles', 'corrective commit message mismatch'
           subprocess.check_call(['git','merge-base','--is-ancestor',os.environ['BASE_SHA'],source])
           observed=sorted(x for x in g('diff-tree','--no-commit-id','--name-only','-r',source).splitlines() if x)
           expected=sorted([
               '.github/workflows/miro-frame01-redline.yml',
-              'runtime/miro/ddda_miro/miro_tips_control_anchor_fix.py',
-              'runtime/miro/tests/test_rem_012_5_miro_tips_control_anchors.py',
+              'CHANGELOG.md',
+              'config/platform/development-policy.yaml',
+              'config/platform/miro-execution-profiles.yaml',
+              'docs/adr/0007-miro-execution-profiles-and-persistent-validation-boards.md',
+              'docs/developer-guide/miro-execution-profiles.md',
+              'docs/developer-guide/remote-validation-broker.md',
+              'docs/developer-guide/testing-strategy.md',
+              'docs/reviews/PR8-HVR-miro-execution-profile-migration.md',
+              'knowledge/00-knowledge-index.md',
+              'knowledge/13-miro-integration-operating-model.md',
+              'runtime/platform/tests/test_miro_execution_profiles.py',
           ])
           assert observed == expected, f'corrective path mismatch: {observed}'
+
+          profile=Path('config/platform/miro-execution-profiles.yaml').read_text(encoding='utf-8')
+          for marker in (
+              'deterministic_transport: rest-api',
+              'mcp_required_for_technical_gate: false',
+              'MIRO_CI_ACCESS_TOKEN',
+              'MIRO_HVR_ACCESS_TOKEN',
+              'MIRO_PLATFORM_LAB_ACCESS_TOKEN',
+              'MIRO_EXAMPLE_PROJECT_ACCESS_TOKEN',
+              'project_runtime:',
+              'board_creation: create-if-missing',
+          ):
+              assert marker in profile, f'execution-profile marker missing: {marker}'
 
           manifest=Path('scaffolds/miro/rem-012-5-frame-01.yaml').read_text(encoding='utf-8')
           for marker in (
@@ -78,16 +101,14 @@ jobs:
           ):
               assert marker in manifest, f'manifest marker missing: {marker}'
 
-          note=Path('docs/reviews/REM-PR8-HVR2-miro-tips-control-anchors.md').read_text(encoding='utf-8')
+          note=Path('docs/reviews/PR8-HVR-miro-execution-profile-migration.md').read_text(encoding='utf-8')
           for marker in (
-              'explicit control anchors',
-              'reference arrowhead positions',
-              '3458764680476608045',
-              '+600 Miro units',
+              'SUPERSEDED_BY_EXECUTION_PROFILE_MIGRATION',
+              'HVR-3: BLOCKED_BY_HVR-2',
               'zero-mutation second reconcile',
-              'HVR-3 remains blocked',
+              'MCP availability ani MCP quota není součástí technical PASS',
           ):
-              assert marker in note, f'review marker missing: {marker}'
+              assert marker in note, f'HVR migration marker missing: {marker}'
           '@ | python -
 
       - name: Run targeted REM-012.5 tests
@@ -95,7 +116,7 @@ jobs:
         run: |
           python -m pip install --disable-pip-version-check --no-input pytest 'ruamel.yaml>=0.18,<0.19' requests pyyaml
           $env:PYTHONPATH=Join-Path $PWD.Path 'runtime\miro'
-          python -m pytest runtime/miro/tests/test_rem_012_5_frame_01.py runtime/miro/tests/test_rem_012_5_frame00_position_payload.py runtime/miro/tests/test_rem_012_5_connector_readback.py runtime/miro/tests/test_rem_012_5_miro_tips_hvr.py runtime/miro/tests/test_rem_012_5_miro_tips_semantic.py runtime/miro/tests/test_rem_012_5_miro_tips_control_anchors.py -q
+          python -m pytest runtime/miro/tests/test_rem_012_5_frame_01.py runtime/miro/tests/test_rem_012_5_frame00_position_payload.py runtime/miro/tests/test_rem_012_5_connector_readback.py runtime/miro/tests/test_rem_012_5_miro_tips_hvr.py runtime/miro/tests/test_rem_012_5_miro_tips_semantic.py runtime/miro/tests/test_rem_012_5_miro_tips_control_anchors.py runtime/platform/tests/test_miro_execution_profiles.py -q
           if($LASTEXITCODE -ne 0){throw 'targeted tests failed'}
 
       - name: Wait for authoritative exact-SHA evidence and candidate
@@ -136,11 +157,17 @@ jobs:
               raise SystemExit('exact-SHA evidence/candidate timeout')
           '@ | python -
 
-      - name: Verify Miro secret
+      - name: Verify HVR REST credential and Platform Lab binding
         shell: pwsh
         env:
-          MIRO_ACCESS_TOKEN: ${{ secrets.MIRO_ACCESS_TOKEN }}
-        run: if([string]::IsNullOrWhiteSpace($env:MIRO_ACCESS_TOKEN)){throw 'MIRO_ACCESS_TOKEN is required'}
+          MIRO_HVR_ACCESS_TOKEN: ${{ secrets.MIRO_HVR_ACCESS_TOKEN || secrets.MIRO_PLATFORM_LAB_ACCESS_TOKEN || secrets.MIRO_ACCESS_TOKEN }}
+        run: |
+          if([string]::IsNullOrWhiteSpace($env:MIRO_HVR_ACCESS_TOKEN)){throw 'HVR REST credential is required (MIRO_HVR_ACCESS_TOKEN -> MIRO_PLATFORM_LAB_ACCESS_TOKEN -> MIRO_ACCESS_TOKEN fallback)'}
+          if([string]::IsNullOrWhiteSpace($env:DDDA_MIRO_PLATFORM_LAB_BOARD_ID)){throw 'DDDA_MIRO_PLATFORM_LAB_BOARD_ID is required'}
+          $manifest=Get-Content 'scaffolds/miro/rem-012-5-frame-01.yaml' -Raw -Encoding UTF8
+          if($manifest -notmatch ('(?m)^board_id:\s*' + [regex]::Escape($env:DDDA_MIRO_PLATFORM_LAB_BOARD_ID) + '\s*$')){
+            throw "Configured Platform Lab board '$env:DDDA_MIRO_PLATFORM_LAB_BOARD_ID' does not match the board-specific PR8 frame contract; migrate frame identities before changing this binding."
+          }
 
       - name: Download exact-SHA candidate package
         uses: actions/download-artifact@v4
@@ -154,7 +181,7 @@ jobs:
       - name: Reconcile Frame 01 from exact-SHA candidate
         shell: pwsh
         env:
-          MIRO_ACCESS_TOKEN: ${{ secrets.MIRO_ACCESS_TOKEN }}
+          MIRO_ACCESS_TOKEN: ${{ secrets.MIRO_HVR_ACCESS_TOKEN || secrets.MIRO_PLATFORM_LAB_ACCESS_TOKEN || secrets.MIRO_ACCESS_TOKEN }}
         run: |
           $ErrorActionPreference='Stop'
           $candidate=@(Get-ChildItem (Join-Path $env:RUNNER_TEMP 'candidate') -Filter '*.zip' -File -Recurse)
@@ -172,6 +199,7 @@ jobs:
           if($LASTEXITCODE -ne 0){Get-Content $report -ErrorAction SilentlyContinue; throw 'REM-012.5 reconcile failed'}
 
           $r=Get-Content $report -Raw | ConvertFrom-Json
+          if($r.board_id -ne $env:DDDA_MIRO_PLATFORM_LAB_BOARD_ID){throw 'resolved HVR target is not the configured Platform Lab board'}
           if($r.technical_status -ne 'PASS' -or $r.human_review_status -ne 'PENDING' -or $r.overall_status -ne 'READY_FOR_HUMAN_REVIEW'){throw 'acceptance state mismatch'}
           if(-not $r.protected_frames.unchanged -or $r.protected_frames.count -ne 16){throw 'protected frames changed'}
           if($r.frame01_recovery.second_run.items.created -ne 0 -or $r.frame01_recovery.second_run.items.updated -ne 0 -or $r.frame01_recovery.second_run.items.deleted -ne 0){throw 'Frame01 second reconcile mutated items'}

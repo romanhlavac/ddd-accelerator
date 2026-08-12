@@ -5,6 +5,7 @@ Knowledge soubory se načítají podle typu práce, nikoli všechny současně. 
 | Úloha | Runtime | Načíst |
 |---|---|---|
 | **vývoj DDDA platformy** | **Chat / Work** | **`ddda-platform-development-skill.md` a `../docs/developer-guide/chat-work-operating-model.md`** |
+| **Miro identity, REST/MCP, Platform Lab, HVR a credential governance** | **Chat / Work nebo Cursor podle scope** | **`13-miro-integration-operating-model.md` a `../docs/developer-guide/miro-execution-profiles.md`** |
 | **používání DDDA v konkrétním projektu** | **Cursor** | **projektový status, tailoring, relevantní knowledge/cookbook soubory a `.cursor` runtime assets** |
 | operating model a způsob práce | Cursor project runtime | `01-operating-model.md` |
 | doména, subdomény, bounded contexts | Cursor project runtime | `02-ddd-strategic-design.md` |
@@ -31,6 +32,8 @@ Chat / Work
 
 Pro platformní vývoj nepoužívej Codex ani Cursor. GitHub Actions je autoritativní execution plane pro build, testy, candidate package a package-first validation. Secrets nesmějí vstoupit do Chat nebo Work kontextu.
 
+Miro platformní automatizace je REST-first. GitHub Actions používá explicitní execution profile a secret store; Miro MCP je volitelný interaktivní control/review plane a nesmí být technical-gate dependency.
+
 ## Rovina B — používání DDDA v projektu
 
 Cursor je základní agentic systém pro práci architekta v konkrétním DDDA project workspace.
@@ -48,5 +51,7 @@ relevantní knowledge a cookbook soubory
 ```
 
 Cursor smí měnit pouze aktivní project repository. Nesmí měnit DDDA platform repository. Platformní defect nebo enhancement se zaznamená jako change request a předá do Chat/Work platform-development flow.
+
+Projektový Miro runtime používá explicitní `project.yaml` binding pro token env, team, Space/project ID a board. Board může projektový runtime přes REST vytvořit sám, pokud chybí a je explicitně povolen create-board flow. MCP zůstává volitelný pro interaktivní práci.
 
 Fakta zachovej se source path; hypotézy označ `candidate`; rozhodnutí vyžadují ownera a explicitní review boundary.

@@ -43,6 +43,7 @@
         "evidence_required": true,
         "protected_paths": [
           "config/platform/development-policy.yaml",
+          "config/platform/miro-execution-profiles.yaml",
           "docs/adr/",
           "docs/developer-guide/",
           "knowledge/ddda-platform-development-skill.md",
@@ -66,6 +67,17 @@
       "platform_repository_write_allowed": false,
       "cross_repository_commit_allowed": false,
       "human_gate_decision_required": true,
+      "miro": {
+        "deterministic_transport": "rest-api",
+        "mcp_optional": true,
+        "project_manifest_configuration": true,
+        "token_indirection_required": true,
+        "team_independently_configurable": true,
+        "space_independently_configurable": true,
+        "board_independently_configurable": true,
+        "create_board_if_missing_supported": true,
+        "raw_token_in_project_yaml_allowed": false
+      },
       "cursor_runtime_assets_required": [
         ".cursor/rules/010-ddda-project-steering.mdc",
         ".cursor/rules/ddda-chat-first.mdc",
@@ -85,22 +97,28 @@
     "docs/adr/0001-platform-development-lifecycle.md",
     "docs/adr/0002-project-steering-and-gate-semantics.md",
     "docs/adr/0005-chat-work-only-development-operating-model.md",
+    "docs/adr/0006-chat-atomic-platform-implementation.md",
+    "docs/adr/0007-miro-execution-profiles-and-persistent-validation-boards.md",
     "docs/developer-guide/chat-work-operating-model.md",
-    "docs/migration/pr8-non-breaking-steering-extension.md",
-    "docs/adr/0006-chat-atomic-platform-implementation.md"
+    "docs/developer-guide/miro-execution-profiles.md",
+    "docs/migration/pr8-non-breaking-steering-extension.md"
   ],
   "remote_execution": {
-    "schema_version": 1,
+    "schema_version": 2,
     "enabled": true,
     "allowed_actors": [
       "romanhlavac"
     ],
     "same_repository_only": true,
     "exact_sha_required": true,
-    "miro_team_id": "3458764678971681560",
-    "required_secret_names": [
-      "MIRO_ACCESS_TOKEN"
-    ],
+    "miro_execution_profile_config": "config/platform/miro-execution-profiles.yaml",
+    "deterministic_miro_transport": "rest-api",
+    "mcp_required_for_technical_gate": false,
+    "current_ci_secret_name": "MIRO_ACCESS_TOKEN",
+    "preferred_ci_secret_name": "MIRO_CI_ACCESS_TOKEN",
+    "preferred_hvr_secret_name": "MIRO_HVR_ACCESS_TOKEN",
+    "preferred_platform_lab_secret_name": "MIRO_PLATFORM_LAB_ACCESS_TOKEN",
+    "legacy_secret_fallback_allowed_for_pr8": true,
     "allowed_validate_commands": [
       "/ddda validate-pr --with-miro --full --keep-review-board"
     ],

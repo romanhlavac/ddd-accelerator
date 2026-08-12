@@ -8,6 +8,9 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 Změny pro další verzi se během vývoje zapisují sem. Před promotion se všechny položky přesunou do jediné verze `X.Y.Z` s ISO datem a tato sekce zůstane bez release položek.
 
+### Changed
+
+- Miro integration používá explicitní execution profiles: REST API je deterministický automation plane, MCP je volitelný interaktivní kanál bez vlivu na technical gate; PR #8 HVR podporuje oddělený HVR/Platform-Lab credential chain a project runtime zachovává per-project token/team/Space/board binding s automatickým create-board flow.
 
 ## [0.1.0] - 2026-07-28
 
