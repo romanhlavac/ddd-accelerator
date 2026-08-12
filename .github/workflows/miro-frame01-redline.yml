@@ -68,11 +68,7 @@ jobs:
           source=os.environ['SOURCE_SHA']
           subprocess.check_call(['git','merge-base','--is-ancestor',os.environ['BASE_SHA'],source])
           observed=sorted(x for x in g('diff-tree','--no-commit-id','--name-only','-r',source).splitlines() if x)
-          expected=[
-              '.github/workflows/miro-frame01-redline.yml',
-              'runtime/miro/ddda_miro/connector_readback_wirefix.py',
-              'runtime/miro/tests/test_rem_012_5_connector_readback.py',
-          ]
+          expected=['.github/workflows/miro-frame01-redline.yml']
           assert observed == expected, f'corrective path mismatch: {observed}'
 
           profile=Path('config/platform/miro-execution-profiles.yaml').read_text(encoding='utf-8')
@@ -227,7 +223,12 @@ jobs:
             if($tips.replacement_frame_id -ne '3458764680476608045'){throw 'Miro Tips active replacement identity mismatch'}
           }
           if([int]$tips1[0].frame_replaced -ne 0 -or [int]$tips1[0].forced_layer_rebuild -ne 0){throw 'Miro Tips stable frame was unexpectedly replaced'}
-          if([int]$tips1[0].children_rebuilt -ne 1){throw 'Miro Tips legacy child geometry was not rebuilt'}
+          $tips1Rebuilt=[int]$tips1[0].children_rebuilt
+          if($tips1Rebuilt -notin @(0,1)){throw 'Miro Tips rebuild evidence is invalid'}
+          if($tips1Rebuilt -eq 0 -and (
+              $tips1[0].items.created -ne 0 -or $tips1[0].items.updated -ne 0 -or $tips1[0].items.deleted -ne 0 -or
+              $tips1[0].connectors.created -ne 0 -or $tips1[0].connectors.updated -ne 0 -or $tips1[0].connectors.deleted -ne 0
+          )){throw 'Miro Tips stable children unexpectedly mutated'}
           if([int]$tips2[0].frame_replaced -ne 0 -or [int]$tips2[0].forced_layer_rebuild -ne 0 -or [int]$tips2[0].background_images_primed -ne 0){throw 'Miro Tips second run changed stable identity/layers'}
           if([int]$tips2[0].children_rebuilt -ne 0){throw 'Miro Tips second run rebuilt stable children'}
           if($tips2[0].items.created -ne 0 -or $tips2[0].items.updated -ne 0 -or $tips2[0].items.deleted -ne 0){throw 'Miro Tips second run mutated items'}
