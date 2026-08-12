@@ -24,7 +24,7 @@ jobs:
     timeout-minutes: 120
     env:
       SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
-      PREVIOUS_SHA: d76e86477d3b57a957366ddc928d27e81f04262f
+      PREVIOUS_SHA: 29efec598d4bedb3d37c1295d6c3c735b4cc7c10
       BASE_SHA: ed14f57363c359e60633f9f1da9ad69dee8b5bda
       GH_TOKEN: ${{ github.token }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -68,13 +68,10 @@ jobs:
 
           source=os.environ['SOURCE_SHA']
           assert g('rev-parse', source + '^') == os.environ['PREVIOUS_SHA'], 'corrective parent SHA mismatch'
-          assert g('show', '-s', '--format=%s', source) == 'fix(miro): normalize duplicate HVR slots on materialization', 'corrective commit message mismatch'
+          assert g('show', '-s', '--format=%s', source) == 'fix(miro): repair HVR evidence expression', 'corrective commit message mismatch'
           subprocess.check_call(['git','merge-base','--is-ancestor',os.environ['BASE_SHA'],source])
           observed=sorted(x for x in g('diff-tree','--no-commit-id','--name-only','-r',source).splitlines() if x)
-          expected=sorted([
-              '.github/workflows/miro-frame01-redline.yml',
-              '.github/workflows/platform-ci.yml',
-          ])
+          expected=['.github/workflows/miro-frame01-redline.yml']
           assert observed == expected, f'corrective path mismatch: {observed}'
 
           profile=Path('config/platform/miro-execution-profiles.yaml').read_text(encoding='utf-8')
@@ -421,6 +418,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: rem-012-5-frame01-redline-pr-${{ env.PR_NUMBER }}-${{ env.SOURCE_SHA }}-${{ github.run_id }}
-          path: ${{ env:EVIDENCE_ROOT }}/**
+          path: ${{ env.EVIDENCE_ROOT }}/**
           if-no-files-found: error
           retention-days: 30
