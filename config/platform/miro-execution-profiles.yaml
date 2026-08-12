@@ -1,4 +1,4 @@
-schema_version: 1
+schema_version: 2
 contract: ddda-miro-execution-profiles
 status: active
 
@@ -8,62 +8,68 @@ principles:
   mcp_required_for_technical_gate: false
   raw_tokens_in_git: forbidden
   credential_indirection: env-or-secret-name-only
-  project_board_ownership: project-owned
-  project_board_creation: runtime-create-if-missing
   technical_evidence_source: github-actions-exact-sha
+  active_development_profiles:
+    - platform_lab
+    - github_ci
+    - hvr
+  deferred_profiles:
+    - example_project
+    - project_runtime
 
 profiles:
   platform_lab:
-    purpose: persistent DDDA platform development, fast-loop and HVR target
+    enabled: true
+    purpose: persistent DDDA platform fast-loop and remediation target
     transport: rest-api
     identity_ref_env: DDDA_MIRO_PLATFORM_LAB_IDENTITY
     access_token_secret: MIRO_PLATFORM_LAB_ACCESS_TOKEN
-    legacy_access_token_secret: MIRO_ACCESS_TOKEN
     team_id_env: DDDA_MIRO_PLATFORM_LAB_TEAM_ID
     board_id_env: DDDA_MIRO_PLATFORM_LAB_BOARD_ID
+    board_name: DDDA_PLATFORM_LAB
     current_board_id_fallback: uXjVH0doLYY=
     lifecycle: persistent
     cleanup_scope: managed-items-only
     single_writer: true
-
-  example_project:
-    purpose: persistent populated example project proving release usability
-    transport: rest-api
-    identity_ref_env: DDDA_MIRO_EXAMPLE_PROJECT_IDENTITY
-    access_token_secret: MIRO_EXAMPLE_PROJECT_ACCESS_TOKEN
-    team_id_env: DDDA_MIRO_EXAMPLE_PROJECT_TEAM_ID
-    space_id_env: DDDA_MIRO_EXAMPLE_PROJECT_SPACE_ID
-    board_id_env: DDDA_MIRO_EXAMPLE_PROJECT_BOARD_ID
-    lifecycle: persistent
-    board_creation: create-if-missing
+    mcp_required: false
 
   github_ci:
-    purpose: authoritative deterministic platform validation executor
+    enabled: true
+    purpose: authoritative deterministic GitHub Actions Miro validation target
     transport: rest-api
-    identity_ref_env: DDDA_MIRO_CI_IDENTITY
-    access_token_secret: MIRO_CI_ACCESS_TOKEN
-    legacy_access_token_secret: MIRO_ACCESS_TOKEN
-    team_id_env: DDDA_MIRO_CI_TEAM_ID
-    default_target_profile: platform_lab
+    identity_ref_env: DDDA_MIRO_GH_CI_IDENTITY
+    access_token_secret: MIRO_GH_CI_ACCESS_TOKEN
+    team_id_env: DDDA_MIRO_GH_CI_TEAM_ID
+    board_id_env: DDDA_MIRO_GH_CI_BOARD_ID
+    board_name: DDDA_GH_CI
+    current_board_id_fallback: uXjVHy7iQD4=
+    lifecycle: persistent
+    reset_policy: clear-all-items-before-run
+    ownership: machine-only
     mcp_allowed: false
 
   hvr:
-    purpose: human visual review materialization and technical preflight
+    enabled: true
+    purpose: dedicated Human Visual Review materialization target
     transport: rest-api
     identity_ref_env: DDDA_MIRO_HVR_IDENTITY
     access_token_secret: MIRO_HVR_ACCESS_TOKEN
-    fallback_access_token_secrets:
-      - MIRO_PLATFORM_LAB_ACCESS_TOKEN
-      - MIRO_ACCESS_TOKEN
-    target_profile: platform_lab
+    team_id_env: DDDA_MIRO_HVR_TEAM_ID
+    board_id_env: DDDA_MIRO_HVR_BOARD_ID
+    board_name: DDDA_HVR
+    board_resolution: exact-name
+    source_profile: platform_lab
+    materialization: replace-by-server-side-board-copy
+    lifecycle: logical-persistent-slot
     technical_pass_requires_mcp: false
     human_review_channels:
-      - stable-miro-url
+      - miro-gui
       - screenshot
       - mcp-when-available
 
   mcp:
-    purpose: optional interactive ChatGPT/Cursor Miro access
+    enabled: true
+    purpose: optional interactive ChatGPT Miro access during platform development
     transport: mcp
     identity_ref_env: DDDA_MIRO_MCP_IDENTITY
     credential_provider: external-oauth-connector
@@ -72,9 +78,20 @@ profiles:
     budgeted: true
     technical_gate_required: false
 
+  example_project:
+    enabled: false
+    activation_phase: platform-deployment-and-initialization
+    purpose: populated example project proving installed/released platform usability
+    transport: rest-api
+    configuration_status: deferred
+    board_creation: create-if-missing-when-activated
+
   project_runtime:
+    enabled: false
+    activation_phase: per-project-deployment-and-initialization
     purpose: per-DDDA-project Cursor runtime Miro integration
     transport: rest-api
+    configuration_status: contract-only
     configuration_source: project.yaml
     identity_ref_field: miro.identity_ref
     access_token_env_field: miro.access_token_env
@@ -84,14 +101,18 @@ profiles:
     space_id_env_field: miro.project_id_env
     board_id_field: miro.board_id
     board_id_env_field: miro.board_id_env
-    board_creation: create-if-missing
+    board_creation: create-if-missing-when-activated
     board_name_pattern: "DDDA – {project.name}"
     mcp_optional: true
 
 migration:
   pr8:
-    legacy_secret_supported: MIRO_ACCESS_TOKEN
-    legacy_platform_lab_board_supported: uXjVH0doLYY=
-    legacy_support_purpose: non-breaking fast-loop migration only
-    target_state: explicit-profile-bindings
-    hvr2_previous_evidence: superseded-by-execution-profile-migration
+    legacy_secret_fallback_allowed: false
+    platform_lab_board_bootstrap: uXjVH0doLYY=
+    github_ci_board_bootstrap: uXjVHy7iQD4=
+    hvr_board_bootstrap_name: DDDA_HVR
+    exact_active_secrets:
+      - MIRO_PLATFORM_LAB_ACCESS_TOKEN
+      - MIRO_GH_CI_ACCESS_TOKEN
+      - MIRO_HVR_ACCESS_TOKEN
+    hvr2_previous_evidence: superseded-by-three-profile-binding

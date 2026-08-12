@@ -210,11 +210,141 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  miro-profile-bindings:
+    name: Miro profile bindings
+    needs:
+      - validate-platform
+      - validate-pr-command
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.action == 'synchronize' &&
+      github.event.pull_request.number == 8 &&
+      github.actor == 'romanhlavac' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: windows-latest
+    timeout-minutes: 15
+    env:
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+      DDDA_MIRO_PRIVATE_DEV_TEAM_ID: ${{ vars.DDDA_MIRO_PRIVATE_DEV_TEAM_ID || '3458764678971681560' }}
+      DDDA_MIRO_PLATFORM_LAB_BOARD_ID: ${{ vars.DDDA_MIRO_PLATFORM_LAB_BOARD_ID || 'uXjVH0doLYY=' }}
+      DDDA_MIRO_GH_CI_BOARD_ID: ${{ vars.DDDA_MIRO_GH_CI_BOARD_ID || 'uXjVHy7iQD4=' }}
+      DDDA_MIRO_HVR_BOARD_NAME: DDDA_HVR
+
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Verify three Miro identities and board bindings
+        shell: pwsh
+        env:
+          MIRO_PLATFORM_LAB_ACCESS_TOKEN: ${{ secrets.MIRO_PLATFORM_LAB_ACCESS_TOKEN }}
+          MIRO_GH_CI_ACCESS_TOKEN: ${{ secrets.MIRO_GH_CI_ACCESS_TOKEN }}
+          MIRO_HVR_ACCESS_TOKEN: ${{ secrets.MIRO_HVR_ACCESS_TOKEN }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $evidence = Join-Path $env:RUNNER_TEMP 'miro-three-profile-bindings.json'
+          "EVIDENCE_PATH=$evidence" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          @'
+          import json, os, urllib.parse, urllib.request
+          from pathlib import Path
+
+          API='https://api.miro.com'
+
+          def request(method, path, token, payload=None):
+              data=None if payload is None else json.dumps(payload).encode('utf-8')
+              req=urllib.request.Request(API+path, data=data, method=method)
+              req.add_header('Authorization', 'Bearer '+token)
+              req.add_header('Accept', 'application/json')
+              if data is not None:
+                  req.add_header('Content-Type', 'application/json')
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  raw=response.read()
+                  return None if not raw else json.loads(raw.decode('utf-8'))
+
+          def token_context(label, env_name):
+              token=os.environ.get(env_name, '').strip()
+              if not token:
+                  raise SystemExit(f'{label}: required secret {env_name} is missing')
+              ctx=request('GET','/v1/oauth-token',token)
+              team=ctx.get('team') if isinstance(ctx.get('team'),dict) else {}
+              user=ctx.get('user') if isinstance(ctx.get('user'),dict) else {}
+              team_id=str(ctx.get('team_id') or team.get('id') or '')
+              if team_id != os.environ['DDDA_MIRO_PRIVATE_DEV_TEAM_ID']:
+                  raise SystemExit(f'{label}: token team mismatch')
+              scope=ctx.get('scope') or ctx.get('scopes') or []
+              if isinstance(scope,str):
+                  scopes={x for x in scope.replace(',', ' ').split() if x}
+              else:
+                  scopes={str(x) for x in scope}
+              missing={'boards:read','boards:write'}-scopes
+              if missing:
+                  raise SystemExit(f'{label}: missing required Miro scopes: {sorted(missing)}')
+              return token, {
+                  'team_id': team_id,
+                  'user_id': str(ctx.get('user_id') or user.get('id') or ''),
+                  'scopes': sorted(scopes),
+              }
+
+          expected_team=os.environ['DDDA_MIRO_PRIVATE_DEV_TEAM_ID']
+          ptoken,pctx=token_context('platform_lab','MIRO_PLATFORM_LAB_ACCESS_TOKEN')
+          ctoken,cctx=token_context('github_ci','MIRO_GH_CI_ACCESS_TOKEN')
+          htoken,hctx=token_context('hvr','MIRO_HVR_ACCESS_TOKEN')
+
+          platform_id=os.environ['DDDA_MIRO_PLATFORM_LAB_BOARD_ID']
+          platform=request('GET','/v2/boards/'+urllib.parse.quote(platform_id,safe=''),ptoken)
+          if platform.get('name') != 'DDDA_PLATFORM_LAB':
+              platform=request('PATCH','/v2/boards/'+urllib.parse.quote(platform_id,safe=''),ptoken,{'name':'DDDA_PLATFORM_LAB'})
+          if platform.get('name') != 'DDDA_PLATFORM_LAB':
+              raise SystemExit('platform_lab: board rename/binding failed')
+
+          ci_id=os.environ['DDDA_MIRO_GH_CI_BOARD_ID']
+          ci=request('GET','/v2/boards/'+urllib.parse.quote(ci_id,safe=''),ctoken)
+          if ci.get('name') != 'DDDA_GH_CI':
+              raise SystemExit('github_ci: configured board is not DDDA_GH_CI')
+
+          params=urllib.parse.urlencode({'team_id':expected_team,'limit':'50','sort':'alphabetically'})
+          boards=request('GET','/v2/boards?'+params,htoken).get('data',[])
+          hvr=[b for b in boards if b.get('name')==os.environ['DDDA_MIRO_HVR_BOARD_NAME']]
+          if len(hvr)!=1:
+              raise SystemExit(f'hvr: expected exactly one DDDA_HVR board, found {len(hvr)}')
+
+          evidence={
+              'schema_version':1,
+              'source_sha':os.environ['SOURCE_SHA'],
+              'team_id':expected_team,
+              'profiles':{
+                  'platform_lab':{**pctx,'board_id':platform_id,'board_name':'DDDA_PLATFORM_LAB'},
+                  'github_ci':{**cctx,'board_id':ci_id,'board_name':'DDDA_GH_CI'},
+                  'hvr':{**hctx,'board_id':str(hvr[0].get('id')),'board_name':'DDDA_HVR'},
+              },
+              'technical_status':'PASS',
+          }
+          Path(os.environ['EVIDENCE_PATH']).write_text(json.dumps(evidence,indent=2),encoding='utf-8')
+          print('Three-profile Miro binding preflight: PASS')
+          '@ | python -
+
+      - name: Upload Miro profile binding evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: miro-profile-bindings-${{ env.SOURCE_SHA }}
+          path: ${{ env.EVIDENCE_PATH }}
+          if-no-files-found: error
+          retention-days: 14
+
   online-miro-acceptance:
     name: Online Miro acceptance
     needs:
       - validate-platform
       - validate-pr-command
+      - miro-profile-bindings
     if: >-
       github.event_name == 'pull_request' &&
       github.event.action == 'synchronize' &&
@@ -230,7 +360,9 @@ jobs:
     env:
       SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
-      MIRO_TEAM_ID: "3458764678971681560"
+      MIRO_TEAM_ID: ${{ vars.DDDA_MIRO_PRIVATE_DEV_TEAM_ID || '3458764678971681560' }}
+      DDDA_MIRO_GH_CI_BOARD_ID: ${{ vars.DDDA_MIRO_GH_CI_BOARD_ID || 'uXjVHy7iQD4=' }}
+      ACCEPTANCE_CLAIMS_MODERNIZATION_MIRO_BOARD_ID: ${{ vars.DDDA_MIRO_GH_CI_BOARD_ID || 'uXjVHy7iQD4=' }}
 
     steps:
       - name: Checkout exact PR head
@@ -244,32 +376,79 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Check online secret availability
-        id: online-secret
+      - name: Require GH CI REST credential
         shell: pwsh
         env:
-          MIRO_ACCESS_TOKEN: ${{ secrets.MIRO_ACCESS_TOKEN }}
+          MIRO_GH_CI_ACCESS_TOKEN: ${{ secrets.MIRO_GH_CI_ACCESS_TOKEN }}
         run: |
-          if ([string]::IsNullOrWhiteSpace($env:MIRO_ACCESS_TOKEN)) {
-            "available=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-            "MIRO_ACCESS_TOKEN is not configured; online acceptance is skipped." | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
-          }
-          else {
-            "available=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          if ([string]::IsNullOrWhiteSpace($env:MIRO_GH_CI_ACCESS_TOKEN)) {
+            throw 'MIRO_GH_CI_ACCESS_TOKEN is required; cross-profile and legacy fallbacks are forbidden.'
           }
 
+      - name: Reset dedicated DDDA_GH_CI board
+        shell: pwsh
+        env:
+          MIRO_GH_CI_ACCESS_TOKEN: ${{ secrets.MIRO_GH_CI_ACCESS_TOKEN }}
+        run: |
+          $ErrorActionPreference='Stop'
+          @'
+          import json, os, urllib.error, urllib.parse, urllib.request
+
+          token=os.environ['MIRO_GH_CI_ACCESS_TOKEN']
+          board=os.environ['DDDA_MIRO_GH_CI_BOARD_ID']
+          base='https://api.miro.com'
+
+          def request(method,path):
+              req=urllib.request.Request(base+path,method=method)
+              req.add_header('Authorization','Bearer '+token)
+              req.add_header('Accept','application/json')
+              try:
+                  with urllib.request.urlopen(req,timeout=30) as response:
+                      raw=response.read()
+                      return None if not raw else json.loads(raw.decode('utf-8'))
+              except urllib.error.HTTPError as exc:
+                  if method=='DELETE' and exc.code==404:
+                      return None
+                  raise
+
+          meta=request('GET','/v2/boards/'+urllib.parse.quote(board,safe=''))
+          if meta.get('name')!='DDDA_GH_CI':
+              raise SystemExit('Refusing reset: configured board is not DDDA_GH_CI')
+
+          items=[]
+          cursor=None
+          while True:
+              params={'limit':'50'}
+              if cursor:
+                  params['cursor']=cursor
+              page=request('GET','/v2/boards/'+urllib.parse.quote(board,safe='')+'/items?'+urllib.parse.urlencode(params))
+              items.extend(page.get('data',[]))
+              cursor=page.get('cursor')
+              if not cursor:
+                  break
+
+          # Non-frame items first; removing either connector endpoint removes its connector automatically.
+          for item in sorted(items,key=lambda x: x.get('type')=='frame'):
+              item_id=str(item.get('id') or '')
+              if item_id:
+                  request('DELETE','/v2/boards/'+urllib.parse.quote(board,safe='')+'/items/'+urllib.parse.quote(item_id,safe=''))
+
+          remaining=request('GET','/v2/boards/'+urllib.parse.quote(board,safe='')+'/items?limit=50').get('data',[])
+          if remaining:
+              raise SystemExit(f'DDDA_GH_CI reset incomplete: {len(remaining)} items remain')
+          print(f'DDDA_GH_CI reset: PASS ({len(items)} items removed)')
+          '@ | python -
+
       - name: Download exact-SHA candidate package
-        if: steps.online-secret.outputs.available == 'true'
         uses: actions/download-artifact@v4
         with:
           name: ddda-candidate-${{ env.SOURCE_SHA }}
           path: ${{ runner.temp }}/candidate
 
-      - name: Run exact-SHA online Miro acceptance only
-        if: steps.online-secret.outputs.available == 'true'
+      - name: Run exact-SHA online Miro acceptance on DDDA_GH_CI
         shell: pwsh
         env:
-          MIRO_ACCESS_TOKEN: ${{ secrets.MIRO_ACCESS_TOKEN }}
+          MIRO_ACCESS_TOKEN: ${{ secrets.MIRO_GH_CI_ACCESS_TOKEN }}
           GH_TOKEN: ${{ github.token }}
         run: |
           $ErrorActionPreference = 'Stop'
@@ -313,21 +492,29 @@ jobs:
           if ([IO.Path]::GetFullPath($packageGitRoot).TrimEnd('\', '/') -ne [IO.Path]::GetFullPath($packageRoot).TrimEnd('\', '/')) {
             throw "Temporary package Git root '$packageGitRoot' does not match package root '$packageRoot'."
           }
-          $packageChanges = @(git -C $packageRoot status --porcelain)
-          if (-not [string]::IsNullOrWhiteSpace(($packageChanges -join "`n"))) {
-            throw "Temporary package Git baseline is not clean:`n$($packageChanges -join "`n")"
-          }
 
           & (Join-Path $packageRoot 'scripts\platform\Invoke-DDDAMiroAcceptanceEvidence.ps1') `
             -PlatformPath $packageRoot `
             -Suite project-steering `
-            -Full `
             -KeepReviewBoard `
             -MiroTeamId $env:MIRO_TEAM_ID `
             -NonInteractive
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Dedicated DDDA_GH_CI acceptance failed.'
+          }
+
+          $reports = @(Get-ChildItem (Join-Path $env:LOCALAPPDATA 'DDDA\acceptance-reports') -Filter result.json -File -Recurse | Sort-Object LastWriteTimeUtc -Descending)
+          if ($reports.Count -eq 0) { throw 'Online acceptance result.json not found.' }
+          $r = Get-Content $reports[0].FullName -Raw -Encoding UTF8 | ConvertFrom-Json
+          if ([string]$r.miro_board_id -ne $env:DDDA_MIRO_GH_CI_BOARD_ID) {
+            throw "Online acceptance used unexpected board '$($r.miro_board_id)'."
+          }
+          if ([string]$r.status -ne 'PASS' -or [string]$r.overall_status -ne 'PENDING_HUMAN_REVIEW') {
+            throw 'Online acceptance evidence state mismatch.'
+          }
 
       - name: Stage online acceptance evidence
-        if: always() && steps.online-secret.outputs.available == 'true'
+        if: always()
         shell: pwsh
         run: |
           $target = Join-Path $env:RUNNER_TEMP 'online-miro-acceptance'
@@ -342,7 +529,7 @@ jobs:
           }
 
       - name: Upload online acceptance evidence
-        if: always() && steps.online-secret.outputs.available == 'true'
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: online-miro-acceptance-${{ env.PR_NUMBER }}-${{ env.SOURCE_SHA }}

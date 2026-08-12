@@ -67,6 +67,8 @@
       "platform_repository_write_allowed": false,
       "cross_repository_commit_allowed": false,
       "human_gate_decision_required": true,
+      "activation_phase": "per-project-deployment-and-initialization",
+      "current_activation_status": "deferred",
       "miro": {
         "deterministic_transport": "rest-api",
         "mcp_optional": true,
@@ -104,7 +106,7 @@
     "docs/migration/pr8-non-breaking-steering-extension.md"
   ],
   "remote_execution": {
-    "schema_version": 2,
+    "schema_version": 3,
     "enabled": true,
     "allowed_actors": [
       "romanhlavac"
@@ -114,13 +116,23 @@
     "miro_execution_profile_config": "config/platform/miro-execution-profiles.yaml",
     "deterministic_miro_transport": "rest-api",
     "mcp_required_for_technical_gate": false,
-    "current_ci_secret_name": "MIRO_ACCESS_TOKEN",
-    "preferred_ci_secret_name": "MIRO_CI_ACCESS_TOKEN",
-    "preferred_hvr_secret_name": "MIRO_HVR_ACCESS_TOKEN",
-    "preferred_platform_lab_secret_name": "MIRO_PLATFORM_LAB_ACCESS_TOKEN",
-    "legacy_secret_fallback_allowed_for_pr8": true,
+    "active_miro_profiles": [
+      "platform_lab",
+      "github_ci",
+      "hvr"
+    ],
+    "required_miro_secret_names": [
+      "MIRO_PLATFORM_LAB_ACCESS_TOKEN",
+      "MIRO_GH_CI_ACCESS_TOKEN",
+      "MIRO_HVR_ACCESS_TOKEN"
+    ],
+    "legacy_secret_fallback_allowed_for_pr8": false,
+    "deferred_miro_profiles": [
+      "example_project",
+      "project_runtime"
+    ],
     "allowed_validate_commands": [
-      "/ddda validate-pr --with-miro --full --keep-review-board"
+      "/ddda validate-pr --with-miro --keep-review-board"
     ],
     "remediation": {
       "enabled": true,

@@ -2,117 +2,132 @@
 
 ## Scope
 
-Tento dokument je provozní kontrakt pro Miro při vývoji DDDA platformy a pro napojení jednotlivých DDDA projektů. Architektonické rozhodnutí je v ADR 0007; machine-readable bindingy jsou v `config/platform/miro-execution-profiles.yaml`.
+Tento dokument je provozní kontrakt pro Miro při vývoji DDDA platformy a pro pozdější napojení jednotlivých DDDA projektů. Architektonické rozhodnutí je v ADR 0007; machine-readable bindingy jsou v `config/platform/miro-execution-profiles.yaml`.
 
 ## Princip
 
 ```text
 Git/YAML             authoritative state
 GitHub Actions REST  deterministic platform execution
-Cursor REST          deterministic project execution
 Miro MCP             optional interactive AI access
 Human review         architecture/method/usability judgment
 ```
 
 MCP quota nebo nedostupnost connectoru nesmí být příčinou technical FAIL, pokud není předmětem testu samotný MCP integration contract.
 
-## Profilový model
+## Aktivní development model
 
-| Profile | Resource/actor | Transport | Credential binding | Technical gate |
-|---|---|---|---|---|
-| `platform_lab` | persistent platform board | REST | `MIRO_PLATFORM_LAB_ACCESS_TOKEN` + board/team vars | ano jako target, ne jako jediný principal |
-| `example_project` | persistent example board | REST | `MIRO_EXAMPLE_PROJECT_ACCESS_TOKEN` + board/team/space vars | release/example acceptance |
-| `github_ci` | GitHub Actions principal | REST | `MIRO_CI_ACCESS_TOKEN` | ano |
-| `hvr` | HVR materialization principal | REST | `MIRO_HVR_ACCESS_TOKEN` | technický preflight ano, lidský verdict ne |
-| `mcp` | ChatGPT/Cursor interactive session | MCP/OAuth | external connector | **ne** |
-| `project_runtime` | konkrétní DDDA project | REST | `project.yaml -> access_token_env` | project-specific |
+Pro aktuální vývoj PR #8 jsou aktivní přesně tři oddělené REST profily v jednom privátním Miro Developer Teamu:
 
-Během PR #8 může `MIRO_ACCESS_TOKEN` fungovat jako explicitně dokumentovaný fallback. Nesmí se z něj znovu stát architektonický single-token contract.
+| Profile | Board | Credential binding | Role |
+|---|---|---|---|
+| `platform_lab` | `DDDA_PLATFORM_LAB` | `MIRO_PLATFORM_LAB_ACCESS_TOKEN` | fast-loop, remediation a deterministic platform target |
+| `github_ci` | `DDDA_GH_CI` | `MIRO_GH_CI_ACCESS_TOKEN` | GitHub Actions online acceptance |
+| `hvr` | `DDDA_HVR` | `MIRO_HVR_ACCESS_TOKEN` | samostatný Human Visual Review target |
+
+Žádný z těchto profilů nesmí fallbacknout na token jiného profilu ani na legacy `MIRO_ACCESS_TOKEN`.
+
+`example_project` a `project_runtime` zůstávají v kontraktu, ale jsou **deferred**. Jejich credentialy, team/Space bindingy a boardy se aktivují až při nasazení/inicializaci DDDA platformy a konkrétních projektů.
 
 ## Platform Lab
 
-`DDDA Platform Lab` je persistentní board. Pro PR #8 je stávající review board povolen jako bootstrap binding, dokud není vytvořen finální Lab board.
+`DDDA_PLATFORM_LAB` je persistentní vývojový board. PR #8 používá bootstrap board ID `uXjVH0doLYY=`; environment/repository variable `DDDA_MIRO_PLATFORM_LAB_BOARD_ID` jej může explicitně přebindovat bez změny runtime kódu.
 
-Doporučené managed zóny:
+Platform Lab je jediný target pro PR8 frame-remediation FAST-LOOP. Zápis probíhá REST API s `MIRO_PLATFORM_LAB_ACCESS_TOKEN`; MCP není transportem technické remediation.
 
-- `CONTROL` — permanentní a protected;
-- `CI SANDBOX` — automaticky recyklovatelný;
-- `FAIL DIAGNOSTICS` — dočasně zachovaný poslední relevantní fail;
-- `HVR CURRENT` — stabilní lidský review target.
+Managed cleanup musí být omezen na známé DDDA artefakty. Neznámý obsah je fail-closed boundary.
 
-Každý run musí znát exact SHA a explicitní seznam owned/managed IDs. Cleanup smí mazat pouze tato ID. Neznámé objekty jsou fail-closed boundary.
+## GitHub CI board
 
-Online write na persistentní Lab se serializuje. Offline testy mohou běžet paralelně.
+`DDDA_GH_CI` je dedikovaný machine-only board. Bootstrap board ID pro aktuální private Dev Team je `uXjVHy7iQD4=`; může jej přebindovat `DDDA_MIRO_GH_CI_BOARD_ID`.
 
-## HVR bez MCP dependency
+GitHub Actions používá výhradně `MIRO_GH_CI_ACCESS_TOKEN`. Před online acceptance:
 
-Povinný technický tok:
+```text
+verify token context + scopes + team
+→ verify exact board binding
+→ clear all items from dedicated DDDA_GH_CI board
+→ render/sync candidate into the same board
+→ remote read-back
+→ idempotence
+→ evidence artifact
+```
+
+Protože board je označen jako machine-only, jeho pre-run reset smí odstranit všechny board items. Samotný board se během běžného CI nemaže a nevytváří znovu.
+
+## HVR board
+
+`DDDA_HVR` je dedikovaný logical review slot oddělený od Platform Labu. GitHub Actions nejdříve technicky zvaliduje/remediateuje Platform Lab s platformním tokenem. Poté použije **výhradně** `MIRO_HVR_ACCESS_TOKEN` k materializaci HVR targetu server-side kopií validovaného Platform Lab boardu.
+
+Aktuální PR8 mechanismus je:
 
 ```text
 exact candidate SHA
-→ REST write/reconcile
-→ fresh remote read-back
-→ invariant checks
+→ Platform Lab REST reconcile
+→ fresh read-back
 → second reconcile = zero mutation
-→ evidence artifact
-→ stable review URL
+→ delete previous DDDA_HVR logical slot
+→ Miro server-side Copy Board from DDDA_PLATFORM_LAB
+→ new DDDA_HVR
+→ copy/read-back evidence
+→ human HVR
 ```
 
-Pak proběhne lidské HVR. Reviewer může:
+Fyzické HVR board ID se proto může po novém HVR materialization runu změnit. Autoritativní HVR URL je vždy URL zachycená v exact-SHA evidence pro daný run, nikoli historický hardcoded board ID.
 
-- otevřít Miro URL v GUI;
-- poslat screenshot/findings do Chatu;
-- použít MCP, pokud je dostupné a quota dovoluje.
+Human reviewer může použít Miro GUI, screenshot nebo MCP. MCP není precondition `READY_FOR_HUMAN_REVIEW`.
 
-MCP není precondition HVR-ready. Pokud connector není dostupný, musí evidence jasně uvést, že interaktivní MCP inspection nebyla provedena; technická REST evidence tím není zneplatněna.
+## Token and board binding preflight
 
-## GitHub CI secrets and variables
+Před secret-bearing online acceptance musí CI ověřit pro každý aktivní profil:
 
-Preferred bindings:
+- token je přítomný;
+- `GET /v1/oauth-token` vrátí očekávaný team;
+- scope obsahuje `boards:read` i `boards:write`;
+- token dokáže načíst svůj explicitní board/resource;
+- Platform Lab a GH CI board mají očekávané názvy;
+- HVR logical slot je jednoznačně dohledatelný přes exact board name;
+- raw token se nikdy nezapisuje do artifactu nebo logu.
+
+## GitHub secrets and variables
+
+Povinné development secrets:
 
 ```text
-MIRO_CI_ACCESS_TOKEN
-DDDA_MIRO_CI_IDENTITY
-DDDA_MIRO_CI_TEAM_ID
-
 MIRO_PLATFORM_LAB_ACCESS_TOKEN
+MIRO_GH_CI_ACCESS_TOKEN
+MIRO_HVR_ACCESS_TOKEN
+```
+
+Volitelné explicitní binding variables:
+
+```text
 DDDA_MIRO_PLATFORM_LAB_IDENTITY
 DDDA_MIRO_PLATFORM_LAB_TEAM_ID
 DDDA_MIRO_PLATFORM_LAB_BOARD_ID
 
-MIRO_HVR_ACCESS_TOKEN
+DDDA_MIRO_GH_CI_IDENTITY
+DDDA_MIRO_GH_CI_TEAM_ID
+DDDA_MIRO_GH_CI_BOARD_ID
+
 DDDA_MIRO_HVR_IDENTITY
+DDDA_MIRO_HVR_TEAM_ID
+DDDA_MIRO_HVR_BOARD_ID
 ```
 
-`*_IDENTITY` je pouze ne-secret audit label. Token patří do GitHub secret store. Board/team ID může být Repository/Environment variable.
+`*_IDENTITY` je non-secret audit label. Token patří výhradně do GitHub secret store. Board/team ID nejsou secrets.
 
-PR #8 migration fallback:
+## MCP
 
-```text
-MIRO_HVR_ACCESS_TOKEN
-→ MIRO_PLATFORM_LAB_ACCESS_TOKEN
-→ MIRO_ACCESS_TOKEN
-```
+MCP zůstává samostatný interactive control plane připojený OAuth identitou mimo GitHub Actions. MCP se používá pouze tam, kde má přidanou hodnotu pro interaktivní AI práci nebo vizuální inspection. Bulk create/update/read-back, CI a HVR materialization běží přes REST, aby MCP quota nebyla blockerem platformního vývoje.
 
-Generic CI může do dokončení migrace používat `MIRO_ACCESS_TOKEN`; jeho přejmenování na `MIRO_CI_ACCESS_TOKEN` je samostatný follow-up, protože GitHub secret store nelze bezpečně migrovat z platformního source commitu.
+## Deferred: Example project
 
-## Example project
+Example project se v aktuálním PR8 development prostředí nezakládá a nemá aktivní token ani board. Aktivace patří do platform deployment/release-initialization fáze. Teprve tam dostane vlastní identitu/token/team/Space/board binding.
 
-Example board má vlastní bindingy a nesmí sdílet board lifecycle s CI sandboxem. Runtime release validation jej smí materializovat/reconciliovat pouze z exact candidate/release package.
+## Deferred: DDDA Project X in Cursor
 
-Recommended variables/secrets:
-
-```text
-MIRO_EXAMPLE_PROJECT_ACCESS_TOKEN
-DDDA_MIRO_EXAMPLE_PROJECT_IDENTITY
-DDDA_MIRO_EXAMPLE_PROJECT_TEAM_ID
-DDDA_MIRO_EXAMPLE_PROJECT_SPACE_ID
-DDDA_MIRO_EXAMPLE_PROJECT_BOARD_ID
-```
-
-## DDDA Project X in Cursor
-
-Projektová konfigurace už podporuje nezávislé env references:
+Per-project runtime je nyní pouze kontrakt. Při inicializaci konkrétního DDDA projektu bude možné nezávisle nastavit:
 
 ```yaml
 miro:
@@ -125,39 +140,36 @@ miro:
   project_id_env: PROJECT_X_MIRO_SPACE_ID
 ```
 
-Token hodnota není v YAML. Cursor/runtime ji získá z prostředí/secure store.
-
-Board bootstrap:
+Po aktivaci runtime:
 
 ```text
 project.yaml
-→ resolve token/team/Space
-→ REST create board `DDDA – <ProjectName>` when missing
+→ resolve project-specific token/team/Space
+→ REST create `DDDA – <ProjectName>` when board is missing
 → persist board mapping
 → render scaffold
 → read-back
 → idempotence
 ```
 
-Miro Python runtime již umí `teamId` i `projectId` při create-board. `projectId` je Miro API identifikátor Space. User-facing generator má být v follow-up CHR rozšířen tak, aby project-specific env names generoval automaticky místo současných globálních defaultů.
+Tento runtime se nesmí aktivovat ani provisionovat v rámci současného PR8 platform-development wiring.
 
 ## Corporate migration
 
-Současné private Developer Team prostředí je dočasný execution environment. Jakmile corporate team dovolí app instalaci/API nebo MCP, migration se provede změnou profilových bindingů:
+Současné private Developer Team prostředí je dočasný execution environment. Jakmile corporate team dovolí app instalaci/API nebo MCP, migration se provede změnou profilových bindingů, ne forkem runtime:
 
 ```text
-private board/team/token
-→ corporate board/team/Space/token
+private token/team/board
+→ corporate token/team/Space/board
 ```
-
-Runtime code, Git/YAML authority a test semantics se nemění. Corporate Developer Team není nutný, pokud lze existující DDDA app nainstalovat/autorizovat v corporate teamu.
 
 ## Security rules
 
-- žádný raw token v Git diffu, Markdownu, evidence ani PR komentáři;
+- žádný raw token v Git diffu, Markdownu, evidence, PR komentáři ani Chat/Work contextu;
 - žádný MCP OAuth token v GitHub secrets;
-- žádný GitHub secret v Chat/Work contextu;
 - token scope least privilege;
-- board/team/profile identity musí být evidence metadata, ne implicitní hardcode;
-- CI/HVR nesmí fallbacknout na jiný board, pokud explicitní board variable ukazuje na nekompatibilní target; skončí fail-closed;
-- merge, promotion, release ani gate approval nejsou autorizovány Miro profilem.
+- aktivní development profily mají tři explicitní credentials bez cross-profile fallbacku;
+- CI/HVR musí ověřit token context, team a target před write operací;
+- dedicated `DDDA_GH_CI` je jediný board, který lze v pre-run resetu kompletně vyčistit;
+- HVR materialization nesmí změnit Platform Lab;
+- merge, promotion, release ani gate approval nejsou autorizovány žádným Miro profilem.

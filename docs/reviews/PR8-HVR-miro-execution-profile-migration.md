@@ -1,49 +1,63 @@
-# PR #8 HVR environment migration — Miro execution profiles
+# PR #8 HVR environment migration — three private Miro execution profiles
 
 Date: 2026-08-12
 
 PR: #8
 
-Base before migration: `c555abc2a015f85e5fbf4f6403ce5f8c0a44e4b3`
+Base before this migration: `705cbec7a5d00682656487201263d6226b2a61bf`
 
 ## Decision
 
-PR #8 FAST-LOOP se převádí na explicitní Miro execution profiles podle ADR 0007. Dosavadní review target `uXjVH0doLYY=` se během bootstrapu používá jako `platform_lab` binding, aby nebylo nutné před dokončením PR zakládat nový board a znovu migrovat board-specific frame identity.
+PR #8 FAST-LOOP používá během současného platform-development období tři striktně oddělené Miro REST profily v privátním Developer Teamu:
+
+```text
+platform_lab → MIRO_PLATFORM_LAB_ACCESS_TOKEN → DDDA_PLATFORM_LAB
+github_ci    → MIRO_GH_CI_ACCESS_TOKEN       → DDDA_GH_CI
+hvr          → MIRO_HVR_ACCESS_TOKEN          → DDDA_HVR
+```
+
+Cross-profile credential fallback ani legacy `MIRO_ACCESS_TOKEN` nejsou povoleny. MCP zůstává pouze volitelný interaktivní kanál a není součástí technical gate.
+
+`example_project` a `project_runtime` jsou v této fázi deferred. Jejich boardy a credentials se neprovisionují v PR #8 development wiring.
 
 ## HVR status transition
 
-Dosavadní technická HVR-2 evidence pro SHA `c555abc2a015f85e5fbf4f6403ce5f8c0a44e4b3` prokázala tehdejší Miro contract, ale po změně execution/credential contractu již není final acceptance evidence.
+Technická HVR-2 evidence pro SHA `705cbec7a5d00682656487201263d6226b2a61bf` prokázala předchozí execution-profile contract, ale po zavedení tří fyzicky oddělených boardů není final acceptance evidence pro nový HVR target.
 
 Status:
 
 ```text
-HVR-2 previous technical evidence: SUPERSEDED_BY_EXECUTION_PROFILE_MIGRATION
+HVR-2 previous technical evidence: SUPERSEDED_BY_THREE_PROFILE_BINDING
 HVR-2 human decision: PENDING_REVALIDATION
 HVR-3: BLOCKED_BY_HVR-2
 ```
 
-To není zpětný FAIL původní evidence. Je to nový acceptance boundary pro změněný exact SHA.
+Nejde o zpětný FAIL. Jde o nový acceptance boundary pro změněný exact SHA a nový HVR board.
 
 ## New HVR-2 technical prerequisites
 
 Nový exact-SHA run musí prokázat:
 
-1. target board je resolved profile `platform_lab`;
-2. secret-bearing write probíhá přes REST API, nikoli MCP;
-3. preferred HVR credential chain je `MIRO_HVR_ACCESS_TOKEN → MIRO_PLATFORM_LAB_ACCESS_TOKEN → MIRO_ACCESS_TOKEN`;
-4. remote replacement/reconcile proběhne na configured Platform Lab boardu;
-5. fresh read-back je PASS;
-6. second reconcile má zero create/update/delete mutation;
-7. protected frames zůstávají unchanged;
-8. Miro Tips control anchors a +600 spacing zůstávají v accepted contractu;
-9. technical status je `PASS` a human review zůstává `PENDING`;
-10. MCP availability ani MCP quota není součástí technical PASS.
+1. všechny tři secrets jsou přítomné a nejsou nahrazeny jiným profile credentialem;
+2. token context každého profilu odpovídá očekávanému privátnímu Developer Teamu a obsahuje `boards:read` + `boards:write`;
+3. `platform_lab` resolveuje `DDDA_PLATFORM_LAB` a PR8 Frame 01 remediation probíhá REST API výhradně přes `MIRO_PLATFORM_LAB_ACCESS_TOKEN`;
+4. fresh Platform Lab read-back je PASS;
+5. second Platform Lab reconcile má zero create/update/delete mutation;
+6. protected frames zůstávají unchanged;
+7. Miro Tips explicit control anchors a +600 spacing zůstávají v accepted contractu;
+8. `github_ci` používá pouze `MIRO_GH_CI_ACCESS_TOKEN` a online acceptance běží na dedicated `DDDA_GH_CI` boardu po jeho machine-only resetu;
+9. po technickém Platform Lab PASS je `DDDA_HVR` materializován výhradně přes `MIRO_HVR_ACCESS_TOKEN` jako server-side copy validovaného Platform Lab boardu;
+10. HVR copy read-back potvrzuje očekávaný obsah a poskytne exact-SHA review URL;
+11. technical status je `PASS` a human review zůstává `PENDING`;
+12. MCP availability ani MCP quota není součástí technical PASS.
 
 ## Human review
 
-Po technickém PASS bude HVR-2 znovu předán člověku se stabilní URL na Frame 01/Miro Tips. Reviewer může použít Miro GUI a vrátit screenshot/findings. MCP je volitelný pomocný kanál.
+HVR-2 se provádí nad **dedikovaným `DDDA_HVR` targetem zachyceným v exact-SHA evidence**, nikoli nad Platform Labem. Protože HVR logical slot je materializován server-side kopií, jeho fyzické board ID se může mezi HVR runy změnit.
 
-HVR-1 se automaticky neruší. Pokud exact-SHA run prokáže unchanged protected content a závěrečný spot-check neukáže collateral regression, dřívější HVR-1 decision se zachová.
+Reviewer může použít Miro GUI a vrátit screenshot/findings. MCP je volitelný pomocný kanál.
+
+HVR-1 se automaticky neruší. Pokud exact-SHA run prokáže zachování protected content a spot-check neukáže collateral regression, dřívější HVR-1 decision se zachová.
 
 ## Governance
 
