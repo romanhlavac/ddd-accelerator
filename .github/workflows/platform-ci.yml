@@ -250,6 +250,7 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $evidence = Join-Path $env:RUNNER_TEMP 'miro-three-profile-bindings.json'
+          $env:EVIDENCE_PATH = $evidence
           "EVIDENCE_PATH=$evidence" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           @'
           import json, os, urllib.parse, urllib.request
