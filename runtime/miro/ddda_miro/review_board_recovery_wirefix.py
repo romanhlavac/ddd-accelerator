@@ -597,7 +597,9 @@ def _reconcile_companion_children(
             target = client.update_connector(target_board, str(target["id"]), payload)
             connector_counts["updated"] += 1
             if not redline.same_connector(target, payload):
-                raise ValueError(f"companion connector {target['id']} read-back mismatch")
+                from .connector_readback_wirefix import connector_contract_error
+
+                raise ValueError(connector_contract_error(str(target["id"]), target, payload))
         used_connectors.add(str(target["id"]))
 
     extras_connectors = [

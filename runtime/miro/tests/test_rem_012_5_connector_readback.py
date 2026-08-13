@@ -3,6 +3,7 @@ from __future__ import annotations
 from copy import deepcopy
 
 from ddda_miro.connector_readback_wirefix import (
+    connector_contract_mismatches,
     same_connector_canonical,
     update_connector_with_fresh_readback,
 )
@@ -121,6 +122,25 @@ def test_black_miro_tips_callout_requires_exact_reference_attachment_points():
     assert not same_connector_canonical(remote, expected)
     remote["endItem"]["id"] = "wrong-screenshot"
     assert not same_connector_canonical(remote, expected)
+
+
+def test_black_miro_tips_callout_reports_exact_rejected_endpoint_fields():
+    expected = _black_callout()
+    remote = deepcopy(expected)
+    remote["startItem"].pop("position")
+    remote["endItem"]["position"] = {"x": 0.5, "y": 0.0}
+    assert connector_contract_mismatches(remote, expected) == [
+        {
+            "endpoint": "startItem",
+            "expected": {"id": "tip", "position": {"x": 0.5, "y": 0.5}},
+            "actual": {"id": "tip"},
+        },
+        {
+            "endpoint": "endItem",
+            "expected": {"id": "image", "position": {"x": 0.237, "y": 0.081}},
+            "actual": {"id": "image", "position": {"x": 0.5, "y": 0.0}},
+        },
+    ]
 
 
 def test_readable_connector_payload_preserves_complete_reference_endpoint_contract():

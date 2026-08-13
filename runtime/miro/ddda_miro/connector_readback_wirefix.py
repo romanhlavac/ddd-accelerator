@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from . import frame00_resize_ordering_wirefix as recovery
@@ -74,6 +75,41 @@ def _same_endpoint_contract(remote: dict[str, Any], expected: dict[str, Any]) ->
     return True
 
 
+def _endpoint_contract_view(endpoint: dict[str, Any]) -> dict[str, Any]:
+    """Return the complete endpoint fields that affect tutorial arrow routing."""
+    return {
+        key: endpoint.get(key)
+        for key in ("id", "position", "snapTo")
+        if key in endpoint
+    }
+
+
+def connector_contract_mismatches(
+    remote: dict[str, Any], expected: dict[str, Any]
+) -> list[dict[str, Any]]:
+    """Expose REST read-back drift without weakening the visual contract.
+
+    The field-level record is intentionally machine-readable: the remediation
+    workflow must distinguish a rejected endpoint payload from an incorrect
+    reference mapping before it chooses the next corrective payload.
+    """
+    if not _is_miro_tips_callout(expected):
+        return []
+    mismatches: list[dict[str, Any]] = []
+    for name in ("startItem", "endItem"):
+        actual = remote.get(name) or {}
+        authored = expected.get(name) or {}
+        if not _same_endpoint_contract(actual, authored):
+            mismatches.append(
+                {
+                    "endpoint": name,
+                    "expected": _endpoint_contract_view(authored),
+                    "actual": _endpoint_contract_view(actual),
+                }
+            )
+    return mismatches
+
+
 def _is_miro_tips_callout(connector: dict[str, Any]) -> bool:
     style = connector.get("style") or {}
     return (
@@ -84,13 +120,12 @@ def _is_miro_tips_callout(connector: dict[str, Any]) -> bool:
 
 def same_connector_canonical(remote: dict[str, Any], expected: dict[str, Any]) -> bool:
     """Compare connector semantics, including all Miro Tips attachment points."""
+    if connector_contract_mismatches(remote, expected):
+        return False
     for name in ("startItem", "endItem"):
         remote_endpoint = remote.get(name) or {}
         expected_endpoint = expected.get(name) or {}
-        if _is_miro_tips_callout(expected):
-            if not _same_endpoint_contract(remote_endpoint, expected_endpoint):
-                return False
-        elif str(remote_endpoint.get("id") or "") != str(expected_endpoint.get("id") or ""):
+        if not _is_miro_tips_callout(expected) and str(remote_endpoint.get("id") or "") != str(expected_endpoint.get("id") or ""):
             return False
 
     if expected.get("shape") and remote.get("shape") != expected["shape"]:
@@ -126,6 +161,17 @@ def same_connector_canonical(remote: dict[str, Any], expected: dict[str, Any]) -
             except (TypeError, ValueError):
                 return False
     return True
+
+
+def connector_contract_error(connector_id: str, remote: dict[str, Any], expected: dict[str, Any]) -> str:
+    """Produce an actionable exact endpoint diff for the authoritative log."""
+    mismatches = connector_contract_mismatches(remote, expected)
+    if not mismatches:
+        return f"companion connector {connector_id} read-back mismatch"
+    return (
+        f"companion connector {connector_id} endpoint read-back mismatch: "
+        + json.dumps(mismatches, sort_keys=True, separators=(",", ":"))
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
