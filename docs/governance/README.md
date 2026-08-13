@@ -26,45 +26,19 @@ config/governance/backlog-policy.yaml
 config/governance/github-bootstrap.json
 ```
 
-Kontrakty definují:
+Backlog authority je GitHub Issue + native WP hierarchy. GitHub Project V2 je plánovací projekce. Implementační PR je samostatný delivery artefakt navázaný na autoritativní Change Request; není automaticky druhou backlogovou položkou.
 
-- hierarchii GAP → Work Package → Child Issue → implementation PR;
-- autoritativní umístění informací;
-- Project fields a views;
-- nativní Parent/Sub-issue mapping;
-- dependency edges a jejich rationale;
-- Roadmap date fields a pravidlo nevymýšlet TBD termíny;
-- Milestone semantics;
-- stavový model, priority, Ready/Done kritéria a počáteční Work Packages.
-
-Závazný consistency invariant a povinný pre/post read-back jsou definovány v `docs/governance/wp-backlog-consistency.md` a promítnuty do PR template a backlog review checklistu.
-
-## Základní pravidlo
-
-```text
-Issue popisuje co a proč.
-Parent/Sub-issues drží skutečnou backlogovou hierarchii.
-Project řídí prioritu, pořadí a operativní stav.
-Dependencies říkají, co blokuje co.
-Roadmap zobrazuje rozhodnutá data, ne vymyšlené termíny.
-Milestone určuje cílový release.
-PR realizuje konkrétní změnu a má jednoznačnou Change Request authority.
-ADR vysvětluje dlouhodobé rozhodnutí.
-CHANGELOG eviduje vydané změny.
-Validation report dokládá technickou kvalitu.
-HRDR dokládá lidské GO/NO-GO.
-Roadmap dokument drží dlouhodobou produktovou vizi.
-```
-
-Pro každou aktivní implementaci musí být úplný a vzájemně konzistentní řetězec:
+Povinný consistency model:
 
 ```text
 Work Package (nebo explicitní Other)
-↔ Change Request
-↔ branch / Draft PR
+↔ Change Request Issue
 ↔ DDDA Platform Backlog Project item
+
+Change Request Issue
+↔ implementation branch / Draft PR
 ```
 
-Před i po každé strukturální backlog/WP/governance změně se provádí repository-wide read-back. Post-change mismatch count musí být `0`; jinak je technical governance PASS a doporučení Ready/merge blokováno.
+Před i po strukturální backlog/WP/governance změně se provádí repository-wide read-back. Post-change mismatch count musí být `0`; jinak je technical governance PASS a doporučení Ready/merge blokováno.
 
-Plánované změny se nezakládají jako prázdné nebo dlouhodobé draft PR. Nejprve vzniká GitHub Issue; branch a Draft PR vznikají až se zahájením implementace.
+Detailní pravidla a výjimky jsou v `docs/governance/wp-backlog-consistency.md`.
