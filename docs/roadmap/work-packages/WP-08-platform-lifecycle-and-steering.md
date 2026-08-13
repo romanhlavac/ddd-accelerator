@@ -41,6 +41,7 @@ PR #8 obsahuje podstatnou část lifecycle a steering foundation. Uzavřené rem
 - external package registry;
 - canonical G1–G8 journey change;
 - GitHub Pages Artifact Registry dashboard — #45.
+- persistent DDDA Platform Lab / board taxonomy / reference-adoption lifecycle — #53.
 
 ## Baselines for future Work Packages
 
@@ -68,6 +69,7 @@ Parallel source-of-truth implementations are forbidden; compatibility or migrati
 ### Future WP-08 evolution
 
 - #45 — GitHub Pages Artifact Registry dashboard; `Target Release: TBD` and explicitly outside Milestone `DDDA 0.1.0`.
+- #53 — persistent Platform Lab, board taxonomy and reference/adoption lifecycle; `Target Release: TBD`, partial docs slice in Draft PR #58, explicitly outside Milestone `DDDA 0.1.0`.
 
 Parent membership under WP-08 does not imply release scope, priority or approval.
 
@@ -102,7 +104,7 @@ Parent membership under WP-08 does not imply release scope, priority or approval
 - [ ] promotion dry-run performs no merge, release or tag;
 - [ ] HRDR is final for exact frozen evidence;
 - [ ] no unresolved RED remains;
-- [ ] #45 does not enter release 0.1.0 implicitly.
+- [ ] #45 and #53 do not enter release 0.1.0 implicitly.
 
 ## Exit criteria
 
@@ -114,4 +116,4 @@ Parent membership under WP-08 does not imply release scope, priority or approval
 - PR #8 merge/release occurs only after explicit instruction;
 - package, validation report and `v0.1.0` identify the validated state;
 - WP/roadmap are updated to Done;
-- future #45 remains independently planned.
+- future #45/#53 remain independently planned.

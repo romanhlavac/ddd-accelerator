@@ -129,9 +129,9 @@ project:
 native_sub_issue_mapping:
   WP-08:
     parent_issue: 17
-    children: [9, 10, 11, 12, 13, 14, 15, 45]
+    children: [9, 10, 11, 12, 13, 14, 15, 45, 53]
     release_0_1_0_children: [9, 10, 11, 12, 13, 14, 15]
-    future_children: [45]
+    future_children: [45, 53]
   WP-09:
     parent_issue: 18
     children: [21, 22, 23, 24, 25, 50, 26, 51]

@@ -17,7 +17,8 @@
         13,
         14,
         15,
-        45
+        45,
+        53
       ]
     },
     {
@@ -880,6 +881,21 @@
         "Target Release": "TBD",
         "Blocked": "Yes",
         "Human Review": "Not required"
+      }
+    },
+    {
+      "kind": "issue",
+      "numbers": [
+        53
+      ],
+      "metadata": {
+        "Status": "In progress",
+        "Work Package": "WP-08",
+        "Item Type": "Change Request",
+        "Target Release": "TBD",
+        "Blocked": "Yes",
+        "Human Review": "Not required",
+        "Outcome summary": "Persistent DDDA Platform Lab with explicit board taxonomy, reference/adoption lifecycle, managed namespaces and governed cleanup."
       }
     }
   ],
