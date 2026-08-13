@@ -9,6 +9,7 @@ recreates that container and never writes Frame 01 or a protected frame.
 from copy import deepcopy
 from typing import Any
 
+from . import miro_tips_hvr_fix as tips
 from . import review_board_recovery as base
 from . import review_board_recovery_wirefix as visual
 
@@ -28,6 +29,7 @@ _INSTALLED = False
 _PREVIOUS_PAYLOAD: Any = None
 _PREVIOUS_SAME_FRAME: Any = None
 _PREVIOUS_RECONCILE: Any = None
+_PREVIOUS_SOURCE_SPEC: Any = None
 
 
 def _raw(manifest: dict[str, Any]) -> dict[str, Any]:
@@ -67,6 +69,19 @@ def config(manifest: dict[str, Any]) -> dict[str, Any]:
         "geometry": {"width": float(geometry["width"]), "height": float(geometry["height"])},
         "position": {"x": float(position["x"]), "y": float(position["y"])},
     }
+
+
+def source_spec(manifest: dict[str, Any]) -> dict[str, Any]:
+    """Route the Miro Tips companion through the native HVR-2 contract."""
+    hits = [
+        spec for spec in (manifest.get("source_companion_frames") or [])
+        if str(spec.get("title") or "") == TITLE
+    ]
+    if len(hits) != 1:
+        raise ValueError(f"expected exactly one {TITLE!r} companion spec, got {len(hits)}")
+    if str(hits[0].get("mode") or "") != MODE:
+        raise ValueError("Miro Tips companion must opt in to native DDDA onboarding mode")
+    return hits[0]
 
 
 def _is_miro_tips(frame: dict[str, Any]) -> bool:
@@ -207,12 +222,14 @@ def reconcile_children(client: Any, source_board: str, source_frame_id: str, tar
 
 
 def install() -> None:
-    global _INSTALLED, _PREVIOUS_PAYLOAD, _PREVIOUS_SAME_FRAME, _PREVIOUS_RECONCILE
+    global _INSTALLED, _PREVIOUS_PAYLOAD, _PREVIOUS_SAME_FRAME, _PREVIOUS_RECONCILE, _PREVIOUS_SOURCE_SPEC
     if _INSTALLED:
         return
     _PREVIOUS_PAYLOAD = visual.companion_frame_payload
     _PREVIOUS_SAME_FRAME = visual._same_frame
     _PREVIOUS_RECONCILE = visual._reconcile_companion_children
+    _PREVIOUS_SOURCE_SPEC = tips._source_spec
+    tips._source_spec = source_spec
     visual.companion_frame_payload = companion_frame_payload
     visual._same_frame = same_frame
     visual._reconcile_companion_children = reconcile_children
@@ -223,6 +240,7 @@ def uninstall() -> None:
     global _INSTALLED
     if not _INSTALLED:
         return
+    tips._source_spec = _PREVIOUS_SOURCE_SPEC
     visual.companion_frame_payload = _PREVIOUS_PAYLOAD
     visual._same_frame = _PREVIOUS_SAME_FRAME
     visual._reconcile_companion_children = _PREVIOUS_RECONCILE

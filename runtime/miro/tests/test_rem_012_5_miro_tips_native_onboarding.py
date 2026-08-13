@@ -53,3 +53,11 @@ def test_native_onboarding_does_not_send_reconciliation_type_to_miro_shape_api()
     payload = onboarding.rest_payload(onboarding.desired_items("tips", manifest())[0])
     assert "type" not in payload
     assert payload["data"]["shape"] == "round_rectangle"
+
+
+def test_native_onboarding_routes_the_companion_spec_without_legacy_tutorial_mode():
+    value = manifest()
+    value["source_companion_frames"] = [
+        {"id": "source-tips", "title": "Miro Tips", "mode": onboarding.MODE}
+    ]
+    assert onboarding.source_spec(value)["id"] == "source-tips"
