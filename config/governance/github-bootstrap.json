@@ -16,13 +16,7 @@
         12,
         13,
         14,
-        15,
-        45,
-        53,
-        54,
-        55,
-        56,
-        57
+        15
       ]
     },
     {
@@ -56,35 +50,39 @@
         34,
         52,
         35,
+        47,
+        48,
+        46,
+        62
+      ]
+    },
+    {
+      "parent": 60,
+      "children": [
+        53,
+        54,
+        55,
+        56,
+        57
+      ]
+    },
+    {
+      "parent": 61,
+      "children": [
         36,
         37,
         38,
         39,
         40,
-        47,
-        41,
-        48,
-        46
+        41
       ]
     }
   ],
   "dependencies": [
     {
-      "blocked": 14,
+      "blocked": 9,
       "blocked_by": [
-        13
-      ]
-    },
-    {
-      "blocked": 12,
-      "blocked_by": [
-        14
-      ]
-    },
-    {
-      "blocked": 11,
-      "blocked_by": [
-        12
+        10
       ]
     },
     {
@@ -94,9 +92,21 @@
       ]
     },
     {
-      "blocked": 9,
+      "blocked": 11,
       "blocked_by": [
-        10
+        12
+      ]
+    },
+    {
+      "blocked": 12,
+      "blocked_by": [
+        14
+      ]
+    },
+    {
+      "blocked": 14,
+      "blocked_by": [
+        13
       ]
     },
     {
@@ -121,27 +131,9 @@
       ]
     },
     {
-      "blocked": 50,
-      "blocked_by": [
-        25
-      ]
-    },
-    {
       "blocked": 26,
       "blocked_by": [
         50
-      ]
-    },
-    {
-      "blocked": 51,
-      "blocked_by": [
-        26
-      ]
-    },
-    {
-      "blocked": 31,
-      "blocked_by": [
-        27
       ]
     },
     {
@@ -163,6 +155,12 @@
       "blocked_by": [
         27,
         31
+      ]
+    },
+    {
+      "blocked": 31,
+      "blocked_by": [
+        27
       ]
     },
     {
@@ -218,13 +216,8 @@
       ]
     },
     {
-      "blocked": 47,
+      "blocked": 41,
       "blocked_by": [
-        27,
-        31,
-        32,
-        34,
-        35,
         36,
         37,
         38,
@@ -233,21 +226,22 @@
       ]
     },
     {
-      "blocked": 41,
+      "blocked": 46,
       "blocked_by": [
-        35,
-        40,
         47,
+        62,
+        48,
         52
       ]
     },
     {
-      "blocked": 46,
+      "blocked": 47,
       "blocked_by": [
-        47,
-        41,
-        48,
-        52
+        27,
+        31,
+        32,
+        34,
+        35
       ]
     },
     {
@@ -255,7 +249,20 @@
       "blocked_by": [
         16,
         46,
-        48
+        48,
+        53
+      ]
+    },
+    {
+      "blocked": 50,
+      "blocked_by": [
+        25
+      ]
+    },
+    {
+      "blocked": 51,
+      "blocked_by": [
+        26
       ]
     },
     {
@@ -264,6 +271,16 @@
         53,
         54,
         55
+      ]
+    },
+    {
+      "blocked": 62,
+      "blocked_by": [
+        34,
+        35,
+        47,
+        48,
+        52
       ]
     }
   ],
@@ -352,7 +369,7 @@
         {
           "name": "WP-08",
           "color": "BLUE",
-          "description": "Platform lifecycle and project steering."
+          "description": "DDDA 0.1.0 platform foundation and PR8 closure."
         },
         {
           "name": "WP-09",
@@ -367,7 +384,17 @@
         {
           "name": "WP-11",
           "color": "ORANGE",
-          "description": "EventStorming and multi-agent orchestration."
+          "description": "EventStorming methodology and workshop runtime."
+        },
+        {
+          "name": "WP-12",
+          "color": "BLUE",
+          "description": "Miro platform environments and lifecycle."
+        },
+        {
+          "name": "WP-13",
+          "color": "PURPLE",
+          "description": "Multi-agent orchestration and evidence synthesis."
         },
         {
           "name": "Other",
@@ -576,21 +603,6 @@
     {
       "kind": "issue",
       "numbers": [
-        17
-      ],
-      "metadata": {
-        "Status": "Blocked",
-        "Work Package": "WP-08",
-        "Item Type": "Work Package",
-        "Target Release": "0.1.0",
-        "Blocked": "Yes",
-        "Human Review": "Pending",
-        "Outcome summary": "Reproducible platform lifecycle, G1-G8 steering and human-controlled release governance."
-      }
-    },
-    {
-      "kind": "issue",
-      "numbers": [
         18
       ],
       "metadata": {
@@ -616,21 +628,6 @@
         "Blocked": "No",
         "Human Review": "Not required",
         "Outcome summary": "Secure and auditable Office, PDF and ArchiMate ingestion with source provenance."
-      }
-    },
-    {
-      "kind": "issue",
-      "numbers": [
-        20
-      ],
-      "metadata": {
-        "Status": "Backlog",
-        "Work Package": "WP-11",
-        "Item Type": "Work Package",
-        "Target Release": "TBD",
-        "Blocked": "No",
-        "Human Review": "Not required",
-        "Outcome summary": "Executable EventStorming and bounded multi-agent workflows with explicit human checkpoints."
       }
     },
     {
@@ -677,20 +674,6 @@
         "Target Release": "0.1.0",
         "Blocked": "Yes",
         "Human Review": "Pending"
-      }
-    },
-    {
-      "kind": "issue",
-      "numbers": [
-        45
-      ],
-      "metadata": {
-        "Status": "Backlog",
-        "Work Package": "WP-08",
-        "Item Type": "Change Request",
-        "Target Release": "TBD",
-        "Blocked": "No",
-        "Human Review": "Not required"
       }
     },
     {
@@ -777,7 +760,6 @@
       "kind": "issue",
       "numbers": [
         34,
-        36,
         48,
         52
       ],
@@ -794,12 +776,7 @@
       "kind": "issue",
       "numbers": [
         35,
-        37,
-        38,
-        39,
-        40,
         47,
-        41,
         46
       ],
       "metadata": {
@@ -898,11 +875,89 @@
     {
       "kind": "issue",
       "numbers": [
+        17
+      ],
+      "metadata": {
+        "Status": "Blocked",
+        "Work Package": "WP-08",
+        "Item Type": "Work Package",
+        "Target Release": "0.1.0",
+        "Blocked": "Yes",
+        "Human Review": "Pending",
+        "Outcome summary": "Close the already implemented DDDA 0.1.0 platform foundation and PR8 remediation/release evidence without new feature scope.",
+        "Priority": "P0"
+      }
+    },
+    {
+      "kind": "issue",
+      "numbers": [
+        20
+      ],
+      "metadata": {
+        "Status": "Backlog",
+        "Work Package": "WP-11",
+        "Item Type": "Work Package",
+        "Target Release": "TBD",
+        "Blocked": "No",
+        "Human Review": "Not required",
+        "Outcome summary": "EventStorming methodology, executable workshop runtime, governed Miro round-trip and package-first acceptance independent of multi-agent runtime.",
+        "Priority": "P1"
+      }
+    },
+    {
+      "kind": "issue",
+      "numbers": [
+        60
+      ],
+      "metadata": {
+        "Status": "Backlog",
+        "Priority": "P2",
+        "Work Package": "WP-12",
+        "Item Type": "Work Package",
+        "Target Release": "TBD",
+        "Blocked": "Yes",
+        "Human Review": "Not required",
+        "Outcome summary": "Generic Miro Platform Lab/CI/HVR/Example/Project lifecycle, rebinding and explicit profile credentials."
+      }
+    },
+    {
+      "kind": "issue",
+      "numbers": [
+        61
+      ],
+      "metadata": {
+        "Status": "Backlog",
+        "Priority": "P3",
+        "Work Package": "WP-13",
+        "Item Type": "Work Package",
+        "Target Release": "TBD",
+        "Blocked": "Yes",
+        "Human Review": "Not required",
+        "Outcome summary": "Bounded multi-agent capability contracts, fan-out/fan-in, human checkpoints, recovery and package-first acceptance."
+      }
+    },
+    {
+      "kind": "issue",
+      "numbers": [
+        45
+      ],
+      "metadata": {
+        "Status": "Backlog",
+        "Work Package": "Other",
+        "Item Type": "Change Request",
+        "Target Release": "TBD",
+        "Blocked": "No",
+        "Human Review": "Not required"
+      }
+    },
+    {
+      "kind": "issue",
+      "numbers": [
         53
       ],
       "metadata": {
         "Status": "In progress",
-        "Work Package": "WP-08",
+        "Work Package": "WP-12",
         "Item Type": "Change Request",
         "Target Release": "TBD",
         "Blocked": "Yes",
@@ -917,7 +972,7 @@
       ],
       "metadata": {
         "Status": "Backlog",
-        "Work Package": "WP-08",
+        "Work Package": "WP-12",
         "Item Type": "Change Request",
         "Target Release": "TBD",
         "Blocked": "Yes",
@@ -932,7 +987,7 @@
       ],
       "metadata": {
         "Status": "Backlog",
-        "Work Package": "WP-08",
+        "Work Package": "WP-12",
         "Item Type": "Change Request",
         "Target Release": "TBD",
         "Blocked": "Yes",
@@ -947,7 +1002,7 @@
       ],
       "metadata": {
         "Status": "Backlog",
-        "Work Package": "WP-08",
+        "Work Package": "WP-12",
         "Item Type": "Change Request",
         "Target Release": "TBD",
         "Blocked": "Yes",
@@ -962,12 +1017,111 @@
       ],
       "metadata": {
         "Status": "Backlog",
-        "Work Package": "WP-08",
+        "Work Package": "WP-12",
         "Item Type": "Change Request",
         "Target Release": "TBD",
         "Blocked": "Yes",
         "Human Review": "Not required",
         "Outcome summary": "Remove generic MIRO_ACCESS_TOKEN fallback after explicit profile credential migration."
+      }
+    },
+    {
+      "kind": "issue",
+      "numbers": [
+        36
+      ],
+      "metadata": {
+        "Status": "Backlog",
+        "Work Package": "WP-13",
+        "Item Type": "Change Request",
+        "Target Release": "TBD",
+        "Blocked": "No",
+        "Human Review": "Not required"
+      }
+    },
+    {
+      "kind": "issue",
+      "numbers": [
+        37
+      ],
+      "metadata": {
+        "Status": "Backlog",
+        "Work Package": "WP-13",
+        "Item Type": "Change Request",
+        "Target Release": "TBD",
+        "Blocked": "Yes",
+        "Human Review": "Not required"
+      }
+    },
+    {
+      "kind": "issue",
+      "numbers": [
+        38
+      ],
+      "metadata": {
+        "Status": "Backlog",
+        "Work Package": "WP-13",
+        "Item Type": "Change Request",
+        "Target Release": "TBD",
+        "Blocked": "Yes",
+        "Human Review": "Not required"
+      }
+    },
+    {
+      "kind": "issue",
+      "numbers": [
+        39
+      ],
+      "metadata": {
+        "Status": "Backlog",
+        "Work Package": "WP-13",
+        "Item Type": "Change Request",
+        "Target Release": "TBD",
+        "Blocked": "Yes",
+        "Human Review": "Not required"
+      }
+    },
+    {
+      "kind": "issue",
+      "numbers": [
+        40
+      ],
+      "metadata": {
+        "Status": "Backlog",
+        "Work Package": "WP-13",
+        "Item Type": "Change Request",
+        "Target Release": "TBD",
+        "Blocked": "Yes",
+        "Human Review": "Not required"
+      }
+    },
+    {
+      "kind": "issue",
+      "numbers": [
+        41
+      ],
+      "metadata": {
+        "Status": "Backlog",
+        "Work Package": "WP-13",
+        "Item Type": "Change Request",
+        "Target Release": "TBD",
+        "Blocked": "Yes",
+        "Human Review": "Not required"
+      }
+    },
+    {
+      "kind": "issue",
+      "numbers": [
+        62
+      ],
+      "metadata": {
+        "Status": "Backlog",
+        "Work Package": "WP-11",
+        "Item Type": "Change Request",
+        "Target Release": "TBD",
+        "Blocked": "Yes",
+        "Human Review": "Pending",
+        "Outcome summary": "Package-first EventStorming E2E acceptance without mandatory multi-agent runtime."
       }
     }
   ],
@@ -1033,5 +1187,35 @@
     "pulls": [
       8
     ]
-  }
+  },
+  "implementation_order": [
+    {
+      "rank": 1,
+      "work_package": "WP-08",
+      "issue": 17,
+      "priority": "P0",
+      "note": "finish current PR8 closure"
+    },
+    {
+      "rank": 2,
+      "work_package": "WP-11",
+      "issue": 20,
+      "priority": "P1",
+      "note": "EventStorming methodology/runtime after stable PR8 baseline"
+    },
+    {
+      "rank": 3,
+      "work_package": "WP-12",
+      "issue": 60,
+      "priority": "P2",
+      "note": "Miro platform lifecycle; may overlap WP-11 after stable Miro baseline"
+    },
+    {
+      "rank": 4,
+      "work_package": "WP-13",
+      "issue": 61,
+      "priority": "P3",
+      "note": "multi-agent orchestration as independent later stream"
+    }
+  ]
 }

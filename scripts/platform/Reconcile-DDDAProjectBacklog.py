@@ -1,95 +1,338 @@
 import json
-import shutil
+import re
 import subprocess
+import time
 from pathlib import Path
 
+OWNER = "romanhlavac"
 REPO = "romanhlavac/ddd-accelerator"
-BRANCH = "feature/github-native-backlog-governance"
+PROJECT_TITLE = "DDDA Platform Backlog"
+CFG_PATH = Path("config/governance/github-bootstrap.json")
+REPORT_DIR = Path(".reports/cr-backlog-audit-v5")
 
 
-def run(*args, input_text=None):
-    p = subprocess.run(list(args), input=input_text, text=True, capture_output=True)
+def cmd(program, *args, json_out=False, stdin=None):
+    p = subprocess.run([program, *args], input=stdin, text=True, capture_output=True)
     if p.returncode:
-        raise RuntimeError(f"{' '.join(args)} failed ({p.returncode}): {p.stderr or p.stdout}")
+        raise RuntimeError(f"{program} {' '.join(args)} failed ({p.returncode}): {p.stderr or p.stdout}")
+    if json_out:
+        return json.loads(p.stdout) if p.stdout.strip() else None
     return p.stdout.strip()
 
 
-def gh_json(*args, payload=None):
-    if payload is None:
-        out = run("gh", *args)
-    else:
-        out = run("gh", *args, "--input", "-", input_text=json.dumps(payload))
-    return json.loads(out) if out else None
+def gh(*args, json_out=False):
+    return cmd("gh", *args, json_out=json_out)
 
 
-def create_blob(content):
-    return gh_json("api", "--method", "POST", f"repos/{REPO}/git/blobs", payload={"content": content, "encoding": "utf-8"})["sha"]
+def gql(query, variables=None):
+    payload = json.dumps({"query": query, "variables": variables or {}})
+    return cmd("gh", "api", "graphql", "--input", "-", json_out=True, stdin=payload)
 
 
-def finalize_versioned_state():
-    local_head = run("git", "rev-parse", "HEAD")
-    ref = gh_json("api", f"repos/{REPO}/git/ref/heads/{BRANCH}")
-    remote_head = ref["object"]["sha"]
-    if remote_head != local_head:
-        raise RuntimeError(f"Governance branch moved during restructuring: local={local_head} remote={remote_head}")
-    commit = gh_json("api", f"repos/{REPO}/git/commits/{remote_head}")
-    base_tree = commit["tree"]["sha"]
+def issue(number):
+    return gh("api", f"repos/{REPO}/issues/{number}", json_out=True)
 
-    workflow_path = Path(".github/workflows/reconcile-ddda-project-backlog.yml")
-    workflow = workflow_path.read_text(encoding="utf-8")
-    workflow = workflow.replace(
-        "git diff --exit-code -- config/governance/github-bootstrap.json config/governance/backlog-policy.yaml docs/roadmap/work-packages/WP-08-platform-lifecycle-and-steering.md",
-        "git diff --exit-code -- config/governance docs/roadmap scripts/platform/Reconcile-DDDAProjectBacklog.py",
+
+def is_cr(data):
+    if "pull_request" in data:
+        return False
+    title = data.get("title") or ""
+    body = data.get("body") or ""
+    return bool(
+        re.search(r"\[(?:CR|CHR)\]", title, re.I)
+        or re.search(r"^\s*#\s*Change Request\b", body, re.I | re.M)
+        or re.search(r"Item Type\s*:\s*`?Change Request`?", body, re.I)
     )
-    workflow = workflow.replace("ddda-project-backlog-audit\n", "ddda-project-backlog-audit-v5\n")
-    workflow = workflow.replace(".reports/cr-backlog-audit-v4/**", ".reports/cr-backlog-audit-v5/**")
 
-    final_reconciler = Path("scripts/platform/Reconcile-DDDAProjectBacklog.v5.py").read_text(encoding="utf-8")
 
-    files = {
-        "config/governance/github-bootstrap.json": Path("config/governance/github-bootstrap.json").read_text(encoding="utf-8"),
-        "config/governance/backlog-policy.yaml": Path("config/governance/backlog-policy.yaml").read_text(encoding="utf-8"),
-        "docs/roadmap/README.md": Path("docs/roadmap/README.md").read_text(encoding="utf-8"),
-        "docs/roadmap/backlog-index.md": Path("docs/roadmap/backlog-index.md").read_text(encoding="utf-8"),
-        "docs/roadmap/work-packages/WP-08-platform-lifecycle-and-steering.md": Path("docs/roadmap/work-packages/WP-08-platform-lifecycle-and-steering.md").read_text(encoding="utf-8"),
-        "docs/roadmap/work-packages/WP-11-eventstorming-multi-agent-orchestration.md": Path("docs/roadmap/work-packages/WP-11-eventstorming-multi-agent-orchestration.md").read_text(encoding="utf-8"),
-        "docs/roadmap/work-packages/WP-11-eventstorming-methodology-workshop-runtime.md": Path("docs/roadmap/work-packages/WP-11-eventstorming-methodology-workshop-runtime.md").read_text(encoding="utf-8"),
-        "docs/roadmap/work-packages/WP-12-miro-platform-environments-lifecycle.md": Path("docs/roadmap/work-packages/WP-12-miro-platform-environments-lifecycle.md").read_text(encoding="utf-8"),
-        "docs/roadmap/work-packages/WP-13-multi-agent-orchestration-evidence-synthesis.md": Path("docs/roadmap/work-packages/WP-13-multi-agent-orchestration-evidence-synthesis.md").read_text(encoding="utf-8"),
-        "scripts/platform/Reconcile-DDDAProjectBacklog.py": final_reconciler,
-        ".github/workflows/reconcile-ddda-project-backlog.yml": workflow,
-    }
-    tree = []
-    for path, content in files.items():
-        tree.append({"path": path, "mode": "100644", "type": "blob", "sha": create_blob(content)})
-    tree.append({"path": "scripts/platform/Reconcile-DDDAProjectBacklog.v5.py", "mode": "100644", "type": "blob", "sha": None})
-    tree.append({"path": "scripts/platform/Restructure-DDDAWorkPackages.py", "mode": "100644", "type": "blob", "sha": None})
+def discover_cr_numbers():
+    pages = gh("api", "--paginate", "--slurp", f"repos/{REPO}/issues?state=all&per_page=100", json_out=True)
+    rows = []
+    for page in pages or []:
+        rows.extend(page)
+    return {int(x["number"]) for x in rows if is_cr(x)}
 
-    new_tree = gh_json("api", "--method", "POST", f"repos/{REPO}/git/trees", payload={"base_tree": base_tree, "tree": tree})["sha"]
-    new_commit = gh_json("api", "--method", "POST", f"repos/{REPO}/git/commits", payload={
-        "message": "docs(governance): split platform work-package boundaries (#16)",
-        "tree": new_tree,
-        "parents": [remote_head],
-    })["sha"]
-    gh_json("api", "--method", "PATCH", f"repos/{REPO}/git/refs/heads/{BRANCH}", payload={"sha": new_commit, "force": False})
 
-    run("git", "fetch", "origin", BRANCH)
-    run("git", "reset", "--hard", f"origin/{BRANCH}")
-    return new_commit
+def native_parent_number(data):
+    url = data.get("parent_issue_url")
+    return int(url.rstrip("/").split("/")[-1]) if url else None
+
+
+def remove_child(parent, data):
+    gh("api", "--method", "DELETE", f"repos/{REPO}/issues/{parent}/sub_issue", "-F", f"sub_issue_id={data['id']}")
+
+
+def add_child(parent, data):
+    gh("api", "--method", "POST", f"repos/{REPO}/issues/{parent}/sub_issues", "-F", f"sub_issue_id={data['id']}")
+
+
+def load_contract():
+    cfg = json.loads(CFG_PATH.read_text(encoding="utf-8-sig"))
+    wp_parent = {}
+    item_meta = {}
+    for group in cfg.get("item_groups", []):
+        if group.get("kind") != "issue":
+            continue
+        meta = dict(group.get("metadata") or {})
+        for raw in group.get("numbers", []):
+            n = int(raw)
+            item_meta.setdefault(n, {}).update(meta)
+            if meta.get("Item Type") == "Work Package" and meta.get("Work Package"):
+                wp_parent[meta["Work Package"]] = n
+
+    hierarchy = {}
+    for rel in cfg.get("hierarchy", []):
+        parent = int(rel["parent"])
+        wp = next((k for k, v in wp_parent.items() if v == parent), None)
+        if not wp:
+            raise RuntimeError(f"Hierarchy parent #{parent} has no Work Package item metadata")
+        for child in rel.get("children", []):
+            c = int(child)
+            if c in hierarchy and hierarchy[c] != wp:
+                raise RuntimeError(f"Issue #{c} appears under multiple Work Packages")
+            hierarchy[c] = wp
+
+    expected = dict(hierarchy)
+    for n, meta in item_meta.items():
+        if meta.get("Item Type") == "Change Request" and meta.get("Work Package") == "Other":
+            expected[n] = "Other"
+
+    dependencies = {int(x["blocked"]): {int(v) for v in x.get("blocked_by", [])} for x in cfg.get("dependencies", [])}
+    return cfg, wp_parent, item_meta, expected, dependencies
+
+
+def reconcile_hierarchy(wp_parent, expected, details, repairs):
+    parent_set = set(wp_parent.values())
+    for n, wp in sorted(expected.items()):
+        data = details[n]
+        current = native_parent_number(data)
+        if wp == "Other":
+            if current in parent_set:
+                remove_child(current, data)
+                repairs.append({"issue": n, "action": "REMOVE_NATIVE_PARENT", "value": current})
+            continue
+        target = wp_parent[wp]
+        if current == target:
+            continue
+        if current in parent_set:
+            remove_child(current, data)
+            repairs.append({"issue": n, "action": "REMOVE_NATIVE_PARENT", "value": current})
+        add_child(target, data)
+        repairs.append({"issue": n, "action": "ADD_NATIVE_PARENT", "value": target})
+
+
+def current_blockers(n):
+    rows = gh("api", f"repos/{REPO}/issues/{n}/dependencies/blocked_by?per_page=100", json_out=True) or []
+    return {int(x["number"]): x for x in rows}
+
+
+def reconcile_dependencies(dependencies, repairs):
+    for blocked, wanted in sorted(dependencies.items()):
+        current = current_blockers(blocked)
+        for extra in sorted(set(current) - wanted):
+            gh("api", "--method", "DELETE", f"repos/{REPO}/issues/{blocked}/dependencies/blocked_by/{current[extra]['id']}")
+            repairs.append({"issue": blocked, "action": "REMOVE_BLOCKED_BY", "value": extra})
+        for missing in sorted(wanted - set(current)):
+            b = issue(missing)
+            gh("api", "--method", "POST", f"repos/{REPO}/issues/{blocked}/dependencies/blocked_by", "-F", f"issue_id={b['id']}")
+            repairs.append({"issue": blocked, "action": "ADD_BLOCKED_BY", "value": missing})
+
+
+Q_FIELDS = """
+query($login:String!,$number:Int!){
+  user(login:$login){projectV2(number:$number){id number title fields(first:100){nodes{
+    __typename
+    ... on ProjectV2FieldCommon{id name dataType}
+    ... on ProjectV2SingleSelectField{options{id name color description}}
+  }}}}
+}
+"""
+
+Q_ITEMS = """
+query($login:String!,$number:Int!,$after:String){
+  user(login:$login){projectV2(number:$number){items(first:100,after:$after){
+    pageInfo{hasNextPage endCursor}
+    nodes{id content{__typename ... on Issue{id number url state}}
+      fieldValues(first:50){nodes{
+        __typename
+        ... on ProjectV2ItemFieldSingleSelectValue{name field{... on ProjectV2FieldCommon{name}}}
+        ... on ProjectV2ItemFieldTextValue{text field{... on ProjectV2FieldCommon{name}}}
+      }}}
+  }}}
+}
+"""
+
+
+def resolve_project():
+    projects = gh("project", "list", "--owner", OWNER, "--limit", "100", "--format", "json", json_out=True)
+    match = next((x for x in projects.get("projects", []) if x.get("title") == PROJECT_TITLE and not x.get("closed")), None)
+    if not match:
+        raise RuntimeError(f"Project not found: {PROJECT_TITLE}")
+    number = int(match["number"])
+    p = gql(Q_FIELDS, {"login": OWNER, "number": number})["data"]["user"]["projectV2"]
+    fields = {x.get("name"): x for x in p["fields"]["nodes"] if x.get("name")}
+    return number, p["id"], fields
+
+
+def project_items(project_number):
+    out, after = [], None
+    while True:
+        block = gql(Q_ITEMS, {"login": OWNER, "number": project_number, "after": after})["data"]["user"]["projectV2"]["items"]
+        out.extend(block["nodes"])
+        if not block["pageInfo"]["hasNextPage"]:
+            return out
+        after = block["pageInfo"]["endCursor"]
+
+
+def issue_item_map(project_number):
+    return {int(x["content"]["number"]): x for x in project_items(project_number) if (x.get("content") or {}).get("__typename") == "Issue"}
+
+
+def values(item):
+    out = {}
+    for x in item.get("fieldValues", {}).get("nodes", []):
+        name = (x.get("field") or {}).get("name")
+        if name:
+            out[name] = x.get("name") if x.get("name") is not None else x.get("text")
+    return out
+
+
+def add_project_item(project_id, data):
+    q = """mutation($projectId:ID!,$contentId:ID!){addProjectV2ItemById(input:{projectId:$projectId,contentId:$contentId}){item{id}}}"""
+    return gql(q, {"projectId": project_id, "contentId": data["node_id"]})["data"]["addProjectV2ItemById"]["item"]["id"]
+
+
+def set_select(project_id, fields, item_id, field_name, option_name):
+    field = fields[field_name]
+    opt = next((x for x in field.get("options", []) if x["name"] == option_name), None)
+    if not opt:
+        raise RuntimeError(f"Missing Project option {field_name}={option_name}")
+    q = """mutation($projectId:ID!,$itemId:ID!,$fieldId:ID!,$optionId:String!){updateProjectV2ItemFieldValue(input:{projectId:$projectId,itemId:$itemId,fieldId:$fieldId,value:{singleSelectOptionId:$optionId}}){projectV2Item{id}}}"""
+    gql(q, {"projectId": project_id, "itemId": item_id, "fieldId": field["id"], "optionId": opt["id"]})
+
+
+def set_text(project_id, fields, item_id, field_name, text):
+    q = """mutation($projectId:ID!,$itemId:ID!,$fieldId:ID!,$text:String!){updateProjectV2ItemFieldValue(input:{projectId:$projectId,itemId:$itemId,fieldId:$fieldId,value:{text:$text}}){projectV2Item{id}}}"""
+    gql(q, {"projectId": project_id, "itemId": item_id, "fieldId": fields[field_name]["id"], "text": str(text)})
+
+
+def reconcile_project(wp_parent, item_meta, expected, details, project_number, project_id, fields, repairs):
+    items = issue_item_map(project_number)
+    all_structural = dict(expected)
+    for wp, parent in wp_parent.items():
+        all_structural[parent] = wp
+
+    for n, wp in sorted(all_structural.items()):
+        data = details.get(n) or issue(n)
+        item = items.get(n)
+        current = {}
+        if item is None:
+            item_id = add_project_item(project_id, data)
+            repairs.append({"issue": n, "action": "ADD_PROJECT_ITEM"})
+        else:
+            item_id = item["id"]
+            current = values(item)
+        item_type = "Work Package" if n in wp_parent.values() else "Change Request"
+        desired_wp = wp if wp != "Other" else "Other"
+        if current.get("Item Type") != item_type:
+            set_select(project_id, fields, item_id, "Item Type", item_type)
+            repairs.append({"issue": n, "action": "SET_ITEM_TYPE", "value": item_type})
+        if current.get("Work Package") != desired_wp:
+            set_select(project_id, fields, item_id, "Work Package", desired_wp)
+            repairs.append({"issue": n, "action": "SET_WORK_PACKAGE", "value": desired_wp})
+
+        if item_type == "Change Request":
+            status = current.get("Status")
+            if data["state"] == "closed":
+                wanted = "Cancelled" if data.get("state_reason") in ("not_planned", "duplicate") else "Done"
+                if status != wanted:
+                    set_select(project_id, fields, item_id, "Status", wanted)
+                    repairs.append({"issue": n, "action": "SET_STATUS", "value": wanted})
+            elif status in (None, "Done", "Cancelled"):
+                set_select(project_id, fields, item_id, "Status", "Backlog")
+                repairs.append({"issue": n, "action": "SET_STATUS", "value": "Backlog"})
+
+        milestone = (data.get("milestone") or {}).get("title")
+        meta = item_meta.get(n, {})
+        target = milestone or meta.get("Target Release")
+        if target and not current.get("Target Release"):
+            set_text(project_id, fields, item_id, "Target Release", target)
+            repairs.append({"issue": n, "action": "SET_TARGET_RELEASE", "value": target})
+
+
+def verify(wp_parent, item_meta, expected, dependencies, project_number):
+    items = issue_item_map(project_number)
+    parent_set = set(wp_parent.values())
+    rows, problems = [], []
+    for n, wp in sorted(expected.items()):
+        d = issue(n)
+        parent = native_parent_number(d)
+        rowprobs = []
+        if wp == "Other":
+            if parent in parent_set:
+                rowprobs.append("UNEXPECTED_WP_PARENT")
+        elif parent != wp_parent[wp]:
+            rowprobs.append("NATIVE_PARENT_MISMATCH")
+        item = items.get(n)
+        if not item:
+            rowprobs.append("MISSING_PROJECT_ITEM")
+            v = {}
+        else:
+            v = values(item)
+            if v.get("Work Package") != wp:
+                rowprobs.append("WORK_PACKAGE_MISMATCH")
+            if v.get("Item Type") != "Change Request":
+                rowprobs.append("ITEM_TYPE_MISMATCH")
+        rows.append({"issue": n, "wp": wp, "parent": parent, "fields": v, "result": "PASS" if not rowprobs else "+".join(rowprobs)})
+        if rowprobs:
+            problems.append(rows[-1])
+    for blocked, wanted in dependencies.items():
+        got = set(current_blockers(blocked))
+        if got != wanted:
+            problems.append({"issue": blocked, "result": "DEPENDENCY_MISMATCH", "expected": sorted(wanted), "actual": sorted(got)})
+    return rows, problems
 
 
 def main():
-    run("python", "scripts/platform/Restructure-DDDAWorkPackages.py")
-    run("python", "scripts/platform/Reconcile-DDDAProjectBacklog.v5.py")
+    cfg, wp_parent, item_meta, expected, dependencies = load_contract()
+    discovered = discover_cr_numbers()
+    unknown = sorted(discovered - set(expected))
+    if unknown:
+        raise RuntimeError(f"Discovered CR/CHR absent from versioned governance mapping: {unknown}")
+    details = {n: issue(n) for n in expected}
+    repairs = []
+    reconcile_hierarchy(wp_parent, expected, details, repairs)
+    reconcile_dependencies(dependencies, repairs)
+    project_number, project_id, fields = resolve_project()
+    for required in ["Status", "Work Package", "Item Type", "Target Release"]:
+        if required not in fields:
+            raise RuntimeError(f"Required Project field missing: {required}")
+    reconcile_project(wp_parent, item_meta, expected, details, project_number, project_id, fields, repairs)
+    time.sleep(2)
+    rows, problems = verify(wp_parent, item_meta, expected, dependencies, project_number)
+    if problems:
+        raise RuntimeError("Read-back mismatches: " + json.dumps(problems, ensure_ascii=False))
 
-    src = Path(".reports/cr-backlog-audit-v5")
-    dst = Path(".reports/cr-backlog-audit-v4")
-    dst.mkdir(parents=True, exist_ok=True)
-    for name in ["audit.json", "audit.md"]:
-        shutil.copy2(src / name, dst / name)
-
-    commit = finalize_versioned_state()
-    print(json.dumps({"status": "PASS", "final_governance_commit": commit}))
+    REPORT_DIR.mkdir(parents=True, exist_ok=True)
+    source_sha = cmd("git", "rev-parse", "HEAD")
+    report = {
+        "schema_version": 5,
+        "source_sha": source_sha,
+        "project": {"title": PROJECT_TITLE, "number": project_number},
+        "work_packages": wp_parent,
+        "mapped_cr_count": len(expected),
+        "discovered_cr_count": len(discovered),
+        "repair_count": len(repairs),
+        "remaining_count": 0,
+        "repairs": repairs,
+        "final": rows,
+    }
+    (REPORT_DIR / "audit.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    md = ["# DDDA CR ↔ Project Backlog consistency audit v5", "", f"- Source SHA: `{source_sha}`", f"- Work Packages: **{len(wp_parent)}**", f"- Mapped CRs: **{len(expected)}**", f"- Discovered CR/CHR signatures: **{len(discovered)}**", f"- Repairs: **{len(repairs)}**", "- Remaining mismatches: **0**", "", "| CR | WP | Parent | Result |", "|---:|---|---:|---|"]
+    for r in rows:
+        md.append(f"| #{r['issue']} | {r['wp']} | {r['parent'] or '-'} | {r['result']} |")
+    (REPORT_DIR / "audit.md").write_text("\n".join(md) + "\n", encoding="utf-8")
+    print(json.dumps({"work_packages": len(wp_parent), "mapped": len(expected), "discovered": len(discovered), "repairs": len(repairs), "remaining": 0}))
 
 
 if __name__ == "__main__":
