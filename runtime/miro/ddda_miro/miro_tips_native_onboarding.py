@@ -148,6 +148,11 @@ def _matches(remote: dict[str, Any], expected: dict[str, Any]) -> bool:
         return False
 
 
+def rest_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    """Remove reconciliation metadata before calling the Miro v2 shape endpoint."""
+    return {key: deepcopy(value) for key, value in payload.items() if key != "type"}
+
+
 def _related_connectors(client: Any, board: str, item_ids: set[str]) -> list[dict[str, Any]]:
     return [
         connector for connector in client.list_connectors(board)
@@ -179,7 +184,7 @@ def reconcile_children(client: Any, source_board: str, source_frame_id: str, tar
             client.delete_item(target_board, str(item["id"]))
             item_counts["deleted"] += 1
         for payload in desired:
-            client.create_item(target_board, "shape", deepcopy(payload))
+            client.create_item(target_board, "shape", rest_payload(payload))
             item_counts["created"] += 1
     else:
         item_counts["unchanged"] = len(desired)

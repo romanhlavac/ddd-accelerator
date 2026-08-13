@@ -47,3 +47,9 @@ def test_native_onboarding_children_stay_inside_the_retained_frame():
         position, geometry = item["position"], item["geometry"]
         assert abs(position["x"]) + geometry["width"] / 2 <= width / 2
         assert abs(position["y"]) + geometry["height"] / 2 <= height / 2
+
+
+def test_native_onboarding_does_not_send_reconciliation_type_to_miro_shape_api():
+    payload = onboarding.rest_payload(onboarding.desired_items("tips", manifest())[0])
+    assert "type" not in payload
+    assert payload["data"]["shape"] == "round_rectangle"
