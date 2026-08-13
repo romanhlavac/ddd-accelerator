@@ -70,10 +70,16 @@ jobs:
           observed=sorted(x for x in g('diff-tree','--no-commit-id','--name-only','-r',source).splitlines() if x)
           allowed={
               '.github/workflows/miro-frame01-redline.yml',
+              'docs/reviews/PR8-HVR-miro-execution-profile-migration.md',
+              'scaffolds/miro/rem-012-5-frame-01.yaml',
+              'runtime/miro/ddda_miro/connector_readback_wirefix.py',
+              'runtime/miro/ddda_miro/miro_tips_control_anchor_fix.py',
+              'runtime/miro/ddda_miro/miro_tips_endpoint_wirefix.py',
+              'runtime/miro/ddda_miro/miro_tips_hvr_fix.py',
               'runtime/miro/ddda_miro/miro_tips_native_onboarding.py',
-              'runtime/miro/ddda_miro/review_board_recovery.py',
+              'runtime/miro/tests/test_rem_012_5_miro_tips_control_anchors.py',
+              'runtime/miro/tests/test_rem_012_5_miro_tips_hvr.py',
               'runtime/miro/tests/test_rem_012_5_miro_tips_native_onboarding.py',
-              'runtime/miro/tests/test_rem_012_5_frame_01.py',
           }
           assert observed, 'corrective commit must change at least one allowlisted path'
           unexpected=sorted(set(observed)-allowed)
@@ -98,18 +104,25 @@ jobs:
 
           manifest=Path('scaffolds/miro/rem-012-5-frame-01.yaml').read_text(encoding='utf-8')
           for marker in (
-              'mode: ddda_owned_native_onboarding',
-              'policy: native_ddda_owned_no_screenshot_no_callouts',
-              'container_policy: retained_frame_native_rebuild',
-              'minimum_body_font_size: 36',
-              'minimum_heading_font_size: 64',
-              'minimum_sections: 6',
-              'NAVIGUJ PO PLÁTNĚ A RÁMCÍCH',
-              'Vlastnictví a legenda DDDA',
+              'mode: exact_reference_clone',
+              'reference_source_board_id: uXjVH2vcvRI=',
+              "reference_source_frame_id: '3458764679531043366'",
+              "reference_source_image_id: '3458764679531043367'",
+              'expected_item_count: 17',
+              'sticky_note: 13',
+              'expected_connector_count: 0',
+              'visual_equivalence_policy: exact_reference_child_snapshot',
           ):
-              assert marker in manifest, f'native onboarding marker missing: {marker}'
-          for forbidden in ('endpoint_position_policy:', 'direct_reference_image_endpoint'):
-              assert forbidden not in manifest, f'retired direct-image endpoint marker remains: {forbidden}'
+              assert marker in manifest, f'exact Miro Tips marker missing: {marker}'
+          for forbidden in (
+              'ddda_owned_native_onboarding',
+              'native_ddda_owned_no_screenshot_no_callouts',
+              'control_anchor_policy:',
+              'control_anchor_size:',
+              'endpoint_position_policy:',
+              'direct_reference_image_endpoint',
+          ):
+              assert forbidden not in manifest, f'retired Miro Tips topology marker remains: {forbidden}'
 
           note=Path('docs/reviews/PR8-HVR-miro-execution-profile-migration.md').read_text(encoding='utf-8')
           for marker in (
@@ -127,7 +140,7 @@ jobs:
         run: |
           python -m pip install --disable-pip-version-check --no-input pytest 'ruamel.yaml>=0.18,<0.19' requests pyyaml
           $env:PYTHONPATH=Join-Path $PWD.Path 'runtime\miro'
-          python -m pytest runtime/miro/tests/test_rem_012_5_frame_01.py runtime/miro/tests/test_rem_012_5_frame00_position_payload.py runtime/miro/tests/test_rem_012_5_connector_readback.py runtime/miro/tests/test_rem_012_5_miro_tips_control_anchors.py runtime/miro/tests/test_rem_012_5_miro_tips_hvr.py runtime/miro/tests/test_rem_012_5_miro_tips_native_onboarding.py runtime/miro/tests/test_rem_012_5_miro_tips_semantic.py runtime/platform/tests/test_miro_execution_profiles.py -q
+          python -m pytest runtime/miro/tests/test_rem_012_5_frame_01.py runtime/miro/tests/test_rem_012_5_frame00_position_payload.py runtime/miro/tests/test_rem_012_5_connector_readback.py runtime/miro/tests/test_rem_012_5_miro_tips_hvr.py runtime/miro/tests/test_rem_012_5_miro_tips_semantic.py runtime/platform/tests/test_miro_execution_profiles.py -q
           if($LASTEXITCODE -ne 0){throw 'targeted tests failed'}
 
       - name: Wait for authoritative exact-SHA evidence and candidate
@@ -225,16 +238,14 @@ jobs:
           $tips2=@($r.companion_frames.second_run.details | Where-Object {$_.title -eq 'Miro Tips'})
           if($tips1.Count -ne 1 -or $tips2.Count -ne 1){throw 'Miro Tips evidence missing'}
           foreach($tips in @($tips1[0],$tips2[0])){
-            if($tips.mode -ne 'ddda_owned_native_onboarding' -or $tips.onboarding_policy -ne 'native_ddda_owned_no_screenshot_no_callouts'){throw 'Miro Tips native onboarding policy mismatch'}
-            if([int]$tips.section_count -ne 6){throw 'Miro Tips native onboarding section count mismatch'}
-            if([double]$tips.minimum_body_font_size -lt 36 -or [double]$tips.minimum_heading_font_size -lt 64){throw 'Miro Tips readable typography contract mismatch'}
-            if([int]$tips.target_image_count -ne 0 -or [int]$tips.target_connector_count -ne 0){throw 'Miro Tips must not retain screenshot or callout topology'}
-            foreach($section in @('NAVIGUJ PO PLÁTNĚ A RÁMCÍCH','TVORBA A ÚPRAVA LÍSTKŮ','VÝBĚR, ZPĚT A DUPLIKACE','PROPOJUJ VÝZNAMY','SPOLUPRÁCE A FACILITACE','Vlastnictví a legenda DDDA')){
-              if(@($tips.required_sections) -notcontains $section){throw "Miro Tips missing required onboarding section: $section"}
-            }
-            if($tips.replacement_frame_id -ne '3458764680476608045'){throw 'Miro Tips active container identity mismatch'}
+            if($tips.mode -ne 'exact_reference_clone' -or $tips.visual_equivalence_policy -ne 'exact_reference_child_snapshot'){throw 'Miro Tips exact-clone policy mismatch'}
+            if($tips.reference_source_board_id -ne 'uXjVH2vcvRI=' -or $tips.reference_source_frame_id -ne '3458764679531043366' -or $tips.reference_source_image_id -ne '3458764679531043367'){throw 'Miro Tips reference identity mismatch'}
+            if([int]$tips.reference_clone.source_item_count -ne 17 -or [int]$tips.reference_clone.target_item_count -ne 17){throw 'Miro Tips exact item-count mismatch'}
+            if([int]$tips.reference_clone.item_type_counts.image -ne 1 -or [int]$tips.reference_clone.item_type_counts.sticky_note -ne 13 -or [int]$tips.reference_clone.item_type_counts.text -ne 3){throw 'Miro Tips exact item-type mismatch'}
+            if([int]$tips.reference_clone.source_connector_count -ne 0 -or [int]$tips.reference_clone.target_connector_count -ne 0){throw 'Miro Tips reference must have zero connectors'}
+            if($tips.reference_clone.status -ne 'PASS'){throw 'Miro Tips clone read-back failed'}
+            if($tips.target_frame_id -ne '3458764680476608045'){throw 'Miro Tips active container identity mismatch'}
           }
-          if([int]$tips2[0].children_rebuilt -ne 0){throw 'Miro Tips second run rebuilt stable children'}
           if($tips2[0].items.created -ne 0 -or $tips2[0].items.updated -ne 0 -or $tips2[0].items.deleted -ne 0){throw 'Miro Tips second run mutated items'}
           if($tips2[0].connectors.created -ne 0 -or $tips2[0].connectors.updated -ne 0 -or $tips2[0].connectors.deleted -ne 0){throw 'Miro Tips second run mutated connectors'}
           if($r.merge_allowed -or $r.promotion_allowed -or $r.release_allowed -or $r.gate_approval_allowed){throw 'governance boundary violated'}
@@ -404,32 +415,41 @@ jobs:
                   'target_url':f'https://miro.com/app/board/{target}/?moveToWidget={copied_id}',
               }
 
-          # A copied board is only eligible for HVR when it retains the
-          # DDDA-owned readable onboarding and no screenshot/callout topology.
+          # HVR must retain the exact Miro Tips child snapshot from Platform Lab.
+          source_tips_id=required_source_ids['miro_tips']
           tips_frame_id=review_frames['miro_tips']['target_item_id']
+          source_tips_children=[x for x in source_items if str((x.get('parent') or {}).get('id') or '')==source_tips_id]
           tips_children=[x for x in target_items if str((x.get('parent') or {}).get('id') or '')==tips_frame_id]
-          def visible(item):
-              data=item.get('data') if isinstance(item.get('data'),dict) else {}
-              return str(data.get('content') or '')
-          shapes=[x for x in tips_children if x.get('type')=='shape']
-          images=[x for x in tips_children if x.get('type')=='image']
           connectors=list_connectors(target)
           tip_ids={str(x.get('id') or '') for x in tips_children}
           callouts=[x for x in connectors if str((x.get('startItem') or {}).get('id') or '') in tip_ids or str((x.get('endItem') or {}).get('id') or '') in tip_ids]
-          required_sections=(
-              'NAVIGUJ PO PLÁTNĚ A RÁMCÍCH','TVORBA A ÚPRAVA LÍSTKŮ',
-              'VÝBĚR, ZPĚT A DUPLIKACE','PROPOJUJ VÝZNAMY',
-              'SPOLUPRÁCE A FACILITACE','Vlastnictví a legenda DDDA',
-          )
-          copied_text=' '.join(visible(x) for x in shapes)
-          if len(shapes)!=7 or images or callouts or not all(marker in copied_text for marker in required_sections):
-              raise SystemExit('HVR copy Miro Tips native-onboarding topology mismatch')
+          expected_types=Counter({'image':1,'sticky_note':13,'text':3})
+          if len(source_tips_children)!=17 or len(tips_children)!=17:
+              raise SystemExit('HVR copy Miro Tips item-count mismatch')
+          if Counter(str(x.get('type') or '') for x in source_tips_children)!=expected_types:
+              raise SystemExit('Platform Lab Miro Tips source topology mismatch')
+          if Counter(str(x.get('type') or '') for x in tips_children)!=expected_types:
+              raise SystemExit('HVR copy Miro Tips item-type mismatch')
+          if callouts:
+              raise SystemExit('HVR copy Miro Tips must retain zero connectors')
+          def item_contract(item):
+              data=item.get('data') if isinstance(item.get('data'),dict) else {}
+              return json.dumps({
+                  'type':str(item.get('type') or ''),
+                  'content':str(data.get('content') or ''),
+                  'title':str(data.get('title') or ''),
+                  'position':item.get('position') or {},
+                  'geometry':item.get('geometry') or {},
+                  'style':item.get('style') or {},
+              },sort_keys=True,separators=(',',':'))
+          if sorted(item_contract(x) for x in source_tips_children)!=sorted(item_contract(x) for x in tips_children):
+              raise SystemExit('HVR copy Miro Tips exact-child snapshot mismatch')
           hvr_tips_readback={
               'frame_id':tips_frame_id,
-              'native_shape_count':len(shapes),
-              'screenshot_count':len(images),
+              'item_count':len(tips_children),
+              'item_type_counts':dict(expected_types),
               'connector_count':len(callouts),
-              'required_section_count':len(required_sections),
+              'exact_child_snapshot_matches_platform_lab':True,
               'status':'PASS',
           }
 
@@ -448,7 +468,7 @@ jobs:
               'target_item_count':len(target_items),
               'final_logical_slot_count':len(final_slots),
               'review_frames':review_frames,
-              'miro_tips_native_onboarding_copy_readback':hvr_tips_readback,
+              'miro_tips_exact_reference_clone_copy_readback':hvr_tips_readback,
               'copy_readback_status':'PASS',
               'technical_status':'PASS',
               'human_review_status':'PENDING',

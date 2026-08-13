@@ -32,43 +32,22 @@ readability:
   methodology_y: 850
   connector_caption_min_font_size: 48
 miro_tips:
-  min_images: 1
-  min_connectors: 8
-  reference_source_board_id: uXjVH27wYU4=
-  reference_source_frame_id: '3458764567797253967'
-  reference_source_image_id: '3458764567797255950'
+  mode: exact_reference_clone
+  reference_source_board_id: uXjVH2vcvRI=
+  reference_source_frame_id: '3458764679531043366'
+  reference_source_image_id: '3458764679531043367'
+  expected_item_count: 17
+  expected_item_type_counts:
+    image: 1
+    sticky_note: 13
+    text: 3
+  expected_connector_count: 0
+  container_policy: retained_verified_target_container
+  visual_equivalence_policy: exact_reference_child_snapshot
   target_position:
     x: -19834.447049390445
     y: -11727.529671450406
   vertical_offset_y: 600
-  control_anchor_policy: explicit_transparent_child_anchor_per_reference_ui_control
-  control_anchor_size: 8
-  visual_equivalence_policy: reference_topology_plus_explicit_control_anchors
-  container_policy: transactional_replace_irreducible_companion
-  layer_policy: image_below_native_callouts
-  onboarding:
-    mode: ddda_owned_native_onboarding
-    policy: native_ddda_owned_no_screenshot_no_callouts
-    container_policy: retained_frame_native_rebuild
-    minimum_body_font_size: 36
-    minimum_heading_font_size: 64
-    minimum_sections: 6
-    required_sections:
-      - NAVIGUJ PO PLÁTNĚ A RÁMCÍCH
-      - TVORBA A ÚPRAVA LÍSTKŮ
-      - VÝBĚR, ZPĚT A DUPLIKACE
-      - PROPOJUJ VÝZNAMY
-      - SPOLUPRÁCE A FACILITACE
-      - Vlastnictví a legenda DDDA
-    container_geometry:
-      width: 1919.4331503618523
-      height: 1079.6811470785374
-    container_position:
-      x: -19834.447049390445
-      y: -11727.529671450406
-  legacy_frame_ids:
-    - '3458764680388504033'
-    - '3458764680392874705'
   readback_attempts: 20
   readback_delay_seconds: 0.5
   required_markers:
@@ -87,11 +66,11 @@ miro_tips:
     - zoom to a 100%
     - add your own tips here
 source_companion_frames:
-  - id: '3458764567797253967'
+  - id: '3458764679531043366'
     title: Miro Tips
     min_images: 1
-    mode: ddda_owned_native_onboarding
-    source_board_id: uXjVH27wYU4=
+    mode: exact_reference_clone
+    source_board_id: uXjVH2vcvRI=
   - id: '3458764679531716415'
     title: Align
     min_images: 2

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-import time
+from collections import Counter
+from copy import deepcopy
 from typing import Any
 
 from . import review_board_recovery as base
@@ -8,16 +9,14 @@ from . import review_board_recovery_wirefix as visual
 
 
 MIRO_TIPS_TITLE = "Miro Tips"
-MIRO_TIPS_MODE = "reference_ui_tutorial"
-MIRO_TIPS_CONTAINER_POLICY = "transactional_replace_irreducible_companion"
-MIRO_TIPS_LAYER_POLICY = "image_below_native_callouts"
-MIRO_TIPS_CONTROL_ANCHOR_POLICY = "explicit_transparent_child_anchor_per_reference_ui_control"
-MIRO_TIPS_VISUAL_EQUIVALENCE_POLICY = "reference_topology_plus_explicit_control_anchors"
+MIRO_TIPS_MODE = "exact_reference_clone"
+MIRO_TIPS_CONTAINER_POLICY = "retained_verified_target_container"
+MIRO_TIPS_VISUAL_EQUIVALENCE_POLICY = "exact_reference_child_snapshot"
+EXPECTED_ITEM_TYPE_COUNTS = {"image": 1, "sticky_note": 13, "text": 3}
+EXPECTED_ITEM_COUNT = sum(EXPECTED_ITEM_TYPE_COUNTS.values())
+EXPECTED_CONNECTOR_COUNT = 0
 DEFAULT_READBACK_ATTEMPTS = 20
 DEFAULT_READBACK_DELAY_SECONDS = 0.5
-DEFAULT_MIN_IMAGES = 1
-DEFAULT_MIN_CONNECTORS = 8
-DEFAULT_VERTICAL_OFFSET_Y = 240.0
 DEFAULT_REQUIRED_MARKERS = (
     "toggle between navigation mode & edit mode",
     "stickies / post-its",
@@ -43,129 +42,156 @@ _INSTALLED = False
 
 def _config(manifest: dict[str, Any]) -> dict[str, Any]:
     raw = dict(manifest.get("miro_tips") or {})
+    mode = str(raw.get("mode") or "")
+    container_policy = str(raw.get("container_policy") or "")
+    visual_policy = str(raw.get("visual_equivalence_policy") or "")
+    reference_source_board_id = str(raw.get("reference_source_board_id") or "")
+    reference_source_frame_id = str(raw.get("reference_source_frame_id") or "")
+    reference_source_image_id = str(raw.get("reference_source_image_id") or "")
+    target_position = dict(raw.get("target_position") or {})
+    expected_types = {
+        str(kind): int(count)
+        for kind, count in dict(raw.get("expected_item_type_counts") or {}).items()
+    }
+    required_markers = tuple(
+        str(marker).casefold()
+        for marker in (raw.get("required_markers") or DEFAULT_REQUIRED_MARKERS)
+    )
     attempts = int(raw.get("readback_attempts") or DEFAULT_READBACK_ATTEMPTS)
     delay = float(
         raw.get("readback_delay_seconds")
         if raw.get("readback_delay_seconds") is not None
         else DEFAULT_READBACK_DELAY_SECONDS
     )
-    min_images = int(raw.get("min_images") or DEFAULT_MIN_IMAGES)
-    min_connectors = int(raw.get("min_connectors") or DEFAULT_MIN_CONNECTORS)
-    vertical_offset_y = float(
-        raw.get("vertical_offset_y")
-        if raw.get("vertical_offset_y") is not None
-        else DEFAULT_VERTICAL_OFFSET_Y
-    )
-    policy = str(raw.get("container_policy") or MIRO_TIPS_CONTAINER_POLICY)
-    layer_policy = str(raw.get("layer_policy") or MIRO_TIPS_LAYER_POLICY)
-    reference_source_board_id = str(raw.get("reference_source_board_id") or "")
-    reference_source_frame_id = str(raw.get("reference_source_frame_id") or "")
-    reference_source_image_id = str(raw.get("reference_source_image_id") or "")
-    control_anchor_policy = str(raw.get("control_anchor_policy") or "")
-    visual_equivalence_policy = str(raw.get("visual_equivalence_policy") or "")
-    control_anchor_size = float(raw.get("control_anchor_size") or 0)
-    legacy_frame_ids = tuple(str(value) for value in (raw.get("legacy_frame_ids") or ()))
-    target_position = dict(raw.get("target_position") or {})
-    required = tuple(
-        str(value).casefold()
-        for value in (raw.get("required_markers") or DEFAULT_REQUIRED_MARKERS)
-    )
-    if not 2 <= attempts <= 60:
-        raise ValueError("Miro Tips read-back attempts must be between 2 and 60")
-    if not 0 <= delay <= 2:
-        raise ValueError("Miro Tips read-back delay must be between 0 and 2 seconds")
-    if min_images < DEFAULT_MIN_IMAGES:
-        raise ValueError("Miro Tips visual tutorial requires at least one Miro UI image")
-    if min_connectors < DEFAULT_MIN_CONNECTORS:
-        raise ValueError("Miro Tips visual tutorial requires at least eight callout connectors")
-    if not 0 <= vertical_offset_y <= 1000:
-        raise ValueError("Miro Tips vertical offset must be between 0 and 1000 pixels")
-    if policy != MIRO_TIPS_CONTAINER_POLICY:
-        raise ValueError("Miro Tips requires transactional replacement for an irreducible companion container")
-    if layer_policy != MIRO_TIPS_LAYER_POLICY:
-        raise ValueError("Miro Tips requires the reference screenshot below native callout overlays")
+
+    if mode != MIRO_TIPS_MODE:
+        raise ValueError("Miro Tips must use the exact-reference-clone mode")
+    if container_policy != MIRO_TIPS_CONTAINER_POLICY:
+        raise ValueError("Miro Tips must retain its verified target container")
+    if visual_policy != MIRO_TIPS_VISUAL_EQUIVALENCE_POLICY:
+        raise ValueError("Miro Tips must use the exact reference-child snapshot policy")
     if not reference_source_board_id or not reference_source_frame_id or not reference_source_image_id:
-        raise ValueError("Miro Tips requires an exact reference board, frame and screenshot identity")
-    if control_anchor_policy != MIRO_TIPS_CONTROL_ANCHOR_POLICY:
-        raise ValueError("Miro Tips requires explicit transparent control anchors for native callouts")
-    if visual_equivalence_policy != MIRO_TIPS_VISUAL_EQUIVALENCE_POLICY:
-        raise ValueError("Miro Tips requires the reference topology and control-anchor visual-equivalence policy")
-    if not 4.0 <= control_anchor_size <= 24.0:
-        raise ValueError("Miro Tips control-anchor size must be between 4 and 24")
-    if raw.get("endpoint_position_policy"):
-        raise ValueError("Miro Tips direct screenshot endpoints are retired; use explicit control anchors")
-    if any(not value for value in legacy_frame_ids):
-        raise ValueError("Miro Tips legacy frame ids must be non-empty strings")
+        raise ValueError("Miro Tips requires the exact reference board, frame and image identity")
+    if int(raw.get("expected_item_count") or 0) != EXPECTED_ITEM_COUNT:
+        raise ValueError(f"Miro Tips must declare exactly {EXPECTED_ITEM_COUNT} reference child items")
+    if expected_types != EXPECTED_ITEM_TYPE_COUNTS:
+        raise ValueError(
+            "Miro Tips expected item types must be image=1, sticky_note=13 and text=3"
+        )
+    connector_count = raw.get("expected_connector_count")
+    if connector_count is None or int(connector_count) != EXPECTED_CONNECTOR_COUNT:
+        raise ValueError("Miro Tips exact reference has zero connectors")
+    if not 2 <= attempts <= 60 or not 0 <= delay <= 2:
+        raise ValueError("Miro Tips read-back policy is out of range")
     for key in ("x", "y"):
         if key not in target_position:
             raise ValueError(f"Miro Tips target position is missing {key}")
     for marker in DEFAULT_REQUIRED_MARKERS:
-        if marker.casefold() not in required:
+        if marker.casefold() not in required_markers:
             raise ValueError(f"Miro Tips required-marker contract is missing: {marker}")
+    for retired in (
+        "onboarding",
+        "control_anchor_policy",
+        "control_anchor_size",
+        "endpoint_position_policy",
+        "layer_policy",
+        "legacy_frame_ids",
+        "min_connectors",
+    ):
+        if raw.get(retired) is not None:
+            raise ValueError(f"Miro Tips retired topology field remains: {retired}")
+
     return {
-        "readback_attempts": attempts,
-        "readback_delay_seconds": delay,
-        "min_images": min_images,
-        "min_connectors": min_connectors,
-        "vertical_offset_y": vertical_offset_y,
-        "container_policy": policy,
-        "layer_policy": layer_policy,
         "reference_source_board_id": reference_source_board_id,
         "reference_source_frame_id": reference_source_frame_id,
         "reference_source_image_id": reference_source_image_id,
-        "control_anchor_policy": control_anchor_policy,
-        "control_anchor_size": control_anchor_size,
-        "visual_equivalence_policy": visual_equivalence_policy,
-        "legacy_frame_ids": legacy_frame_ids,
-        "target_position": {"x": float(target_position["x"]), "y": float(target_position["y"])},
-        "required_markers": required,
+        "target_position": {
+            "x": float(target_position["x"]),
+            "y": float(target_position["y"]),
+        },
+        "required_markers": required_markers,
+        "readback_attempts": attempts,
+        "readback_delay_seconds": delay,
+        "expected_item_count": EXPECTED_ITEM_COUNT,
+        "expected_item_type_counts": dict(EXPECTED_ITEM_TYPE_COUNTS),
+        "expected_connector_count": EXPECTED_CONNECTOR_COUNT,
+        "container_policy": container_policy,
+        "visual_equivalence_policy": visual_policy,
     }
 
 
 def _source_spec(manifest: dict[str, Any]) -> dict[str, Any]:
-    hits = [
+    matches = [
         spec
         for spec in (manifest.get("source_companion_frames") or [])
         if str(spec.get("title") or "") == MIRO_TIPS_TITLE
     ]
-    if len(hits) != 1:
-        raise ValueError(f"expected exactly one {MIRO_TIPS_TITLE!r} companion spec, got {len(hits)}")
-    if str(hits[0].get("mode") or "") != MIRO_TIPS_MODE:
-        raise ValueError("Miro Tips companion must opt in to the reference UI tutorial mode")
+    if len(matches) != 1:
+        raise ValueError(f"expected exactly one {MIRO_TIPS_TITLE!r} companion spec, got {len(matches)}")
     cfg = _config(manifest)
-    if str(hits[0].get("id") or "") != cfg["reference_source_frame_id"]:
-        raise ValueError("Miro Tips source companion frame does not match the exact reference contract")
-    if str(hits[0].get("source_board_id") or "") != cfg["reference_source_board_id"]:
-        raise ValueError("Miro Tips source companion board does not match the exact reference contract")
-    return hits[0]
+    spec = matches[0]
+    if str(spec.get("mode") or "") != MIRO_TIPS_MODE:
+        raise ValueError("Miro Tips source companion is not an exact-reference clone")
+    if str(spec.get("id") or "") != cfg["reference_source_frame_id"]:
+        raise ValueError("Miro Tips source frame differs from the approved reference")
+    if str(spec.get("source_board_id") or "") != cfg["reference_source_board_id"]:
+        raise ValueError("Miro Tips source board differs from the approved reference")
+    return spec
+
+
+def _visible(value: Any) -> str:
+    return base._visible(value).casefold()
+
+
+def _state(client: Any, board: str, frame_id: str) -> dict[str, Any]:
+    items = base._children(client, board, frame_id)
+    item_ids = {str(item.get("id") or "") for item in items}
+    return {
+        "items": items,
+        "item_type_counts": dict(Counter(str(item.get("type") or "") for item in items)),
+        "connectors": visual._companion_source_connectors(client, board, item_ids),
+        "text": " ".join(_visible((item.get("data") or {}).get("content")) for item in items),
+    }
+
+
+def _assert_snapshot(
+    state: dict[str, Any], cfg: dict[str, Any], label: str, *, require_reference_image: bool
+) -> None:
+    if len(state["items"]) != cfg["expected_item_count"]:
+        raise ValueError(f"{label} has {len(state['items'])} child items, expected {cfg['expected_item_count']}")
+    if state["item_type_counts"] != cfg["expected_item_type_counts"]:
+        raise ValueError(
+            f"{label} item types differ from exact reference: {state['item_type_counts']}"
+        )
+    if len(state["connectors"]) != cfg["expected_connector_count"]:
+        raise ValueError(f"{label} has connectors; the exact reference has none")
+    missing = [marker for marker in cfg["required_markers"] if marker not in state["text"]]
+    if missing:
+        raise ValueError(f"{label} is missing required reference markers: {missing}")
+    if require_reference_image:
+        image_ids = [
+            str(item.get("id") or "")
+            for item in state["items"]
+            if str(item.get("type") or "") == "image"
+        ]
+        if image_ids != [cfg["reference_source_image_id"]]:
+            raise ValueError("Miro Tips reference screenshot differs from the approved source image")
 
 
 def assert_reference_identity(
-    client: Any,
-    source_board: str,
-    source_frame_id: str,
-    manifest: dict[str, Any],
+    client: Any, source_board: str, source_frame_id: str, manifest: dict[str, Any]
 ) -> None:
-    """Reject a visually similar but unauthorised Miro Tips source before writing."""
     cfg = _config(manifest)
     if str(source_board) != cfg["reference_source_board_id"]:
         raise ValueError("Miro Tips source board differs from the approved reference board")
     if str(source_frame_id) != cfg["reference_source_frame_id"]:
         raise ValueError("Miro Tips source frame differs from the approved reference frame")
-    source_images = [
-        item
-        for item in base._children(client, source_board, source_frame_id)
-        if str(item.get("type") or "") == "image"
-    ]
-    if len(source_images) != 1 or str(source_images[0].get("id") or "") != cfg["reference_source_image_id"]:
-        raise ValueError("Miro Tips reference screenshot differs from the approved source image")
-
-
-def desired_miro_tips_items(frame_id: str, manifest: dict[str, Any]) -> list[dict[str, Any]]:
-    """Compatibility surface: HVR-2 no longer authors a parallel card-only tutorial."""
-    _ = frame_id
-    _config(manifest)
-    return []
+    _assert_snapshot(
+        _state(client, source_board, source_frame_id),
+        cfg,
+        "Miro Tips source",
+        require_reference_image=True,
+    )
 
 
 def miro_tips_companion_frame_payload(
@@ -174,15 +200,15 @@ def miro_tips_companion_frame_payload(
     target_main: dict[str, Any],
     manifest: dict[str, Any],
 ) -> dict[str, Any]:
-    cfg = _config(manifest)
     _ = source_main
     _ = target_main
+    cfg = _config(manifest)
     payload: dict[str, Any] = {
         "data": {"title": MIRO_TIPS_TITLE},
-        "geometry": dict(source_frame.get("geometry") or {}),
+        "geometry": deepcopy(source_frame.get("geometry") or {}),
         "position": {**cfg["target_position"], "origin": "center"},
     }
-    style = dict(source_frame.get("style") or {})
+    style = deepcopy(source_frame.get("style") or {})
     if style:
         payload["style"] = style
     return payload
@@ -193,93 +219,48 @@ def companion_frame_payload_with_miro_tips(
     source_main: dict[str, Any],
     target_main: dict[str, Any],
 ) -> dict[str, Any]:
-    manifest = visual._ACTIVE_MANIFEST
     if str((source_frame.get("data") or {}).get("title") or "") != MIRO_TIPS_TITLE:
         return _ORIGINAL_COMPANION_FRAME_PAYLOAD(source_frame, source_main, target_main)
-    return miro_tips_companion_frame_payload(source_frame, source_main, target_main, manifest)
+    return miro_tips_companion_frame_payload(
+        source_frame, source_main, target_main, visual._ACTIVE_MANIFEST
+    )
 
 
 def same_frame_defer_miro_tips(remote: dict[str, Any], expected: dict[str, Any]) -> bool:
-    """Preserve the target frame container when Miro has made it a child item.
+    """The Miro Tips container is an existing protected child frame.
 
-    The tutorial's native children retain the reference geometry and direct image
-    endpoints.  Resizing the outer target frame, however, is rejected by Miro
-    when it is a child of a protected parent frame.
+    Its position and geometry are fail-closed verified by
+    _assert_target_container before child cloning.  Returning true here avoids
+    a destructive PATCH of that valid container.
     """
-    if str((remote.get("data") or {}).get("title") or "") == MIRO_TIPS_TITLE:
+    if (
+        str((remote.get("data") or {}).get("title") or "") == MIRO_TIPS_TITLE
+        and str((expected.get("data") or {}).get("title") or "") == MIRO_TIPS_TITLE
+    ):
         return True
     return _ORIGINAL_SAME_FRAME(remote, expected)
 
 
-def _frame_equal(remote: dict[str, Any], expected: dict[str, Any]) -> bool:
-    return same_frame_defer_miro_tips(remote, expected)
-
-
-def _children_text(items: list[dict[str, Any]]) -> str:
-    return " ".join(
-        base._visible((item.get("data") or {}).get("content")).casefold()
-        for item in items
-    )
-
-
-def _image_anchor_connector_count(
-    connectors: list[dict[str, Any]], image_ids: set[str]
-) -> int:
-    return sum(
-        1
-        for connector in connectors
-        if str((connector.get("startItem") or {}).get("id") or "") in image_ids
-        or str((connector.get("endItem") or {}).get("id") or "") in image_ids
-    )
-
-
-def _tutorial_state(
+def _assert_target_container(
     client: Any,
-    board: str,
-    frame_id: str,
-    cfg: dict[str, Any],
-) -> dict[str, Any]:
-    items = base._children(client, board, frame_id)
-    images = [item for item in items if str(item.get("type") or "") == "image"]
-    ids = {str(item["id"]) for item in items}
-    connectors = visual._companion_source_connectors(client, board, ids)
-    text = _children_text(items)
-    missing = [marker for marker in cfg["required_markers"] if marker not in text]
-    image_ids = {str(item["id"]) for item in images}
-    anchors = _image_anchor_connector_count(connectors, image_ids)
-    return {
-        "items": items,
-        "images": images,
-        "connectors": connectors,
-        "missing_markers": missing,
-        "image_anchor_connector_count": anchors,
-    }
-
-
-def _assert_tutorial_state(
-    state: dict[str, Any], cfg: dict[str, Any], label: str
+    target_board: str,
+    target_frame_id: str,
+    source_frame: dict[str, Any],
+    manifest: dict[str, Any],
 ) -> None:
-    if len(state["images"]) < cfg["min_images"]:
-        raise ValueError(f"{label} is missing the Miro UI tutorial image")
-    if len(state["connectors"]) < cfg["min_connectors"]:
-        raise ValueError(f"{label} is missing callout connectors")
-    if state["image_anchor_connector_count"] < cfg["min_connectors"]:
-        raise ValueError(f"{label} callouts are not anchored to the Miro UI image")
-    if state["missing_markers"]:
-        raise ValueError(f"{label} is missing required tutorial markers: {state['missing_markers']}")
+    expected = miro_tips_companion_frame_payload(source_frame, {}, {}, manifest)
+    target = base._get_frame(client, target_board, target_frame_id)
+    if str((target.get("data") or {}).get("title") or "") != MIRO_TIPS_TITLE:
+        raise ValueError("Miro Tips target container title mismatch")
+    for key, value in (expected.get("geometry") or {}).items():
+        if not base._close((target.get("geometry") or {}).get(key), value):
+            raise ValueError(f"Miro Tips target container geometry mismatch: {key}")
+    for key, value in (expected.get("position") or {}).items():
+        if key != "origin" and not base._close((target.get("position") or {}).get(key), value):
+            raise ValueError(f"Miro Tips target container position mismatch: {key}")
 
 
-def _endpoint_view(endpoint: dict[str, Any]) -> dict[str, Any]:
-    view: dict[str, Any] = {"item_id": str(endpoint.get("id") or "")}
-    if endpoint.get("position") is not None:
-        position = endpoint.get("position") or {}
-        view["position"] = {key: position.get(key) for key in ("x", "y")}
-    if endpoint.get("snapTo") is not None:
-        view["snap_to"] = endpoint.get("snapTo")
-    return view
-
-
-def _endpoint_contract_readback(
+def _exact_clone_readback(
     client: Any,
     source_board: str,
     source_frame_id: str,
@@ -287,234 +268,47 @@ def _endpoint_contract_readback(
     target_frame_id: str,
     manifest: dict[str, Any],
 ) -> dict[str, Any]:
-    """Prove each native callout uses the source's full endpoint contract.
-
-    This runs after fresh REST reconciliation.  It is deliberately stricter
-    than item-count and image-identity checks: a connector to the screenshot is
-    insufficient when its arrowhead misses the actual Miro control.
-    """
-    source_items = base._children(client, source_board, source_frame_id)
-    target_items = base._children(client, target_board, target_frame_id)
-    source_natives = [item for item in source_items if str(item.get("type") or "") in visual.NATIVE_TYPES]
-    used: set[str] = set()
-    mapping: dict[str, str] = {}
-    for source in sorted(source_natives, key=lambda item: (visual.redline.identity(item), str(item.get("id") or ""))):
-        target = visual.redline.match(source, target_items, used)
-        if target is None:
-            raise ValueError(f"Miro Tips endpoint contract cannot map source item {source.get('id')}")
-        mapping[str(source["id"])] = str(target["id"])
-        used.add(str(target["id"]))
-    for source in [item for item in source_items if str(item.get("type") or "") == "image"]:
-        hits = [item for item in target_items if visual._same_image(item, source, target_frame_id)]
-        if len(hits) != 1:
-            raise ValueError(f"Miro Tips endpoint contract cannot map screenshot {source.get('id')}")
-        mapping[str(source["id"])] = str(hits[0]["id"])
-
-    source_connectors = visual._companion_source_connectors(
-        client, source_board, {str(item["id"]) for item in source_items}
-    )
-    target_connectors = visual._companion_source_connectors(
-        client, target_board, {str(item["id"]) for item in target_items}
-    )
-    entries: list[dict[str, Any]] = []
-    for source in source_connectors:
-        start = mapping[str((source.get("startItem") or {})["id"])]
-        end = mapping[str((source.get("endItem") or {})["id"])]
-        expected = visual.readable_connector_payload(source, start, end, manifest)
-        hits = [
-            item for item in target_connectors
-            if str((item.get("startItem") or {}).get("id") or "") == start
-            and str((item.get("endItem") or {}).get("id") or "") == end
-        ]
-        if len(hits) > 1:
-            expected_end = _endpoint_view(expected.get("endItem") or {})
-            hits = [
-                item
-                for item in hits
-                if _endpoint_view(item.get("endItem") or {}) == expected_end
-            ]
-        if len(hits) != 1:
-            raise ValueError("Miro Tips endpoint contract expected exactly one target callout")
-        target = hits[0]
-        passed = visual.redline.same_connector(target, expected)
-        entry = {
-            "source_connector_id": str(source.get("id") or ""),
-            "target_connector_id": str(target.get("id") or ""),
-            "start": _endpoint_view(target.get("startItem") or {}),
-            "end": _endpoint_view(target.get("endItem") or {}),
-            "expected_start": _endpoint_view(expected.get("startItem") or {}),
-            "expected_end": _endpoint_view(expected.get("endItem") or {}),
-            "passed": bool(passed),
-        }
-        entries.append(entry)
-        if not passed:
-            raise ValueError(
-                "Miro Tips callout endpoint did not converge to the direct reference-image contract: "
-                f"{source.get('id')} -> {target.get('id')}"
-            )
-    return {
-        "policy": "exact_reference_endpoint_readback",
-        "count": len(entries),
-        "passed_count": sum(1 for entry in entries if entry["passed"]),
-        "entries": entries,
-    }
-
-
-def _wait_for_frame_geometry(
-    client: Any,
-    board: str,
-    frame_id: str,
-    expected: dict[str, Any],
-    cfg: dict[str, Any],
-) -> dict[str, Any]:
-    last: dict[str, Any] | None = None
-    for attempt in range(cfg["readback_attempts"]):
-        last = base._get_frame(client, board, frame_id)
-        if _frame_equal(last, expected):
-            return last
-        if attempt + 1 < cfg["readback_attempts"] and cfg["readback_delay_seconds"]:
-            time.sleep(cfg["readback_delay_seconds"])
-    raise ValueError("Miro Tips replacement frame did not converge to reference geometry and placement")
-
-
-def _wait_for_empty_frame(
-    client: Any,
-    board: str,
-    frame_id: str,
-    old_item_ids: set[str],
-    cfg: dict[str, Any],
-) -> None:
-    for attempt in range(cfg["readback_attempts"]):
-        children = base._children(client, board, frame_id)
-        related = base._related_connectors(client, board, old_item_ids) if old_item_ids else []
-        if not children and not related:
-            return
-        if attempt + 1 < cfg["readback_attempts"] and cfg["readback_delay_seconds"]:
-            time.sleep(cfg["readback_delay_seconds"])
-    raise ValueError(f"Miro Tips legacy frame {frame_id} did not become empty before deletion")
-
-
-def _delete_legacy_frame(
-    client: Any,
-    board: str,
-    frame_id: str,
-    cfg: dict[str, Any],
-) -> None:
-    children = base._children(client, board, frame_id)
-    old_item_ids = {str(item["id"]) for item in children}
-    for connector in base._related_connectors(client, board, old_item_ids):
-        client.delete_connector(board, str(connector["id"]))
-    for item in children:
-        client.delete_item(board, str(item["id"]))
-    _wait_for_empty_frame(client, board, frame_id, old_item_ids, cfg)
-    client.delete_item(board, frame_id)
-
-
-def _clear_tutorial_children(
-    client: Any, board: str, frame_id: str, cfg: dict[str, Any]
-) -> None:
-    children = base._children(client, board, frame_id)
-    child_ids = {str(item["id"]) for item in children}
-    for connector in base._related_connectors(client, board, child_ids):
-        client.delete_connector(board, str(connector["id"]))
-    for item in children:
-        client.delete_item(board, str(item["id"]))
-    _wait_for_empty_frame(client, board, frame_id, child_ids, cfg)
-
-
-def _tutorial_children_require_rebuild(
-    client: Any,
-    source_board: str,
-    source_frame_id: str,
-    target_board: str,
-    target_frame_id: str,
-    manifest: dict[str, Any],
-) -> bool:
-    """Detect legacy children that Miro cannot resize by PATCH.
-
-    A same-content sticky can keep its old geometry after PATCH.  Recreating the
-    child set is deterministic and preserves the protected outer frame.
-    """
-    source_items = base._children(client, source_board, source_frame_id)
-    target_items = base._children(client, target_board, target_frame_id)
-    # A completed target contains the native reference children plus exactly one
-    # tiny transparent anchor for every required callout.  Both states are
-    # accepted here: the first lets the anchor reconciler migrate old direct
-    # screenshot endpoints; the second is required for a zero-mutation run.
     cfg = _config(manifest)
-    accepted_counts = {len(source_items), len(source_items) + cfg["min_connectors"]}
-    return len(target_items) not in accepted_counts
+    source = _state(client, source_board, source_frame_id)
+    target = _state(client, target_board, target_frame_id)
+    _assert_snapshot(source, cfg, "Miro Tips source", require_reference_image=True)
+    _assert_snapshot(target, cfg, "Miro Tips target", require_reference_image=False)
 
+    used: set[str] = set()
+    native_count = 0
+    for item in sorted(
+        [entry for entry in source["items"] if str(entry.get("type") or "") in visual.NATIVE_TYPES],
+        key=lambda entry: (visual.redline.identity(entry), str(entry.get("id") or "")),
+    ):
+        match = visual.redline.match(item, target["items"], used)
+        expected = visual._ORIGINAL_ITEM_PAYLOAD(item, target_frame_id)
+        if match is None or not visual.redline.same_item(match, expected):
+            raise ValueError(f"Miro Tips target item differs from reference: {item.get('id')}")
+        used.add(str(match.get("id") or ""))
+        native_count += 1
 
-def _cleanup_replacement_frame(client: Any, board: str, frame_id: str) -> None:
-    try:
-        visual._cleanup_frame(client, board, frame_id)
-    except Exception:
-        # The original exception remains authoritative; cleanup is best effort.
-        pass
-
-
-def _prime_reference_background_images(
-    client: Any,
-    source_board: str,
-    source_frame_id: str,
-    target_board: str,
-    target_frame_id: str,
-) -> int:
-    """Create the Miro UI screenshot before native callouts so it stays behind them."""
-    source_items = base._children(client, source_board, source_frame_id)
-    source_images = [item for item in source_items if str(item.get("type") or "") == "image"]
-    target_items = base._children(client, target_board, target_frame_id)
-    created = 0
-    for source in sorted(source_images, key=lambda item: str(item.get("id") or "")):
-        hits = [
-            item
-            for item in target_items
-            if visual._same_image(item, source, target_frame_id)
-        ]
-        if len(hits) > 1:
-            raise ValueError(f"multiple matching target images for source {source['id']}")
-        if hits:
-            continue
-        target = visual._create_image(client, target_board, target_frame_id, source)
-        target_items.append(target)
-        created += 1
-    return created
-
-
-def _populate_reference_tutorial(
-    client: Any,
-    source_board: str,
-    source_frame_id: str,
-    target_board: str,
-    target_frame_id: str,
-    manifest: dict[str, Any],
-    cfg: dict[str, Any],
-) -> tuple[dict[str, Any], dict[str, Any]]:
-    background_images_primed = _prime_reference_background_images(
-        client, source_board, source_frame_id, target_board, target_frame_id
+    source_image = next(
+        item for item in source["items"] if str(item.get("type") or "") == "image"
     )
-    child_result = _ORIGINAL_RECONCILE_COMPANION_CHILDREN(
-        client,
-        source_board,
-        source_frame_id,
-        target_board,
-        target_frame_id,
-        cfg["min_images"],
-        manifest,
-    )
-    child_result["background_images_primed"] = background_images_primed
-    target_state = _tutorial_state(client, target_board, target_frame_id, cfg)
-    _assert_tutorial_state(target_state, cfg, "Miro Tips target")
-    child_result["endpoint_contract"] = _endpoint_contract_readback(
-        client,
-        source_board,
-        source_frame_id,
-        target_board,
-        target_frame_id,
-        manifest,
-    )
-    return child_result, target_state
+    image_matches = [
+        item
+        for item in target["items"]
+        if visual._same_image(item, source_image, target_frame_id)
+    ]
+    if len(image_matches) != 1:
+        raise ValueError("Miro Tips target screenshot does not match the reference geometry")
+    return {
+        "policy": MIRO_TIPS_VISUAL_EQUIVALENCE_POLICY,
+        "source_item_count": len(source["items"]),
+        "target_item_count": len(target["items"]),
+        "item_type_counts": dict(EXPECTED_ITEM_TYPE_COUNTS),
+        "source_connector_count": len(source["connectors"]),
+        "target_connector_count": len(target["connectors"]),
+        "native_item_count": native_count,
+        "source_image_id": str(source_image.get("id") or ""),
+        "target_image_id": str(image_matches[0].get("id") or ""),
+        "status": "PASS",
+    }
 
 
 def reconcile_miro_tips_children(
@@ -523,94 +317,39 @@ def reconcile_miro_tips_children(
     source_frame_id: str,
     target_board: str,
     target_frame_id: str,
+    min_images: int,
     manifest: dict[str, Any],
 ) -> dict[str, Any]:
-    cfg = _config(manifest)
+    _ = min_images
+    _source_spec(manifest)
     assert_reference_identity(client, source_board, source_frame_id, manifest)
     source_frame = base._get_frame(client, source_board, source_frame_id)
-    expected_frame = miro_tips_companion_frame_payload(
-        source_frame, {}, {}, manifest
+    _assert_target_container(client, target_board, target_frame_id, source_frame, manifest)
+    result = _ORIGINAL_RECONCILE_COMPANION_CHILDREN(
+        client,
+        source_board,
+        source_frame_id,
+        target_board,
+        target_frame_id,
+        1,
+        manifest,
     )
-
-    source_state = _tutorial_state(client, source_board, source_frame_id, cfg)
-    _assert_tutorial_state(source_state, cfg, "Miro Tips source")
-
-    current_frame = base._get_frame(client, target_board, target_frame_id)
-    legacy_frame_id: str | None = None
-    frame_replaced = False
-    forced_layer_rebuild = str(target_frame_id) in set(cfg["legacy_frame_ids"])
-    children_rebuilt = _tutorial_children_require_rebuild(
-        client, source_board, source_frame_id, target_board, target_frame_id, manifest
-    )
-    active_frame_id = target_frame_id
-
-    if children_rebuilt:
-        _clear_tutorial_children(client, target_board, target_frame_id, cfg)
-
-    if _frame_equal(current_frame, expected_frame) and not forced_layer_rebuild:
-        child_result, target_state = _populate_reference_tutorial(
+    return {
+        "mode": MIRO_TIPS_MODE,
+        "container_policy": MIRO_TIPS_CONTAINER_POLICY,
+        "visual_equivalence_policy": MIRO_TIPS_VISUAL_EQUIVALENCE_POLICY,
+        "reference_source_board_id": _config(manifest)["reference_source_board_id"],
+        "reference_source_frame_id": _config(manifest)["reference_source_frame_id"],
+        "reference_source_image_id": _config(manifest)["reference_source_image_id"],
+        **result,
+        "reference_clone": _exact_clone_readback(
             client,
             source_board,
             source_frame_id,
             target_board,
-            active_frame_id,
+            target_frame_id,
             manifest,
-            cfg,
-        )
-    else:
-        legacy_frame_id = target_frame_id
-        created = client.create_item(target_board, "frame", expected_frame)
-        active_frame_id = str(created["id"])
-        frame_replaced = True
-        try:
-            _wait_for_frame_geometry(
-                client, target_board, active_frame_id, expected_frame, cfg
-            )
-            child_result, target_state = _populate_reference_tutorial(
-                client,
-                source_board,
-                source_frame_id,
-                target_board,
-                active_frame_id,
-                manifest,
-                cfg,
-            )
-            _delete_legacy_frame(client, target_board, legacy_frame_id, cfg)
-        except Exception:
-            _cleanup_replacement_frame(client, target_board, active_frame_id)
-            raise
-
-    target_frame = _wait_for_frame_geometry(
-        client, target_board, active_frame_id, expected_frame, cfg
-    )
-
-    return {
-        "mode": MIRO_TIPS_MODE,
-        "container_policy": cfg["container_policy"],
-        "layer_policy": cfg["layer_policy"],
-        "reference_source_board_id": cfg["reference_source_board_id"],
-        "reference_source_frame_id": cfg["reference_source_frame_id"],
-        "reference_source_image_id": cfg["reference_source_image_id"],
-        "control_anchor_policy": cfg["control_anchor_policy"],
-        "visual_equivalence_policy": cfg["visual_equivalence_policy"],
-        "vertical_offset_y": cfg["vertical_offset_y"],
-        "forced_layer_rebuild": int(forced_layer_rebuild),
-        "children_rebuilt": int(children_rebuilt),
-        **child_result,
-        "target_image_count": len(target_state["images"]),
-        "target_connector_count": len(target_state["connectors"]),
-        "source_image_anchor_connector_count": source_state["image_anchor_connector_count"],
-        "target_image_anchor_connector_count": target_state["image_anchor_connector_count"],
-        "required_marker_count": len(cfg["required_markers"]),
-        "frame_reinitialized": int(frame_replaced),
-        "frame_replaced": int(frame_replaced),
-        "legacy_frame_id": legacy_frame_id,
-        "replacement_frame_id": active_frame_id,
-        "reference_geometry": dict(expected_frame.get("geometry") or {}),
-        "target_geometry": dict(target_frame.get("geometry") or {}),
-        "reference_position": dict(expected_frame.get("position") or {}),
-        "target_position": dict(target_frame.get("position") or {}),
-        "readback_attempts": cfg["readback_attempts"],
+        ),
     }
 
 
@@ -640,6 +379,7 @@ def reconcile_companion_children_with_miro_tips(
         source_frame_id,
         target_board,
         target_frame_id,
+        min_images,
         manifest,
     )
 
