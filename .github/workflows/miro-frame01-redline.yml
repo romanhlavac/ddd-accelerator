@@ -70,13 +70,8 @@ jobs:
           observed=sorted(x for x in g('diff-tree','--no-commit-id','--name-only','-r',source).splitlines() if x)
           expected=sorted([
               '.github/workflows/miro-frame01-redline.yml',
-              'docs/developer-guide/remote-validation-broker.md',
-              'docs/reviews/PR8-HVR-miro-tips-native-onboarding.md',
-              'runtime/miro/ddda_miro/connector_readback_wirefix.py',
-              'runtime/miro/ddda_miro/miro_tips_native_onboarding.py',
-              'runtime/miro/tests/test_rem_012_5_miro_tips_native_onboarding.py',
-              'scaffolds/miro/rem-012-5-frame-01.yaml',
-          ])          assert observed == expected, f'corrective path mismatch: {observed}'
+          ])
+          assert observed == expected, f'corrective path mismatch: {observed}'
 
           profile=Path('config/platform/miro-execution-profiles.yaml').read_text(encoding='utf-8')
           for marker in (
