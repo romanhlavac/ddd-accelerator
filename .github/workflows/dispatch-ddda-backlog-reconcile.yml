@@ -1,4 +1,4 @@
-name: Apply DDDA backlog restructure
+name: Materialize DDDA backlog governance files
 on:
   push:
     branches:
@@ -22,23 +22,31 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -n "${GH_TOKEN:-}"
           gh auth status --hostname github.com >/dev/null
           gh project list --owner romanhlavac --limit 100 --format json --jq '.projects[] | select(.title=="DDDA Platform Backlog") | .number' | grep -Eq '^[0-9]+$'
-      - name: Compile restructuring code
+      - name: Compile governance code
         run: |
-          python -m py_compile scripts/platform/Reconcile-DDDAProjectBacklog.py
           python -m py_compile scripts/platform/Reconcile-DDDAProjectBacklog.v5.py
           python -m py_compile scripts/platform/Restructure-DDDAWorkPackages.py
-      - name: Apply, reconcile and commit versioned governance
-        run: python scripts/platform/Reconcile-DDDAProjectBacklog.py
-      - name: Upload audit evidence
-        if: always()
+      - name: Materialize target governance state
+        run: |
+          python scripts/platform/Restructure-DDDAWorkPackages.py
+          python scripts/platform/Reconcile-DDDAProjectBacklog.v5.py
+      - name: Upload target governance state and audit
         uses: actions/upload-artifact@v4
         with:
-          name: ddda-wp-scope-split
+          name: ddda-wp-scope-split-materialized
           path: |
+            config/governance/github-bootstrap.json
+            config/governance/backlog-policy.yaml
+            docs/roadmap/README.md
+            docs/roadmap/backlog-index.md
+            docs/roadmap/work-packages/WP-08-platform-lifecycle-and-steering.md
+            docs/roadmap/work-packages/WP-11-eventstorming-multi-agent-orchestration.md
+            docs/roadmap/work-packages/WP-11-eventstorming-methodology-workshop-runtime.md
+            docs/roadmap/work-packages/WP-12-miro-platform-environments-lifecycle.md
+            docs/roadmap/work-packages/WP-13-multi-agent-orchestration-evidence-synthesis.md
             .reports/wp-scope-split/**
             .reports/cr-backlog-audit-v5/**
           retention-days: 30
-          if-no-files-found: warn
+          if-no-files-found: error
