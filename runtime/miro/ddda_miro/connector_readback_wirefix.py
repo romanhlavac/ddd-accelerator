@@ -41,6 +41,16 @@ def _same_color(left: Any, right: Any) -> bool:
     return str(left or "").casefold() == str(right or "").casefold()
 
 
+def _endpoint_coordinate(value: Any) -> float:
+    """Normalize Miro's fractional and percent endpoint coordinate forms."""
+    if isinstance(value, str):
+        text = value.strip()
+        if text.endswith("%"):
+            return float(text[:-1].strip()) / 100.0
+        return float(text)
+    return float(value)
+
+
 def _same_endpoint_contract(remote: dict[str, Any], expected: dict[str, Any]) -> bool:
     """Compare a Miro Tips endpoint with a pixel-meaningful tolerance.
 
@@ -68,7 +78,7 @@ def _same_endpoint_contract(remote: dict[str, Any], expected: dict[str, Any]) ->
             if axis not in authored or axis not in actual:
                 return False
             try:
-                if abs(float(actual[axis]) - float(authored[axis])) > 0.01:
+                if abs(_endpoint_coordinate(actual[axis]) - _endpoint_coordinate(authored[axis])) > 0.01:
                     return False
             except (TypeError, ValueError):
                 return False

@@ -124,6 +124,14 @@ def test_black_miro_tips_callout_requires_exact_reference_attachment_points():
     assert not same_connector_canonical(remote, expected)
 
 
+def test_black_miro_tips_callout_normalizes_miro_percent_wire_coordinates():
+    expected = _black_callout()
+    remote = deepcopy(expected)
+    remote["startItem"]["position"] = {"x": "50%", "y": "50%"}
+    remote["endItem"]["position"] = {"x": "23.7%", "y": "8.1%"}
+    assert same_connector_canonical(remote, expected)
+
+
 def test_black_miro_tips_callout_reports_exact_rejected_endpoint_fields():
     expected = _black_callout()
     remote = deepcopy(expected)

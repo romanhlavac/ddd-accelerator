@@ -71,7 +71,6 @@ jobs:
           expected=sorted([
               '.github/workflows/miro-frame01-redline.yml',
               'runtime/miro/ddda_miro/connector_readback_wirefix.py',
-              'runtime/miro/ddda_miro/review_board_recovery_wirefix.py',
               'runtime/miro/tests/test_rem_012_5_connector_readback.py',
           ])
           assert observed == expected, f'corrective path mismatch: {observed}'
