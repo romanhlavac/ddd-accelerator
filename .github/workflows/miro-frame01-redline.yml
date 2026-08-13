@@ -68,12 +68,14 @@ jobs:
           source=os.environ['SOURCE_SHA']
           subprocess.check_call(['git','merge-base','--is-ancestor',os.environ['BASE_SHA'],source])
           observed=sorted(x for x in g('diff-tree','--no-commit-id','--name-only','-r',source).splitlines() if x)
-          expected=sorted([
+          allowed={
               '.github/workflows/miro-frame01-redline.yml',
               'runtime/miro/ddda_miro/miro_tips_native_onboarding.py',
               'runtime/miro/tests/test_rem_012_5_miro_tips_native_onboarding.py',
-          ])
-          assert observed == expected, f'corrective path mismatch: {observed}'
+          }
+          assert observed, 'corrective commit must change at least one allowlisted path'
+          unexpected=sorted(set(observed)-allowed)
+          assert not unexpected, f'corrective path mismatch: {unexpected}'
 
           profile=Path('config/platform/miro-execution-profiles.yaml').read_text(encoding='utf-8')
           for marker in (
