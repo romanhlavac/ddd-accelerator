@@ -4,7 +4,7 @@ Knowledge soubory se načítají podle typu práce, nikoli všechny současně. 
 
 | Úloha | Runtime | Načíst |
 |---|---|---|
-| **vývoj DDDA platformy** | **Chat / Work** | **`ddda-platform-development-skill.md` a `../docs/developer-guide/chat-work-operating-model.md`** |
+| **vývoj DDDA platformy** | **Chat / Work** | **`ddda-platform-development-skill.md`, `../docs/developer-guide/chat-work-operating-model.md` a `../docs/governance/wp-backlog-consistency.md`** |
 | **Miro identity, REST/MCP, Platform Lab, HVR a credential governance** | **Chat / Work nebo Cursor podle scope** | **`13-miro-integration-operating-model.md` a `../docs/developer-guide/miro-execution-profiles.md`** |
 | **používání DDDA v konkrétním projektu** | **Cursor** | **projektový status, tailoring, relevantní knowledge/cookbook soubory a `.cursor` runtime assets** |
 | operating model a způsob práce | Cursor project runtime | `01-operating-model.md` |
@@ -22,7 +22,7 @@ Knowledge soubory se načítají podle typu práce, nikoli všechny současně. 
 
 ## Rovina A — vývoj DDDA platformy
 
-Při vývoji platformy musí Chat nebo Work načíst `ddda-platform-development-skill.md` ještě před klasifikací, návrhem nebo aplikací změny.
+Při vývoji platformy musí Chat nebo Work načíst `ddda-platform-development-skill.md` ještě před klasifikací, návrhem nebo aplikací změny. Pro jakoukoli změnu backlogu, Work Package, Change Request, implementačního PR nebo GitHub Project governance musí současně načíst `../docs/governance/wp-backlog-consistency.md` a uplatnit jeho pre/post fail-closed read-back.
 
 ```text
 Chat / Work

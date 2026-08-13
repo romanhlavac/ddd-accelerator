@@ -29,6 +29,17 @@ Idea / GAP
 
 Plánovaný PR není backlogový artefakt. Draft PR se zakládá až po zahájení implementace a existenci branch s konkrétní změnou.
 
+Pro každou aktivní implementaci je současně povinný konzistentní řetězec:
+
+```text
+Work Package (nebo explicitní Other)
+↔ Change Request
+↔ branch / Draft PR
+↔ DDDA Platform Backlog Project item
+```
+
+Detailní fail-closed pravidla jsou v [WP ↔ Backlog ↔ Implementation consistency](wp-backlog-consistency.md).
+
 ## 3. Backlogové úrovně
 
 ### 3.1 Idea / GAP Issue
@@ -79,7 +90,7 @@ Child Issue je samostatně implementovatelný delivery slice. Má být dostateč
 
 Povinný obsah:
 
-- parent WP;
+- parent WP nebo explicitní `Other`;
 - Goal;
 - Problem;
 - In scope;
@@ -96,6 +107,8 @@ Povinný obsah:
 
 Jeden Child Issue může být realizován více PR pouze tehdy, pokud je dělení explicitní a každý PR má vlastní acceptance boundary.
 
+Native Parent/Sub-issue relationship je autoritativní pro vlastnictví ve Work Package. Project pole `Work Package` je jeho operativní projekce a musí s ním souhlasit. Cross-cutting CR bez parent WP musí být explicitně veden jako `Other`.
+
 ### 3.4 Branch + Draft PR
 
 Branch a Draft PR vznikají až při skutečném zahájení implementace.
@@ -109,7 +122,7 @@ docs/<issue>-<short-name>
 release/<version>
 ```
 
-PR musí používat:
+PR musí používat právě jednu primární implementation authority:
 
 ```markdown
 Implements #<issue>
@@ -121,7 +134,11 @@ nebo při úplném uzavření Issue:
 Closes #<issue>
 ```
 
-PR body musí popsat skutečný diff, ne kopírovat dlouhodobou roadmapu. Scope review porovnává parent WP, child issue, changed files, changelog a validation report.
+`Refs`, `Related`, title prefix ani volný text nejsou náhradou primární vazby na Change Request.
+
+PR body musí popsat skutečný diff, ne kopírovat dlouhodobou roadmapu. Scope review porovnává parent WP, child issue, changed files, changelog a validation report. Každý aktivní platformní PR musí být současně položkou `DDDA Platform Backlog` a jeho Project `Work Package` se musí rovnat Work Package primárního Change Requestu.
+
+Legacy PR bez primárního CR je povolen pouze jako explicitní verzovaná výjimka s číslem PR, očekávaným WP, důvodem a expiry condition. Novou výjimku nelze vytvořit jen proto, aby failing audit prošel.
 
 ## 4. GitHub Project
 
@@ -137,7 +154,7 @@ DDDA Platform Backlog
 |---|---|---|
 | Status | single select | Backlog, Discovery, Triaged, Ready, In progress, In review, Blocked, Done, Cancelled |
 | Priority | single select | P0, P1, P2, P3 |
-| Work Package | single select | WP-08, WP-09, WP-10, WP-11, Other |
+| Work Package | single select | WP-08, WP-09, WP-10, WP-11, WP-12, WP-13, Other |
 | Item Type | single select | GAP, Work Package, Change Request, Defect, Risk, Enabler |
 | Platform Area | single select nebo text | taxonomy z DDDA Platform Development Skill |
 | Impact | single select | LOW, MEDIUM, HIGH, BREAKING |
@@ -167,6 +184,32 @@ Priorita není severity. Defekt může mít severity RED, ale jeho delivery prio
 5. **Human review queue** — `Status = In review` nebo `Human Review = Pending`.
 6. **Unassigned Ready** — položky `Ready` bez Ownera.
 7. **Recently done** — uzavřené položky posledních 30 dnů.
+
+### 4.4 Povinná konzistence WP ↔ backlog ↔ implementace
+
+Před **i po** každé změně Work Package struktury, backlogových vztahů, governance metadat nebo implementačního PR se provede repository-wide fail-closed read-back.
+
+Kontrola zahrnuje minimálně:
+
+- všechny aktivní Work Packages;
+- všechny governed Change Requests relevantní pro aktuální strukturu;
+- všechny otevřené platformní Pull Requests;
+- native Parent/Sub-issue relationships;
+- Project membership;
+- Project `Work Package` a `Item Type`;
+- primární PR → CR relationships.
+
+Kontrola se nesmí omezit jen na právě editovaný WP nebo PR. Strukturální změna může porušit konzistenci sourozeneckého WP nebo jiného aktivního PR.
+
+Post-change výsledek musí být:
+
+```text
+remaining_mismatches = 0
+```
+
+Nenulový výsledek blokuje technical governance PASS a doporučení Ready/merge bez ohledu na zelené code CI nebo package-first testy.
+
+Mechanický reconciler smí opravit Project projekci pouze z již explicitní autority. Nesmí vymyslet Work Package ownership, primární Change Request, prioritu, Human Review PASS, gate decision, merge approval ani release approval.
 
 ## 5. Milestones a release planning
 
@@ -215,13 +258,17 @@ Done → reopened pouze novým explicitním rozhodnutím
 - klasifikace, impact a migration impact jsou určeny;
 - hlavní dependencies jsou známé;
 - není známý nevyřešený produktový konflikt;
-- owner nebo plán převzetí je známý.
+- owner nebo plán převzetí je známý;
+- pre-change WP/backlog consistency read-back neobsahuje nevysvětlený authority conflict.
 
 ### Entry criteria pro In progress
 
 - issue je Ready nebo je explicitně dokumentována urgentní výjimka;
 - existuje branch;
 - vznikl Draft PR nebo je vytvořen bezprostředně po prvním koherentním commitu;
+- PR má právě jednu primární `Implements`/`Closes` vazbu nebo explicitní versioned legacy exception;
+- PR je viditelný v `DDDA Platform Backlog`;
+- `PR.Work Package == CR.Work Package`;
 - žádná práce neprobíhá přímo na `main`.
 
 ### Exit criteria pro Done
@@ -229,6 +276,7 @@ Done → reopened pouze novým explicitním rozhodnutím
 - acceptance criteria jsou pokryta evidencí;
 - relevantní PR je mergovaný;
 - CI a požadovaný validation report jsou PASS;
+- post-change WP/backlog consistency read-back má zero mismatches;
 - docs, ADR, changelog a migration note jsou aktualizovány podle dopadu;
 - Human Review/HRDR je dokončen, pokud je požadován;
 - release-specific item je zahrnut v validovaném release state;
@@ -259,7 +307,8 @@ Review porovnává:
 5. changed files;
 6. CHANGELOG;
 7. validation report pro current SHA;
-8. skutečné runtime a dokumentační chování.
+8. skutečné runtime a dokumentační chování;
+9. WP/CR/PR/Project consistency evidence pro current governance state.
 
 Výsledek každého požadavku:
 
@@ -301,13 +350,15 @@ Automatická evidence:
 - test suite results;
 - validation report;
 - security/isolation checks;
-- online integration evidence.
+- online integration evidence;
+- WP/CR/PR/Project pre/post consistency audit.
 
 Lidské rozhodnutí:
 
 - scope judgment;
 - metodická správnost;
 - architektonická vhodnost;
+- produktové ownership rozhodnutí při nejednoznačnosti;
 - použitelnost;
 - residual risks;
 - GO, GO_WITH_ACCEPTED_RISKS nebo NO_GO.
@@ -316,7 +367,7 @@ Automatizace nesmí vytvořit lidské `passed`, approval nebo release GO. HRDR m
 
 ## 10. Backlog hygiene
 
-Minimálně jednou za release nebo měsíčně:
+Minimálně jednou za release nebo měsíčně a vždy při strukturální změně WP/backlogu:
 
 - odstranit nebo uzavřít duplicates;
 - označit superseded položky;
@@ -324,7 +375,10 @@ Minimálně jednou za release nebo měsíčně:
 - prověřit dlouhodobě Blocked items;
 - potvrdit stále platný Goal a acceptance criteria;
 - sjednotit Project metadata a Issue obsah;
-- ověřit parent/child vazby;
+- ověřit native parent/child vazby proti Project `Work Package`;
+- ověřit všechny otevřené platformní PR proti primárnímu CR a Project membership;
+- ověřit, že neexistuje orphan aktivní PR;
+- provést repository-wide pre/post consistency read-back a vyžadovat zero post-change mismatches;
 - aktualizovat roadmap status;
 - odstranit neplatná budoucí PR čísla z dokumentace;
 - zkontrolovat, zda otevřené Draft PR skutečně představují aktivní implementaci.
@@ -337,3 +391,5 @@ P0 incidentní fix může začít před úplným triage, ale musí:
 - explicitně uvést důvod zkráceného procesu;
 - zachovat testy, review, audit a release evidence podle rizika;
 - nepoužít přímou změnu `main` jako standardní postup.
+
+Legacy výjimka z primární PR→CR vazby musí být verzovaná, zdůvodněná a expirovatelná. Výjimka nesmí obejít Project membership ani WP consistency kontrolu.

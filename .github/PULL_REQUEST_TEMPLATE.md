@@ -2,12 +2,23 @@
 
 ## Backlog relationship
 
-- Parent Work Package: `WP-XX — #<issue>`
+- Parent Work Package: `WP-XX — #<issue>` nebo `Other`
 - Change Request: `Implements #<issue>` nebo `Closes #<issue>`
 - Related GAP / defect / risk: `#...`
 - Target Milestone: `DDDA X.Y.Z` nebo `TBD`
 
-> PR je jednotkou skutečné implementační změny. Nezakládej PR pouze jako plán nebo vzdálený roadmap placeholder.
+> PR je jednotkou skutečné implementační změny. Nezakládej PR pouze jako plán nebo vzdálený roadmap placeholder. `Refs` / `Related` nejsou náhradou primární vazby na Change Request.
+
+## Backlog consistency evidence
+
+- authoritative Work Package: `WP-XX` / `Other`
+- primary Change Request: `#...`
+- PR present in `DDDA Platform Backlog`: yes / no
+- PR Work Package equals CR Work Package: yes / no
+- pre/post consistency audit: PASS / FAIL + evidence link
+- legacy exception: none / versioned exception reference
+
+> Před i po backlog/WP/governance změně je povinný repository-wide read-back řetězce `WP ↔ CR ↔ PR ↔ Project`. Post-change mismatch count musí být `0`.
 
 ## Goal
 
@@ -79,6 +90,7 @@ Migration impact:
 - local validation report:
 - candidate package hash:
 - suites executed:
+- WP/CR/PR/Project consistency audit:
 - online external-system evidence:
 - diagnostics retained:
 
@@ -109,7 +121,11 @@ HRDR / review evidence:
 
 ## Checklist
 
-- [ ] PR odkazuje na konkrétní Change Request.
+- [ ] PR odkazuje právě na jeden primární Change Request přes `Implements` nebo `Closes`, nebo má explicitní versioned legacy exception.
+- [ ] Change Request je v autoritativním WP nebo explicitně `Other`.
+- [ ] PR je viditelný v `DDDA Platform Backlog`.
+- [ ] Project `Work Package` PR odpovídá Work Package jeho primárního Change Requestu.
+- [ ] Pre/post `WP ↔ CR ↔ PR ↔ Project` read-back proběhl a post-change mismatch count je `0`.
 - [ ] Skutečný diff odpovídá Goal, In scope a Out of scope.
 - [ ] Každá behaviorální změna má odpovídající testy.
 - [ ] Contract change je dokumentována.
