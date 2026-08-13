@@ -40,19 +40,57 @@ def _same_color(left: Any, right: Any) -> bool:
     return str(left or "").casefold() == str(right or "").casefold()
 
 
-def same_connector_canonical(remote: dict[str, Any], expected: dict[str, Any]) -> bool:
-    """Compare stable connector semantics.
+def _same_endpoint_contract(remote: dict[str, Any], expected: dict[str, Any]) -> bool:
+    """Compare a Miro Tips endpoint with a pixel-meaningful tolerance.
 
-    Miro may normalize an endpoint's relative image coordinates on a create or
-    PATCH.  The durable tutorial contract is therefore the explicit screenshot
-    item identity plus the authored connector geometry and styling; the authored
-    endpoint coordinates are still sent in the write payload, but are not used as
-    an equality gate after the API has normalized them.
+    Endpoint coordinates are relative to the tutorial screenshot.  A tolerance
+    of 0.01 is at most about fourteen pixels on the 1364 px reference image;
+    it permits REST float serialization noise, but cannot turn a different
+    toolbar control into a passing result.
     """
+    if str(remote.get("id") or "") != str(expected.get("id") or ""):
+        return False
+    for key in ("position", "snapTo"):
+        authored = expected.get(key)
+        actual = remote.get(key)
+        if authored is None:
+            if actual is not None:
+                return False
+            continue
+        if key == "snapTo":
+            if actual != authored:
+                return False
+            continue
+        if not isinstance(authored, dict) or not isinstance(actual, dict):
+            return False
+        for axis in ("x", "y"):
+            if axis not in authored or axis not in actual:
+                return False
+            try:
+                if abs(float(actual[axis]) - float(authored[axis])) > 0.01:
+                    return False
+            except (TypeError, ValueError):
+                return False
+    return True
+
+
+def _is_miro_tips_callout(connector: dict[str, Any]) -> bool:
+    style = connector.get("style") or {}
+    return (
+        str(style.get("strokeColor") or "").casefold() in {"#000000", "#000"}
+        and not (connector.get("captions") or [])
+    )
+
+
+def same_connector_canonical(remote: dict[str, Any], expected: dict[str, Any]) -> bool:
+    """Compare connector semantics, including all Miro Tips attachment points."""
     for name in ("startItem", "endItem"):
         remote_endpoint = remote.get(name) or {}
         expected_endpoint = expected.get(name) or {}
-        if str(remote_endpoint.get("id") or "") != str(expected_endpoint.get("id") or ""):
+        if _is_miro_tips_callout(expected):
+            if not _same_endpoint_contract(remote_endpoint, expected_endpoint):
+                return False
+        elif str(remote_endpoint.get("id") or "") != str(expected_endpoint.get("id") or ""):
             return False
 
     if expected.get("shape") and remote.get("shape") != expected["shape"]:

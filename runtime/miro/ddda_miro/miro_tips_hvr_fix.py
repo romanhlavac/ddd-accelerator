@@ -219,6 +219,90 @@ def _assert_tutorial_state(
         raise ValueError(f"{label} is missing required tutorial markers: {state['missing_markers']}")
 
 
+def _endpoint_view(endpoint: dict[str, Any]) -> dict[str, Any]:
+    view: dict[str, Any] = {"item_id": str(endpoint.get("id") or "")}
+    if endpoint.get("position") is not None:
+        position = endpoint.get("position") or {}
+        view["position"] = {key: position.get(key) for key in ("x", "y")}
+    if endpoint.get("snapTo") is not None:
+        view["snap_to"] = endpoint.get("snapTo")
+    return view
+
+
+def _endpoint_contract_readback(
+    client: Any,
+    source_board: str,
+    source_frame_id: str,
+    target_board: str,
+    target_frame_id: str,
+    manifest: dict[str, Any],
+) -> dict[str, Any]:
+    """Prove each native callout uses the source's full endpoint contract.
+
+    This runs after fresh REST reconciliation.  It is deliberately stricter
+    than item-count and image-identity checks: a connector to the screenshot is
+    insufficient when its arrowhead misses the actual Miro control.
+    """
+    source_items = base._children(client, source_board, source_frame_id)
+    target_items = base._children(client, target_board, target_frame_id)
+    source_natives = [item for item in source_items if str(item.get("type") or "") in visual.NATIVE_TYPES]
+    used: set[str] = set()
+    mapping: dict[str, str] = {}
+    for source in sorted(source_natives, key=lambda item: (visual.redline.identity(item), str(item.get("id") or ""))):
+        target = visual.redline.match(source, target_items, used)
+        if target is None:
+            raise ValueError(f"Miro Tips endpoint contract cannot map source item {source.get('id')}")
+        mapping[str(source["id"])] = str(target["id"])
+        used.add(str(target["id"]))
+    for source in [item for item in source_items if str(item.get("type") or "") == "image"]:
+        hits = [item for item in target_items if visual._same_image(item, source, target_frame_id)]
+        if len(hits) != 1:
+            raise ValueError(f"Miro Tips endpoint contract cannot map screenshot {source.get('id')}")
+        mapping[str(source["id"])] = str(hits[0]["id"])
+
+    source_connectors = visual._companion_source_connectors(
+        client, source_board, {str(item["id"]) for item in source_items}
+    )
+    target_connectors = visual._companion_source_connectors(
+        client, target_board, {str(item["id"]) for item in target_items}
+    )
+    entries: list[dict[str, Any]] = []
+    for source in source_connectors:
+        start = mapping[str((source.get("startItem") or {})["id"])]
+        end = mapping[str((source.get("endItem") or {})["id"])]
+        expected = visual.readable_connector_payload(source, start, end, manifest)
+        hits = [
+            item for item in target_connectors
+            if str((item.get("startItem") or {}).get("id") or "") == start
+            and str((item.get("endItem") or {}).get("id") or "") == end
+        ]
+        if len(hits) != 1:
+            raise ValueError("Miro Tips endpoint contract expected exactly one target callout")
+        target = hits[0]
+        passed = visual.redline.same_connector(target, expected)
+        entry = {
+            "source_connector_id": str(source.get("id") or ""),
+            "target_connector_id": str(target.get("id") or ""),
+            "start": _endpoint_view(target.get("startItem") or {}),
+            "end": _endpoint_view(target.get("endItem") or {}),
+            "expected_start": _endpoint_view(expected.get("startItem") or {}),
+            "expected_end": _endpoint_view(expected.get("endItem") or {}),
+            "passed": bool(passed),
+        }
+        entries.append(entry)
+        if not passed:
+            raise ValueError(
+                "Miro Tips callout endpoint did not converge to the direct reference-image contract: "
+                f"{source.get('id')} -> {target.get('id')}"
+            )
+    return {
+        "policy": "exact_reference_endpoint_readback",
+        "count": len(entries),
+        "passed_count": sum(1 for entry in entries if entry["passed"]),
+        "entries": entries,
+    }
+
+
 def _wait_for_frame_geometry(
     client: Any,
     board: str,
@@ -361,6 +445,14 @@ def _populate_reference_tutorial(
     child_result["background_images_primed"] = background_images_primed
     target_state = _tutorial_state(client, target_board, target_frame_id, cfg)
     _assert_tutorial_state(target_state, cfg, "Miro Tips target")
+    child_result["endpoint_contract"] = _endpoint_contract_readback(
+        client,
+        source_board,
+        source_frame_id,
+        target_board,
+        target_frame_id,
+        manifest,
+    )
     return child_result, target_state
 
 

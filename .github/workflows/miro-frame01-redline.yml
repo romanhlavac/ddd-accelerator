@@ -68,7 +68,14 @@ jobs:
           source=os.environ['SOURCE_SHA']
           subprocess.check_call(['git','merge-base','--is-ancestor',os.environ['BASE_SHA'],source])
           observed=sorted(x for x in g('diff-tree','--no-commit-id','--name-only','-r',source).splitlines() if x)
-          expected=['.github/workflows/miro-frame01-redline.yml']
+          expected=sorted([
+              '.github/workflows/miro-frame01-redline.yml',
+              'runtime/miro/ddda_miro/connector_readback_wirefix.py',
+              'runtime/miro/ddda_miro/miro_tips_endpoint_wirefix.py',
+              'runtime/miro/ddda_miro/miro_tips_hvr_fix.py',
+              'runtime/miro/tests/test_rem_012_5_connector_readback.py',
+              'runtime/miro/tests/test_rem_012_5_miro_tips_hvr.py',
+          ])
           assert observed == expected, f'corrective path mismatch: {observed}'
 
           profile=Path('config/platform/miro-execution-profiles.yaml').read_text(encoding='utf-8')
@@ -219,6 +226,14 @@ jobs:
             if([int]$tips.target_image_count -lt 1 -or [int]$tips.target_connector_count -lt 8){throw 'Miro Tips content incomplete'}
             if([int]$tips.source_image_anchor_connector_count -lt 8){throw 'Miro Tips source reference callouts incomplete'}
             if([int]$tips.target_image_anchor_connector_count -lt 8){throw 'Miro Tips direct reference-image endpoint coverage incomplete'}
+            $endpoint=$tips.endpoint_contract
+            if($endpoint.policy -ne 'exact_reference_endpoint_readback'){throw 'Miro Tips endpoint evidence policy mismatch'}
+            if([int]$endpoint.count -ne 8 -or [int]$endpoint.passed_count -ne 8){throw 'Miro Tips endpoint read-back did not prove all eight callouts'}
+            foreach($entry in @($endpoint.entries)){
+              if(-not $entry.passed){throw "Miro Tips endpoint read-back failed for $($entry.source_connector_id)"}
+              if([string]::IsNullOrWhiteSpace([string]$entry.end.item_id)){throw 'Miro Tips endpoint evidence has no screenshot target'}
+              if($null -eq $entry.expected_end.position -or $null -eq $entry.end.position){throw 'Miro Tips endpoint evidence is missing exact arrowhead position'}
+            }
             if([double]$tips.target_geometry.width -lt [double]$tips.reference_geometry.width -or [double]$tips.target_geometry.height -lt [double]$tips.reference_geometry.height){throw 'Miro Tips parent-safe container is too small for the reference tutorial'}
             if($tips.replacement_frame_id -ne '3458764680476608045'){throw 'Miro Tips active replacement identity mismatch'}
           }

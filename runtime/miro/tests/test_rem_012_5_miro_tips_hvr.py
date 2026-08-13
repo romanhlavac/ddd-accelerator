@@ -292,6 +292,9 @@ def test_miro_tips_rebuilds_card_only_guide_inside_parent_safe_container(monkeyp
     assert first["target_connector_count"] == 8
     assert first["source_image_anchor_connector_count"] == 8
     assert first["target_image_anchor_connector_count"] == 8
+    assert first["endpoint_contract"]["policy"] == "exact_reference_endpoint_readback"
+    assert first["endpoint_contract"]["count"] == 8
+    assert first["endpoint_contract"]["passed_count"] == 8
     assert first["required_marker_count"] == len(tips.DEFAULT_REQUIRED_MARKERS)
     assert first["target_geometry"] == {"width": 4600, "height": 2600}
 
@@ -303,6 +306,7 @@ def test_miro_tips_rebuilds_card_only_guide_inside_parent_safe_container(monkeyp
     assert second["replacement_frame_id"] == replacement_id
     assert second["items"] == {"created": 0, "updated": 0, "unchanged": 2, "deleted": 0}
     assert second["connectors"] == {"created": 0, "updated": 0, "unchanged": 8, "deleted": 0}
+    assert second["endpoint_contract"]["passed_count"] == 8
 
 
 def test_miro_tips_contract_rejects_card_only_or_unanchored_source_before_write(monkeypatch):
