@@ -5,6 +5,7 @@ Knowledge soubory se načítají podle typu práce, nikoli všechny současně. 
 | Úloha | Runtime | Načíst |
 |---|---|---|
 | **vývoj DDDA platformy** | **Chat / Work** | **`ddda-platform-development-skill.md` a `../docs/developer-guide/chat-work-operating-model.md`** |
+| **GitHub Project V2, backlog governance, WP/CR hierarchie a konzistence Project fields** | **Chat / Work** | **`ddda-platform-development-skill.md` + `ddda-github-project-v2-governance-skill.md`** |
 | **Miro identity, REST/MCP, Platform Lab, HVR a credential governance** | **Chat / Work nebo Cursor podle scope** | **`13-miro-integration-operating-model.md` a `../docs/developer-guide/miro-execution-profiles.md`** |
 | **používání DDDA v konkrétním projektu** | **Cursor** | **projektový status, tailoring, relevantní knowledge/cookbook soubory a `.cursor` runtime assets** |
 | operating model a způsob práce | Cursor project runtime | `01-operating-model.md` |
@@ -24,6 +25,8 @@ Knowledge soubory se načítají podle typu práce, nikoli všechny současně. 
 
 Při vývoji platformy musí Chat nebo Work načíst `ddda-platform-development-skill.md` ještě před klasifikací, návrhem nebo aplikací změny.
 
+Pokud úloha sahá na GitHub Project V2, projektový backlog, Work Package/Change Request hierarchii nebo Project metadata, musí navíc načíst `ddda-github-project-v2-governance-skill.md` ještě před tvrzením, že Project write není dostupný, a před jakoukoli backlog mutation.
+
 ```text
 Chat / Work
 → platform PR branch
@@ -33,6 +36,8 @@ Chat / Work
 Pro platformní vývoj nepoužívej Codex ani Cursor. GitHub Actions je autoritativní execution plane pro build, testy, candidate package a package-first validation. Secrets nesmějí vstoupit do Chat nebo Work kontextu.
 
 Miro platformní automatizace je REST-first. GitHub Actions používá explicitní execution profile a secret store; Miro MCP je volitelný interaktivní control/review plane a nesmí být technical-gate dependency.
+
+GitHub Project V2 administrace používá versioned governance automation a při chybějícím Project oprávnění GitHub CLI + GraphQL s user `project` scope a browser/device autorizací. Nedostupnost přímého Project V2 write endpointu v connectoru sama o sobě neznamená, že je administrace nemožná.
 
 ## Rovina B — používání DDDA v projektu
 
