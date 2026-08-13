@@ -5,6 +5,9 @@ on:
       - feature/github-native-backlog-governance
     paths:
       - .github/workflows/dispatch-ddda-backlog-reconcile.yml
+permissions:
+  actions: write
+  contents: read
 jobs:
   dispatch:
     runs-on: ubuntu-latest
