@@ -1,0 +1,434 @@
+name: Audit CR backlog consistency v2
+
+on:
+  push:
+    branches:
+      - feature/github-native-backlog-governance
+    paths:
+      - .github/workflows/audit-cr-project-backlog-v2.yml
+
+permissions:
+  contents: write
+  issues: write
+  actions: write
+
+jobs:
+  audit-and-reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout governance branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/github-native-backlog-governance
+          fetch-depth: 0
+
+      - name: Verify governance baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git branch --show-current)" = "feature/github-native-backlog-governance"
+          test -f config/governance/github-bootstrap.json
+          python - <<'PY'
+          import json
+          c=json.load(open('config/governance/github-bootstrap.json',encoding='utf-8-sig'))
+          assert c['repository']=='romanhlavac/ddd-accelerator'
+          assert c['project_title']=='DDDA Platform Backlog'
+          assert c['project_owner']=='romanhlavac'
+          PY
+
+      - name: Start GitHub CLI browser authorization
+        shell: bash
+        run: |
+          set -euo pipefail
+          unset GH_TOKEN GITHUB_TOKEN
+          log="$RUNNER_TEMP/gh-auth.log"
+          pidfile="$RUNNER_TEMP/gh-auth.pid"
+          challenge="$RUNNER_TEMP/gh-device-auth.txt"
+          rm -f "$log" "$pidfile" "$challenge"
+          (gh auth login --hostname github.com --git-protocol https --web --scopes project >"$log" 2>&1) &
+          pid=$!
+          echo "$pid" > "$pidfile"
+          code=''
+          for i in $(seq 1 60); do
+            code="$(grep -Eo '[A-Z0-9]{4}-[A-Z0-9]{4}' "$log" 2>/dev/null | head -n1 || true)"
+            [ -n "$code" ] && break
+            kill -0 "$pid" 2>/dev/null || { cat "$log" >&2 || true; exit 1; }
+            sleep 1
+          done
+          test -n "$code"
+          printf 'Verification URL: https://github.com/login/device\nDevice code: %s\n' "$code" > "$challenge"
+
+      - name: Upload temporary device challenge
+        uses: actions/upload-artifact@v4
+        with:
+          name: cr-backlog-audit-v2-device-auth
+          path: ${{ runner.temp }}/gh-device-auth.txt
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Wait for browser authorization
+        shell: bash
+        run: |
+          set -euo pipefail
+          unset GH_TOKEN GITHUB_TOKEN
+          pid="$(cat "$RUNNER_TEMP/gh-auth.pid")"
+          for i in $(seq 1 900); do
+            if gh auth status --hostname github.com >/dev/null 2>&1; then
+              echo USER_AUTHORIZATION_COMPLETE
+              exit 0
+            fi
+            kill -0 "$pid" 2>/dev/null || { cat "$RUNNER_TEMP/gh-auth.log" >&2 || true; exit 1; }
+            sleep 1
+          done
+          exit 1
+
+      - name: Delete temporary device challenge artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts?per_page=100" \
+            --jq '.artifacts[] | select(.name=="cr-backlog-audit-v2-device-auth") | .id' | \
+          while read -r id; do [ -z "$id" ] || gh api --method DELETE "repos/${GITHUB_REPOSITORY}/actions/artifacts/$id"; done
+
+      - name: Audit and repair CR backlog consistency
+        shell: bash
+        run: |
+          set -euo pipefail
+          unset GH_TOKEN GITHUB_TOKEN
+          mkdir -p .reports/cr-backlog-audit-v2
+          python - <<'PY'
+          import json,re,subprocess
+          from pathlib import Path
+
+          OWNER='romanhlavac'
+          REPO='romanhlavac/ddd-accelerator'
+          PROJECT_TITLE='DDDA Platform Backlog'
+          WP_PARENT={'WP-08':17,'WP-09':18,'WP-10':19,'WP-11':20}
+          PARENT_WP={v:k for k,v in WP_PARENT.items()}
+
+          def run(*args, json_out=False):
+              p=subprocess.run(['gh',*args],text=True,capture_output=True)
+              if p.returncode:
+                  raise RuntimeError(f"gh {' '.join(args)} failed ({p.returncode}): {p.stderr or p.stdout}")
+              if json_out:
+                  return json.loads(p.stdout) if p.stdout.strip() else None
+              return p.stdout.strip()
+
+          def gql(query, **vars):
+              args=['api','graphql','-f',f'query={query}']
+              for k,v in vars.items():
+                  if v is None: continue
+                  args += (['-F',f'{k}={v}'] if isinstance(v,int) else ['-f',f'{k}={v}'])
+              return run(*args,json_out=True)
+
+          cfg_path=Path('config/governance/github-bootstrap.json')
+          cfg=json.loads(cfg_path.read_text(encoding='utf-8-sig'))
+
+          pages=run('api','--paginate','--slurp',f'repos/{REPO}/issues?state=all&per_page=100',json_out=True)
+          repo_issues=[]
+          for page in pages or []: repo_issues.extend(page)
+          repo_issues=[i for i in repo_issues if 'pull_request' not in i]
+
+          def is_cr(i):
+              title=i.get('title') or ''
+              body=i.get('body') or ''
+              return bool(re.search(r'\[CR\]',title,re.I) or re.search(r'^\s*#\s*Change Request\b',body,re.I|re.M) or re.search(r'Item Type\s*:\s*`?Change Request`?',body,re.I))
+
+          crs=sorted((i for i in repo_issues if is_cr(i)),key=lambda i:i['number'])
+          detail={i['number']:run('api',f'repos/{REPO}/issues/{i["number"]}',json_out=True) for i in crs}
+
+          cfg_parent={}
+          for rel in cfg.get('hierarchy',[]):
+              wp=PARENT_WP.get(int(rel['parent']))
+              if wp:
+                  for n in rel.get('children',[]): cfg_parent[int(n)]=wp
+
+          cfg_groups={}
+          for idx,g in enumerate(cfg.get('item_groups',[])):
+              if g.get('kind')!='issue': continue
+              for n in g.get('numbers',[]): cfg_groups.setdefault(int(n),[]).append(idx)
+
+          def native_parent(issue):
+              u=issue.get('parent_issue_url')
+              if not u: return None,None
+              try: n=int(u.rstrip('/').split('/')[-1])
+              except Exception: return None,None
+              return PARENT_WP.get(n),n
+
+          def expected_wp(issue):
+              n=issue['number']; title=issue.get('title') or ''; body=issue.get('body') or ''
+              sig=[]
+              wp,parent=native_parent(issue)
+              if wp: sig.append(('native_parent',wp))
+              m=re.match(r'^\[WP-(08|09|10|11)\]\[CR\]',title,re.I)
+              if m: sig.append(('title','WP-'+m.group(1)))
+              m=re.search(r'Parent Work Package[\s\S]{0,220}?\b(WP-(?:08|09|10|11))\b',body,re.I)
+              if m: sig.append(('body_parent',m.group(1).upper()))
+              m=re.search(r'Work Package\s*:\s*`?(WP-(?:08|09|10|11)|Other)`?',body,re.I)
+              if m: sig.append(('body_field',m.group(1).upper() if m.group(1).upper().startswith('WP-') else 'Other'))
+              if n in cfg_parent: sig.append(('config_hierarchy',cfg_parent[n]))
+              for idx in cfg_groups.get(n,[]):
+                  w=(cfg['item_groups'][idx].get('metadata') or {}).get('Work Package')
+                  if w: sig.append(('config_item_group',w))
+              vals={v for _,v in sig}
+              if len(vals)>1: return None,sig,'CONFLICTING_WP_SIGNALS'
+              if len(vals)==1: return next(iter(vals)),sig,None
+              if re.match(r'^\[CR\]\[GOV\]',title,re.I) or re.match(r'^\[DOC\]\[CR\]',title,re.I) or re.search(r'cross-cutting',body,re.I):
+                  return 'Other',sig,None
+              return None,sig,'NO_WP_SIGNAL'
+
+          projects=run('project','list','--owner',OWNER,'--limit','100','--format','json',json_out=True)
+          project=next(p for p in projects['projects'] if p['title']==PROJECT_TITLE and not p.get('closed'))
+          project_number=int(project['number'])
+
+          q_fields='''
+          query($login:String!,$number:Int!){
+            user(login:$login){
+              projectV2(number:$number){
+                id
+                fields(first:100){
+                  nodes{
+                    __typename
+                    ... on ProjectV2FieldCommon{id name dataType}
+                    ... on ProjectV2SingleSelectField{options{id name}}
+                  }
+                }
+              }
+            }
+          }
+          '''
+          pdata=gql(q_fields,login=OWNER,number=project_number)['data']['user']['projectV2']
+          project_id=pdata['id']
+          fields={f.get('name'):f for f in pdata['fields']['nodes'] if f.get('name')}
+
+          q_items='''
+          query($login:String!,$number:Int!,$after:String){
+            user(login:$login){
+              projectV2(number:$number){
+                items(first:100,after:$after){
+                  pageInfo{hasNextPage endCursor}
+                  nodes{
+                    id
+                    content{
+                      __typename
+                      ... on Issue{id number url state}
+                      ... on PullRequest{id number url state}
+                    }
+                    fieldValues(first:50){
+                      nodes{
+                        __typename
+                        ... on ProjectV2ItemFieldSingleSelectValue{
+                          name
+                          field{... on ProjectV2FieldCommon{name}}
+                        }
+                        ... on ProjectV2ItemFieldTextValue{
+                          text
+                          field{... on ProjectV2FieldCommon{name}}
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+          '''
+
+          def project_items():
+              out=[]; after=None
+              while True:
+                  x=gql(q_items,login=OWNER,number=project_number,after=after)['data']['user']['projectV2']['items']
+                  out.extend(x['nodes'])
+                  if not x['pageInfo']['hasNextPage']: break
+                  after=x['pageInfo']['endCursor']
+              return out
+
+          def issue_item_map():
+              return {x['content']['number']:x for x in project_items() if (x.get('content') or {}).get('__typename')=='Issue'}
+
+          def vals(item):
+              d={}
+              for x in item.get('fieldValues',{}).get('nodes',[]):
+                  name=(x.get('field') or {}).get('name')
+                  if name: d[name]=x.get('name') if x.get('name') is not None else x.get('text')
+              return d
+
+          def add_item(issue):
+              mut='''mutation($projectId:ID!,$contentId:ID!){addProjectV2ItemById(input:{projectId:$projectId,contentId:$contentId}){item{id}}}'''
+              return gql(mut,projectId=project_id,contentId=issue['node_id'])['data']['addProjectV2ItemById']['item']['id']
+
+          def set_select(item_id,name,value):
+              f=fields[name]
+              opt=next((o for o in f.get('options',[]) if o['name']==value),None)
+              if not opt: raise RuntimeError(f'Missing Project option {name}={value}')
+              mut='''mutation($projectId:ID!,$itemId:ID!,$fieldId:ID!,$optionId:String!){updateProjectV2ItemFieldValue(input:{projectId:$projectId,itemId:$itemId,fieldId:$fieldId,value:{singleSelectOptionId:$optionId}}){projectV2Item{id}}}'''
+              gql(mut,projectId=project_id,itemId=item_id,fieldId=f['id'],optionId=opt['id'])
+
+          def set_text(item_id,name,value):
+              f=fields[name]
+              mut='''mutation($projectId:ID!,$itemId:ID!,$fieldId:ID!,$text:String!){updateProjectV2ItemFieldValue(input:{projectId:$projectId,itemId:$itemId,fieldId:$fieldId,value:{text:$text}}){projectV2Item{id}}}'''
+              gql(mut,projectId=project_id,itemId=item_id,fieldId=f['id'],text=str(value))
+
+          repairs=[]; ambiguities=[]; config_changed=False
+          items=issue_item_map()
+
+          for base in crs:
+              n=base['number']; issue=detail[n]
+              wp,signals,problem=expected_wp(issue)
+              if problem:
+                  ambiguities.append({'issue':n,'title':issue['title'],'reason':problem,'signals':signals})
+                  continue
+
+              live_wp,live_parent=native_parent(issue)
+              if wp!='Other':
+                  p=WP_PARENT[wp]
+                  if live_parent is None:
+                      run('api','--method','POST',f'repos/{REPO}/issues/{p}/sub_issues','-F',f'sub_issue_id={issue["id"]}')
+                      repairs.append({'issue':n,'action':'ADD_NATIVE_PARENT','value':p})
+                  elif live_parent!=p:
+                      ambiguities.append({'issue':n,'title':issue['title'],'reason':f'WRONG_NATIVE_PARENT:{live_parent}->{p}','signals':signals})
+                      continue
+
+              item=items.get(n)
+              if not item:
+                  add_item(issue)
+                  repairs.append({'issue':n,'action':'ADD_PROJECT_ITEM'})
+                  items=issue_item_map(); item=items[n]
+              v=vals(item)
+
+              if v.get('Item Type')!='Change Request':
+                  set_select(item['id'],'Item Type','Change Request')
+                  repairs.append({'issue':n,'action':'SET_ITEM_TYPE','value':'Change Request'})
+              if v.get('Work Package')!=wp:
+                  set_select(item['id'],'Work Package',wp)
+                  repairs.append({'issue':n,'action':'SET_WORK_PACKAGE','value':wp})
+
+              status=v.get('Status')
+              if issue['state']=='closed':
+                  wanted='Cancelled' if issue.get('state_reason') in ('not_planned','duplicate') else 'Done'
+                  if status!=wanted:
+                      set_select(item['id'],'Status',wanted)
+                      repairs.append({'issue':n,'action':'SET_STATUS','value':wanted})
+              elif status in (None,'Done','Cancelled'):
+                  set_select(item['id'],'Status','Backlog')
+                  repairs.append({'issue':n,'action':'SET_STATUS','value':'Backlog'})
+
+              milestone=(issue.get('milestone') or {}).get('title')
+              if milestone and 'Target Release' in fields and v.get('Target Release')!=milestone:
+                  set_text(item['id'],'Target Release',milestone)
+                  repairs.append({'issue':n,'action':'SET_TARGET_RELEASE_FROM_MILESTONE','value':milestone})
+
+              # Versioned structural projection only; Project remains authority for live delivery status/priority.
+              if wp!='Other':
+                  for rel in cfg.get('hierarchy',[]):
+                      parent=int(rel['parent']); children=[int(x) for x in rel.get('children',[])]
+                      should=parent==WP_PARENT[wp]
+                      if n in children and not should:
+                          rel['children']=[x for x in rel.get('children',[]) if int(x)!=n]; config_changed=True
+                      elif should and n not in children:
+                          rel.setdefault('children',[]).append(n); config_changed=True
+              else:
+                  for rel in cfg.get('hierarchy',[]):
+                      if n in [int(x) for x in rel.get('children',[])]:
+                          rel['children']=[x for x in rel.get('children',[]) if int(x)!=n]; config_changed=True
+
+              hits=[]
+              for idx,g in enumerate(cfg.get('item_groups',[])):
+                  if g.get('kind')=='issue' and n in [int(x) for x in g.get('numbers',[])]: hits.append(idx)
+              if len(hits)!=1 or (hits and ((cfg['item_groups'][hits[0]].get('metadata') or {}).get('Work Package')!=wp or (cfg['item_groups'][hits[0]].get('metadata') or {}).get('Item Type')!='Change Request')):
+                  source_meta={}
+                  if hits: source_meta=dict(cfg['item_groups'][hits[0]].get('metadata') or {})
+                  for idx in sorted(hits,reverse=True):
+                      cfg['item_groups'][idx]['numbers']=[x for x in cfg['item_groups'][idx].get('numbers',[]) if int(x)!=n]
+                  cfg['item_groups']=[g for g in cfg['item_groups'] if g.get('kind')!='issue' or g.get('numbers')]
+                  source_meta['Work Package']=wp
+                  source_meta['Item Type']='Change Request'
+                  cfg.setdefault('item_groups',[]).append({'kind':'issue','numbers':[n],'metadata':source_meta})
+                  config_changed=True
+
+          if config_changed:
+              cfg_path.write_text(json.dumps(cfg,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+
+          # Fresh read-back.
+          items=issue_item_map()
+          final=[]; remaining=[]
+          cfg2=json.loads(cfg_path.read_text(encoding='utf-8-sig'))
+          cfg2_parent={}
+          for rel in cfg2.get('hierarchy',[]):
+              w=PARENT_WP.get(int(rel['parent']))
+              if w:
+                  for n in rel.get('children',[]): cfg2_parent[int(n)]=w
+          cfg2_groups={}
+          for g in cfg2.get('item_groups',[]):
+              if g.get('kind')=='issue':
+                  for n in g.get('numbers',[]): cfg2_groups.setdefault(int(n),[]).append(g)
+
+          for base in crs:
+              n=base['number']; issue=run('api',f'repos/{REPO}/issues/{n}',json_out=True)
+              wp,signals,problem=expected_wp(issue)
+              row={'issue':n,'title':issue['title'],'state':issue['state'],'expected_wp':wp}
+              if problem:
+                  row['classification']='AMBIGUOUS_REQUIRES_DECISION'; remaining.append(row); final.append(row); continue
+              live_wp,live_parent=native_parent(issue)
+              item=items.get(n)
+              row['native_parent']=live_parent; row['project_member']=bool(item)
+              probs=[]
+              if not item: probs.append('MISSING_PROJECT_ITEM')
+              else:
+                  v=vals(item)
+                  row['fields']={k:v.get(k) for k in ('Status','Work Package','Item Type','Target Release','Blocked','Human Review')}
+                  if v.get('Item Type')!='Change Request': probs.append('ITEM_TYPE_MISMATCH')
+                  if v.get('Work Package')!=wp: probs.append('WP_MISMATCH')
+                  if issue['state']=='closed' and v.get('Status') not in ('Done','Cancelled'): probs.append('STATUS_MISMATCH')
+                  if issue['state']=='open' and v.get('Status') in (None,'Done','Cancelled'): probs.append('STATUS_MISMATCH')
+                  milestone=(issue.get('milestone') or {}).get('title')
+                  if milestone and v.get('Target Release')!=milestone: probs.append('TARGET_RELEASE_MILESTONE_MISMATCH')
+              if wp!='Other' and live_parent!=WP_PARENT[wp]: probs.append('NATIVE_PARENT_MISMATCH')
+              if wp!='Other' and cfg2_parent.get(n)!=wp: probs.append('CONFIG_HIERARCHY_MISMATCH')
+              if wp=='Other' and n in cfg2_parent: probs.append('CONFIG_HIERARCHY_MISMATCH')
+              gs=cfg2_groups.get(n,[])
+              if len(gs)!=1: probs.append('CONFIG_ITEM_GROUP_COUNT')
+              elif (gs[0].get('metadata') or {}).get('Work Package')!=wp or (gs[0].get('metadata') or {}).get('Item Type')!='Change Request': probs.append('CONFIG_ITEM_GROUP_MISMATCH')
+              row['classification']='PASS' if not probs else '+'.join(sorted(set(probs)))
+              if probs: remaining.append(row)
+              final.append(row)
+
+          report={'schema_version':2,'repository':REPO,'project':{'title':PROJECT_TITLE,'number':project_number},'source_sha':run('rev-parse','HEAD'),'cr_count':len(crs),'repair_count':len(repairs),'remaining_count':len(remaining),'config_changed':config_changed,'repairs':repairs,'ambiguities':ambiguities,'final':final}
+          out=Path('.reports/cr-backlog-audit-v2')
+          (out/'audit.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          md=['# DDDA CR ↔ Project Backlog consistency audit v2','',f'- CRs: **{len(crs)}**',f'- Repairs: **{len(repairs)}**',f'- Remaining: **{len(remaining)}**',f'- Config changed: **{config_changed}**','','| CR | Expected WP | Parent | Project | Status | Item type | Result |','|---:|---|---:|---|---|---|---|']
+          for r in final:
+              f=r.get('fields') or {}
+              md.append(f"| #{r['issue']} | {r.get('expected_wp') or '-'} | {r.get('native_parent') or '-'} | {'yes' if r.get('project_member') else 'no'} | {f.get('Status') or '-'} | {f.get('Item Type') or '-'} | {r['classification']} |")
+          md += ['','## Repairs',''] + ([f'- `{json.dumps(x,ensure_ascii=False)}`' for x in repairs] or ['- none'])
+          if remaining: md += ['','## Remaining','']+[f'- `{json.dumps(x,ensure_ascii=False)}`' for x in remaining]
+          (out/'audit.md').write_text('\n'.join(md)+'\n',encoding='utf-8')
+          (out/'audit.env').write_text(f"CR_COUNT={len(crs)}\nREPAIR_COUNT={len(repairs)}\nREMAINING_COUNT={len(remaining)}\nCONFIG_CHANGED={1 if config_changed else 0}\n",encoding='utf-8')
+          print(json.dumps({'cr_count':len(crs),'repair_count':len(repairs),'remaining_count':len(remaining),'config_changed':config_changed}))
+          PY
+
+      - name: Upload audit evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: cr-backlog-consistency-audit-v2
+          path: .reports/cr-backlog-audit-v2/**
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Commit structural reconciliation and remove one-shot workflows
+        shell: bash
+        run: |
+          set -euo pipefail
+          source .reports/cr-backlog-audit-v2/audit.env
+          rm -f .github/workflows/audit-cr-project-backlog.yml .github/workflows/audit-cr-project-backlog-v2.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add config/governance/github-bootstrap.json .github/workflows
+          if ! git diff --cached --quiet; then
+            git commit -m 'docs(governance): reconcile CR backlog consistency (#16)'
+            git push origin HEAD:feature/github-native-backlog-governance
+          fi
+          test "$REMAINING_COUNT" = '0'
