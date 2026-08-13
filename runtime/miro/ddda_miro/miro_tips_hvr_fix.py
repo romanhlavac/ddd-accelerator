@@ -276,6 +276,13 @@ def _endpoint_contract_readback(
             if str((item.get("startItem") or {}).get("id") or "") == start
             and str((item.get("endItem") or {}).get("id") or "") == end
         ]
+        if len(hits) > 1:
+            expected_end = _endpoint_view(expected.get("endItem") or {})
+            hits = [
+                item
+                for item in hits
+                if _endpoint_view(item.get("endItem") or {}) == expected_end
+            ]
         if len(hits) != 1:
             raise ValueError("Miro Tips endpoint contract expected exactly one target callout")
         target = hits[0]
