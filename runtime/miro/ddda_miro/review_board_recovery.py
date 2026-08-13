@@ -267,6 +267,11 @@ def apply(client: MiroClient, manifest: dict[str, Any], source_sha: str) -> dict
     }
 
 
+def _console_json(result: dict[str, Any]) -> str:
+    """Render console evidence safely on Windows legacy code pages."""
+    return json.dumps(result, ensure_ascii=True, indent=2)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--manifest", required=True, type=Path)
@@ -288,7 +293,7 @@ def main(argv: list[str] | None = None) -> int:
         code = 1
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps(result, ensure_ascii=False, indent=2), file=sys.stdout if code == 0 else sys.stderr)
+    print(_console_json(result), file=sys.stdout if code == 0 else sys.stderr)
     return code
 
 

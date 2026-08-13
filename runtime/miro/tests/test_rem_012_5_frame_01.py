@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from copy import deepcopy
+import json
 
 from ddda_miro.frame01_redline import identity, item_payload, same_item, reconcile
-from ddda_miro.review_board_recovery import frame00_payload, frame00_state, restore_frame00
+from ddda_miro.review_board_recovery import _console_json, frame00_payload, frame00_state, restore_frame00
 
 
 class FakeClient:
@@ -181,3 +182,10 @@ def test_frame00_recovery_creates_accepted_children_before_shrinking_parent_and_
     assert frame00_state(client, m, contract)[0]
     second = restore_frame00(client, m, contract)
     assert second["created"] == 0 and second["deleted"] == 0 and second["unchanged"] == 8
+
+
+def test_console_json_is_ascii_safe_for_localized_remediation_evidence():
+    value = {"section": "VÝBĚR, ZPĚT A DUPLIKACE", "status": "PASS"}
+    rendered = _console_json(value)
+    assert rendered.isascii()
+    assert json.loads(rendered) == value

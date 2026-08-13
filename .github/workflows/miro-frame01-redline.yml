@@ -71,7 +71,9 @@ jobs:
           allowed={
               '.github/workflows/miro-frame01-redline.yml',
               'runtime/miro/ddda_miro/miro_tips_native_onboarding.py',
+              'runtime/miro/ddda_miro/review_board_recovery.py',
               'runtime/miro/tests/test_rem_012_5_miro_tips_native_onboarding.py',
+              'runtime/miro/tests/test_rem_012_5_frame_01.py',
           }
           assert observed, 'corrective commit must change at least one allowlisted path'
           unexpected=sorted(set(observed)-allowed)
