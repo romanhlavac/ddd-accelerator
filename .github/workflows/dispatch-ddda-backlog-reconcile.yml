@@ -32,26 +32,16 @@ jobs:
         run: |
           python scripts/platform/Restructure-DDDAWorkPackages.py
           python scripts/platform/Reconcile-DDDAProjectBacklog.v5.py
-      - name: Finalize versioned governance state
+      - name: Commit versioned governance without workflow files
         shell: bash
         run: |
           set -euo pipefail
           cp scripts/platform/Reconcile-DDDAProjectBacklog.v5.py scripts/platform/Reconcile-DDDAProjectBacklog.py
           rm -f scripts/platform/Reconcile-DDDAProjectBacklog.v5.py
           rm -f scripts/platform/Restructure-DDDAWorkPackages.py
-          rm -f .github/workflows/dispatch-ddda-backlog-reconcile.yml
-          python - <<'PY'
-          from pathlib import Path
-          p=Path('.github/workflows/reconcile-ddda-project-backlog.yml')
-          s=p.read_text(encoding='utf-8')
-          s=s.replace('git diff --exit-code -- config/governance/github-bootstrap.json config/governance/backlog-policy.yaml docs/roadmap/work-packages/WP-08-platform-lifecycle-and-steering.md','git diff --exit-code -- config/governance docs/roadmap scripts/platform/Reconcile-DDDAProjectBacklog.py')
-          s=s.replace('name: ddda-project-backlog-audit\n','name: ddda-project-backlog-audit-v5\n')
-          s=s.replace('.reports/cr-backlog-audit-v4/**','.reports/cr-backlog-audit-v5/**')
-          p.write_text(s,encoding='utf-8')
-          PY
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add config/governance docs/roadmap scripts/platform .github/workflows
+          git add config/governance docs/roadmap scripts/platform
           git status --short
           git commit -m 'docs(governance): split platform work-package boundaries (#16)'
           env -u GH_TOKEN git push origin HEAD:feature/github-native-backlog-governance
