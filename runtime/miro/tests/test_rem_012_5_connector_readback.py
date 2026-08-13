@@ -7,6 +7,7 @@ from ddda_miro.connector_readback_wirefix import (
     same_connector_canonical,
     update_connector_with_fresh_readback,
 )
+from ddda_miro import connector_readback_wirefix as wirefix
 from ddda_miro.miro_tips_endpoint_wirefix import readable_connector_payload_preserve_endpoint
 
 
@@ -132,6 +133,20 @@ def test_black_miro_tips_callout_normalizes_miro_percent_wire_coordinates():
     assert same_connector_canonical(remote, expected)
 
 
+def test_black_miro_tips_control_anchor_accepts_miro_edge_serialization_but_not_the_wrong_anchor():
+    expected = _black_callout()
+    expected["endItem"] = {"id": "transparent-control-anchor"}
+    remote = deepcopy(expected)
+    remote["endItem"] = {
+        "id": "transparent-control-anchor",
+        "position": {"x": "50%", "y": "0%"},
+        "snapTo": "top",
+    }
+    assert same_connector_canonical(remote, expected)
+    remote["endItem"]["id"] = "wrong-control-anchor"
+    assert not same_connector_canonical(remote, expected)
+
+
 def test_black_miro_tips_callout_reports_exact_rejected_endpoint_fields():
     expected = _black_callout()
     remote = deepcopy(expected)
@@ -183,3 +198,29 @@ def test_readable_connector_payload_leaves_non_tutorial_connector_on_legacy_wire
     payload = readable_connector_payload_preserve_endpoint(source, "target-start", "target-end", {})
     assert payload["startItem"]["id"] == "target-start"
     assert payload["endItem"]["id"] == "target-end"
+
+
+def test_runtime_wires_control_anchor_reconciliation_and_unwinds_it(monkeypatch):
+    calls = []
+    for module, label in (
+        (wirefix.miro_tips_endpoint_wirefix, "endpoint"),
+        (wirefix.miro_tips_hvr_fix, "tips"),
+        (wirefix.miro_tips_hvr_semantic_fix, "semantic"),
+        (wirefix.miro_tips_control_anchor_fix, "anchors"),
+    ):
+        monkeypatch.setattr(module, "install", lambda label=label: calls.append(f"install:{label}"))
+        monkeypatch.setattr(module, "uninstall", lambda label=label: calls.append(f"uninstall:{label}"))
+    monkeypatch.setattr(wirefix.recovery, "main", lambda argv: calls.append("reconcile") or 0)
+
+    assert wirefix.main(["--fixture"]) == 0
+    assert calls == [
+        "install:endpoint",
+        "install:tips",
+        "install:semantic",
+        "install:anchors",
+        "reconcile",
+        "uninstall:anchors",
+        "uninstall:semantic",
+        "uninstall:tips",
+        "uninstall:endpoint",
+    ]

@@ -6,6 +6,7 @@ from typing import Any
 from . import frame00_resize_ordering_wirefix as recovery
 from . import frame01_redline as redline
 from . import miro_tips_endpoint_wirefix
+from . import miro_tips_control_anchor_fix
 from . import miro_tips_hvr_fix
 from . import miro_tips_hvr_semantic_fix
 from .client import MiroClient, normalize_miro_percentage
@@ -51,7 +52,9 @@ def _endpoint_coordinate(value: Any) -> float:
     return float(value)
 
 
-def _same_endpoint_contract(remote: dict[str, Any], expected: dict[str, Any]) -> bool:
+def _same_endpoint_contract(
+    remote: dict[str, Any], expected: dict[str, Any], *, allow_anchor_attachment: bool = False
+) -> bool:
     """Compare a Miro Tips endpoint with a pixel-meaningful tolerance.
 
     Endpoint coordinates are relative to the tutorial screenshot.  A tolerance
@@ -65,6 +68,12 @@ def _same_endpoint_contract(remote: dict[str, Any], expected: dict[str, Any]) ->
         authored = expected.get(key)
         actual = remote.get(key)
         if authored is None:
+            # Miro is free to serialize a side/edge attachment for the tiny
+            # transparent target shape.  The anchor id and its independently
+            # verified geometry are the visual contract; a returned edge value
+            # must not turn that precise control-targeting into false churn.
+            if allow_anchor_attachment and key in {"position", "snapTo"}:
+                continue
             if actual is not None:
                 return False
             continue
@@ -109,7 +118,15 @@ def connector_contract_mismatches(
     for name in ("startItem", "endItem"):
         actual = remote.get(name) or {}
         authored = expected.get(name) or {}
-        if not _same_endpoint_contract(actual, authored):
+        allow_anchor_attachment = (
+            name == "endItem"
+            and _is_miro_tips_callout(expected)
+            and "position" not in authored
+            and "snapTo" not in authored
+        )
+        if not _same_endpoint_contract(
+            actual, authored, allow_anchor_attachment=allow_anchor_attachment
+        ):
             mismatches.append(
                 {
                     "endpoint": name,
@@ -190,9 +207,11 @@ def main(argv: list[str] | None = None) -> int:
     miro_tips_endpoint_wirefix.install()
     miro_tips_hvr_fix.install()
     miro_tips_hvr_semantic_fix.install()
+    miro_tips_control_anchor_fix.install()
     try:
         return recovery.main(argv)
     finally:
+        miro_tips_control_anchor_fix.uninstall()
         miro_tips_hvr_semantic_fix.uninstall()
         miro_tips_hvr_fix.uninstall()
         miro_tips_endpoint_wirefix.uninstall()

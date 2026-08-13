@@ -15,11 +15,18 @@ def manifest():
                 "title": "Miro Tips",
                 "min_images": 1,
                 "mode": tips.MIRO_TIPS_MODE,
+                "source_board_id": "source",
             }
         ],
         "miro_tips": {
             "min_images": 1,
             "min_connectors": 8,
+            "reference_source_board_id": "source",
+            "reference_source_frame_id": "source-tips",
+            "reference_source_image_id": "source-image",
+            "control_anchor_policy": tips.MIRO_TIPS_CONTROL_ANCHOR_POLICY,
+            "control_anchor_size": 8,
+            "visual_equivalence_policy": tips.MIRO_TIPS_VISUAL_EQUIVALENCE_POLICY,
             "vertical_offset_y": 240,
             "target_position": {"x": -19834.447, "y": -11727.533},
             "container_policy": tips.MIRO_TIPS_CONTAINER_POLICY,
@@ -56,6 +63,17 @@ def test_miro_tips_frame_payload_preserves_geometry_and_applies_hvr_spacing():
     assert abs(payload["position"]["x"] - (-19834.447)) < 0.01
     assert abs(payload["position"]["y"] - (-11727.533)) < 0.01
     assert tips.desired_miro_tips_items("target-tips", manifest()) == []
+
+
+def test_miro_tips_contract_rejects_retired_direct_screenshot_endpoint_policy():
+    value = manifest()
+    value["miro_tips"]["endpoint_position_policy"] = "direct_reference_image_endpoint"
+    try:
+        tips._config(value)
+    except ValueError as exc:
+        assert "direct screenshot endpoints" in str(exc)
+    else:
+        raise AssertionError("expected direct screenshot endpoint policy rejection")
 
 
 def test_miro_tips_outer_frame_comparison_preserves_parent_safe_container(monkeypatch):

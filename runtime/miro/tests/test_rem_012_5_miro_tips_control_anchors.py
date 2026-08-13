@@ -257,6 +257,16 @@ def test_control_anchor_reconcile_replaces_image_connectors_and_is_idempotent(mo
         str((connector.get("endItem") or {}).get("id") or "").startswith("anchor-")
         for connector in client.connectors["target"]
     )
+    assert not any(
+        str((connector.get("endItem") or {}).get("id") or "") == "target-image"
+        for connector in client.connectors["target"]
+    )
+    anchor_markers = [
+        anchors._visible(item)
+        for item in client.items["target"]
+        if anchors._is_control_anchor(item)
+    ]
+    assert len(anchor_markers) == len(set(anchor_markers)) == 8
 
     second = anchors._reconcile_control_anchors_and_connectors(
         client, "source", "source-tips", "target", "target-tips", manifest
@@ -267,3 +277,65 @@ def test_control_anchor_reconcile_replaces_image_connectors_and_is_idempotent(mo
     assert second["connectors"] == {
         "created": 0, "updated": 0, "unchanged": 8, "deleted": 0
     }
+
+
+def test_control_anchor_readback_rejects_a_connector_that_still_targets_the_image(monkeypatch):
+    client = _fixture()
+    monkeypatch.setattr(
+        anchors.base,
+        "_children",
+        lambda c, board, frame: [
+            deepcopy(item)
+            for item in c.items[board]
+            if str((item.get("parent") or {}).get("id") or "") == frame
+        ],
+    )
+    monkeypatch.setattr(
+        anchors.visual,
+        "_companion_source_connectors",
+        lambda c, board, ids: [
+            deepcopy(connector)
+            for connector in c.connectors[board]
+            if str((connector.get("startItem") or {}).get("id") or "") in ids
+            and str((connector.get("endItem") or {}).get("id") or "") in ids
+        ],
+    )
+    monkeypatch.setattr(
+        anchors.visual,
+        "_same_image",
+        lambda remote, source, frame: (
+            remote.get("type") == "image"
+            and (remote.get("parent") or {}).get("id") == frame
+            and remote.get("position") == source.get("position")
+            and remote.get("geometry") == source.get("geometry")
+        ),
+    )
+    manifest = {
+        "source_companion_frames": [
+            {"id": "source-tips", "title": "Miro Tips", "mode": "reference_ui_tutorial", "source_board_id": "source"}
+        ],
+        "miro_tips": {
+            "min_images": 1,
+            "min_connectors": 8,
+            "reference_source_board_id": "source",
+            "reference_source_frame_id": "source-tips",
+            "reference_source_image_id": "source-image",
+            "control_anchor_policy": "explicit_transparent_child_anchor_per_reference_ui_control",
+            "control_anchor_size": 8,
+            "visual_equivalence_policy": "reference_topology_plus_explicit_control_anchors",
+            "target_position": {"x": 0, "y": 0},
+            "container_policy": "transactional_replace_irreducible_companion",
+            "layer_policy": "image_below_native_callouts",
+            "required_markers": list(anchors.tips.DEFAULT_REQUIRED_MARKERS),
+        },
+    }
+    # The test isolates the post-reconcile audit: legacy direct paths must fail
+    # before a board can be materialised for human review.
+    try:
+        anchors.endpoint_contract_readback_with_control_anchors(
+            client, "source", "source-tips", "target", "target-tips", manifest
+        )
+    except ValueError as exc:
+        assert "exactly one target control anchor" in str(exc)
+    else:
+        raise AssertionError("expected direct screenshot callout rejection")

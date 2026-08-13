@@ -15,6 +15,7 @@ _ORIGINAL_BASE_RECONCILE = tips._ORIGINAL_RECONCILE_COMPANION_CHILDREN
 _ORIGINAL_TUTORIAL_STATE = tips._tutorial_state
 _ORIGINAL_ASSERT_TUTORIAL_STATE = tips._assert_tutorial_state
 _ORIGINAL_RECONCILE_MIRO_TIPS = tips.reconcile_miro_tips_children
+_ORIGINAL_ENDPOINT_CONTRACT_READBACK = tips._endpoint_contract_readback
 _INSTALLED = False
 
 
@@ -475,6 +476,131 @@ def assert_tutorial_state_with_control_anchors(
         raise ValueError(f"{label} is missing required tutorial markers: {state['missing_markers']}")
 
 
+def endpoint_contract_readback_with_control_anchors(
+    client: Any,
+    source_board: str,
+    source_frame_id: str,
+    target_board: str,
+    target_frame_id: str,
+    manifest: dict[str, Any],
+) -> dict[str, Any]:
+    """Read back the rendered control topology instead of a generic image endpoint.
+
+    Miro can route a connector attached directly to an image differently from the
+    reference even when the REST endpoint percentages compare equal.  An 8px
+    transparent child anchor fixes the arrowhead at the intended UI control.
+    This read-back proves the source control coordinate, target anchor geometry
+    and connector attachment together for every black tutorial callout.
+    """
+    tips.assert_reference_identity(client, source_board, source_frame_id, manifest)
+    cfg = tips._config(manifest)
+    source_items = base._children(client, source_board, source_frame_id)
+    target_items = base._children(client, target_board, target_frame_id)
+    source_ids = {str(item["id"]) for item in source_items}
+    source_connectors = sorted(
+        [
+            connector
+            for connector in visual._companion_source_connectors(client, source_board, source_ids)
+            if _black_captionless(connector)
+        ],
+        key=lambda item: str(item.get("id") or ""),
+    )
+    if len(source_connectors) != cfg["min_connectors"]:
+        raise ValueError("Miro Tips control-anchor read-back has an incomplete source callout set")
+    source_images = [item for item in source_items if str(item.get("type") or "") == "image"]
+    if len(source_images) != 1:
+        raise ValueError("Miro Tips control-anchor read-back requires exactly one source screenshot")
+    target_image = _target_image(source_images[0], target_items, target_frame_id)
+    target_anchors = [item for item in target_items if _is_control_anchor(item)]
+    frame_geometry = _target_frame_geometry(client, target_board, target_frame_id)
+    target_connectors = client.list_connectors(target_board)
+    entries: list[dict[str, Any]] = []
+
+    for source_connector in source_connectors:
+        source_start_id = str((source_connector.get("startItem") or {}).get("id") or "")
+        source_start = next(
+            (item for item in source_items if str(item.get("id") or "") == source_start_id),
+            None,
+        )
+        if source_start is None:
+            raise ValueError(f"Miro Tips source callout {source_connector.get('id')} has no source text region")
+        if str((source_connector.get("endItem") or {}).get("id") or "") != str(source_images[0]["id"]):
+            raise ValueError(f"Miro Tips source callout {source_connector.get('id')} does not target the reference UI")
+        target_start = _target_native(source_start, target_items)
+        marker = _marker(str(source_connector["id"]))
+        anchors = [anchor for anchor in target_anchors if _visible(anchor) == marker]
+        if len(anchors) != 1:
+            raise ValueError(f"Miro Tips requires exactly one target control anchor for {source_connector.get('id')}")
+        anchor = anchors[0]
+        x, y = _normalized_control_position(source_connector, target_image, frame_geometry)
+        expected_anchor = _anchor_payload(
+            target_frame_id, marker, x, y, _anchor_size(manifest)
+        )
+        anchor_passed = _same_anchor(anchor, expected_anchor, frame_geometry)
+        expected_connector = _control_connector_payload(
+            source_connector, str(target_start["id"]), str(anchor["id"]), manifest
+        )
+        candidates = [
+            connector
+            for connector in target_connectors
+            if _black_captionless(connector)
+            and str((connector.get("startItem") or {}).get("id") or "") == str(target_start["id"])
+            and str((connector.get("endItem") or {}).get("id") or "") == str(anchor["id"])
+        ]
+        if len(candidates) != 1:
+            raise ValueError(f"Miro Tips requires exactly one control-anchor connector for {source_connector.get('id')}")
+        target_connector = candidates[0]
+        connector_passed = visual.redline.same_connector(target_connector, expected_connector)
+        entry = {
+            "source_connector_id": str(source_connector.get("id") or ""),
+            "source_text_item_id": source_start_id,
+            "reference_ui_position": dict((source_connector.get("endItem") or {}).get("position") or {}),
+            "target_anchor_id": str(anchor.get("id") or ""),
+            "target_anchor_marker": marker,
+            "target_anchor_position": dict(anchor.get("position") or {}),
+            "target_connector_id": str(target_connector.get("id") or ""),
+            "anchor_passed": bool(anchor_passed),
+            "connector_passed": bool(connector_passed),
+            "passed": bool(anchor_passed and connector_passed),
+        }
+        entries.append(entry)
+        if not entry["passed"]:
+            raise ValueError(f"Miro Tips control-anchor read-back did not converge for {source_connector.get('id')}")
+
+    anchor_ids = {str(anchor.get("id") or "") for anchor in target_anchors}
+    target_image_id = str(target_image.get("id") or "")
+    anchored_callouts = [
+        connector
+        for connector in target_connectors
+        if _black_captionless(connector)
+        and str((connector.get("endItem") or {}).get("id") or "") in anchor_ids
+    ]
+    direct_image_callouts = [
+        connector
+        for connector in target_connectors
+        if _black_captionless(connector)
+        and str((connector.get("endItem") or {}).get("id") or "") == target_image_id
+    ]
+    if len(target_anchors) != cfg["min_connectors"]:
+        raise ValueError("Miro Tips target has missing or duplicate control anchors")
+    if len(anchored_callouts) != cfg["min_connectors"]:
+        raise ValueError("Miro Tips target has missing or duplicate control-anchor callouts")
+    if direct_image_callouts:
+        raise ValueError("Miro Tips target still contains callouts attached directly to the screenshot")
+    return {
+        "policy": "explicit_transparent_control_anchor_readback",
+        "reference_source_board_id": cfg["reference_source_board_id"],
+        "reference_source_frame_id": cfg["reference_source_frame_id"],
+        "reference_source_image_id": cfg["reference_source_image_id"],
+        "count": len(entries),
+        "passed_count": sum(1 for entry in entries if entry["passed"]),
+        "target_control_anchor_count": len(target_anchors),
+        "target_control_anchor_connector_count": len(anchored_callouts),
+        "target_direct_image_callout_count": len(direct_image_callouts),
+        "entries": entries,
+    }
+
+
 def reconcile_miro_tips_with_control_anchor_evidence(
     client: Any,
     source_board: str,
@@ -515,6 +641,7 @@ def install() -> None:
     tips._ORIGINAL_RECONCILE_COMPANION_CHILDREN = reconcile_children_with_control_anchors
     tips._tutorial_state = tutorial_state_with_control_anchors
     tips._assert_tutorial_state = assert_tutorial_state_with_control_anchors
+    tips._endpoint_contract_readback = endpoint_contract_readback_with_control_anchors
     tips.reconcile_miro_tips_children = reconcile_miro_tips_with_control_anchor_evidence
     _INSTALLED = True
 
@@ -526,5 +653,6 @@ def uninstall() -> None:
     tips._ORIGINAL_RECONCILE_COMPANION_CHILDREN = _ORIGINAL_BASE_RECONCILE
     tips._tutorial_state = _ORIGINAL_TUTORIAL_STATE
     tips._assert_tutorial_state = _ORIGINAL_ASSERT_TUTORIAL_STATE
+    tips._endpoint_contract_readback = _ORIGINAL_ENDPOINT_CONTRACT_READBACK
     tips.reconcile_miro_tips_children = _ORIGINAL_RECONCILE_MIRO_TIPS
     _INSTALLED = False

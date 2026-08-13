@@ -11,6 +11,8 @@ MIRO_TIPS_TITLE = "Miro Tips"
 MIRO_TIPS_MODE = "reference_ui_tutorial"
 MIRO_TIPS_CONTAINER_POLICY = "transactional_replace_irreducible_companion"
 MIRO_TIPS_LAYER_POLICY = "image_below_native_callouts"
+MIRO_TIPS_CONTROL_ANCHOR_POLICY = "explicit_transparent_child_anchor_per_reference_ui_control"
+MIRO_TIPS_VISUAL_EQUIVALENCE_POLICY = "reference_topology_plus_explicit_control_anchors"
 DEFAULT_READBACK_ATTEMPTS = 20
 DEFAULT_READBACK_DELAY_SECONDS = 0.5
 DEFAULT_MIN_IMAGES = 1
@@ -56,6 +58,12 @@ def _config(manifest: dict[str, Any]) -> dict[str, Any]:
     )
     policy = str(raw.get("container_policy") or MIRO_TIPS_CONTAINER_POLICY)
     layer_policy = str(raw.get("layer_policy") or MIRO_TIPS_LAYER_POLICY)
+    reference_source_board_id = str(raw.get("reference_source_board_id") or "")
+    reference_source_frame_id = str(raw.get("reference_source_frame_id") or "")
+    reference_source_image_id = str(raw.get("reference_source_image_id") or "")
+    control_anchor_policy = str(raw.get("control_anchor_policy") or "")
+    visual_equivalence_policy = str(raw.get("visual_equivalence_policy") or "")
+    control_anchor_size = float(raw.get("control_anchor_size") or 0)
     legacy_frame_ids = tuple(str(value) for value in (raw.get("legacy_frame_ids") or ()))
     target_position = dict(raw.get("target_position") or {})
     required = tuple(
@@ -76,6 +84,16 @@ def _config(manifest: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("Miro Tips requires transactional replacement for an irreducible companion container")
     if layer_policy != MIRO_TIPS_LAYER_POLICY:
         raise ValueError("Miro Tips requires the reference screenshot below native callout overlays")
+    if not reference_source_board_id or not reference_source_frame_id or not reference_source_image_id:
+        raise ValueError("Miro Tips requires an exact reference board, frame and screenshot identity")
+    if control_anchor_policy != MIRO_TIPS_CONTROL_ANCHOR_POLICY:
+        raise ValueError("Miro Tips requires explicit transparent control anchors for native callouts")
+    if visual_equivalence_policy != MIRO_TIPS_VISUAL_EQUIVALENCE_POLICY:
+        raise ValueError("Miro Tips requires the reference topology and control-anchor visual-equivalence policy")
+    if not 4.0 <= control_anchor_size <= 24.0:
+        raise ValueError("Miro Tips control-anchor size must be between 4 and 24")
+    if raw.get("endpoint_position_policy"):
+        raise ValueError("Miro Tips direct screenshot endpoints are retired; use explicit control anchors")
     if any(not value for value in legacy_frame_ids):
         raise ValueError("Miro Tips legacy frame ids must be non-empty strings")
     for key in ("x", "y"):
@@ -92,6 +110,12 @@ def _config(manifest: dict[str, Any]) -> dict[str, Any]:
         "vertical_offset_y": vertical_offset_y,
         "container_policy": policy,
         "layer_policy": layer_policy,
+        "reference_source_board_id": reference_source_board_id,
+        "reference_source_frame_id": reference_source_frame_id,
+        "reference_source_image_id": reference_source_image_id,
+        "control_anchor_policy": control_anchor_policy,
+        "control_anchor_size": control_anchor_size,
+        "visual_equivalence_policy": visual_equivalence_policy,
         "legacy_frame_ids": legacy_frame_ids,
         "target_position": {"x": float(target_position["x"]), "y": float(target_position["y"])},
         "required_markers": required,
@@ -108,7 +132,33 @@ def _source_spec(manifest: dict[str, Any]) -> dict[str, Any]:
         raise ValueError(f"expected exactly one {MIRO_TIPS_TITLE!r} companion spec, got {len(hits)}")
     if str(hits[0].get("mode") or "") != MIRO_TIPS_MODE:
         raise ValueError("Miro Tips companion must opt in to the reference UI tutorial mode")
+    cfg = _config(manifest)
+    if str(hits[0].get("id") or "") != cfg["reference_source_frame_id"]:
+        raise ValueError("Miro Tips source companion frame does not match the exact reference contract")
+    if str(hits[0].get("source_board_id") or "") != cfg["reference_source_board_id"]:
+        raise ValueError("Miro Tips source companion board does not match the exact reference contract")
     return hits[0]
+
+
+def assert_reference_identity(
+    client: Any,
+    source_board: str,
+    source_frame_id: str,
+    manifest: dict[str, Any],
+) -> None:
+    """Reject a visually similar but unauthorised Miro Tips source before writing."""
+    cfg = _config(manifest)
+    if str(source_board) != cfg["reference_source_board_id"]:
+        raise ValueError("Miro Tips source board differs from the approved reference board")
+    if str(source_frame_id) != cfg["reference_source_frame_id"]:
+        raise ValueError("Miro Tips source frame differs from the approved reference frame")
+    source_images = [
+        item
+        for item in base._children(client, source_board, source_frame_id)
+        if str(item.get("type") or "") == "image"
+    ]
+    if len(source_images) != 1 or str(source_images[0].get("id") or "") != cfg["reference_source_image_id"]:
+        raise ValueError("Miro Tips reference screenshot differs from the approved source image")
 
 
 def desired_miro_tips_items(frame_id: str, manifest: dict[str, Any]) -> list[dict[str, Any]]:
@@ -378,6 +428,7 @@ def _tutorial_children_require_rebuild(
     source_frame_id: str,
     target_board: str,
     target_frame_id: str,
+    manifest: dict[str, Any],
 ) -> bool:
     """Detect legacy children that Miro cannot resize by PATCH.
 
@@ -386,10 +437,13 @@ def _tutorial_children_require_rebuild(
     """
     source_items = base._children(client, source_board, source_frame_id)
     target_items = base._children(client, target_board, target_frame_id)
-    # The legacy target contains the prior tutorial plus eight transparent
-    # anchors.  A completed native copy has exactly the reference child count;
-    # only the former is cleared, so the second reconcile stays mutation-free.
-    return len(target_items) != len(source_items)
+    # A completed target contains the native reference children plus exactly one
+    # tiny transparent anchor for every required callout.  Both states are
+    # accepted here: the first lets the anchor reconciler migrate old direct
+    # screenshot endpoints; the second is required for a zero-mutation run.
+    cfg = _config(manifest)
+    accepted_counts = {len(source_items), len(source_items) + cfg["min_connectors"]}
+    return len(target_items) not in accepted_counts
 
 
 def _cleanup_replacement_frame(client: Any, board: str, frame_id: str) -> None:
@@ -472,6 +526,7 @@ def reconcile_miro_tips_children(
     manifest: dict[str, Any],
 ) -> dict[str, Any]:
     cfg = _config(manifest)
+    assert_reference_identity(client, source_board, source_frame_id, manifest)
     source_frame = base._get_frame(client, source_board, source_frame_id)
     expected_frame = miro_tips_companion_frame_payload(
         source_frame, {}, {}, manifest
@@ -485,7 +540,7 @@ def reconcile_miro_tips_children(
     frame_replaced = False
     forced_layer_rebuild = str(target_frame_id) in set(cfg["legacy_frame_ids"])
     children_rebuilt = _tutorial_children_require_rebuild(
-        client, source_board, source_frame_id, target_board, target_frame_id
+        client, source_board, source_frame_id, target_board, target_frame_id, manifest
     )
     active_frame_id = target_frame_id
 
@@ -533,6 +588,11 @@ def reconcile_miro_tips_children(
         "mode": MIRO_TIPS_MODE,
         "container_policy": cfg["container_policy"],
         "layer_policy": cfg["layer_policy"],
+        "reference_source_board_id": cfg["reference_source_board_id"],
+        "reference_source_frame_id": cfg["reference_source_frame_id"],
+        "reference_source_image_id": cfg["reference_source_image_id"],
+        "control_anchor_policy": cfg["control_anchor_policy"],
+        "visual_equivalence_policy": cfg["visual_equivalence_policy"],
         "vertical_offset_y": cfg["vertical_offset_y"],
         "forced_layer_rebuild": int(forced_layer_rebuild),
         "children_rebuilt": int(children_rebuilt),
