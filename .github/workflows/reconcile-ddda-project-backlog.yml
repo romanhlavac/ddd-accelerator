@@ -33,12 +33,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git diff --exit-code -- config/governance/github-bootstrap.json config/governance/backlog-policy.yaml docs/roadmap/work-packages/WP-08-platform-lifecycle-and-steering.md
+          git diff --exit-code -- config/governance docs/roadmap scripts/platform/Reconcile-DDDAProjectBacklog.py
 
       - name: Upload audit evidence
         uses: actions/upload-artifact@v4
         with:
-          name: ddda-project-backlog-audit
-          path: .reports/cr-backlog-audit-v4/**
+          name: ddda-project-backlog-audit-v5
+          path: .reports/cr-backlog-audit-v5/**
           retention-days: 30
           if-no-files-found: error
