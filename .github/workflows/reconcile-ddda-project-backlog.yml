@@ -2,6 +2,12 @@ name: Reconcile DDDA Project Backlog
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - feature/github-native-backlog-governance
+    paths:
+      - .github/workflows/reconcile-ddda-project-backlog.yml
+      - scripts/platform/Normalize-DDDAWorkPackageIssueBodies.py
 
 permissions:
   contents: read
@@ -14,6 +20,8 @@ jobs:
       GH_TOKEN: ${{ secrets.DDDA_GITHUB_PROJECT_TOKEN }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: feature/github-native-backlog-governance
 
       - name: Validate persistent Project credential
         shell: bash
@@ -22,6 +30,9 @@ jobs:
           test -n "${GH_TOKEN:-}"
           gh auth status --hostname github.com >/dev/null
           gh project list --owner romanhlavac --limit 100 --format json --jq '.projects[] | select(.title=="DDDA Platform Backlog") | .number' | grep -Eq '^[0-9]+$'
+
+      - name: Normalize split Issue semantics and WP planning
+        run: python scripts/platform/Normalize-DDDAWorkPackageIssueBodies.py
 
       - name: Validate reconciler
         run: python -m py_compile scripts/platform/Reconcile-DDDAProjectBacklog.py
@@ -38,7 +49,9 @@ jobs:
       - name: Upload audit evidence
         uses: actions/upload-artifact@v4
         with:
-          name: ddda-project-backlog-audit-v5
-          path: .reports/cr-backlog-audit-v5/**
+          name: ddda-project-backlog-audit-v5-normalized
+          path: |
+            .reports/cr-backlog-audit-v5/**
+            wp-planning-normalization.json
           retention-days: 30
           if-no-files-found: error
