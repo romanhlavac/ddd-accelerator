@@ -42,6 +42,10 @@ PR #8 obsahuje podstatnou část lifecycle a steering foundation. Uzavřené rem
 - canonical G1–G8 journey change;
 - GitHub Pages Artifact Registry dashboard — #45.
 - persistent DDDA Platform Lab / board taxonomy / reference-adoption lifecycle — #53.
+- persistent DDDA Example Project board lifecycle — #54.
+- per-project Miro identity/team/Space/token UX — #55.
+- corporate Miro execution-profile rebinding — #56.
+- explicit profile credentials and legacy generic-token fallback removal — #57.
 
 ## Baselines for future Work Packages
 
@@ -70,6 +74,10 @@ Parallel source-of-truth implementations are forbidden; compatibility or migrati
 
 - #45 — GitHub Pages Artifact Registry dashboard; `Target Release: TBD` and explicitly outside Milestone `DDDA 0.1.0`.
 - #53 — persistent Platform Lab, board taxonomy and reference/adoption lifecycle; `Target Release: TBD`, partial docs slice in Draft PR #58, explicitly outside Milestone `DDDA 0.1.0`.
+- #54 — persistent Example Project board lifecycle; `Target Release: TBD`, outside Milestone `DDDA 0.1.0`.
+- #55 — per-project Miro identity/team/Space/token UX; `Target Release: TBD`, outside Milestone `DDDA 0.1.0`.
+- #56 — corporate Miro execution-profile rebinding; `Target Release: TBD`, outside Milestone `DDDA 0.1.0`.
+- #57 — explicit profile credentials and legacy generic-token fallback removal; `Target Release: TBD`, blocked by #53/#54/#55, outside Milestone `DDDA 0.1.0`.
 
 Parent membership under WP-08 does not imply release scope, priority or approval.
 
@@ -104,7 +112,7 @@ Parent membership under WP-08 does not imply release scope, priority or approval
 - [ ] promotion dry-run performs no merge, release or tag;
 - [ ] HRDR is final for exact frozen evidence;
 - [ ] no unresolved RED remains;
-- [ ] #45 and #53 do not enter release 0.1.0 implicitly.
+- [ ] #45 and #53–#57 do not enter release 0.1.0 implicitly.
 
 ## Exit criteria
 
@@ -116,4 +124,4 @@ Parent membership under WP-08 does not imply release scope, priority or approval
 - PR #8 merge/release occurs only after explicit instruction;
 - package, validation report and `v0.1.0` identify the validated state;
 - WP/roadmap are updated to Done;
-- future #45/#53 remain independently planned.
+- future #45/#53–#57 remain independently planned.

@@ -18,7 +18,11 @@
         14,
         15,
         45,
-        53
+        53,
+        54,
+        55,
+        56,
+        57
       ]
     },
     {
@@ -252,6 +256,14 @@
         16,
         46,
         48
+      ]
+    },
+    {
+      "blocked": 57,
+      "blocked_by": [
+        53,
+        54,
+        55
       ]
     }
   ],
@@ -896,6 +908,66 @@
         "Blocked": "Yes",
         "Human Review": "Not required",
         "Outcome summary": "Persistent DDDA Platform Lab with explicit board taxonomy, reference/adoption lifecycle, managed namespaces and governed cleanup."
+      }
+    },
+    {
+      "kind": "issue",
+      "numbers": [
+        54
+      ],
+      "metadata": {
+        "Status": "Backlog",
+        "Work Package": "WP-08",
+        "Item Type": "Change Request",
+        "Target Release": "TBD",
+        "Blocked": "Yes",
+        "Human Review": "Not required",
+        "Outcome summary": "Persistent DDDA Example Project board lifecycle generated from exact candidate/release packages."
+      }
+    },
+    {
+      "kind": "issue",
+      "numbers": [
+        55
+      ],
+      "metadata": {
+        "Status": "Backlog",
+        "Work Package": "WP-08",
+        "Item Type": "Change Request",
+        "Target Release": "TBD",
+        "Blocked": "Yes",
+        "Human Review": "Not required",
+        "Outcome summary": "Per-project Miro identity, team, Space, token and board provisioning UX."
+      }
+    },
+    {
+      "kind": "issue",
+      "numbers": [
+        56
+      ],
+      "metadata": {
+        "Status": "Backlog",
+        "Work Package": "WP-08",
+        "Item Type": "Change Request",
+        "Target Release": "TBD",
+        "Blocked": "Yes",
+        "Human Review": "Not required",
+        "Outcome summary": "Governed rebinding of Miro execution profiles to the corporate team/Space."
+      }
+    },
+    {
+      "kind": "issue",
+      "numbers": [
+        57
+      ],
+      "metadata": {
+        "Status": "Backlog",
+        "Work Package": "WP-08",
+        "Item Type": "Change Request",
+        "Target Release": "TBD",
+        "Blocked": "Yes",
+        "Human Review": "Not required",
+        "Outcome summary": "Remove generic MIRO_ACCESS_TOKEN fallback after explicit profile credential migration."
       }
     }
   ],

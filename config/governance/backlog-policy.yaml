@@ -129,9 +129,9 @@ project:
 native_sub_issue_mapping:
   WP-08:
     parent_issue: 17
-    children: [9, 10, 11, 12, 13, 14, 15, 45, 53]
+    children: [9, 10, 11, 12, 13, 14, 15, 45, 53, 54, 55, 56, 57]
     release_0_1_0_children: [9, 10, 11, 12, 13, 14, 15]
-    future_children: [45, 53]
+    future_children: [45, 53, 54, 55, 56, 57]
   WP-09:
     parent_issue: 18
     children: [21, 22, 23, 24, 25, 50, 26, 51]
@@ -161,6 +161,15 @@ dependency_edges:
     - blocking: 10
       blocked: 9
       rationale: release contract consistency precedes final HRDR
+    - blocking: 53
+      blocked: 57
+      rationale: persistent Platform Lab precedes removal of legacy generic credential fallback
+    - blocking: 54
+      blocked: 57
+      rationale: Example Project profile must use explicit credentials before fallback removal
+    - blocking: 55
+      blocked: 57
+      rationale: per-project credential UX must be stable before fallback removal
   WP-09:
     - blocking: 21
       blocked: 23
