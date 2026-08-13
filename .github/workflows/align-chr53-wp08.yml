@@ -1,0 +1,163 @@
+name: Align CHR53 into WP-08 backlog
+
+on:
+  push:
+    branches:
+      - feature/github-native-backlog-governance
+    paths:
+      - .github/workflows/align-chr53-wp08.yml
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  align:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout governance branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/github-native-backlog-governance
+          fetch-depth: 0
+
+      - name: Update versioned governance contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          root = Path('.')
+
+          # Machine-readable bootstrap contract.
+          p = root / 'config/governance/github-bootstrap.json'
+          data = json.loads(p.read_text(encoding='utf-8-sig'))
+
+          for rel in data['hierarchy']:
+              if int(rel['parent']) == 17:
+                  children = [int(x) for x in rel['children']]
+                  if 53 not in children:
+                      children.append(53)
+                  rel['children'] = children
+                  break
+          else:
+              data['hierarchy'].append({'parent': 17, 'children': [53]})
+
+          covered = {int(n) for g in data['item_groups'] if g.get('kind') == 'issue' for n in g.get('numbers', [])}
+          if 53 not in covered:
+              data['item_groups'].append({
+                  'kind': 'issue',
+                  'numbers': [53],
+                  'metadata': {
+                      'Status': 'In progress',
+                      'Work Package': 'WP-08',
+                      'Item Type': 'Change Request',
+                      'Target Release': 'TBD',
+                      'Blocked': 'Yes',
+                      'Human Review': 'Not required',
+                      'Outcome summary': 'Persistent DDDA Platform Lab with explicit board taxonomy, reference/adoption lifecycle, managed namespaces and governed cleanup.'
+                  }
+              })
+
+          p.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          # Backlog policy / native hierarchy projection.
+          p = root / 'config/governance/backlog-policy.yaml'
+          text = p.read_text(encoding='utf-8-sig')
+          text = text.replace(
+              'children: [9, 10, 11, 12, 13, 14, 15, 45]',
+              'children: [9, 10, 11, 12, 13, 14, 15, 45, 53]'
+          )
+          text = text.replace(
+              'future_children: [45]',
+              'future_children: [45, 53]'
+          )
+          p.write_text(text, encoding='utf-8')
+
+          # WP-08 roadmap.
+          p = root / 'docs/roadmap/work-packages/WP-08-platform-lifecycle-and-steering.md'
+          text = p.read_text(encoding='utf-8-sig')
+          if '- persistent DDDA Platform Lab / board taxonomy / reference-adoption lifecycle — #53.' not in text:
+              text = text.replace(
+                  '- GitHub Pages Artifact Registry dashboard — #45.',
+                  '- GitHub Pages Artifact Registry dashboard — #45.\n- persistent DDDA Platform Lab / board taxonomy / reference-adoption lifecycle — #53.'
+              )
+          if '- #53 — persistent Platform Lab, board taxonomy and reference/adoption lifecycle;' not in text:
+              text = text.replace(
+                  '- #45 — GitHub Pages Artifact Registry dashboard; `Target Release: TBD` and explicitly outside Milestone `DDDA 0.1.0`.',
+                  '- #45 — GitHub Pages Artifact Registry dashboard; `Target Release: TBD` and explicitly outside Milestone `DDDA 0.1.0`.\n- #53 — persistent Platform Lab, board taxonomy and reference/adoption lifecycle; `Target Release: TBD`, partial docs slice in Draft PR #58, explicitly outside Milestone `DDDA 0.1.0`.'
+              )
+          text = text.replace(
+              '- [ ] #45 does not enter release 0.1.0 implicitly.',
+              '- [ ] #45 and #53 do not enter release 0.1.0 implicitly.'
+          )
+          text = text.replace(
+              '- future #45 remains independently planned.',
+              '- future #45/#53 remain independently planned.'
+          )
+          p.write_text(text, encoding='utf-8')
+
+          # Fail closed if the versioned projections did not change as intended.
+          data2 = json.loads((root / 'config/governance/github-bootstrap.json').read_text(encoding='utf-8'))
+          assert 53 in next(x['children'] for x in data2['hierarchy'] if int(x['parent']) == 17)
+          g53 = next(g for g in data2['item_groups'] if g.get('kind') == 'issue' and 53 in [int(x) for x in g.get('numbers', [])])
+          assert g53['metadata']['Work Package'] == 'WP-08'
+          assert g53['metadata']['Item Type'] == 'Change Request'
+          assert g53['metadata']['Target Release'] == 'TBD'
+          assert g53['metadata']['Blocked'] == 'Yes'
+          policy = (root / 'config/governance/backlog-policy.yaml').read_text(encoding='utf-8')
+          assert 'children: [9, 10, 11, 12, 13, 14, 15, 45, 53]' in policy
+          assert 'future_children: [45, 53]' in policy
+          PY
+
+      - name: Apply native WP-08 hierarchy
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: romanhlavac/ddd-accelerator
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          issue_id() {
+            gh api "repos/$GH_REPO/issues/$1" --jq '.id'
+          }
+
+          if gh api "repos/$GH_REPO/issues/17/sub_issues?per_page=100" --jq '.[].number' | grep -qx 53; then
+            echo 'Issue #53 already belongs to WP-08 #17.'
+          else
+            gh api --method POST "repos/$GH_REPO/issues/17/sub_issues" -F sub_issue_id="$(issue_id 53)" >/dev/null
+          fi
+
+          test "$(gh api "repos/$GH_REPO/issues/53" --jq '.parent_issue_url')" = "https://api.github.com/repos/$GH_REPO/issues/17"
+
+      - name: Wait for DDDA Platform Backlog auto-add and read back
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: romanhlavac/ddd-accelerator
+        shell: bash
+        run: |
+          set -euo pipefail
+          found=''
+          for attempt in $(seq 1 30); do
+            found="$(gh api "repos/$GH_REPO/issues/53/events?per_page=100" --jq '[.[] | select(.event=="added_to_project_v2")] | length')"
+            if [ "$found" -gt 0 ]; then
+              break
+            fi
+            sleep 2
+          done
+          test "${found:-0}" -gt 0
+          gh api "repos/$GH_REPO/issues/53/events?per_page=100" \
+            --jq '.[] | select(.event=="added_to_project_v2") | {event,created_at,actor:.actor.login}'
+
+      - name: Commit versioned alignment and remove one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/align-chr53-wp08.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add config/governance docs/roadmap .github/workflows
+          git commit -m 'docs(governance): align CHR53 with WP-08 backlog (#16)'
+          git push origin HEAD:feature/github-native-backlog-governance
