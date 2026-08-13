@@ -80,6 +80,7 @@ jobs:
               'runtime/miro/tests/test_rem_012_5_miro_tips_control_anchors.py',
               'runtime/miro/tests/test_rem_012_5_miro_tips_hvr.py',
               'runtime/miro/tests/test_rem_012_5_miro_tips_native_onboarding.py',
+              'runtime/miro/tests/test_rem_012_5_connector_readback.py',
           }
           assert observed, 'corrective commit must change at least one allowlisted path'
           unexpected=sorted(set(observed)-allowed)

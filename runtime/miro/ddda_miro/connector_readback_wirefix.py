@@ -40,117 +40,21 @@ def _same_color(left: Any, right: Any) -> bool:
     return str(left or "").casefold() == str(right or "").casefold()
 
 
-def _endpoint_coordinate(value: Any) -> float:
-    """Normalize Miro's fractional and percent endpoint coordinate forms."""
-    if isinstance(value, str):
-        text = value.strip()
-        if text.endswith("%"):
-            return float(text[:-1].strip()) / 100.0
-        return float(text)
-    return float(value)
-
-
-def _same_endpoint_contract(
-    remote: dict[str, Any], expected: dict[str, Any], *, allow_anchor_attachment: bool = False
-) -> bool:
-    """Compare a Miro Tips endpoint with a pixel-meaningful tolerance.
-
-    Endpoint coordinates are relative to the tutorial screenshot.  A tolerance
-    of 0.01 is at most about fourteen pixels on the 1364 px reference image;
-    it permits REST float serialization noise, but cannot turn a different
-    toolbar control into a passing result.
-    """
-    if str(remote.get("id") or "") != str(expected.get("id") or ""):
-        return False
-    for key in ("position", "snapTo"):
-        authored = expected.get(key)
-        actual = remote.get(key)
-        if authored is None:
-            # Miro is free to serialize a side/edge attachment for the tiny
-            # transparent target shape.  The anchor id and its independently
-            # verified geometry are the visual contract; a returned edge value
-            # must not turn that precise control-targeting into false churn.
-            if allow_anchor_attachment and key in {"position", "snapTo"}:
-                continue
-            if actual is not None:
-                return False
-            continue
-        if key == "snapTo":
-            if actual != authored:
-                return False
-            continue
-        if not isinstance(authored, dict) or not isinstance(actual, dict):
-            return False
-        for axis in ("x", "y"):
-            if axis not in authored or axis not in actual:
-                return False
-            try:
-                if abs(_endpoint_coordinate(actual[axis]) - _endpoint_coordinate(authored[axis])) > 0.01:
-                    return False
-            except (TypeError, ValueError):
-                return False
-    return True
-
-
-def _endpoint_contract_view(endpoint: dict[str, Any]) -> dict[str, Any]:
-    """Return the complete endpoint fields that affect tutorial arrow routing."""
-    return {
-        key: endpoint.get(key)
-        for key in ("id", "position", "snapTo")
-        if key in endpoint
-    }
-
-
 def connector_contract_mismatches(
     remote: dict[str, Any], expected: dict[str, Any]
 ) -> list[dict[str, Any]]:
-    """Expose REST read-back drift without weakening the visual contract.
-
-    The field-level record is intentionally machine-readable: the remediation
-    workflow must distinguish a rejected endpoint payload from an incorrect
-    reference mapping before it chooses the next corrective payload.
-    """
-    if not _is_miro_tips_callout(expected):
-        return []
-    mismatches: list[dict[str, Any]] = []
-    for name in ("startItem", "endItem"):
-        actual = remote.get(name) or {}
-        authored = expected.get(name) or {}
-        allow_anchor_attachment = (
-            name == "endItem"
-            and _is_miro_tips_callout(expected)
-            and "position" not in authored
-            and "snapTo" not in authored
-        )
-        if not _same_endpoint_contract(
-            actual, authored, allow_anchor_attachment=allow_anchor_attachment
-        ):
-            mismatches.append(
-                {
-                    "endpoint": name,
-                    "expected": _endpoint_contract_view(authored),
-                    "actual": _endpoint_contract_view(actual),
-                }
-            )
-    return mismatches
-
-
-def _is_miro_tips_callout(connector: dict[str, Any]) -> bool:
-    style = connector.get("style") or {}
-    return (
-        str(style.get("strokeColor") or "").casefold() in {"#000000", "#000"}
-        and not (connector.get("captions") or [])
-    )
+    """Miro Tips now has no connectors; retain a stable empty diagnostic surface."""
+    _ = remote
+    _ = expected
+    return []
 
 
 def same_connector_canonical(remote: dict[str, Any], expected: dict[str, Any]) -> bool:
-    """Compare connector semantics, including all Miro Tips attachment points."""
-    if connector_contract_mismatches(remote, expected):
-        return False
+    """Compare connector semantics without a tutorial-specific routing exception."""
     for name in ("startItem", "endItem"):
-        remote_endpoint = remote.get(name) or {}
-        expected_endpoint = expected.get(name) or {}
-        if not _is_miro_tips_callout(expected) and str(remote_endpoint.get("id") or "") != str(expected_endpoint.get("id") or ""):
+        if str((remote.get(name) or {}).get("id") or "") != str(
+            (expected.get(name) or {}).get("id") or ""
+        ):
             return False
 
     if expected.get("shape") and remote.get("shape") != expected["shape"]:
@@ -188,15 +92,13 @@ def same_connector_canonical(remote: dict[str, Any], expected: dict[str, Any]) -
     return True
 
 
-def connector_contract_error(connector_id: str, remote: dict[str, Any], expected: dict[str, Any]) -> str:
-    """Produce an actionable exact endpoint diff for the authoritative log."""
-    mismatches = connector_contract_mismatches(remote, expected)
-    if not mismatches:
-        return f"companion connector {connector_id} read-back mismatch"
-    return (
-        f"companion connector {connector_id} endpoint read-back mismatch: "
-        + json.dumps(mismatches, sort_keys=True, separators=(",", ":"))
-    )
+def connector_contract_error(
+    connector_id: str, remote: dict[str, Any], expected: dict[str, Any]
+) -> str:
+    """Produce an actionable generic connector diff for authoritative logs."""
+    _ = remote
+    _ = expected
+    return f"companion connector {connector_id} read-back mismatch"
 
 
 def main(argv: list[str] | None = None) -> int:
