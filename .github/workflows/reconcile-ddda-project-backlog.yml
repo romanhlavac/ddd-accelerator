@@ -1,0 +1,44 @@
+name: Reconcile DDDA Project Backlog
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  reconcile:
+    environment: ddda-backlog-governance
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.DDDA_GITHUB_PROJECT_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate persistent Project credential
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${GH_TOKEN:-}"
+          gh auth status --hostname github.com >/dev/null
+          gh project list --owner romanhlavac --limit 100 --format json --jq '.projects[] | select(.title=="DDDA Platform Backlog") | .number' | grep -Eq '^[0-9]+$'
+
+      - name: Validate reconciler
+        run: python -m py_compile scripts/platform/Reconcile-DDDAProjectBacklog.py
+
+      - name: Reconcile and read back
+        run: python scripts/platform/Reconcile-DDDAProjectBacklog.py
+
+      - name: Assert versioned projections are synchronized
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code -- config/governance/github-bootstrap.json config/governance/backlog-policy.yaml docs/roadmap/work-packages/WP-08-platform-lifecycle-and-steering.md
+
+      - name: Upload audit evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: ddda-project-backlog-audit
+          path: .reports/cr-backlog-audit-v4/**
+          retention-days: 30
+          if-no-files-found: error
