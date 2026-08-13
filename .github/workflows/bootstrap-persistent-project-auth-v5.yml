@@ -1,0 +1,162 @@
+name: Bootstrap persistent Project V2 auth v5
+
+on:
+  push:
+    branches:
+      - feature/github-native-backlog-governance
+    paths:
+      - .github/workflows/bootstrap-persistent-project-auth-v5.yml
+
+permissions:
+  contents: write
+  issues: write
+  actions: write
+
+jobs:
+  bootstrap-and-reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      REPO: romanhlavac/ddd-accelerator
+      GOVERNANCE_BRANCH: feature/github-native-backlog-governance
+      GOVERNANCE_ENV: ddda-backlog-governance
+      PROJECT_SECRET: DDDA_GITHUB_PROJECT_TOKEN
+      DEVICE_VAR: DDDA_PROJECT_AUTH_DEVICE_CODE
+      ACTIONS_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout governance branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/github-native-backlog-governance
+          fetch-depth: 0
+
+      - name: Preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git branch --show-current)" = "$GOVERNANCE_BRANCH"
+          python -m py_compile .github/scripts/reconcile-cr-backlog-v4.py
+          # Stop the broken split-step v4 run if it is still alive.
+          GH_TOKEN="$ACTIONS_TOKEN" gh api --method POST "repos/$REPO/actions/runs/31689490151/cancel" >/dev/null 2>&1 || true
+
+      - name: Authorize once, persist securely, reconcile
+        shell: bash
+        run: |
+          set -euo pipefail
+          unset GH_TOKEN GITHUB_TOKEN
+          auth_log="$RUNNER_TEMP/gh-auth.log"
+          rm -f "$auth_log"
+
+          # IMPORTANT: the login process and the wait stay inside THIS SAME STEP.
+          (gh auth login --hostname github.com --git-protocol https --web --scopes project >"$auth_log" 2>&1) &
+          auth_pid=$!
+
+          code=''
+          for i in $(seq 1 90); do
+            code="$(grep -Eo '[A-Z0-9]{4}-[A-Z0-9]{4}' "$auth_log" 2>/dev/null | head -n1 || true)"
+            [ -n "$code" ] && break
+            if ! kill -0 "$auth_pid" 2>/dev/null; then
+              cat "$auth_log" >&2 || true
+              exit 1
+            fi
+            sleep 1
+          done
+          test -n "$code"
+
+          # Publish only the short-lived non-secret device challenge as a repository variable.
+          if GH_TOKEN="$ACTIONS_TOKEN" gh api "repos/$REPO/actions/variables/$DEVICE_VAR" >/dev/null 2>&1; then
+            printf '{"name":"%s","value":"%s"}' "$DEVICE_VAR" "$code" | \
+              GH_TOKEN="$ACTIONS_TOKEN" gh api --method PATCH "repos/$REPO/actions/variables/$DEVICE_VAR" --input - >/dev/null
+          else
+            printf '{"name":"%s","value":"%s"}' "$DEVICE_VAR" "$code" | \
+              GH_TOKEN="$ACTIONS_TOKEN" gh api --method POST "repos/$REPO/actions/variables" --input - >/dev/null
+          fi
+          echo 'DEVICE_CHALLENGE_PUBLISHED'
+
+          # Stay in the same step until the user completes the device flow.
+          wait "$auth_pid"
+          gh auth status --hostname github.com >/dev/null
+
+          # Remove the one-time challenge immediately after successful redemption.
+          GH_TOKEN="$ACTIONS_TOKEN" gh api --method DELETE "repos/$REPO/actions/variables/$DEVICE_VAR" >/dev/null 2>&1 || true
+
+          # Create a dedicated environment and restrict it to the governance branch.
+          printf '%s' '{"deployment_branch_policy":{"protected_branches":false,"custom_branch_policies":true}}' | \
+            gh api --method PUT "repos/$REPO/environments/$GOVERNANCE_ENV" --input - >/dev/null
+
+          if ! gh api "repos/$REPO/environments/$GOVERNANCE_ENV/deployment-branch-policies?per_page=100" \
+              --jq '.branch_policies[].name' | grep -Fxq "$GOVERNANCE_BRANCH"; then
+            printf '{"name":"%s","type":"branch"}' "$GOVERNANCE_BRANCH" | \
+              gh api --method POST "repos/$REPO/environments/$GOVERNANCE_ENV/deployment-branch-policies" --input - >/dev/null
+          fi
+
+          # Persist the authenticated token without printing it. GitHub CLI encrypts the secret client-side.
+          gh auth token | gh secret set "$PROJECT_SECRET" --repo "$REPO" --env "$GOVERNANCE_ENV"
+          gh secret list --repo "$REPO" --env "$GOVERNANCE_ENV" --json name --jq '.[].name' | grep -Fxq "$PROJECT_SECRET"
+          echo 'PERSISTENT_PROJECT_AUTH_READY'
+
+          # Complete the actual reconciliation while this one-time login is still valid.
+          python .github/scripts/reconcile-cr-backlog-v4.py
+
+          # Promote the reconciler to a permanent governed script.
+          mkdir -p scripts/platform
+          cp .github/scripts/reconcile-cr-backlog-v4.py scripts/platform/Reconcile-DDDAProjectBacklog.py
+
+          # Leave a permanent no-browser-login workflow using only the environment secret.
+          cat > .github/workflows/reconcile-ddda-project-backlog.yml <<'YAML'
+          name: Reconcile DDDA Project Backlog
+
+          on:
+            workflow_dispatch:
+
+          permissions:
+            contents: read
+
+          jobs:
+            reconcile:
+              environment: ddda-backlog-governance
+              runs-on: ubuntu-latest
+              env:
+                GH_TOKEN: ${{ secrets.DDDA_GITHUB_PROJECT_TOKEN }}
+              steps:
+                - uses: actions/checkout@v4
+                - name: Validate reconciler
+                  run: python -m py_compile scripts/platform/Reconcile-DDDAProjectBacklog.py
+                - name: Reconcile and read back
+                  run: python scripts/platform/Reconcile-DDDAProjectBacklog.py
+                - name: Assert versioned projections are already synchronized
+                  shell: bash
+                  run: |
+                    set -euo pipefail
+                    git diff --exit-code -- config/governance/github-bootstrap.json config/governance/backlog-policy.yaml docs/roadmap/work-packages/WP-08-platform-lifecycle-and-steering.md
+                - name: Upload audit evidence
+                  uses: actions/upload-artifact@v4
+                  with:
+                    name: ddda-project-backlog-audit
+                    path: .reports/cr-backlog-audit-v4/**
+                    retention-days: 30
+          YAML
+
+          # Discard the local CLI credential after it has been persisted in GitHub's secret store.
+          gh auth logout --hostname github.com --user romanhlavac >/dev/null 2>&1 || true
+
+      - name: Upload bootstrap reconciliation evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: cr-backlog-consistency-final
+          path: .reports/cr-backlog-audit-v4/**
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Commit synchronized governance state and self-remove bootstrap artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/reconcile-cr-backlog-v4.yml
+          rm -f .github/workflows/bootstrap-persistent-project-auth-v5.yml
+          rm -f .github/scripts/reconcile-cr-backlog-v4.py
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add config/governance/github-bootstrap.json config/governance/backlog-policy.yaml docs/roadmap/work-packages/WP-08-platform-lifecycle-and-steering.md scripts/platform/Reconcile-DDDAProjectBacklog.py .github/workflows
+          git commit -m 'fix(governance): persist Project V2 auth and reconcile CR backlog (#16)'
+          git push origin HEAD:feature/github-native-backlog-governance
