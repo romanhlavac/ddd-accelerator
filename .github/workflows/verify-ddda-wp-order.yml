@@ -1,0 +1,45 @@
+name: Verify DDDA WP implementation order
+
+on:
+  push:
+    branches:
+      - feature/github-native-backlog-governance
+    paths:
+      - .github/workflows/verify-ddda-wp-order.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    environment: ddda-backlog-governance
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.DDDA_GITHUB_PROJECT_TOKEN }}
+    steps:
+      - name: Read Project V2 WP planning fields
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh auth status --hostname github.com >/dev/null
+          gh project item-list 2 --owner romanhlavac --limit 200 --format json > "$RUNNER_TEMP/items.json"
+          python - "$RUNNER_TEMP/items.json" <<'PY'
+          import json,sys
+          src=json.load(open(sys.argv[1],encoding='utf-8'))
+          rows={}
+          for item in src.get('items',[]):
+              content=item.get('content') or {}
+              n=content.get('number')
+              if n in (17,20,60,61):
+                  rows[str(n)]=item
+          if set(rows) != {'17','20','60','61'}:
+              raise SystemExit(f'missing WP items: {sorted(set(["17","20","60","61"])-set(rows))}')
+          json.dump(rows,open('wp-order-readback.json','w',encoding='utf-8'),ensure_ascii=False,indent=2)
+          print(json.dumps({k:{x:y for x,y in v.items() if str(x).lower() in ('priority','work package','item type','status','dependency','title')} for k,v in rows.items()},ensure_ascii=False,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ddda-wp-order-readback
+          path: wp-order-readback.json
+          retention-days: 7
+          if-no-files-found: error
