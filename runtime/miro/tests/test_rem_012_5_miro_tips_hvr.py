@@ -23,7 +23,7 @@ def manifest():
             "reference_source_image_id": "source-image",
             "expected_item_count": 17,
             "expected_item_type_counts": dict(tips.EXPECTED_ITEM_TYPE_COUNTS),
-            "expected_connector_count": 0,
+            "expected_connector_count": 8,
             "container_policy": tips.MIRO_TIPS_CONTAINER_POLICY,
             "visual_equivalence_policy": tips.MIRO_TIPS_VISUAL_EQUIVALENCE_POLICY,
             "target_position": {"x": -19834.447, "y": -11727.533},
@@ -99,7 +99,22 @@ def reference_items(parent_id="source-tips"):
 class FakeClient:
     def __init__(self):
         self.items = {"source": reference_items()}
-        self.connectors = {"source": []}
+        self.connectors = {
+            "source": [
+                {
+                    "id": f"connector-{index}",
+                    "startItem": {"id": f"sticky-{index}"},
+                    "endItem": {
+                        "id": "source-image",
+                        "position": {"x": 0.10 + index * 0.05, "y": 0.10},
+                    },
+                    "shape": "curved",
+                    "style": {"strokeColor": "#000000", "endStrokeCap": "stealth"},
+                    "captions": [],
+                }
+                for index in range(8)
+            ]
+        }
         self.frames = {
             ("source", "source-tips"): frame(
                 "source-tips", "Miro Tips", -18762.0, -11858.0, 1919.433, 1079.681

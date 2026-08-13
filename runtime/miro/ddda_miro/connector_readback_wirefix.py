@@ -40,22 +40,58 @@ def _same_color(left: Any, right: Any) -> bool:
     return str(left or "").casefold() == str(right or "").casefold()
 
 
+def _coordinate(value: Any) -> float:
+    if isinstance(value, str) and value.strip().endswith("%"):
+        return float(value.strip()[:-1]) / 100.0
+    return float(value)
+
+
+def _endpoint_view(endpoint: dict[str, Any]) -> dict[str, Any]:
+    return {
+        key: endpoint.get(key)
+        for key in ("id", "position", "snapTo")
+        if key in endpoint
+    }
+
+
 def connector_contract_mismatches(
     remote: dict[str, Any], expected: dict[str, Any]
 ) -> list[dict[str, Any]]:
-    """Miro Tips now has no connectors; retain a stable empty diagnostic surface."""
-    _ = remote
-    _ = expected
-    return []
+    """Compare every authored endpoint attachment in the reference contract."""
+    mismatches: list[dict[str, Any]] = []
+    for name in ("startItem", "endItem"):
+        actual = remote.get(name) or {}
+        authored = expected.get(name) or {}
+        valid = str(actual.get("id") or "") == str(authored.get("id") or "")
+        if valid and authored.get("position") is not None:
+            position = actual.get("position") or {}
+            source_position = authored.get("position") or {}
+            try:
+                valid = all(
+                    axis in position
+                    and axis in source_position
+                    and abs(_coordinate(position[axis]) - _coordinate(source_position[axis])) <= 0.01
+                    for axis in ("x", "y")
+                )
+            except (TypeError, ValueError):
+                valid = False
+        if valid and authored.get("snapTo") is not None:
+            valid = actual.get("snapTo") == authored.get("snapTo")
+        if not valid:
+            mismatches.append(
+                {
+                    "endpoint": name,
+                    "expected": _endpoint_view(authored),
+                    "actual": _endpoint_view(actual),
+                }
+            )
+    return mismatches
 
 
 def same_connector_canonical(remote: dict[str, Any], expected: dict[str, Any]) -> bool:
-    """Compare connector semantics without a tutorial-specific routing exception."""
-    for name in ("startItem", "endItem"):
-        if str((remote.get(name) or {}).get("id") or "") != str(
-            (expected.get(name) or {}).get("id") or ""
-        ):
-            return False
+    """Compare connector semantics and authored reference attachment points."""
+    if connector_contract_mismatches(remote, expected):
+        return False
 
     if expected.get("shape") and remote.get("shape") != expected["shape"]:
         return False
@@ -95,10 +131,13 @@ def same_connector_canonical(remote: dict[str, Any], expected: dict[str, Any]) -
 def connector_contract_error(
     connector_id: str, remote: dict[str, Any], expected: dict[str, Any]
 ) -> str:
-    """Produce an actionable generic connector diff for authoritative logs."""
-    _ = remote
-    _ = expected
-    return f"companion connector {connector_id} read-back mismatch"
+    mismatches = connector_contract_mismatches(remote, expected)
+    if not mismatches:
+        return f"companion connector {connector_id} read-back mismatch"
+    return (
+        f"companion connector {connector_id} endpoint read-back mismatch: "
+        + json.dumps(mismatches, sort_keys=True, separators=(",", ":"))
+    )
 
 
 def main(argv: list[str] | None = None) -> int:

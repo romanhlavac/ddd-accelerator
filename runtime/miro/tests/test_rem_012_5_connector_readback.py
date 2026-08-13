@@ -4,6 +4,7 @@ from copy import deepcopy
 
 from ddda_miro import connector_readback_wirefix as wirefix
 from ddda_miro.connector_readback_wirefix import (
+    connector_contract_mismatches,
     same_connector_canonical,
     update_connector_with_fresh_readback,
 )
@@ -36,8 +37,8 @@ class _ConnectorClient:
 
 def _expected():
     return {
-        "startItem": {"id": "start"},
-        "endItem": {"id": "end"},
+        "startItem": {"id": "start", "position": {"x": 1.0, "y": 0.5}},
+        "endItem": {"id": "end", "position": {"x": 0.237, "y": 0.081}},
         "shape": "straight",
         "style": {
             "startStrokeCap": "none",
@@ -58,13 +59,11 @@ def test_connector_equality_canonicalizes_percentage_numeric_font_and_hex_case()
     assert same_connector_canonical(client.full, _expected())
 
 
-def test_connector_equality_keeps_readability_contract_strict():
+def test_connector_equality_keeps_authored_attachment_points_strict():
     client = _ConnectorClient()
-    client.full["style"]["fontSize"] = 14
+    client.full["endItem"]["position"] = {"x": 0.5, "y": 0.0}
     assert not same_connector_canonical(client.full, _expected())
-    client.full["style"]["fontSize"] = 48
-    client.full["style"]["textOrientation"] = "aligned"
-    assert not same_connector_canonical(client.full, _expected())
+    assert connector_contract_mismatches(client.full, _expected())[0]["endpoint"] == "endItem"
 
 
 def test_update_connector_uses_fresh_readback_not_patch_response(monkeypatch):
@@ -87,11 +86,11 @@ def test_update_connector_uses_fresh_readback_not_patch_response(monkeypatch):
     assert same_connector_canonical(remote, _expected())
 
 
-def test_connector_identity_remains_strict_for_every_connector():
+def test_connector_endpoint_percentage_wire_values_preserve_the_same_arrow_target():
     client = _ConnectorClient()
-    drifted = deepcopy(client.full)
-    drifted["endItem"]["id"] = "wrong-end"
-    assert not same_connector_canonical(drifted, _expected())
+    client.full["startItem"]["position"] = {"x": "100%", "y": "50%"}
+    client.full["endItem"]["position"] = {"x": "23.7%", "y": "8.1%"}
+    assert same_connector_canonical(client.full, _expected())
 
 
 def test_runtime_wires_only_the_exact_reference_clone(monkeypatch):

@@ -44,7 +44,7 @@ Nový exact-SHA run musí prokázat:
 4. fresh Platform Lab read-back je PASS;
 5. second Platform Lab reconcile má zero create/update/delete mutation;
 6. protected frames zůstávají unchanged;
-7. Miro Tips je přesný klon schválené reference `uXjVH2vcvRI=` / frame `3458764679531043366`: 17 child items (1 image, 13 sticky notes, 3 texts), 0 connectors; žádné native onboarding cards ani transparentní kotevní šipky;
+7. Miro Tips je přesný klon schválené reference `uXjVH2vcvRI=` / frame `3458764679531043366`: 17 child items (1 image, 13 sticky notes, 3 texts) a 8 referenčních šipek s přesnými endpointy; žádné native onboarding cards ani transparentní kotevní prvky;
 8. `github_ci` používá pouze `MIRO_GH_CI_ACCESS_TOKEN` a online acceptance běží na dedicated `DDDA_GH_CI` boardu po jeho machine-only resetu;
 9. po technickém Platform Lab PASS je `DDDA_HVR` materializován výhradně přes `MIRO_HVR_ACCESS_TOKEN` jako server-side copy validovaného Platform Lab boardu;
 10. HVR copy read-back potvrzuje očekávaný obsah a poskytne exact-SHA review URL;

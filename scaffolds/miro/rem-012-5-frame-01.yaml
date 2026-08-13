@@ -41,7 +41,7 @@ miro_tips:
     image: 1
     sticky_note: 13
     text: 3
-  expected_connector_count: 0
+  expected_connector_count: 8
   container_policy: retained_verified_target_container
   visual_equivalence_policy: exact_reference_child_snapshot
   target_position:

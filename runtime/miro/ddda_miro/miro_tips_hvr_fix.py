@@ -14,7 +14,7 @@ MIRO_TIPS_CONTAINER_POLICY = "retained_verified_target_container"
 MIRO_TIPS_VISUAL_EQUIVALENCE_POLICY = "exact_reference_child_snapshot"
 EXPECTED_ITEM_TYPE_COUNTS = {"image": 1, "sticky_note": 13, "text": 3}
 EXPECTED_ITEM_COUNT = sum(EXPECTED_ITEM_TYPE_COUNTS.values())
-EXPECTED_CONNECTOR_COUNT = 0
+EXPECTED_CONNECTOR_COUNT = 8
 DEFAULT_READBACK_ATTEMPTS = 20
 DEFAULT_READBACK_DELAY_SECONDS = 0.5
 DEFAULT_REQUIRED_MARKERS = (
@@ -80,7 +80,7 @@ def _config(manifest: dict[str, Any]) -> dict[str, Any]:
         )
     connector_count = raw.get("expected_connector_count")
     if connector_count is None or int(connector_count) != EXPECTED_CONNECTOR_COUNT:
-        raise ValueError("Miro Tips exact reference has zero connectors")
+        raise ValueError("Miro Tips exact reference must contain eight connectors")
     if not 2 <= attempts <= 60 or not 0 <= delay <= 2:
         raise ValueError("Miro Tips read-back policy is out of range")
     for key in ("x", "y"):
@@ -164,7 +164,7 @@ def _assert_snapshot(
             f"{label} item types differ from exact reference: {state['item_type_counts']}"
         )
     if len(state["connectors"]) != cfg["expected_connector_count"]:
-        raise ValueError(f"{label} has connectors; the exact reference has none")
+        raise ValueError(f"{label} connector count differs from the exact reference")
     missing = [marker for marker in cfg["required_markers"] if marker not in state["text"]]
     if missing:
         raise ValueError(f"{label} is missing required reference markers: {missing}")
@@ -274,6 +274,7 @@ def _exact_clone_readback(
     _assert_snapshot(source, cfg, "Miro Tips source", require_reference_image=True)
     _assert_snapshot(target, cfg, "Miro Tips target", require_reference_image=False)
 
+    mapping: dict[str, str] = {}
     used: set[str] = set()
     native_count = 0
     for item in sorted(
@@ -284,6 +285,7 @@ def _exact_clone_readback(
         expected = visual._ORIGINAL_ITEM_PAYLOAD(item, target_frame_id)
         if match is None or not visual.redline.same_item(match, expected):
             raise ValueError(f"Miro Tips target item differs from reference: {item.get('id')}")
+        mapping[str(item.get("id") or "")] = str(match.get("id") or "")
         used.add(str(match.get("id") or ""))
         native_count += 1
 
@@ -297,6 +299,26 @@ def _exact_clone_readback(
     ]
     if len(image_matches) != 1:
         raise ValueError("Miro Tips target screenshot does not match the reference geometry")
+    mapping[str(source_image.get("id") or "")] = str(image_matches[0].get("id") or "")
+
+    used_connectors: set[str] = set()
+    for connector in source["connectors"]:
+        start_id = mapping.get(str((connector.get("startItem") or {}).get("id") or ""))
+        end_id = mapping.get(str((connector.get("endItem") or {}).get("id") or ""))
+        if not start_id or not end_id:
+            raise ValueError(f"Miro Tips connector source mapping is incomplete: {connector.get('id')}")
+        expected = visual.readable_connector_payload(connector, start_id, end_id, manifest)
+        matches = [
+            candidate
+            for candidate in target["connectors"]
+            if str(candidate.get("id") or "") not in used_connectors
+            and str((candidate.get("startItem") or {}).get("id") or "") == start_id
+            and str((candidate.get("endItem") or {}).get("id") or "") == end_id
+        ]
+        if len(matches) != 1 or not visual.redline.same_connector(matches[0], expected):
+            raise ValueError(f"Miro Tips target connector differs from reference: {connector.get('id')}")
+        used_connectors.add(str(matches[0].get("id") or ""))
+
     return {
         "policy": MIRO_TIPS_VISUAL_EQUIVALENCE_POLICY,
         "source_item_count": len(source["items"]),
@@ -304,12 +326,12 @@ def _exact_clone_readback(
         "item_type_counts": dict(EXPECTED_ITEM_TYPE_COUNTS),
         "source_connector_count": len(source["connectors"]),
         "target_connector_count": len(target["connectors"]),
+        "connector_contract_count": len(used_connectors),
         "native_item_count": native_count,
         "source_image_id": str(source_image.get("id") or ""),
         "target_image_id": str(image_matches[0].get("id") or ""),
         "status": "PASS",
     }
-
 
 def reconcile_miro_tips_children(
     client: Any,

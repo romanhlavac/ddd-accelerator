@@ -111,7 +111,7 @@ jobs:
               "reference_source_image_id: '3458764679531043367'",
               'expected_item_count: 17',
               'sticky_note: 13',
-              'expected_connector_count: 0',
+              'expected_connector_count: 8',
               'visual_equivalence_policy: exact_reference_child_snapshot',
           ):
               assert marker in manifest, f'exact Miro Tips marker missing: {marker}'
@@ -243,7 +243,7 @@ jobs:
             if($tips.reference_source_board_id -ne 'uXjVH2vcvRI=' -or $tips.reference_source_frame_id -ne '3458764679531043366' -or $tips.reference_source_image_id -ne '3458764679531043367'){throw 'Miro Tips reference identity mismatch'}
             if([int]$tips.reference_clone.source_item_count -ne 17 -or [int]$tips.reference_clone.target_item_count -ne 17){throw 'Miro Tips exact item-count mismatch'}
             if([int]$tips.reference_clone.item_type_counts.image -ne 1 -or [int]$tips.reference_clone.item_type_counts.sticky_note -ne 13 -or [int]$tips.reference_clone.item_type_counts.text -ne 3){throw 'Miro Tips exact item-type mismatch'}
-            if([int]$tips.reference_clone.source_connector_count -ne 0 -or [int]$tips.reference_clone.target_connector_count -ne 0){throw 'Miro Tips reference must have zero connectors'}
+            if([int]$tips.reference_clone.source_connector_count -ne 8 -or [int]$tips.reference_clone.target_connector_count -ne 8 -or [int]$tips.reference_clone.connector_contract_count -ne 8){throw 'Miro Tips exact connector contract mismatch'}
             if($tips.reference_clone.status -ne 'PASS'){throw 'Miro Tips clone read-back failed'}
             if($tips.target_frame_id -ne '3458764680476608045'){throw 'Miro Tips active container identity mismatch'}
           }
@@ -416,14 +416,15 @@ jobs:
                   'target_url':f'https://miro.com/app/board/{target}/?moveToWidget={copied_id}',
               }
 
-          # HVR must retain the exact Miro Tips child snapshot from Platform Lab.
+          # HVR must retain the exact Miro Tips child-and-connector snapshot from Platform Lab.
           source_tips_id=required_source_ids['miro_tips']
           tips_frame_id=review_frames['miro_tips']['target_item_id']
           source_tips_children=[x for x in source_items if str((x.get('parent') or {}).get('id') or '')==source_tips_id]
           tips_children=[x for x in target_items if str((x.get('parent') or {}).get('id') or '')==tips_frame_id]
-          connectors=list_connectors(target)
-          tip_ids={str(x.get('id') or '') for x in tips_children}
-          callouts=[x for x in connectors if str((x.get('startItem') or {}).get('id') or '') in tip_ids or str((x.get('endItem') or {}).get('id') or '') in tip_ids]
+          source_tip_ids={str(x.get('id') or '') for x in source_tips_children}
+          target_tip_ids={str(x.get('id') or '') for x in tips_children}
+          source_connectors=[x for x in list_connectors(source) if str((x.get('startItem') or {}).get('id') or '') in source_tip_ids and str((x.get('endItem') or {}).get('id') or '') in source_tip_ids]
+          target_connectors=[x for x in list_connectors(target) if str((x.get('startItem') or {}).get('id') or '') in target_tip_ids and str((x.get('endItem') or {}).get('id') or '') in target_tip_ids]
           expected_types=Counter({'image':1,'sticky_note':13,'text':3})
           if len(source_tips_children)!=17 or len(tips_children)!=17:
               raise SystemExit('HVR copy Miro Tips item-count mismatch')
@@ -431,8 +432,8 @@ jobs:
               raise SystemExit('Platform Lab Miro Tips source topology mismatch')
           if Counter(str(x.get('type') or '') for x in tips_children)!=expected_types:
               raise SystemExit('HVR copy Miro Tips item-type mismatch')
-          if callouts:
-              raise SystemExit('HVR copy Miro Tips must retain zero connectors')
+          if len(source_connectors)!=8 or len(target_connectors)!=8:
+              raise SystemExit('HVR copy Miro Tips connector-count mismatch')
           def item_contract(item):
               data=item.get('data') if isinstance(item.get('data'),dict) else {}
               return json.dumps({
@@ -445,12 +446,32 @@ jobs:
               },sort_keys=True,separators=(',',':'))
           if sorted(item_contract(x) for x in source_tips_children)!=sorted(item_contract(x) for x in tips_children):
               raise SystemExit('HVR copy Miro Tips exact-child snapshot mismatch')
+          def connector_contract(connector, child_by_id):
+              def endpoint(name):
+                  value=connector.get(name) if isinstance(connector.get(name),dict) else {}
+                  return {
+                      'item':child_by_id.get(str(value.get('id') or '')),
+                      'position':value.get('position'),
+                      'snapTo':value.get('snapTo'),
+                  }
+              return json.dumps({
+                  'shape':connector.get('shape'),
+                  'startItem':endpoint('startItem'),
+                  'endItem':endpoint('endItem'),
+                  'style':connector.get('style') or {},
+                  'captions':connector.get('captions') or [],
+              },sort_keys=True,separators=(',',':'))
+          source_by_id={str(x.get('id') or ''):item_contract(x) for x in source_tips_children}
+          target_by_id={str(x.get('id') or ''):item_contract(x) for x in tips_children}
+          if sorted(connector_contract(x,source_by_id) for x in source_connectors)!=sorted(connector_contract(x,target_by_id) for x in target_connectors):
+              raise SystemExit('HVR copy Miro Tips exact-connector snapshot mismatch')
           hvr_tips_readback={
               'frame_id':tips_frame_id,
               'item_count':len(tips_children),
               'item_type_counts':dict(expected_types),
-              'connector_count':len(callouts),
+              'connector_count':len(target_connectors),
               'exact_child_snapshot_matches_platform_lab':True,
+              'exact_connector_snapshot_matches_platform_lab':True,
               'status':'PASS',
           }
 
