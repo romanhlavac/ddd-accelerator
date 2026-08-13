@@ -8,7 +8,8 @@ param(
     [switch]$ResetToken,
     [switch]$ForceRecreateRuntime,
     [switch]$NonInteractive,
-    [switch]$Resume
+    [switch]$Resume,
+    [switch]$SuppressCommitInstructions
 )
 
 Set-StrictMode -Version Latest
@@ -27,19 +28,64 @@ catch {
 function Invoke-ProjectMiroCli {
     param([Parameter(Mandatory = $true)][string[]]$CommandArguments)
 
-    $raw = & $script:MiroPython -m ddda_miro --project $script:ProjectRoot --platform $script:PlatformRoot @CommandArguments 2>&1
-    $exitCode = $LASTEXITCODE
-    $text = ($raw | Out-String).Trim()
-
-    if ($exitCode -ne 0) {
-        throw ("DDDA Miro CLI selhalo: {0}`n{1}" -f ($CommandArguments -join " "), $text)
-    }
-
+    $stderrPath = Join-Path $env:TEMP ("ddda-project-miro-cli-{0}.stderr.log" -f [Guid]::NewGuid().ToString("N"))
     try {
-        return ($text | ConvertFrom-Json)
+        $previousErrorActionPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = "Continue"
+            $raw = @(& $script:MiroPython -I -X utf8 -m ddda_miro --project $script:ProjectRoot --platform $script:PlatformRoot @CommandArguments 2> $stderrPath)
+            $exitCode = $LASTEXITCODE
+        }
+        finally {
+            $ErrorActionPreference = $previousErrorActionPreference
+        }
+
+        $rawText = $raw | ForEach-Object { $_.ToString() } | Out-String
+        $text = ""
+        if ($null -ne $rawText) {
+            $text = ([string]$rawText).Trim()
+        }
+        $stderrRaw = if (Test-Path -LiteralPath $stderrPath -PathType Leaf) {
+            Get-Content -LiteralPath $stderrPath -Raw -Encoding UTF8
+        }
+        else {
+            $null
+        }
+        $stderrText = ""
+        if ($null -ne $stderrRaw) {
+            $stderrText = ([string]$stderrRaw).Trim()
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($stderrText)) {
+            Write-Host $stderrText
+        }
+
+        if ($exitCode -ne 0) {
+            throw ("DDDA Miro CLI selhalo: {0}`nExit code: {1}`nStdout:`n{2}`nStderr:`n{3}" -f ($CommandArguments -join " "), $exitCode, $text, $stderrText)
+        }
+
+        try {
+            return ($text | ConvertFrom-Json)
+        }
+        catch {
+            throw ("DDDA Miro CLI nevrátilo platný JSON.`nPříkaz: {0}`nStdout:`n{1}`nStderr:`n{2}" -f ($CommandArguments -join " "), $text, $stderrText)
+        }
     }
-    catch {
-        throw ("DDDA Miro CLI nevrátilo platný JSON.`nPříkaz: {0}`nVýstup:`n{1}" -f ($CommandArguments -join " "), $text)
+    finally {
+        Remove-Item -LiteralPath $stderrPath -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Assert-NoMiroConflicts {
+    param(
+        [Parameter(Mandatory = $true)]$Result,
+        [Parameter(Mandatory = $true)][string]$Label
+    )
+
+    $conflictCount = [int](Get-DDDAObjectPropertyValue -InputObject $Result -Name "conflict_count" -DefaultValue 0)
+    if ($conflictCount -ne 0) {
+        $conflicts = Get-DDDAObjectPropertyValue -InputObject $Result -Name "conflicts" -DefaultValue @()
+        throw ("{0} skončil konflikty ({1}):`n{2}" -f $Label, $conflictCount, (@($conflicts) -join "`n"))
     }
 }
 
@@ -66,11 +112,12 @@ try {
 
     Assert-DDDACleanGitRepository -RepositoryPath $script:PlatformRoot -Label "Platformní"
 
+    $controlledMiroPrefixes = @("miro/", "reports/miro-sync/")
     $initialProjectChanges = Invoke-DDDAGit -RepositoryPath $script:ProjectRoot -Arguments @("status", "--porcelain")
     if ($Resume) {
-        $null = Assert-DDDAGitChangesWithinPath -PorcelainText $initialProjectChanges -AllowedPrefix "miro/" -Label "Projektový repozitář v resume režimu"
+        $null = Assert-DDDAGitChangesWithinPath -PorcelainText $initialProjectChanges -AllowedPrefix $controlledMiroPrefixes -Label "Projektový repozitář v resume režimu"
         if (-not [string]::IsNullOrWhiteSpace($initialProjectChanges)) {
-            Write-Host "Resume: používají se existující necommitnuté změny omezené na miro/."
+            Write-Host "Resume: používají se existující necommitnuté změny omezené na miro/ a reports/miro-sync/."
         }
     }
     else {
@@ -93,6 +140,35 @@ try {
         throw "DDDA Miro runtime nebyl vytvořen: $($script:MiroPython)"
     }
 
+    $packageManifestPath = Join-Path $script:PlatformRoot "ddda-package.json"
+    if (Test-Path -LiteralPath $packageManifestPath -PathType Leaf) {
+        $packageManifest = Get-Content -LiteralPath $packageManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+        $sourceCommit = [string]$packageManifest.source_commit
+        $renderPath = Join-Path $script:PlatformRoot "runtime/miro/ddda_miro/render.py"
+        $renderText = Get-Content -LiteralPath $renderPath -Raw -Encoding UTF8
+        if ($renderText -notmatch 'RENDER_CONTRACT_VERSION\s*=\s*"(?<version>[^"]+)"') {
+            throw "Candidate package renderer neobsahuje RENDER_CONTRACT_VERSION."
+        }
+        $expectedContract = [string]$Matches["version"]
+        $scaffoldPath = Join-Path $script:PlatformRoot "scaffolds/miro/strategic-ddd-method-board.yaml"
+        $scaffoldHash = (Get-FileHash -LiteralPath $scaffoldPath -Algorithm SHA256).Hash.ToLowerInvariant()
+        $provenanceEvidencePath = Join-Path $script:ProjectRoot "reports/miro-sync/runtime-provenance.json"
+        $provenanceText = & (Join-Path $script:PlatformRoot "scripts/platform/Assert-DDDAMiroRuntimeProvenance.ps1") `
+            -PlatformPath $script:PlatformRoot `
+            -ExpectedRenderContractVersion $expectedContract `
+            -ExpectedSourceCommit $sourceCommit `
+            -ExpectedScaffoldSha256 $scaffoldHash `
+            -EvidencePath $provenanceEvidencePath `
+            -Json | Out-String
+        if ($LASTEXITCODE -ne 0) {
+            throw "Miro runtime provenance guard selhal před prvním vzdáleným zápisem."
+        }
+        $provenance = $provenanceText.Trim() | ConvertFrom-Json
+        if ([string]$provenance.status -ne "PASS" -or -not [bool]$provenance.checked_before_remote_write) {
+            throw "Miro runtime provenance guard nevrátil PASS."
+        }
+    }
+
     Write-Host "=== Projektový Miro preflight ==="
     Write-Host "Workspace: $([System.IO.Path]::GetFullPath($WorkspaceRoot))"
     Write-Host "Projekt:   $($script:ProjectRoot)"
@@ -108,7 +184,7 @@ try {
     }
 
     Write-Host ""
-    Write-Host "=== Povinný dry-run ==="
+    Write-Host "=== Povinný scaffold dry-run ==="
     $preview = Invoke-ProjectMiroCli -CommandArguments ($renderArguments + "--dry-run")
     $preview | ConvertTo-Json -Depth 20 | Write-Host
 
@@ -116,19 +192,26 @@ try {
         Assert-DDDACleanGitRepository -RepositoryPath $script:PlatformRoot -Label "Platformní"
         if ($Resume) {
             $dryRunProjectChanges = Invoke-DDDAGit -RepositoryPath $script:ProjectRoot -Arguments @("status", "--porcelain")
-            $null = Assert-DDDAGitChangesWithinPath -PorcelainText $dryRunProjectChanges -AllowedPrefix "miro/" -Label "Projektový repozitář po resume dry-run"
+            $null = Assert-DDDAGitChangesWithinPath -PorcelainText $dryRunProjectChanges -AllowedPrefix $controlledMiroPrefixes -Label "Projektový repozitář po resume dry-run"
         }
         else {
             Assert-DDDACleanGitRepository -RepositoryPath $script:ProjectRoot -Label "Projektový"
         }
         Write-Host ""
-        Write-Host "DDDA projektový Miro dry-run: PASS"
+        Write-Host "DDDA projektový Miro scaffold dry-run: PASS"
+        Write-Host "Poznámka: managed artifact push vyžaduje existující board a probíhá až bez -DryRun."
         return
     }
 
     Write-Host ""
     Write-Host "=== Render cílového boardu ==="
     $firstRender = Invoke-ProjectMiroCli -CommandArguments $renderArguments
+    foreach ($contract in @{ layout_contract_status = "PASS"; remote_layout_status = "PASS"; utf8_status = "PASS"; overall_status = "PENDING_HUMAN_REVIEW" }.GetEnumerator()) {
+        $actual = [string](Get-DDDAObjectPropertyValue -InputObject $firstRender -Name $contract.Key)
+        if ($actual -ne [string]$contract.Value) {
+            throw "Miro render contract '$($contract.Key)' očekával '$($contract.Value)', získal '$actual'."
+        }
+    }
     $boardId = [string](Get-DDDAObjectPropertyValue -InputObject $firstRender -Name "board_id")
     if ([string]::IsNullOrWhiteSpace($boardId)) {
         throw "Renderer nevrátil board_id."
@@ -137,6 +220,23 @@ try {
     $onlineDoctor = Invoke-ProjectMiroCli -CommandArguments @("doctor", "--online")
     if (-not (Get-DDDAObjectPropertyValue -InputObject $onlineDoctor -Name "board")) {
         throw "Online doctor nevrátil board."
+    }
+
+    Write-Host ""
+    Write-Host "=== Managed artifact push dry-run ==="
+    $syncPreview = Invoke-ProjectMiroCli -CommandArguments @("sync", "--direction", "push", "--dry-run")
+    Assert-NoMiroConflicts -Result $syncPreview -Label "Managed artifact push dry-run"
+    $syncPreview | ConvertTo-Json -Depth 20 | Write-Host
+
+    Write-Host ""
+    Write-Host "=== Managed artifact push ==="
+    $firstSync = Invoke-ProjectMiroCli -CommandArguments @("sync", "--direction", "push")
+    Assert-NoMiroConflicts -Result $firstSync -Label "Managed artifact push"
+    foreach ($contract in @{ technical_sync_status = "PASS"; layout_contract_status = "PASS"; remote_layout_status = "PASS"; utf8_status = "PASS"; overall_status = "PENDING_HUMAN_REVIEW" }.GetEnumerator()) {
+        $actual = [string](Get-DDDAObjectPropertyValue -InputObject $firstSync -Name $contract.Key)
+        if ($actual -ne [string]$contract.Value) {
+            throw "Miro sync contract '$($contract.Key)' očekával '$($contract.Value)', získal '$actual'."
+        }
     }
 
     $firstSnapshot = Get-DDDAMiroMapSnapshot -ProjectPath $script:ProjectRoot
@@ -163,10 +263,24 @@ try {
         throw "Kontrolní render se pokusil vytvořit další board."
     }
 
+    Write-Host ""
+    Write-Host "=== Idempotentní managed artifact push dry-run ==="
+    $secondSync = Invoke-ProjectMiroCli -CommandArguments @("sync", "--direction", "push", "--dry-run")
+    Assert-NoMiroConflicts -Result $secondSync -Label "Idempotentní managed artifact push"
+    $mutatingOperations = @(
+        (Get-DDDAObjectPropertyValue -InputObject $secondSync -Name "operations" -DefaultValue @()) |
+            Where-Object {
+                (Get-DDDAObjectPropertyValue -InputObject $_ -Name "action") -in @("push_create_miro", "push_update_miro")
+            }
+    ).Count
+    if ($mutatingOperations -ne 0) {
+        throw "Kontrolní managed artifact push není idempotentní; plánuje $mutatingOperations create/update operací."
+    }
+
     $secondSnapshot = Get-DDDAMiroMapSnapshot -ProjectPath $script:ProjectRoot
     $mappingDifference = Compare-Object -ReferenceObject @($firstSnapshot.ItemIds) -DifferenceObject @($secondSnapshot.ItemIds)
     if ($mappingDifference) {
-        throw "Kontrolní render změnil množinu Miro item ID; hrozí duplikace scaffoldu."
+        throw "Kontrolní render nebo sync změnil množinu Miro item ID; hrozí duplikace."
     }
 
     Assert-DDDACleanGitRepository -RepositoryPath $script:PlatformRoot -Label "Platformní"
@@ -175,14 +289,21 @@ try {
     $projectEntries = @(ConvertFrom-DDDAGitPorcelain -PorcelainText $projectChanges)
     $unexpectedChanges = @(
         $projectEntries |
-            Where-Object { -not $_.Path.StartsWith("miro/", [System.StringComparison]::OrdinalIgnoreCase) }
+            Where-Object {
+                -not $_.Path.StartsWith("miro/", [System.StringComparison]::OrdinalIgnoreCase) -and
+                -not $_.Path.StartsWith("reports/miro-sync/", [System.StringComparison]::OrdinalIgnoreCase)
+            }
     )
     if ($unexpectedChanges.Count -gt 0) {
         throw "Inicializace změnila neočekávané projektové soubory:`n$($unexpectedChanges.Line -join "`n")"
     }
 
     Write-Host ""
-    Write-Host "DDDA projektový Miro board: PASS"
+    Write-Host "DDDA projektový Miro technical validation: PASS"
+    Write-Host "Layout contract: PASS"
+    Write-Host "UTF-8: PASS"
+    Write-Host "Human visual acceptance: PENDING"
+    Write-Host "Overall: PENDING_HUMAN_REVIEW"
     Write-Host "Board ID: $boardId"
     Write-Host "Board URL: https://miro.com/app/board/$boardId/"
     Write-Host ""
@@ -193,10 +314,16 @@ try {
     else {
         Write-Host $projectChanges
         Write-Host ""
-        Write-Host "Zkontroluj diff a commitni změnu v projektovém repozitáři, typicky:"
-        Write-Host "  git -C `"$($script:ProjectRoot)`" diff -- miro/miro-map.yaml"
-        Write-Host "  git -C `"$($script:ProjectRoot)`" add miro/miro-map.yaml"
-        Write-Host "  git -C `"$($script:ProjectRoot)`" commit -m `"chore: initialize project Miro board`""
+        if ($SuppressCommitInstructions) {
+            Write-Host "Projektové změny jsou diagnostický výstup acceptance běhu."
+            Write-Host "Necommituj je, dokud nadřazený acceptance report není technicky PASS."
+        }
+        else {
+            Write-Host "Zkontroluj diff a commitni Miro mapping, sync state a sync report v projektovém repozitáři:"
+            Write-Host "  git -C `"$($script:ProjectRoot)`" diff -- miro/ reports/miro-sync/"
+            Write-Host "  git -C `"$($script:ProjectRoot)`" add miro/miro-map.yaml miro/sync-state.yaml reports/miro-sync/"
+            Write-Host "  git -C `"$($script:ProjectRoot)`" commit -m `"chore: initialize project Miro board and managed artifacts`""
+        }
     }
 }
 finally {

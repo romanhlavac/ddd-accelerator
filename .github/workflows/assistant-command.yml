@@ -1,0 +1,227 @@
+name: DDDA remote execution broker
+
+on:
+  issue_comment:
+    types:
+      - created
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: read
+  checks: read
+
+concurrency:
+  group: ddda-remote-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  execute:
+    if: >-
+      github.event.issue.pull_request &&
+      startsWith(github.event.comment.body, '/ddda ')
+    runs-on: windows-latest
+    timeout-minutes: 150
+    env:
+      REPOSITORY: ${{ github.repository }}
+      PR_NUMBER: ${{ github.event.issue.number }}
+      REQUEST_ACTOR: ${{ github.actor }}
+      COMMAND_TEXT: ${{ github.event.comment.body }}
+
+    steps:
+      - name: Checkout trusted broker from default branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Resolve exact PR head
+        id: pr
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pr = gh api "repos/$env:REPOSITORY/pulls/$env:PR_NUMBER" | ConvertFrom-Json
+          "head_sha=$($pr.head.sha)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "head_ref=$($pr.head.ref)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "head_repository=$($pr.head.repo.full_name)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Authorize command against governance policy
+        id: authorization
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $json = .\scripts\platform\Test-DDDARemoteExecutionRequest.ps1 `
+            -PlatformPath $PWD.Path `
+            -Repository $env:REPOSITORY `
+            -Actor $env:REQUEST_ACTOR `
+            -Pr ([int]$env:PR_NUMBER) `
+            -HeadSha '${{ steps.pr.outputs.head_sha }}' `
+            -HeadRepository '${{ steps.pr.outputs.head_repository }}' `
+            -CommandText $env:COMMAND_TEXT `
+            -Json | Out-String
+          $authorization = $json.Trim() | ConvertFrom-Json
+          "action=$($authorization.action)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "remediation_script=$($authorization.remediation_script)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "miro_team_id=$($authorization.miro_team_id)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Require successful exact-SHA checks before secret-bearing validation
+        if: steps.authorization.outputs.action == 'validate-pr'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $checks = gh api -H 'Accept: application/vnd.github+json' "repos/$env:REPOSITORY/commits/$env:HEAD_SHA/check-runs?per_page=100" | ConvertFrom-Json
+          $required = @('Platform validation', 'One-command PR validation')
+          foreach ($name in $required) {
+            $match = @($checks.check_runs | Where-Object { $_.name -eq $name -and $_.conclusion -eq 'success' })
+            if ($match.Count -eq 0) {
+              throw "Required successful check '$name' is missing for exact SHA $env:HEAD_SHA."
+            }
+          }
+
+      - name: Checkout exact PR branch without write credentials
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ steps.pr.outputs.head_ref }}
+          persist-credentials: false
+
+      - name: Verify exact checkout
+        shell: pwsh
+        run: |
+          $actual = (git rev-parse HEAD).Trim()
+          if ($actual -ne '${{ steps.pr.outputs.head_sha }}') {
+            throw "Checkout SHA '$actual' does not match authorized SHA '${{ steps.pr.outputs.head_sha }}'."
+          }
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run remote validate-pr and online acceptance
+        id: validate
+        if: steps.authorization.outputs.action == 'validate-pr'
+        shell: pwsh
+        env:
+          MIRO_ACCESS_TOKEN: ${{ secrets.MIRO_ACCESS_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ([string]::IsNullOrWhiteSpace($env:MIRO_ACCESS_TOKEN)) {
+            throw 'MIRO_ACCESS_TOKEN repository secret is not configured.'
+          }
+          .\ddda.ps1 validate-pr `
+            -Pr ([int]$env:PR_NUMBER) `
+            -WithMiro `
+            -Full `
+            -KeepReviewBoard `
+            -MiroTeamId '${{ steps.authorization.outputs.miro_team_id }}' `
+            -NonInteractive
+
+      - name: Run guarded remediation without push
+        id: remediate
+        if: steps.authorization.outputs.action == 'remediate'
+        shell: pwsh
+        env:
+          AUTHORIZED_HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
+          REMEDIATION_SCRIPT: ${{ steps.authorization.outputs.remediation_script }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git config user.name 'DDDA Remote Remediation'
+          git config user.email 'ddda-remote-remediation@example.invalid'
+          $before = (git rev-parse HEAD).Trim()
+          if ($before -ne $env:AUTHORIZED_HEAD_SHA) {
+            throw 'Remediation checkout drifted before execution.'
+          }
+          $script = Join-Path $PWD.Path $env:REMEDIATION_SCRIPT
+          & $script -RepositoryRoot $PWD.Path -NoPush
+          if ($LASTEXITCODE -ne 0) {
+            throw "Remediation script failed with exit code $LASTEXITCODE."
+          }
+          $changes = git status --porcelain
+          if (-not [string]::IsNullOrWhiteSpace(($changes -join "`n"))) {
+            throw "Remediation left a dirty working tree:`n$($changes -join "`n")"
+          }
+          $after = (git rev-parse HEAD).Trim()
+          if ($after -eq $before) {
+            throw 'Remediation did not create a validated commit.'
+          }
+          $commitCount = [int](git rev-list --count "$before..$after")
+          if ($commitCount -ne 1) {
+            throw "Remote remediation must create exactly one commit; created $commitCount."
+          }
+          "before_sha=$before" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "after_sha=$after" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Push validated remediation commit
+        if: steps.authorization.outputs.action == 'remediate'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_BEFORE_SHA: ${{ steps.remediate.outputs.before_sha }}
+          VALIDATED_AFTER_SHA: ${{ steps.remediate.outputs.after_sha }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $actual = (git rev-parse HEAD).Trim()
+          if ($actual -ne $env:VALIDATED_AFTER_SHA) {
+            throw "Validated remediation SHA drifted before push."
+          }
+          gh auth setup-git
+          git push origin "$env:VALIDATED_AFTER_SHA:${{ steps.pr.outputs.head_ref }}"
+
+      - name: Stage execution evidence
+        if: always()
+        shell: pwsh
+        run: |
+          $target = Join-Path $env:RUNNER_TEMP 'ddda-remote-evidence'
+          New-Item -ItemType Directory -Path $target -Force | Out-Null
+          foreach ($source in @(
+            (Join-Path $env:LOCALAPPDATA 'DDDA\validation-reports'),
+            (Join-Path $env:LOCALAPPDATA 'DDDA\acceptance-reports'),
+            (Join-Path $env:LOCALAPPDATA 'DDDA\remediation-checks')
+          )) {
+            if (Test-Path -LiteralPath $source) {
+              Copy-Item -LiteralPath $source -Destination $target -Recurse -Force
+            }
+          }
+          @{
+            repository = $env:REPOSITORY
+            pr = [int]$env:PR_NUMBER
+            actor = $env:REQUEST_ACTOR
+            command = $env:COMMAND_TEXT
+            authorized_sha = '${{ steps.pr.outputs.head_sha }}'
+            action = '${{ steps.authorization.outputs.action }}'
+            run_id = $env:GITHUB_RUN_ID
+          } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $target 'request.json') -Encoding UTF8
+
+      - name: Upload execution evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ddda-remote-${{ env.PR_NUMBER }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/ddda-remote-evidence/**
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Comment execution result
+        if: always()
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          $body = @"
+          DDDA remote execution: **$env:JOB_STATUS**
+
+          - action: `${{ steps.authorization.outputs.action }}`
+          - authorized SHA: `${{ steps.pr.outputs.head_sha }}`
+          - workflow run: `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`
+
+          No merge, tag, release or promotion was performed.
+          "@
+          gh pr comment $env:PR_NUMBER --repo $env:REPOSITORY --body $body

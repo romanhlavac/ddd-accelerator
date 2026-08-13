@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ddda-steering"
+version = "0.1.0"
+description = "DDDA project intake, lifecycle tailoring, status, evidence-driven gates and platform contract validation"
+requires-python = ">=3.11"
+dependencies = ["ruamel.yaml>=0.18,<0.19", "jsonschema>=4.22,<5"]
+
+[project.scripts]
+ddda-steering = "ddda_steering.cli:main"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

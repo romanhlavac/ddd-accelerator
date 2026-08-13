@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ddda.local/schemas/gate-status.schema.json",
+  "title": "DDDA Gate Decision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["gate"],
+  "$defs": {
+    "decisionEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["project_commit", "scope_sha256", "artifact_hashes"],
+      "properties": {
+        "project_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "scope_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "artifact_hashes": {
+          "type": "object",
+          "additionalProperties": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    },
+    "condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["items", "owner", "due_at"],
+      "properties": {
+        "items": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+        "owner": {"type": "string", "minLength": 1},
+        "due_at": {"type": "string", "minLength": 1}
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "gate",
+        "outcome",
+        "project_id",
+        "scope",
+        "evidence",
+        "decision_owner",
+        "reviewer",
+        "approver",
+        "decided_at",
+        "provenance",
+        "condition"
+      ],
+      "properties": {
+        "gate": {"type": "string", "pattern": "^G[1-8]$"},
+        "outcome": {"enum": ["passed", "conditional", "rejected"]},
+        "project_id": {"type": "string", "minLength": 1},
+        "scope": {"type": "string", "minLength": 1},
+        "evidence": {"$ref": "#/$defs/decisionEvidence"},
+        "decision_owner": {"type": "string", "minLength": 1},
+        "reviewer": {"type": "string", "minLength": 1},
+        "approver": {"type": "string", "minLength": 1},
+        "decided_at": {"type": "string", "minLength": 1},
+        "provenance": {"enum": ["human", "test_simulation"]},
+        "condition": {"oneOf": [{"$ref": "#/$defs/condition"}, {"type": "null"}]},
+        "superseded_at": {"type": "string", "minLength": 1}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"outcome": {"const": "conditional"}}},
+          "then": {"properties": {"condition": {"$ref": "#/$defs/condition"}}},
+          "else": {"properties": {"condition": {"type": "null"}}}
+        }
+      ]
+    }
+  },
+  "properties": {
+    "gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "stage", "question", "status", "evidence", "approvals", "conditions"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^G[1-8]$"},
+        "stage": {"enum": ["align", "discover", "decompose", "strategize", "connect", "organize", "define", "code"]},
+        "question": {"type": "string"},
+        "status": {"enum": ["not_ready", "ready_for_review", "passed", "conditional", "rejected"]},
+        "evidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["present", "missing", "disputed"],
+          "properties": {
+            "present": {"type": "array", "items": {"type": "string"}},
+            "missing": {"type": "array", "items": {"type": "string"}},
+            "disputed": {"type": "array", "items": {"type": "string"}}
+          }
+        },
+        "approvals": {"type": "object", "additionalProperties": {"enum": ["pending", "accepted", "rejected"]}},
+        "conditions": {"type": "array", "items": {"type": "string"}},
+        "decision": {"oneOf": [{"$ref": "#/$defs/decision"}, {"type": "null"}]},
+        "decision_history": {"type": "array", "items": {"$ref": "#/$defs/decision"}},
+        "reviewed_at": {"type": ["string", "null"]},
+        "reviewed_by": {"type": ["string", "null"]},
+        "note": {"type": ["string", "null"]}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"status": {"enum": ["passed", "conditional", "rejected"]}}},
+          "then": {
+            "required": ["decision"],
+            "properties": {"decision": {"$ref": "#/$defs/decision"}}
+          }
+        }
+      ]
+    }
+  }
+}

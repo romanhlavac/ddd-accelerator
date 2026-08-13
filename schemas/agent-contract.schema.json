@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ddda.local/schemas/agent-contract.schema.json",
+  "title": "DDDA Agent Contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["agent_contract"],
+  "properties": {
+    "agent_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "role", "inputs", "outputs", "allowed_write_paths", "forbidden_actions", "validation", "handoff_rules", "downstream_consumers"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "name": {"type": "string", "minLength": 1},
+        "role": {"type": "string", "minLength": 1},
+        "inputs": {"type": "array", "items": {"type": "string"}},
+        "outputs": {"type": "array", "items": {"type": "string"}},
+        "allowed_write_paths": {"type": "array", "items": {"type": "string"}},
+        "forbidden_actions": {"type": "array", "items": {"type": "string"}},
+        "validation": {"type": "array", "items": {"type": "string"}},
+        "handoff_rules": {"type": "array", "items": {"type": "string"}},
+        "downstream_consumers": {"type": "array", "items": {"type": "string"}}
+      }
+    }
+  }
+}

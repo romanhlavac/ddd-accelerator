@@ -3,16 +3,43 @@
   "$id": "https://ddda.local/schemas/miro-scaffold.schema.json",
   "title": "DDDA Miro scaffold",
   "type": "object",
+  "$defs": {
+    "reviewSource": {
+      "type": "object",
+      "required": ["board_id", "board_url", "mode", "purpose_cs"],
+      "properties": {
+        "board_id": {"type": "string", "minLength": 1},
+        "board_url": {"type": "string", "format": "uri"},
+        "mode": {"const": "read_only"},
+        "purpose_cs": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    }
+  },
   "required": [
     "schema_version",
     "id",
     "name_cs",
     "method_flow",
-    "frames"
+    "frames",
+    "gate_states",
+    "managed_placements",
+    "zones",
+    "traceability",
+    "section_catalog",
+    "visual_contract",
+    "method_transitions",
+    "stage_visual_templates",
+    "example_templates",
+    "board_guide",
+    "overview_resources",
+    "artifact_status_tables",
+    "zone_transitions",
+    "review_sources"
   ],
   "properties": {
     "schema_version": {
-      "type": "string"
+      "const": "2.5"
     },
     "id": {
       "type": "string",
@@ -26,7 +53,56 @@
       "type": "string"
     },
     "coordinate_system": {
-      "type": "object"
+      "type": "object",
+      "properties": {
+        "origin": {
+          "type": "string"
+        },
+        "unit": {
+          "type": "string"
+        },
+        "stage_card": {
+          "type": "object",
+          "required": [
+            "width",
+            "height"
+          ],
+          "properties": {
+            "width": {
+              "type": "number",
+              "minimum": 3000
+            },
+            "height": {
+              "type": "number",
+              "minimum": 1800
+            }
+          }
+        },
+        "work_frame": {
+          "type": "object"
+        },
+        "horizontal_gap": {
+          "type": "number"
+        },
+        "vertical_gap": {
+          "type": "number"
+        },
+        "minimum_font_size": {
+          "type": "object",
+          "required": [
+            "journey",
+            "stage_example",
+            "gate_legend",
+            "workshop_guide",
+            "workshop_example",
+            "zone_header"
+          ],
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 18
+          }
+        }
+      }
     },
     "localization": {
       "type": "object"
@@ -46,6 +122,15 @@
     },
     "metadata_contract": {
       "type": "object"
+    },
+    "review_sources": {
+      "type": "object",
+      "required": ["redline", "ddd_starter"],
+      "properties": {
+        "redline": {"$ref": "#/$defs/reviewSource"},
+        "ddd_starter": {"$ref": "#/$defs/reviewSource"}
+      },
+      "additionalProperties": false
     },
     "method_flow": {
       "type": "object",
@@ -69,7 +154,19 @@
               "id",
               "order",
               "title_cs",
-              "x"
+              "x",
+              "gate_after",
+              "y",
+              "work_frame",
+              "visual_template",
+              "cookbook_url",
+              "method_url",
+              "starter_reference_url",
+              "reference_board_id",
+              "reference_frame_title",
+              "reference_frame_url",
+              "reference_artifacts_cs",
+              "shape"
             ],
             "properties": {
               "id": {
@@ -89,6 +186,59 @@
               },
               "gate_after": {
                 "type": "string"
+              },
+              "y": {
+                "type": "number"
+              },
+              "work_frame": {
+                "type": "string"
+              },
+              "visual_template": {
+                "type": "string",
+                "minLength": 1
+              },
+              "cookbook_url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "method_url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "starter_reference_url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "reference_board_id": {
+                "const": "uXjVH27wYU4="
+              },
+              "reference_frame_title": {
+                "type": "string",
+                "minLength": 1
+              },
+              "reference_frame_url": {
+                "type": "string",
+                "format": "uri",
+                "pattern": "uXjVH27wYU4="
+              },
+              "reference_artifacts_cs": {
+                "type": "array",
+                "minItems": 2,
+                "items": {"type": "string", "minLength": 1}
+              },
+              "shape": {
+                "enum": [
+                  "rectangle",
+                  "round_rectangle",
+                  "circle",
+                  "triangle",
+                  "rhombus",
+                  "parallelogram",
+                  "trapezoid",
+                  "pentagon",
+                  "hexagon",
+                  "octagon"
+                ]
               }
             }
           }
@@ -106,6 +256,42 @@
         ]
       }
     },
+    "stage_columns": {
+      "type": "array",
+      "minItems": 8,
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "title_cs",
+          "x",
+          "frames"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title_cs": {
+            "type": "string",
+            "minLength": 1
+          },
+          "x": {
+            "type": "number"
+          },
+          "frames": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
     "frames": {
       "type": "array",
       "minItems": 1,
@@ -119,7 +305,8 @@
           "y",
           "width",
           "height",
-          "scaffold"
+          "scaffold",
+          "purpose_cs"
         ],
         "properties": {
           "id": {
@@ -156,6 +343,75 @@
             "items": {
               "type": "string"
             }
+          },
+          "purpose_cs": {
+            "type": "string",
+            "minLength": 1
+          },
+          "role": {
+            "enum": [
+              "work",
+              "overview"
+            ]
+          },
+          "example_template": {
+            "type": "string",
+            "minLength": 1
+          },
+          "canonical_workshop_shell": {
+            "type": "boolean"
+          },
+          "guide": {
+            "type": "object",
+            "required": [
+              "start_cs",
+              "outputs_cs",
+              "cookbook_url",
+              "method_url",
+              "starter_reference_url"
+            ],
+            "properties": {
+              "start_cs": {
+                "type": "string",
+                "minLength": 1
+              },
+              "outputs_cs": {
+                "type": "string",
+                "minLength": 1
+              },
+              "recipe_cs": {
+                "type": "string",
+                "minLength": 1
+              },
+              "done_criteria_cs": {
+                "type": "string",
+                "minLength": 1
+              },
+              "open_questions_cs": {
+                "type": "string",
+                "minLength": 1
+              },
+              "heuristics_cs": {
+                "type": "string",
+                "minLength": 1
+              },
+              "anti_patterns_cs": {
+                "type": "string",
+                "minLength": 1
+              },
+              "cookbook_url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "method_url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "starter_reference_url": {
+                "type": "string",
+                "format": "uri"
+              }
+            }
           }
         }
       }
@@ -173,6 +429,1003 @@
     },
     "rendering": {
       "type": "object"
+    },
+    "gate_states": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "label_cs",
+          "symbol",
+          "meaning_cs",
+          "fill_color"
+        ],
+        "additionalProperties": true
+      }
+    },
+    "managed_placements": {
+      "type": "object",
+      "required": [
+        "project-charter",
+        "ddda.current-status",
+        "ddda.next-actions"
+      ],
+      "properties": {
+        "project-charter": {
+          "type": "object",
+          "required": [
+            "frame_id",
+            "position",
+            "width"
+          ],
+          "properties": {
+            "frame_id": {
+              "const": "control-center"
+            },
+            "position": {
+              "type": "object",
+              "required": [
+                "x",
+                "y"
+              ],
+              "properties": {
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                }
+              }
+            },
+            "width": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          }
+        },
+        "ddda.current-status": {
+          "type": "object",
+          "required": [
+            "frame_id",
+            "position",
+            "width"
+          ],
+          "properties": {
+            "frame_id": {
+              "const": "control-center"
+            },
+            "position": {
+              "type": "object",
+              "required": [
+                "x",
+                "y"
+              ],
+              "properties": {
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                }
+              }
+            },
+            "width": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          }
+        },
+        "ddda.next-actions": {
+          "type": "object",
+          "required": [
+            "frame_id",
+            "position",
+            "width"
+          ],
+          "properties": {
+            "frame_id": {
+              "const": "control-center"
+            },
+            "position": {
+              "type": "object",
+              "required": [
+                "x",
+                "y"
+              ],
+              "properties": {
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                }
+              }
+            },
+            "width": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "zones": {
+      "type": "array",
+      "minItems": 4,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "title_cs",
+          "stages",
+          "x",
+          "y",
+          "width",
+          "height"
+        ]
+      }
+    },
+    "traceability": {
+      "type": "array",
+      "minItems": 8,
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "required": [
+          "starter_step",
+          "stage",
+          "gate",
+          "frame",
+          "managed_artifacts",
+          "human_acceptance",
+          "reference_visual",
+          "reference_board_id",
+          "reference_frame_title",
+          "reference_frame_url",
+          "cookbook_url",
+          "method_url"
+        ],
+        "properties": {
+          "reference_board_id": {"const": "uXjVH27wYU4="},
+          "reference_frame_title": {"type": "string", "minLength": 1},
+          "reference_frame_url": {"type": "string", "format": "uri", "pattern": "uXjVH27wYU4="}
+        }
+      }
+    },
+    "section_catalog": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "label_cs",
+          "guidance_cs"
+        ]
+      }
+    },
+    "overlays": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "visual_contract": {
+      "type": "object",
+      "required": [
+        "render_contract_version",
+        "minimum_remote_item_count",
+        "overview_frame",
+        "minimum_overview_child_items",
+        "minimum_starter_reference_captions",
+        "require_overview_parenting",
+        "minimum_stage_card_width",
+        "minimum_stage_card_height",
+        "minimum_work_frame_width",
+        "minimum_work_frame_height",
+        "minimum_frame_gap",
+        "minimum_example_items",
+        "guide_anchor",
+        "require_cookbook_links",
+        "require_method_links",
+        "require_iteration_transitions",
+        "developer_team_watermark",
+        "minimum_stage_visual_items",
+        "require_overview_resources",
+        "require_zone_connectors",
+        "require_example_panel",
+        "require_example_sync_ignore",
+        "require_canonical_workshop_shell",
+        "require_state_lifecycle_provenance_separation",
+        "require_stage_columns",
+        "preserved_internal_frames",
+        "minimum_connector_count"
+      ],
+      "properties": {
+        "render_contract_version": {
+          "const": "REM-PR8-HVA-CC-011"
+        },
+        "minimum_remote_item_count": {
+          "type": "integer",
+          "minimum": 280
+        },
+        "overview_frame": {
+          "type": "string",
+          "minLength": 1
+        },
+        "minimum_overview_child_items": {
+          "type": "integer",
+          "minimum": 61
+        },
+        "minimum_starter_reference_captions": {
+          "type": "integer",
+          "minimum": 11
+        },
+        "require_overview_parenting": {
+          "const": true
+        },
+        "minimum_stage_card_width": {
+          "type": "number",
+          "minimum": 3000
+        },
+        "minimum_stage_card_height": {
+          "type": "number",
+          "minimum": 1800
+        },
+        "minimum_work_frame_width": {
+          "type": "number",
+          "minimum": 3000
+        },
+        "minimum_work_frame_height": {
+          "type": "number",
+          "minimum": 2800
+        },
+        "minimum_frame_gap": {
+          "type": "number",
+          "minimum": 300
+        },
+        "minimum_example_items": {
+          "type": "integer",
+          "minimum": 3
+        },
+        "guide_anchor": {
+          "const": "top_left"
+        },
+        "require_cookbook_links": {
+          "const": true
+        },
+        "require_method_links": {
+          "const": true
+        },
+        "require_iteration_transitions": {
+          "type": "integer",
+          "minimum": 2
+        },
+        "developer_team_watermark": {
+          "const": "external_environment_not_rendered_by_ddda"
+        },
+        "minimum_stage_visual_items": {
+          "type": "integer",
+          "minimum": 4
+        },
+        "require_overview_resources": {
+          "type": "integer",
+          "minimum": 4
+        },
+        "require_zone_connectors": {
+          "type": "integer",
+          "minimum": 3
+        },
+        "require_example_panel": {
+          "const": true
+        },
+        "require_example_sync_ignore": {
+          "const": true
+        },
+        "require_canonical_workshop_shell": {
+          "const": true
+        },
+        "require_state_lifecycle_provenance_separation": {
+          "const": true
+        },
+        "require_stage_columns": {
+          "const": true
+        },
+        "preserved_internal_frames": {
+          "type": "array",
+          "contains": {
+            "const": "align-intake"
+          },
+          "minContains": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "minimum_connector_count": {
+          "type": "integer",
+          "minimum": 20
+        }
+      }
+    },
+    "method_transitions": {
+      "type": "array",
+      "minItems": 9,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "from",
+          "to",
+          "label_cs",
+          "kind",
+          "shape"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "from": {
+            "type": "string",
+            "minLength": 1
+          },
+          "to": {
+            "type": "string",
+            "minLength": 1
+          },
+          "label_cs": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "enum": [
+              "forward",
+              "feedback"
+            ]
+          },
+          "shape": {
+            "enum": [
+              "straight",
+              "elbowed",
+              "curved"
+            ]
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "stage_visual_templates": {
+      "type": "object",
+      "minProperties": 8,
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "items",
+          "sync_policy",
+          "exclude_from_ingestion"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "minItems": 4,
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "label_cs",
+                "item_type",
+                "x",
+                "y",
+                "width",
+                "height",
+                "fill_color",
+                "font_size"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "label_cs": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "item_type": {
+                  "enum": [
+                    "text",
+                    "shape",
+                    "sticky_note"
+                  ]
+                },
+                "shape": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                },
+                "width": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "height": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "fill_color": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "font_size": {
+                  "type": "number",
+                  "minimum": 18
+                },
+                "border_color": {
+                  "type": "string"
+                },
+                "border_width": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "text_align": {
+                  "enum": [
+                    "left",
+                    "center",
+                    "right"
+                  ]
+                },
+                "color": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "connectors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "from",
+                "to",
+                "label_cs",
+                "shape"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "from": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "to": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "label_cs": {
+                  "type": "string"
+                },
+                "shape": {
+                  "enum": [
+                    "straight",
+                    "elbowed",
+                    "curved"
+                  ]
+                },
+                "stroke_color": {
+                  "type": "string"
+                },
+                "stroke_style": {
+                  "enum": [
+                    "normal",
+                    "dashed",
+                    "dotted"
+                  ]
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "sync_policy": {
+            "const": "ignore"
+          },
+          "exclude_from_ingestion": {
+            "const": true
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "example_templates": {
+      "type": "object",
+      "minProperties": 8,
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "title_cs",
+          "items",
+          "sync_policy",
+          "exclude_from_ingestion",
+          "panel"
+        ],
+        "properties": {
+          "title_cs": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reference_kind": {
+            "enum": ["ddd_starter_board", "ddda_extension"]
+          },
+          "reference_board_id": {
+            "type": "string"
+          },
+          "reference_frame_title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reference_frame_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "adaptation_cs": {
+            "type": "string",
+            "minLength": 1
+          },
+          "items": {
+            "type": "array",
+            "minItems": 3,
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "label_cs",
+                "item_type",
+                "x",
+                "y",
+                "width",
+                "height",
+                "fill_color",
+                "font_size"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "label_cs": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "item_type": {
+                  "enum": [
+                    "text",
+                    "shape",
+                    "sticky_note"
+                  ]
+                },
+                "shape": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                },
+                "width": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "height": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "fill_color": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "font_size": {
+                  "type": "number",
+                  "minimum": 18
+                },
+                "border_color": {
+                  "type": "string"
+                },
+                "border_width": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "text_align": {
+                  "enum": [
+                    "left",
+                    "center",
+                    "right"
+                  ]
+                },
+                "color": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "connectors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "from",
+                "to",
+                "label_cs",
+                "shape"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "from": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "to": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "label_cs": {
+                  "type": "string"
+                },
+                "shape": {
+                  "enum": [
+                    "straight",
+                    "elbowed",
+                    "curved"
+                  ]
+                },
+                "stroke_color": {
+                  "type": "string"
+                },
+                "stroke_style": {
+                  "enum": [
+                    "normal",
+                    "dashed",
+                    "dotted"
+                  ]
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "sync_policy": {
+            "const": "ignore"
+          },
+          "exclude_from_ingestion": {
+            "const": true
+          },
+          "representation": {
+            "enum": [
+              "table_grid",
+              "flow",
+              "diagram",
+              "cards"
+            ]
+          },
+          "panel": {
+            "type": "object",
+            "required": [
+              "title_cs",
+              "border_style",
+              "sync_policy"
+            ],
+            "properties": {
+              "title_cs": {
+                "type": "string",
+                "minLength": 1
+              },
+              "border_style": {
+                "enum": [
+                  "dashed",
+                  "normal"
+                ]
+              },
+              "sync_policy": {
+                "const": "ignore"
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "board_guide": {
+      "type": "object",
+      "required": [
+        "title_cs",
+        "mode",
+        "steps_cs",
+        "details_url",
+        "cookbook_url",
+        "method_url",
+        "starter_reference_url",
+        "knowledge_index_url"
+      ],
+      "properties": {
+        "title_cs": {
+          "type": "string",
+          "minLength": 1
+        },
+        "mode": {
+          "const": "compact_panel_with_detailed_link"
+        },
+        "steps_cs": {
+          "type": "array",
+          "minItems": 6,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "details_url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "cookbook_url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "method_url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "starter_reference_url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "knowledge_index_url": {
+          "type": "string",
+          "format": "uri"
+        }
+      },
+      "additionalProperties": false
+    },
+    "overview_resources": {
+      "type": "array",
+      "minItems": 4,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "label_cs",
+          "url"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "label_cs": {
+            "type": "string",
+            "minLength": 1
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "artifact_status_tables": {
+      "type": "object",
+      "required": [
+        "title_cs",
+        "native_table_support",
+        "rendering",
+        "statuses",
+        "columns",
+        "max_rows_per_status"
+      ],
+      "properties": {
+        "title_cs": {
+          "type": "string",
+          "minLength": 1
+        },
+        "project_gate_state_title_cs": {
+          "type": "string",
+          "minLength": 1
+        },
+        "lifecycle_title_cs": {
+          "type": "string",
+          "minLength": 1
+        },
+        "lifecycle_legend_cs": {
+          "type": "string",
+          "minLength": 1
+        },
+        "provenance_title_cs": {
+          "type": "string",
+          "minLength": 1
+        },
+        "provenance_legend_cs": {
+          "type": "string",
+          "minLength": 1
+        },
+        "native_table_support": {
+          "const": "unavailable_in_miro_rest_v2"
+        },
+        "rendering": {
+          "const": "deterministic_grid"
+        },
+        "statuses": {
+          "type": "array",
+          "minItems": 5,
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "label_cs",
+              "aliases"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "label_cs": {
+                "type": "string",
+                "minLength": 1
+              },
+              "aliases": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "meaning_cs": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "provenance_values": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "label_cs",
+              "aliases",
+              "meaning_cs"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "label_cs": {
+                "type": "string",
+                "minLength": 1
+              },
+              "aliases": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "meaning_cs": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "columns": {
+          "type": "array",
+          "minItems": 3,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "max_rows_per_status": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_artifact_rows": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "registry_columns": {
+          "type": "array",
+          "minItems": 9,
+          "maxItems": 9,
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "label_cs",
+              "width_weight"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "label_cs": {
+                "type": "string",
+                "minLength": 1
+              },
+              "width_weight": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "zone_transitions": {
+      "type": "array",
+      "minItems": 3,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "from",
+          "to",
+          "label_cs",
+          "shape"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "from": {
+            "type": "string",
+            "minLength": 1
+          },
+          "to": {
+            "type": "string",
+            "minLength": 1
+          },
+          "label_cs": {
+            "type": "string",
+            "minLength": 1
+          },
+          "shape": {
+            "enum": [
+              "straight",
+              "elbowed",
+              "curved"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
     }
   },
   "additionalProperties": true

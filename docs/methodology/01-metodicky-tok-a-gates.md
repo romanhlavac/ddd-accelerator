@@ -9,6 +9,20 @@ Align → Discover → Decompose → Strategize → Connect → Organize → Def
    G1       G2          G3            G4          G5         G6        G7      G8
 ```
 
+## Základní metodické zdroje
+
+DDDA tok zachovává a operacionalizuje základní [DDD Starter Modelling Process – Kicking off a major program of work](https://ddd-crew.github.io/ddd-starter-modelling-process/#kicking-off-a-major-program-of-work). Detailní rozhodovací a workshopové postupy jsou dále vedeny v:
+
+- [DDDA knowledge index](../../knowledge/00-knowledge-index.md);
+- [Strategic DDD](../../knowledge/02-ddd-strategic-design.md) a [Tactical DDD](../../knowledge/03-ddd-tactical-design.md);
+- [Architecture decision making](../../knowledge/04-architecture-decision-making.md);
+- [Quality attributes](../../knowledge/05-quality-attributes.md);
+- [Integration and data ownership](../../knowledge/07-integration-and-data-ownership.md);
+- [Team Topologies and governance](../../knowledge/10-team-topologies-and-governance.md);
+- [DDDA workshopových kuchařkách](../cookbooks/).
+
+Board `01 – DDD Starter journey, gates a iterace` tyto zdroje pouze vizualizuje. Nezavádí alternativní metodiku a nesmí skrýt, odkud jednotlivé praktiky a rozhodovací otázky pocházejí.
+
 ## Statusy artefaktů
 
 - `observed` — doložené pozorování ze zdroje nebo workshopu,

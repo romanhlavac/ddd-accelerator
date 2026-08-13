@@ -1,0 +1,108 @@
+schema_version: 1
+remediation_id: REM-PR8-HVA-CC-012.3.6
+base_manifest: scaffolds/miro/rem-012-3-hvr-remediation.yaml
+authorized_predecessor_sha: 12d7b67cca1c4c3fc68d3de4b7033a375368ce3a
+board_id: uXjVH1phki0=
+frame_id: '3458764679756478046'
+protected_frame_ids:
+  - '3458764679756478059'
+  - '3458764679756478064'
+  - '3458764679756478065'
+  - '3458764679756478067'
+  - '3458764679756478070'
+  - '3458764679756478072'
+  - '3458764679756478075'
+  - '3458764679756478082'
+  - '3458764679756478086'
+  - '3458764679756478088'
+  - '3458764679756478089'
+  - '3458764679756478090'
+  - '3458764679756478091'
+  - '3458764679756478092'
+  - '3458764679756478093'
+  - '3458764679756478094'
+  - '3458764679756478096'
+palette:
+  scaffold: '#EAF3FB'
+  working: '#C9E0F5'
+  candidate: '#9FC7EA'
+  validated: '#6FA8D8'
+  accepted: '#3F86C4'
+  superseded: '#1F5F98'
+fixed_items:
+  panel:
+    id: '3458764679756523217'
+    type: shape
+    x: 3500
+    y: 3600
+    width: 6600
+    height: 2600
+    font_size: 64
+    content: '<p><strong>ARTIFACT HEALTH SUMMARY — acceptance-claims-modernization</strong></p>'
+    style: {fillColor: '#E7F1FF', borderColor: '#4B79A1', color: '#1F3B64', textAlign: left, textAlignVertical: top}
+  summary:
+    id: '3458764679756523219'
+    type: shape
+    x: 1450
+    y: 3700
+    width: 2400
+    height: 1650
+    font_size: 42
+    content: '<p><strong>3 ARTEFAKTY</strong></p>'
+    style: {fillColor: '#FFFFFF', borderColor: '#8AA9C7', color: '#1F2937', textAlign: left, textAlignVertical: top}
+  legend_header:
+    id: '3458764680048047547'
+    type: text
+    x: 500
+    y: 4490
+    width: 520
+    font_size: 28
+    content: '<p><strong>MATURITY:</strong></p>'
+    style: {color: '#1F3B64', textAlign: left}
+  registry:
+    id: '3458764680048047692'
+    type: text
+    x: 1850
+    y: 2850
+    width: 3100
+    font_size: 36
+    content: '<p><a href="https://github.com/romanhlavac/ddd-accelerator/blob/feat/project-steering-and-documentation/examples/minimal/projects/acceptance-claims-modernization/docs/artifacts/index.md"><strong>OTEVŘÍT PLNÝ PROJEKTOVÝ ARTIFACT REGISTRY →</strong></a></p><p>Project-owned Git/YAML je source of truth.</p>'
+    style: {color: '#1F3B64', textAlign: left}
+summary_text_items:
+  - {role: maturity_heading, x: 1300, y: 3290, width: 1600, font_size: 34, content: '<p>Summary maturity:</p>'}
+  - {role: scaffold, x: 1320, y: 3400, width: 1560, font_size: 34, content: '<p><strong>SCAFFOLD: 1</strong></p>'}
+  - {role: working, x: 1320, y: 3490, width: 1560, font_size: 34, content: '<p><strong>WORKING: 2</strong></p>'}
+  - {role: candidate, x: 1320, y: 3580, width: 1560, font_size: 34, content: '<p><strong>CANDIDATE: 0</strong></p>'}
+  - {role: validated, x: 1320, y: 3670, width: 1560, font_size: 34, content: '<p><strong>VALIDATED: 0</strong></p>'}
+  - {role: accepted, x: 1320, y: 3760, width: 1560, font_size: 34, content: '<p><strong>ACCEPTED: 0</strong></p>'}
+  - {role: superseded, x: 1320, y: 3850, width: 1560, font_size: 34, content: '<p><strong>SUPERSEDED: 0</strong></p>'}
+  - {role: review_heading, x: 1300, y: 4020, width: 1600, font_size: 34, content: '<p>Summary review flagů:</p>'}
+  - {role: attention, x: 1320, y: 4120, width: 1560, font_size: 34, content: '<p><strong>🟧 ATTENTION: 1</strong></p>'}
+  - {role: blocking, x: 1320, y: 4210, width: 1560, font_size: 34, content: '<p><strong>🟩 BLOCKING: 0</strong></p>'}
+summary_markers:
+  - {id: '3458764680048047567', key: scaffold, x: 505, y: 3400, width: 64, height: 64}
+  - {id: '3458764680048047583', key: working, x: 505, y: 3490, width: 64, height: 64}
+  - {id: '3458764680048047602', key: candidate, x: 505, y: 3580, width: 64, height: 64}
+  - {id: '3458764680048047620', key: validated, x: 505, y: 3670, width: 64, height: 64}
+  - {id: '3458764680048047626', key: accepted, x: 505, y: 3760, width: 64, height: 64}
+  - {id: '3458764680048047679', key: superseded, x: 505, y: 3850, width: 64, height: 64}
+legend_text_items:
+  - {role: scaffold, x: 1560, y: 4490, width: 1350, font_size: 24, content: '<p><strong>SCAFFOLD</strong> — založená počáteční struktura</p>'}
+  - {role: working, x: 3310, y: 4490, width: 1350, font_size: 24, content: '<p><strong>WORKING</strong> — aktivně rozpracovaná pracovní verze</p>'}
+  - {role: candidate, x: 5060, y: 4490, width: 1350, font_size: 24, content: '<p><strong>CANDIDATE</strong> — připravená k formálnímu review</p>'}
+  - {role: validated, x: 1560, y: 4580, width: 1350, font_size: 24, content: '<p><strong>VALIDATED</strong> — prošla technickou a metodickou validací</p>'}
+  - {role: accepted, x: 3310, y: 4580, width: 1350, font_size: 24, content: '<p><strong>ACCEPTED</strong> — člověkem přijatá pro další použití</p>'}
+  - {role: superseded, x: 5060, y: 4580, width: 1350, font_size: 24, content: '<p><strong>SUPERSEDED</strong> — nahrazená novější verzí</p>'}
+  - {role: review_flags, x: 3650, y: 4770, width: 6100, font_size: 23, content: '<p><strong>REVIEW FLAGS:</strong> 🟧 ATTENTION — vyžaduje lidskou kontrolu nebo doplnění, ale nemusí zastavit gate. 🟩 BLOCKING = 0 — bez blockeru; 🟥 BLOCKING &gt; 0 — zastavit postup.</p>'}
+legend_markers:
+  - {id: '3458764680097662272', key: scaffold, x: 850, y: 4490, width: 44, height: 44}
+  - {id: '3458764680097662320', key: working, x: 2600, y: 4490, width: 44, height: 44}
+  - {id: '3458764680097662340', key: candidate, x: 4350, y: 4490, width: 44, height: 44}
+  - {id: '3458764680097662357', key: validated, x: 850, y: 4580, width: 44, height: 44}
+  - {id: '3458764680097662406', key: accepted, x: 2600, y: 4580, width: 44, height: 44}
+  - {id: '3458764680097662434', key: superseded, x: 4350, y: 4580, width: 44, height: 44}
+forbidden_phrases:
+  - 'světlejší modrá = ranější úroveň'
+  - '1 · SCAFFOLD'
+  - '2 · WORKING'
+  - '…'

@@ -141,5 +141,7 @@ Write-Host "Projekt:   $projectRoot"
 Write-Host "Otevření:  cursor `"$(Join-Path $workspaceFull 'DDDA.code-workspace')`""
 if ($WithMiro) {
     Write-Host "Miro map:  $(Join-Path $projectRoot 'miro/miro-map.yaml')"
-    Write-Host "Projektový mapping zkontroluj a commituj samostatně; skript commit ani push neprovádí."
+    Write-Host "Sync state: $(Join-Path $projectRoot 'miro/sync-state.yaml')"
+    Write-Host "Sync reporty: $(Join-Path $projectRoot 'reports/miro-sync')"
+    Write-Host "Miro mapping, sync state a sync reporty zkontroluj a commituj samostatně; skript commit ani push neprovádí."
 }
