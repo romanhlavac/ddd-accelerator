@@ -99,7 +99,7 @@ def same_frame(remote: dict[str, Any], expected: dict[str, Any]) -> bool:
 
 def desired_items(frame_id: str, manifest: dict[str, Any]) -> list[dict[str, Any]]:
     cfg = config(manifest)
-    x, y = cfg["position"]["x"], cfg["position"]["y"]
+    # Child positions are offsets from the retained frame center; MiroClient\n    # converts them to parent-local coordinates at the REST boundary.\n    x, y = 0.0, 0.0
     body = cfg["minimum_body_font_size"]
     cards = (
         ("NAVIGUJ PO PLÁTNĚ A RÁMCÍCH", "Kolečkem přibližuj. Pravým tlačítkem posouvej plátno. Přes mapu rámců přejdi na Frame 00 (status) a Frame 01 (journey).", -440, -250, "#DDEBF7"),

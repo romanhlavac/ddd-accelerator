@@ -38,3 +38,12 @@ def test_native_onboarding_has_no_screenshot_or_callout_content():
     assert "transparent" not in joined.lower()
     assert items[0]["style"]["fontSize"] == "64"
     assert all(item["style"]["fontSize"] == "36" for item in items[1:])
+
+
+def test_native_onboarding_children_stay_inside_the_retained_frame():
+    items = onboarding.desired_items("tips", manifest())
+    width, height = 1919.4331503618523, 1079.6811470785374
+    for item in items:
+        position, geometry = item["position"], item["geometry"]
+        assert abs(position["x"]) + geometry["width"] / 2 <= width / 2
+        assert abs(position["y"]) + geometry["height"] / 2 <= height / 2
