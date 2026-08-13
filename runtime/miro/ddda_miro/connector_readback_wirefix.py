@@ -8,6 +8,7 @@ from . import frame01_redline as redline
 from . import miro_tips_endpoint_wirefix
 from . import miro_tips_control_anchor_fix
 from . import miro_tips_hvr_fix
+from . import miro_tips_native_onboarding
 from . import miro_tips_hvr_semantic_fix
 from .client import MiroClient, normalize_miro_percentage
 
@@ -208,9 +209,11 @@ def main(argv: list[str] | None = None) -> int:
     miro_tips_hvr_fix.install()
     miro_tips_hvr_semantic_fix.install()
     miro_tips_control_anchor_fix.install()
+    miro_tips_native_onboarding.install()
     try:
         return recovery.main(argv)
     finally:
+        miro_tips_native_onboarding.uninstall()
         miro_tips_control_anchor_fix.uninstall()
         miro_tips_hvr_semantic_fix.uninstall()
         miro_tips_hvr_fix.uninstall()

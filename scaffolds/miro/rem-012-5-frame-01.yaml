@@ -46,6 +46,26 @@ miro_tips:
   visual_equivalence_policy: reference_topology_plus_explicit_control_anchors
   container_policy: transactional_replace_irreducible_companion
   layer_policy: image_below_native_callouts
+  onboarding:
+    mode: ddda_owned_native_onboarding
+    policy: native_ddda_owned_no_screenshot_no_callouts
+    container_policy: retained_frame_native_rebuild
+    minimum_body_font_size: 36
+    minimum_heading_font_size: 64
+    minimum_sections: 6
+    required_sections:
+      - NAVIGUJ PO PLÁTNĚ A RÁMCÍCH
+      - TVORBA A ÚPRAVA LÍSTKŮ
+      - VÝBĚR, ZPĚT A DUPLIKACE
+      - PROPOJUJ VÝZNAMY
+      - SPOLUPRÁCE A FACILITACE
+      - Vlastnictví a legenda DDDA
+    container_geometry:
+      width: 1919.4331503618523
+      height: 1079.6811470785374
+    container_position:
+      x: -19834.447049390445
+      y: -11727.529671450406
   legacy_frame_ids:
     - '3458764680388504033'
     - '3458764680392874705'
@@ -70,7 +90,7 @@ source_companion_frames:
   - id: '3458764567797253967'
     title: Miro Tips
     min_images: 1
-    mode: reference_ui_tutorial
+    mode: ddda_owned_native_onboarding
     source_board_id: uXjVH27wYU4=
   - id: '3458764679531716415'
     title: Align

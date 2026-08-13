@@ -43,22 +43,16 @@ Profily mohou používat různé Miro identity/tokeny:
 
 ## Jednorázové nastavení
 
-Legacy PR #8 secret zůstává během migrace podporovaný:
+Aktivní PR #8 používá výhradně oddělené profile-specific bindingy:
 
-```text
-MIRO_ACCESS_TOKEN
-```
+    MIRO_GH_CI_ACCESS_TOKEN
+    MIRO_PLATFORM_LAB_ACCESS_TOKEN
+    MIRO_HVR_ACCESS_TOKEN
+    MIRO_EXAMPLE_PROJECT_ACCESS_TOKEN
 
-Preferované nové bindings jsou:
-
-```text
-MIRO_CI_ACCESS_TOKEN
-MIRO_PLATFORM_LAB_ACCESS_TOKEN
-MIRO_HVR_ACCESS_TOKEN
-MIRO_EXAMPLE_PROJECT_ACCESS_TOKEN
-```
-
-Ne všechny musí být současně nakonfigurovány. Každý workflow smí použít pouze svůj dokumentovaný fallback chain. Secret names jsou kontrakt; secret values nikdy nevstupují do Chatu, Work kontextu, souboru ani Git historie.
+Cross-profile ani legacy fallback se nepovoluje. Každý workflow smí použít pouze
+svůj vlastní binding; secret names jsou kontrakt a secret values nikdy nevstupují
+do Chatu, Work kontextu, souboru ani Git historie.
 
 Non-secret Repository/Environment variables mohou obsahovat identity labels, team ID, Space/project ID a board ID. Aktuální názvy jsou definované v `config/platform/miro-execution-profiles.yaml`.
 
@@ -88,13 +82,9 @@ Obecný acceptance může vytvářet izolovaný board, pokud testuje board-lifec
 
 ## HVR broker contract
 
-HVR technical preflight používá REST API a exact-SHA candidate. Preferred credential chain během PR #8 je:
-
-```text
-MIRO_HVR_ACCESS_TOKEN
-→ MIRO_PLATFORM_LAB_ACCESS_TOKEN
-→ MIRO_ACCESS_TOKEN
-```
+HVR technical preflight používá REST API a exact-SHA candidate. HVR používá
+výhradně MIRO_HVR_ACCESS_TOKEN. Platform Lab reconcile používá výhradně
+MIRO_PLATFORM_LAB_ACCESS_TOKEN; křížový ani legacy fallback není povolen.
 
 HVR technicky připravený stav vyžaduje remote write/reconcile, fresh read-back a zero-mutation second reconcile. Potom vznikne stabilní Miro URL. Lidský reviewer může použít Miro GUI, screenshot nebo MCP; MCP není podmínkou `READY_FOR_HUMAN_REVIEW`.
 
