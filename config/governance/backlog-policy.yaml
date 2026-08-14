@@ -13,6 +13,8 @@ principles:
   pr_is_unit_of_change: true
   main_direct_changes_forbidden: true
   planned_prs_as_backlog_forbidden: true
+  active_implementation_prs_project_membership_required: true
+  pr_project_item_is_delivery_projection_not_backlog_authority: true
   automated_human_approval_forbidden: true
   milestone_membership_is_not_release_approval: true
   parent_membership_is_not_release_scope: true
@@ -54,7 +56,7 @@ artifact_authority:
   long_term_product_vision: versioned_roadmap_document
 
 project:
-  name: DDDA Platform Backlog
+  name: DDDA Platform Backlog & Delivery
   fields:
     status:
       type: single_select
@@ -116,15 +118,25 @@ project:
     configured_values_are_bootstrap_defaults: true
     closed_item_blocked_value: No
   views:
-    - Work Packages
-    - WP hierarchy
-    - Delivery board
-    - Roadmap by Work Package
-    - Release scope
-    - Blocked and P0
-    - Human review queue
-    - Ready without owner
-    - Recently completed
+    - Plánování a Backlog
+    - Implementace a Delivery
+  view_contract:
+    planning:
+      name: Plánování a Backlog
+      layout: table
+      filter: is:issue
+    delivery:
+      name: Implementace a Delivery
+      layout: table
+      filter: is:pr is:open
+  delivery_projection:
+    open_implementation_pr_membership_required: true
+    primary_change_request_relation: Implements_or_Closes
+    work_package_source: primary_change_request
+    project_item_type_field: unset
+    draft_status: In progress
+    ready_status: In review
+    blocked_override: Blocked
 
 native_sub_issue_mapping:
   WP-08:

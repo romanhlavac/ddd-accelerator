@@ -2,7 +2,7 @@
 
 ## 1. Účel
 
-Tento dokument definuje řízení produktového backlogu DDDA platformy od nalezeného GAP přes Work Package a implementační Issue až po PR, release a auditovatelnou lidskou release decision.
+Tento dokument definuje řízení produktového backlogu DDDA platformy od nalezeného GAP přes Work Package a implementační Issue až potom PR, release a auditovatelnou lidskou release decision.
 
 Backlog governance se týká vývoje DDDA platformy jako verzovaného produktu. Není to lifecycle klientského DDDA projektu ani náhrada metodických gatů G1–G8.
 
@@ -34,13 +34,14 @@ Backlog authority a implementation traceability musí současně tvořit konzist
 ```text
 Work Package (nebo explicitní Other)
 ↔ Change Request Issue
-↔ DDDA Platform Backlog Project item
+↔ Project planning item
 
 Change Request Issue
 ↔ implementation branch / Draft PR
+↔ Project delivery item
 ```
 
-Implementační PR není automaticky druhá backlogová položka. Samostatná Project membership PR je povinná pouze tehdy, pokud ji explicitně vyžaduje planning policy. Detailní fail-closed pravidla jsou v [WP ↔ Backlog ↔ Implementation consistency](wp-backlog-consistency.md).
+Otevřený implementační PR je povinná Project delivery projection, nikoli druhý Change Request. Jeho Work Package se odvozuje z primary CR a planning `Item Type` se na PR nepoužívá. Detailní fail-closed pravidla jsou v [WP ↔ Backlog ↔ Delivery consistency](wp-backlog-consistency.md).
 
 ## 3. Backlogové úrovně
 
@@ -88,7 +89,7 @@ Work Package se neuzavírá dokončením jednoho PR, pokud nebyla splněna všec
 
 ### 3.3 Child Issue / Change Request
 
-Child Issue je samostatně implementovatelný delivery slice. Má být dostatečně malý pro jednoznačný review a dostatečně úplný pro vytvoření jednoho nebo malého počtu koherentních PR.
+Child Issue je samostatně implementovatelný delivery slice. Má být dostatečně malý pro jednoznačný review a dostatečně úplní pro vytvoření jednoho nebo malého počtu koherentních PR.
 
 Povinný obsah:
 
@@ -149,7 +150,7 @@ Legacy PR bez primárního CR je povolen pouze jako explicitní verzovaná výji
 Doporučený projekt:
 
 ```text
-DDDA Platform Backlog
+DDDA Platform Backlog & Delivery
 ```
 
 ### 4.1 Povinná pole
@@ -179,15 +180,14 @@ DDDA Platform Backlog
 
 Priorita není severity. Defekt může mít severity RED, ale jeho delivery priority se stále explicitně určuje.
 
-### 4.3 Doporučené pohledy
+### 4.3 Kanonické Project views
 
-1. **Delivery board** — sloupce podle Status.
-2. **Roadmap by Work Package** — seskupení podle WP a Target Release.
-3. **Release scope** — seskupení podle Milestone/Target Release.
-4. **Blocked and risks** — filtr `Blocked = true` nebo P0.
-5. **Human review queue** — `Status = In review` nebo `Human Review = Pending`.
-6. **Unassigned Ready** — položky `Ready` bez Ownera.
-7. **Recently done** — uzavřené položky posledních 30 dnů.
+Project má dvě povinné, strojově spravované projekce:
+
+1. **Plánování a Backlog** — Table, filter `is:issue`; plánovací autorita pro WP/CR metadata.
+2. **Implementace a Delivery** — Table, filter `is:pr is:open`; operativní projekce všech otevřených implementačních PR.
+
+Další analytické pohledy lze vytvářet pouze jako odvozené UI convenience; nesmějí měnit autoritu ani být podmínkou konzistence.
 
 ### 4.4 Povinná konzistence WP ↔ backlog ↔ implementace
 
@@ -201,7 +201,7 @@ Kontrola zahrnuje minimálně:
 - native Parent/Sub-issue relationships;
 - Project membership a deterministic fields pro WP/CR;
 - primární PR → CR relationships;
-- Project fields PR pouze tehdy, pokud planning policy používá PR items.
+- Project membership a delivery fields každého otevřeného implementačního PR.
 
 Kontrola se nesmí omezit jen na právě editovaný WP nebo PR. Strukturální změna může porušit konzistenci sourozeneckého WP nebo jiného aktivního PR.
 
@@ -270,10 +270,10 @@ Done → reopened pouze novým explicitním rozhodnutím
 - issue je Ready nebo je explicitně dokumentována urgentní výjimka;
 - existuje branch;
 - vznikl Draft PR nebo je vytvořen bezprostředně po prvním koherentním commitu;
-- CR je viditelný v `DDDA Platform Backlog` a jeho Project WP odpovídá autoritativnímu WP;
+- CR je viditelný v `DDDA Platform Backlog & Delivery` a jeho Project WP odpovídá autoritativnímu WP;
 - PR má právě jednu primární `Implements`/`Closes` vazbu nebo explicitní versioned legacy exception;
 - PR deklaruje stejné WP jako jeho primární CR;
-- pokud planning policy používá PR Project items, metadata PR jsou konzistentní s CR;
+- každý otevřený implementační PR je Project delivery item a jeho Work Package/Status jsou konzistentní s primary CR a delivery projection;
 - žádná práce neprobíhá přímo na `main`.
 
 ### Exit criteria pro Done
@@ -383,7 +383,7 @@ Minimálně jednou za release nebo měsíčně a vždy při strukturální změn
 - ověřit native parent/child vazby proti Project `Work Package`;
 - ověřit každý otevřený platformní PR proti jednomu primárnímu CR a odvozenému WP;
 - ověřit, že každý governed CR je v Projectu, pokud policy neurčuje výjimku;
-- pokud planning policy používá PR Project items, ověřit jejich fields proti CR;
+- u všech otevřených implementačních PR ověřit Project membership, derived Work Package, delivery Status a prázdný planning `Item Type`;
 - provést repository-wide pre/post consistency read-back a vyžadovat zero post-change mismatches;
 - aktualizovat roadmap status;
 - odstranit neplatná budoucí PR čísla z dokumentace;

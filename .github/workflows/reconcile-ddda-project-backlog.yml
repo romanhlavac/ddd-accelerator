@@ -1,4 +1,4 @@
-name: Reconcile DDDA Project Backlog
+name: Reconcile DDDA Project Backlog & Delivery
 
 on:
   workflow_dispatch:
@@ -15,16 +15,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Record exact source SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Source SHA: ${GITHUB_SHA}" >> "$GITHUB_STEP_SUMMARY"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+
       - name: Validate persistent Project credential
         shell: bash
         run: |
           set -euo pipefail
           test -n "${GH_TOKEN:-}"
           gh auth status --hostname github.com >/dev/null
-          gh project list --owner romanhlavac --limit 100 --format json --jq '.projects[] | select(.title=="DDDA Platform Backlog") | .number' | grep -Eq '^[0-9]+$'
+          count="$(gh project list --owner romanhlavac --limit 100 --format json --jq '[.projects[] | select((.title=="DDDA Platform Backlog & Delivery" or .title=="DDDA Platform Backlog") and (.closed|not))] | length')"
+          test "$count" = "1"
 
-      - name: Validate reconciler
-        run: python -m py_compile scripts/platform/Reconcile-DDDAProjectBacklog.py
+      - name: Validate governance contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/platform/Reconcile-DDDAProjectBacklog.py
+          python -m json.tool config/governance/github-bootstrap.json >/dev/null
+          python -m pytest -q runtime/platform/tests/test_project_backlog_delivery_governance.py
 
       - name: Reconcile and read back
         run: python scripts/platform/Reconcile-DDDAProjectBacklog.py
@@ -33,12 +46,39 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git diff --exit-code -- config/governance docs/roadmap scripts/platform/Reconcile-DDDAProjectBacklog.py
+          git diff --exit-code -- \
+            config/governance \
+            docs/governance \
+            docs/adr/0003-github-native-backlog-governance.md \
+            scripts/platform/Reconcile-DDDAProjectBacklog.py \
+            runtime/platform/tests/test_project_backlog_delivery_governance.py
+
+      - name: Assert audit result
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path('.reports/cr-delivery-audit-v6/audit.json')
+          data = json.loads(p.read_text(encoding='utf-8'))
+          assert data['source_sha'] == __import__('os').environ['GITHUB_SHA']
+          assert data['remaining_count'] == 0
+          print(json.dumps({
+              'source_sha': data['source_sha'],
+              'project': data['project']['title'],
+              'mapped_cr_count': data['mapped_cr_count'],
+              'open_pr_count': data['open_pr_count'],
+              'mapped_pr_count': data['mapped_pr_count'],
+              'repair_count': data['repair_count'],
+              'remaining_count': data['remaining_count'],
+          }))
+          PY
 
       - name: Upload audit evidence
         uses: actions/upload-artifact@v4
         with:
-          name: ddda-project-backlog-audit-v5
-          path: .reports/cr-backlog-audit-v5/**
+          name: ddda-project-backlog-delivery-audit-v6-${{ github.sha }}
+          path: .reports/cr-delivery-audit-v6/**
           retention-days: 30
           if-no-files-found: error

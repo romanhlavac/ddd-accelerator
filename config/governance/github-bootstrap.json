@@ -2,8 +2,8 @@
   "schema_version": 1,
   "repository": "romanhlavac/ddd-accelerator",
   "project_owner": "romanhlavac",
-  "project_title": "DDDA Platform Backlog",
-  "project_description": "Operational backlog, roadmap and release planning for the DDDA platform. Detailed requirements remain authoritative in GitHub Issues; implementation is performed through branches and pull requests.",
+  "project_title": "DDDA Platform Backlog & Delivery",
+  "project_description": "Planning backlog and active delivery visibility for the DDDA platform. Work Packages and Change Request Issues remain planning authority; active implementation pull requests are maintained as delivery projections linked to one primary Change Request.",
   "project_visibility": "PUBLIC",
   "api_version": "2026-03-10",
   "hierarchy": [
@@ -796,7 +796,6 @@
       "metadata": {
         "Status": "Blocked",
         "Work Package": "WP-08",
-        "Item Type": "Change Request",
         "Target Release": "0.1.0",
         "Blocked": "Yes",
         "Human Review": "Pending"
@@ -838,7 +837,6 @@
       "metadata": {
         "Status": "Blocked",
         "Work Package": "Other",
-        "Item Type": "Change Request",
         "Target Release": "TBD",
         "Blocked": "Yes",
         "Human Review": "Pending"
@@ -1127,49 +1125,14 @@
   ],
   "views": [
     {
-      "name": "Work Packages",
+      "name": "Plánování a Backlog",
       "layout": "table",
-      "filter": "Item Type:\"Work Package\""
+      "filter": "is:issue"
     },
     {
-      "name": "WP hierarchy",
+      "name": "Implementace a Delivery",
       "layout": "table",
-      "filter": ""
-    },
-    {
-      "name": "Delivery board",
-      "layout": "board",
-      "filter": ""
-    },
-    {
-      "name": "Roadmap by Work Package",
-      "layout": "roadmap",
-      "filter": "-status:Cancelled"
-    },
-    {
-      "name": "Release scope",
-      "layout": "table",
-      "filter": "-Target Release:TBD"
-    },
-    {
-      "name": "Blocked and P0",
-      "layout": "table",
-      "filter": "Blocked:Yes"
-    },
-    {
-      "name": "Human review queue",
-      "layout": "table",
-      "filter": "Human Review:Pending"
-    },
-    {
-      "name": "Ready without owner",
-      "layout": "table",
-      "filter": "status:Ready no:assignee"
-    },
-    {
-      "name": "Recently completed",
-      "layout": "table",
-      "filter": "status:Done"
+      "filter": "is:pr is:open"
     }
   ],
   "milestone": {
@@ -1217,5 +1180,21 @@
       "priority": "P3",
       "note": "multi-agent orchestration as independent later stream"
     }
-  ]
+  ],
+  "delivery_projection": {
+    "planning_view": {
+      "name": "Plánování a Backlog",
+      "layout": "table",
+      "filter": "is:issue"
+    },
+    "delivery_view": {
+      "name": "Implementace a Delivery",
+      "layout": "table",
+      "filter": "is:pr is:open"
+    },
+    "open_implementation_pr_membership_required": true,
+    "primary_change_request_relation": "Implements_or_Closes",
+    "work_package_source": "primary_change_request",
+    "project_item_type_field": null
+  }
 }

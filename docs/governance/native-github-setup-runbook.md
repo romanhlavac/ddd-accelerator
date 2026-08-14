@@ -199,17 +199,16 @@ Create or reuse:
 
 ```text
 Owner: romanhlavac
-Project: DDDA Platform Backlog
+Project: DDDA Platform Backlog & Delivery
 Visibility: PUBLIC
 Repository: romanhlavac/ddd-accelerator
 ```
 
 Items include:
 
-- PR #8;
-- Issues #9–#42;
-- Draft PR #43;
-- Issues #44–#51.
+- all governed Work Package and Change Request Issues required by the versioned mapping;
+- every open implementation Pull Request as a delivery projection;
+- PR #8 only through its explicit versioned WP-08 legacy exception until merge/close.
 
 ## Fields
 
@@ -246,19 +245,14 @@ Configured values are bootstrap defaults/projections. Safe Project workflows sho
 
 ## Views
 
-Create/verify:
+Create/verify exactly the canonical machine-managed views:
 
-1. `Work Packages`;
-2. `WP hierarchy`;
-3. `Delivery board`;
-4. `Roadmap by Work Package`;
-5. `Release scope`;
-6. `Blocked and P0`;
-7. `Human review queue`;
-8. `Ready without owner`;
-9. `Recently completed`.
+1. `Plánování a Backlog` — table, filter `is:issue`;
+2. `Implementace a Delivery` — table, filter `is:pr is:open`.
 
-Advanced grouping/visible fields may require UI finalization.
+The planning view contains WP/CR planning items. The delivery view contains all currently open implementation PRs. A PR Project item is a delivery projection, not backlog authority; its `Work Package` is derived from the primary CR and planning `Item Type` remains unset.
+
+Optional analyst views may be created manually, but are not part of the versioned invariant and must not replace these two views.
 
 ## Milestone
 
@@ -322,7 +316,7 @@ Confirm:
 
 - every configured child has the expected native parent;
 - every direct dependency is visible and graph is acyclic;
-- all Project items/fields/nine views exist;
+- all governed planning items, all open delivery PR items, required fields and both canonical views exist;
 - #10/#11/#13 are Done;
 - #45 is outside Milestone 0.1.0;
 - Milestone contains only PR #8 and Issues #9–#15;

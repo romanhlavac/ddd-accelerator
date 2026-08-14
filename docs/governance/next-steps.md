@@ -1,8 +1,9 @@
 # Governance rollout next steps
 
-1. Create parent Work Package Issues WP-08 through WP-11.
-2. Create detailed Child Issues for WP-09 through WP-11.
-3. Link PR #8 and Issues #9–#15 under WP-08 without changing PR #8 source SHA.
-4. Open a Draft PR from `feature/github-native-backlog-governance`.
-5. Create GitHub Project `DDDA Platform Backlog` and Milestone `DDDA 0.1.0` through repository administration.
-6. After PR #8 resolution, rebase this governance PR, integrate central docs index and CHANGELOG, then validate the exact rebased SHA.
+1. Commit the Backlog + Delivery projection contracts to PR #63 on an exact-SHA-bound atomic commit.
+2. Validate that exact PR #63 SHA through `Validate DDDA` and the governance contract regression tests.
+3. Run privileged Project reconciliation from the committed exact SHA; rename/reuse the Project as `DDDA Platform Backlog & Delivery`.
+4. Verify `Plánování a Backlog` (`is:issue`) and `Implementace a Delivery` (`is:pr is:open`).
+5. Read back all governed WP/CR planning items and every open implementation PR delivery item; require `remaining_mismatches = 0`.
+6. Keep PR #8 source branch/head untouched; its only exception is the versioned WP-08 legacy mapping until merge/close.
+7. Update PR #63 evidence and request Human Review. Technical PASS does not imply Human Review, merge, promotion or release approval.

@@ -4,17 +4,17 @@ This checklist tracks repository-administration actions that cannot be guarantee
 
 ## GitHub Project
 
-- [ ] Create `DDDA Platform Backlog`.
+- [ ] Create `DDDA Platform Backlog & Delivery`.
 - [ ] Add all custom fields and exact values from `config/governance/backlog-policy.yaml`.
 - [ ] Add `Start date`, `Target date` and `Outcome summary`.
 - [ ] Enable/show system fields `Parent issue`, `Sub-issue progress`, `Milestone` and `Linked pull requests` in relevant views.
-- [ ] Create all views from `docs/governance/github-project-setup.md`.
-- [ ] Create dedicated `Work Packages` and `WP hierarchy` views.
-- [ ] Configure Roadmap to use `Start date` and `Target date`, group by Work Package and show Milestone markers.
+- [ ] Create/verify `Plánování a Backlog` as Table with filter `is:issue`.
+- [ ] Create/verify `Implementace a Delivery` as Table with filter `is:pr is:open`.
+- [ ] Keep any additional analytical views optional and non-authoritative.
 - [ ] Keep items with unknown dates unscheduled; do not invent dates for visualization.
 - [ ] Configure safe status automations.
 - [ ] Do not automate Priority, Target Release, dates, Human Review PASS, dependencies or release decisions.
-- [ ] Add PR #8, Issues #9–#15, governance CR #16, WP/Child Issues #17–#41, admin Issue #42, Draft PR #43 and governance defect #44.
+- [ ] Ensure all governed WP/CR Issues are planning items and every open implementation PR is a delivery item; apply only the explicit PR #8 legacy exception for primary-CR mapping.
 
 ## Native hierarchy
 
@@ -24,7 +24,7 @@ This checklist tracks repository-administration actions that cannot be guarantee
 - [ ] #20 is the native parent of #34–#41.
 - [ ] Prefixes such as `[WP-09]` remain navigation aids, not the only hierarchy representation.
 - [ ] Parent Issues display native Sub-issue progress.
-- [ ] Implementation PRs are linked through Issue references / Linked pull requests, not configured as Sub-issues.
+- [ ] Implementation PRs are not Sub-issues; every open implementation PR is a Project delivery projection linked to exactly one primary CR, except the versioned PR #8 legacy exception.
 
 ## Native dependencies
 
@@ -32,7 +32,7 @@ This checklist tracks repository-administration actions that cannot be guarantee
 - [ ] Record rationale in Issue body/comment or Project Dependency field.
 - [ ] Verify WP-08 critical path remains consistent with Issue #15.
 - [ ] Verify WP-09 sequencing: #21/#22 → #23/#24 → #25 → #26.
-- [ ] Verify WP-10 sequencing: #27 and #31 enable adapters/incremental work; #28–#32 enable #33.
+- [ ] Verify WP-10 sequencing: #27 and #31 enable adapters/incremental work; #28–#33 enable #33.
 - [ ] Verify WP-11 sequencing: #34→#35, #36→#37→#38, #36/#37/#38→#39, #37/#38/#39→#40, #35/#40→#41.
 - [ ] Dependencies do not automatically set Priority, dates or human decisions.
 

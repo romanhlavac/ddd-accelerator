@@ -1,21 +1,22 @@
-# WP ↔ Backlog ↔ Implementation consistency
+# WP ↔ Backlog ↔ Delivery consistency
 
 Tento dokument je závaznou součástí GitHub-native governance DDDA platformy.
 
 ## Povinný invariant
 
-Backlog authority a implementation traceability musí tvořit úplný a vzájemně konzistentní model:
+Planning authority a implementation delivery projection musí tvořit úplný a vzájemně konzistentní model:
 
 ```text
 Work Package (nebo explicitní Other)
 ↔ Change Request Issue
-↔ DDDA Platform Backlog Project item
+↔ Project planning item
 
 Change Request Issue
 ↔ implementation branch / Draft PR
+↔ Project delivery item
 ```
 
-Implementační PR není automaticky druhá backlogová položka. Samostatná Project membership PR je povinná pouze tehdy, pokud ji explicitně vyžaduje planning policy. Pokud PR v Projectu je, jeho `Work Package` nesmí odporovat autoritativnímu CR.
+Otevřený implementační PR je povinná Project delivery projection, nikoli druhý Change Request ani backlog authority. Jeho Work Package se odvozuje z primary CR. Planning `Item Type` se na PR nepoužívá.
 
 Před i po každé změně backlogu, Work Package struktury, governance metadat nebo implementačních PR vztahů se provede fail-closed read-back celé aktivní struktury. Kontrola se nesmí omezit pouze na právě editovanou položku.
 
@@ -27,22 +28,54 @@ remaining_mismatches = 0
 
 Jakýkoli zbývající mismatch blokuje technical governance PASS a doporučení Ready/merge, i když code CI a package-first validace jsou zelené.
 
+## Kanonické Project projekce
+
+Project se jmenuje `DDDA Platform Backlog & Delivery` a má dvě kanonické strojově spravované projekce:
+
+```text
+Plánování a Backlog
+layout: Table
+filter: is:issue
+
+Implementace a Delivery
+layout: Table
+filter: is:pr is:open
+```
+
+Další analytické view mohou existovat pouze jako odvozené pohledy; nesmějí měnit planning nebo delivery authority.
+
 ## Povinné kontroly
 
+### Planning
+
 - Change Request má právě jedno autoritativní Work Package přes native Parent/Sub-issue, nebo je explicitně `Other`.
-- Každý governed Change Request je položkou `DDDA Platform Backlog`, pokud policy výslovně nedefinuje výjimku.
-- Project `Work Package` a `Item Type` CR odpovídají autoritativnímu WP a typu artefaktu.
+- Každý governed Change Request a Work Package požadovaný verzovaným kontraktem je planning položkou `DDDA Platform Backlog & Delivery`.
+- Project `Work Package` a `Item Type` Issue odpovídají autoritativnímu WP a typu artefaktu.
+- Native dependency vztahy odpovídají verzovanému governance kontraktu.
+
+### Delivery
+
 - Každý otevřený platformní PR má právě jednu primární vazbu `Implements #<CR>` nebo `Closes #<CR>`, pokud nejde o explicitní verzovanou legacy výjimku.
 - `Refs`, `Related`, prefix názvu ani stacked Git ancestry nejsou primární implementation authority a neurčují WP ownership.
-- Pokud Issue/PR title obsahuje explicitní prefix `[WP-XX]`, prefix musí odpovídat autoritativnímu Work Package. Absence WP prefixu je povolená; zavádějící nebo historický prefix je `PRESENTATION_WP_MISMATCH` a blokuje technical governance PASS, i když native parent a Project fields jsou správné.
-- Display/read-back kontrola názvu vychází z kanonického Issue/PR title (resp. Project item content navázaného na Issue/PR), nikoli z náhodného nebo duplicitního Project text field se jménem `Title`. Presentation metadata nesmějí odporovat autoritativnímu backlog modelu.
-- Work Package implementačního PR se odvozuje od jeho primárního CR; PR nesmí tvrdit jiné WP.
-- Pokud planning policy vede PR také jako Project item, jeho Project `Work Package` a `Item Type` musí být konzistentní s primárním CR.
-- Pre-read-back může při remediation najít chyby; ty se uloží jako evidence. Post-read-back musí mít nula nevysvětlených mismatchů.
+- Work Package implementačního PR se odvozuje od jeho primary CR; PR nesmí tvrdit jiné WP.
+- Každý otevřený implementační PR je Project delivery item.
+- Project `Work Package` PR odpovídá odvozenému WP primary CR.
+- Project `Item Type` PR je prázdný; delivery PR se nesmí klasifikovat jako planning artefakt.
+- Project `Status` PR je `Blocked`, pokud je `Blocked = Yes`; jinak Draft PR je `In progress` a non-draft open PR je `In review`.
+- Pokud Issue/PR title obsahuje explicitní prefix `[WP-XX]`, prefix musí odpovídat autoritativnímu Work Package. Absence WP prefixu je povolená; zavádějící nebo historický prefix je `PRESENTATION_WP_MISMATCH` a blokuje technical governance PASS.
+- Display/read-back názvu vychází z kanonického Issue/PR title, nikoli z náhodného nebo duplicitního Project text field se jménem `Title`.
+
+### Project contract
+
+- Project title je přesně `DDDA Platform Backlog & Delivery`.
+- Planning view je `Plánování a Backlog`, `TABLE`, filter `is:issue`.
+- Delivery view je `Implementace a Delivery`, `TABLE`, filter `is:pr is:open`.
+- Pre-read-back může při remediation najít chyby; ty se uloží jako evidence.
+- Post-read-back musí mít nula nevysvětlených mismatchů.
 
 ## Aktuální legacy výjimka
 
-Jediná povolená výjimka k 2026-08-13 je:
+Jediná povolená výjimka k 2026-08-14 je:
 
 ```text
 PR: #8
@@ -51,27 +84,31 @@ Reason: PR #8 vznikl před zavedením GitHub-native backlog governance a WP-08 e
 Expiry: okamžik merge nebo close PR #8
 ```
 
-Tato výjimka neobchází WP projection, Human Review ani release governance. Po expiraci musí být z metodiky odstraněna. Nové PR nesmějí používat tento precedent jako bypass.
+Výjimka se týká pouze chybějící primary CR vazby. PR #8 zůstává povinnou delivery Project položkou s WP-08 a nepřestává podléhat Human Review, promotion ani release governance. Po expiraci musí být výjimka odstraněna. Nové PR nesmějí používat tento precedent jako bypass.
 
 ## Fail-closed podmínky
 
 Za governance failure se považuje zejména:
 
-- governed CR chybí v `DDDA Platform Backlog` bez explicitní policy výjimky;
-- chybějící nebo víceznačný primární CR u aktivního PR;
-- primární CR mimo řízený backlog;
+- governed WP/CR chybí v planning projekci bez explicitní policy výjimky;
+- chybějící nebo víceznačný primary CR u aktivního PR;
+- primary CR mimo řízený backlog;
 - `CR.Project.Work Package != authoritative CR Work Package`;
 - rozpor native parentu CR a jeho Project Work Package;
-- chybějící nebo chybně klasifikovaný WP/CR Project item;
+- chybějící nebo chybně klasifikovaný WP/CR planning item;
 - explicitní `[WP-XX]` prefix Issue/PR title odporuje autoritativnímu WP (`PRESENTATION_WP_MISMATCH`);
-- PR deklaruje jiné WP než jeho primární CR;
-- PR je veden jako Project item a jeho Project WP odporuje CR;
+- PR deklaruje jiné WP než jeho primary CR;
+- otevřený implementační PR chybí v delivery projekci (`MISSING_DELIVERY_PROJECT_ITEM`);
+- PR Project Work Package odporuje odvozenému WP (`DELIVERY_WORK_PACKAGE_MISMATCH`);
+- PR Project Status odporuje delivery state (`DELIVERY_STATUS_MISMATCH`);
+- PR má nastaven planning `Item Type` (`DELIVERY_HAS_PLANNING_ITEM_TYPE`);
+- Project title nebo některá kanonická view/filter projekce neodpovídá kontraktu;
 - nezdůvodněná legacy výjimka;
 - libovolný nevysvětlený post-change mismatch.
 
 ## Hranice automatizace
 
-Automatizace smí opravit mechanickou projekci pouze tehdy, když je produktová autorita explicitní. Nesmí sama vymyslet Work Package ownership, primární Change Request, prioritu, business value, Human Review PASS, gate decision, merge approval ani release approval.
+Automatizace smí opravit mechanickou projekci pouze tehdy, když je produktová autorita explicitní. Nesmí sama vymyslet Work Package ownership, primary Change Request, prioritu, business value, Human Review PASS, gate decision, merge approval ani release approval.
 
 Nejednoznačné vlastnictví je blocking condition vyžadující explicitní governance rozhodnutí.
 
@@ -80,23 +117,25 @@ Nejednoznačné vlastnictví je blocking condition vyžadující explicitní gov
 ```text
 config/governance/backlog-policy.yaml
 config/governance/github-bootstrap.json
+scripts/platform/Reconcile-DDDAProjectBacklog.py
 ```
 
 Privileged live Project reconciliation musí zůstat oddělena od ne-reviewovaného PR kódu. Workflow s Project tokenem se nespouští automaticky z běžného `pull_request` triggeru.
 
 ## Povinná evidence
 
-Governance/backlog změna uchovává minimálně:
+Governance/backlog/delivery změna uchovává minimálně:
 
 - repository, branch a exact SHA;
 - počet a seznam pre-read-back mismatchů;
 - provedené mechanické opravy;
 - post-read-back mismatch count;
-- seznam aktivních WP/CR a otevřených PR zahrnutých do kontroly;
-- výsledky native WP parent + CR Project membership/field read-backu;
+- seznam aktivních WP/CR a všech otevřených PR zahrnutých do kontroly;
+- výsledky native WP parent + planning Project membership/field read-backu;
 - kontrolu explicitních WP prefixů v Issue/PR titles proti autoritativnímu WP;
 - PR → primary CR mapping a odvozené WP;
-- případnou kontrolu PR Project fields, pokud planning policy PR items používá;
+- PR Project membership + `Work Package` + `Status` + absence `Item Type`;
+- Project title a obě canonical view/filter hodnoty;
 - workflow run a audit artifact při privileged live reconciliation.
 
 Technical PASS a Human Review zůstávají oddělené dimenze.
