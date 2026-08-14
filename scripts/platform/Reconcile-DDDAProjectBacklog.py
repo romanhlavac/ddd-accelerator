@@ -197,8 +197,9 @@ def update_view(view_id, name, filter_value):
 
 
 def create_view(project_id, name, filter_value):
-    q = """mutation($projectId:ID!,$name:String!,$filter:String!){createProjectV2View(input:{projectId:$projectId,name:$name,layout:TABLE_LAYOUT,filter:$filter}){projectV2View{id number name layout filter}}}"""
-    return gql(q, {"projectId": project_id, "name": name, "filter": filter_value})["data"]["createProjectV2View"]["projectV2View"]
+    q = """mutation($projectId:ID!,$name:String!){createProjectV2View(input:{projectId:$projectId,name:$name,layout:TABLE_LAYOUT}){projectV2View{id number name layout filter}}}"""
+    created = gql(q, {"projectId": project_id, "name": name})["data"]["createProjectV2View"]["projectV2View"]
+    return update_view(created["id"], name, filter_value)
 
 
 def resolve_project(repairs):

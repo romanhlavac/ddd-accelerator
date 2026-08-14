@@ -68,6 +68,22 @@ def test_reconciler_enforces_delivery_membership_mapping_and_readback():
         assert fragment in text, fragment
 
 
+def test_project_view_creation_uses_supported_graphql_contract():
+    text = RECONCILER.read_text(encoding="utf-8")
+
+    unsupported = (
+        'createProjectV2View(input:{projectId:$projectId,name:$name,'
+        'layout:TABLE_LAYOUT,filter:$filter})'
+    )
+    supported_create = (
+        'mutation($projectId:ID!,$name:String!){createProjectV2View('
+        'input:{projectId:$projectId,name:$name,layout:TABLE_LAYOUT})'
+    )
+    assert unsupported not in text
+    assert supported_create in text
+    assert 'return update_view(created["id"], name, filter_value)' in text
+
+
 def test_consistency_contract_is_fail_closed_for_planning_and_delivery():
     text = CONSISTENCY.read_text(encoding="utf-8")
 
