@@ -5,7 +5,9 @@ from typing import Any
 
 from . import frame00_resize_ordering_wirefix as recovery
 from . import frame01_redline as redline
+from . import miro_tips_exact_font_wirefix
 from . import miro_tips_hvr_fix
+from . import miro_tips_reference_oracle
 from .client import MiroClient, normalize_miro_percentage
 
 
@@ -142,11 +144,15 @@ def connector_contract_error(
 def main(argv: list[str] | None = None) -> int:
     MiroClient.update_connector = update_connector_with_fresh_readback
     redline.same_connector = same_connector_canonical
+    miro_tips_exact_font_wirefix.install()
+    miro_tips_reference_oracle.install()
     miro_tips_hvr_fix.install()
     try:
         return recovery.main(argv)
     finally:
         miro_tips_hvr_fix.uninstall()
+        miro_tips_reference_oracle.uninstall()
+        miro_tips_exact_font_wirefix.uninstall()
         MiroClient.update_connector = _ORIGINAL_UPDATE_CONNECTOR
         redline.same_connector = _ORIGINAL_SAME_CONNECTOR
 

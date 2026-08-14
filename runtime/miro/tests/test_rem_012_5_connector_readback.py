@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from copy import deepcopy
-
 from ddda_miro import connector_readback_wirefix as wirefix
+from ddda_miro import miro_tips_exact_font_wirefix as fontfix
 from ddda_miro.connector_readback_wirefix import (
     connector_contract_mismatches,
     same_connector_canonical,
@@ -93,19 +92,54 @@ def test_connector_endpoint_percentage_wire_values_preserve_the_same_arrow_targe
     assert same_connector_canonical(client.full, _expected())
 
 
-def test_runtime_wires_only_the_reference_composite_delivery(monkeypatch):
+def test_exact_miro_tips_font_wirefix_preserves_reference_font_20(monkeypatch):
+    source = {
+        "type": "text",
+        "parent": {"id": fontfix.REFERENCE_FRAME_ID},
+        "style": {"fontSize": 20},
+    }
+    monkeypatch.setattr(
+        fontfix,
+        "_ORIGINAL_ITEM_PAYLOAD",
+        lambda _source, target: {"parent": {"id": target}, "style": {"fontSize": 24}},
+    )
+    payload = fontfix.exact_reference_item_payload(source, "target")
+    assert payload["style"]["fontSize"] == 20
+
+    source["parent"] = {"id": "other-frame"}
+    payload = fontfix.exact_reference_item_payload(source, "target")
+    assert payload["style"]["fontSize"] == 24
+
+
+def test_runtime_wires_exact_reference_oracles_before_reconciliation(monkeypatch):
     calls = []
     monkeypatch.setattr(
-        wirefix.miro_tips_hvr_fix, "install", lambda: calls.append("install:composite")
+        wirefix.miro_tips_exact_font_wirefix, "install", lambda: calls.append("install:font")
     )
     monkeypatch.setattr(
-        wirefix.miro_tips_hvr_fix, "uninstall", lambda: calls.append("uninstall:composite")
+        wirefix.miro_tips_reference_oracle, "install", lambda: calls.append("install:oracle")
+    )
+    monkeypatch.setattr(
+        wirefix.miro_tips_hvr_fix, "install", lambda: calls.append("install:exact-reference")
+    )
+    monkeypatch.setattr(
+        wirefix.miro_tips_hvr_fix, "uninstall", lambda: calls.append("uninstall:exact-reference")
+    )
+    monkeypatch.setattr(
+        wirefix.miro_tips_reference_oracle, "uninstall", lambda: calls.append("uninstall:oracle")
+    )
+    monkeypatch.setattr(
+        wirefix.miro_tips_exact_font_wirefix, "uninstall", lambda: calls.append("uninstall:font")
     )
     monkeypatch.setattr(wirefix.recovery, "main", lambda argv: calls.append("reconcile") or 0)
 
     assert wirefix.main(["--fixture"]) == 0
     assert calls == [
-        "install:composite",
+        "install:font",
+        "install:oracle",
+        "install:exact-reference",
         "reconcile",
-        "uninstall:composite",
+        "uninstall:exact-reference",
+        "uninstall:oracle",
+        "uninstall:font",
     ]
