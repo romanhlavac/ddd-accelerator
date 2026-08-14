@@ -156,6 +156,8 @@ def test_pr8_workflows_use_strict_profile_credentials_and_not_mcp_transport():
 
     for marker in (
         "Miro profile bindings",
+        "Materialize DDDA_HVR from validated Platform Lab",
+        "hvr-materialization-",
         "MIRO_PLATFORM_LAB_ACCESS_TOKEN",
         "MIRO_GH_CI_ACCESS_TOKEN",
         "MIRO_HVR_ACCESS_TOKEN",
@@ -184,3 +186,16 @@ def test_pr8_workflows_use_strict_profile_credentials_and_not_mcp_transport():
     assert "secrets.MIRO_ACCESS_TOKEN" not in hvr
     assert "mcp_server" not in hvr.casefold()
     assert "api_tool" not in hvr
+
+
+def test_standard_platform_ci_materializes_hvr_only_after_online_acceptance():
+    platform = (ROOT / ".github/workflows/platform-ci.yml").read_text(encoding="utf-8")
+    assert "materialize-hvr:" in platform
+    assert "- online-miro-acceptance" in platform
+    assert "Require completed exact-SHA technical checks" in platform
+    assert "Reconcile and read back DDDA_PLATFORM_LAB" in platform
+    assert "Replace DDDA_HVR by server-side copy and read back" in platform
+    assert "MIRO_PLATFORM_LAB_ACCESS_TOKEN" in platform
+    assert "MIRO_HVR_ACCESS_TOKEN" in platform
+    assert "hvr_materialization" in platform
+    assert "MIRO_ACCESS_TOKEN: ${{ secrets.MIRO_HVR_ACCESS_TOKEN }}" not in platform

@@ -1,8 +1,9 @@
 name: DDDA REM-012.5 Miro Tips reference-composite verification
 
 # This workflow deliberately has no pull_request or push trigger. A PR update
-# must never mutate DDDA_PLATFORM_LAB or DDDA_HVR. Target mutation is a later,
-# separately authorized remediation run after exact-SHA CI and human review.
+# must never mutate DDDA_PLATFORM_LAB or DDDA_HVR.  The standard platform CI
+# materializes HVR only after exact-SHA technical acceptance; this workflow
+# remains the independently dispatchable no-write reference-contract probe.
 on:
   workflow_dispatch:
     inputs:

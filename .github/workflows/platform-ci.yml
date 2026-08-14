@@ -562,3 +562,138 @@ jobs:
           path: ${{ runner.temp }}/online-miro-acceptance/**
           if-no-files-found: warn
           retention-days: 14
+
+  materialize-hvr:
+    name: Materialize DDDA_HVR from validated Platform Lab
+    needs:
+      - online-miro-acceptance
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.action == 'synchronize' &&
+      github.event.pull_request.number == 8 &&
+      github.actor == 'romanhlavac' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: windows-latest
+    timeout-minutes: 75
+    permissions:
+      checks: read
+      contents: read
+    env:
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      DDDA_MIRO_PRIVATE_DEV_TEAM_ID: ${{ vars.DDDA_MIRO_PRIVATE_DEV_TEAM_ID || '3458764678971681560' }}
+      DDDA_MIRO_PLATFORM_LAB_BOARD_ID: ${{ vars.DDDA_MIRO_PLATFORM_LAB_BOARD_ID || 'uXjVH0doLYY=' }}
+      DDDA_MIRO_HVR_BOARD_NAME: DDDA_HVR
+
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.SOURCE_SHA }}
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Require completed exact-SHA technical checks
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          @'
+          import json, os, time, urllib.request
+
+          required=('Validate DDDA','DDDA exact-code Miro image probe')
+          url=f"https://api.github.com/repos/{os.environ['REPOSITORY']}/commits/{os.environ['SOURCE_SHA']}/check-runs?per_page=100"
+          headers={'Authorization':f"Bearer {os.environ['GH_TOKEN']}",'Accept':'application/vnd.github+json'}
+          for _ in range(120):
+              request=urllib.request.Request(url,headers=headers)
+              with urllib.request.urlopen(request,timeout=30) as response:
+                  rows=json.loads(response.read().decode('utf-8')).get('check_runs',[])
+              states={name:[row for row in rows if row.get('name')==name] for name in required}
+              failed=[name for name,values in states.items() if any(value.get('status')=='completed' and value.get('conclusion')!='success' for value in values)]
+              if failed:
+                  raise SystemExit('exact-SHA technical check failed: '+', '.join(failed))
+              if all(any(value.get('status')=='completed' and value.get('conclusion')=='success' for value in values) for values in states.values()):
+                  break
+              time.sleep(10)
+          else:
+              raise SystemExit('exact-SHA technical-check timeout')
+          '@ | python -
+
+      - name: Download exact-SHA candidate package
+        uses: actions/download-artifact@v4
+        with:
+          name: ddda-candidate-${{ env.SOURCE_SHA }}
+          path: ${{ runner.temp }}/candidate
+
+      - name: Reconcile and read back DDDA_PLATFORM_LAB
+        shell: pwsh
+        env:
+          MIRO_ACCESS_TOKEN: ${{ secrets.MIRO_PLATFORM_LAB_ACCESS_TOKEN }}
+        run: |
+          $ErrorActionPreference='Stop'
+          if ([string]::IsNullOrWhiteSpace($env:MIRO_ACCESS_TOKEN)) {
+            throw 'MIRO_PLATFORM_LAB_ACCESS_TOKEN is required; cross-profile and legacy fallbacks are forbidden.'
+          }
+          $actual=(git rev-parse HEAD).Trim()
+          if($actual -ne $env:SOURCE_SHA){throw "checkout SHA '$actual' differs from exact PR SHA '$env:SOURCE_SHA'"}
+          $candidate=@(Get-ChildItem -LiteralPath (Join-Path $env:RUNNER_TEMP 'candidate') -Filter '*.zip' -File -Recurse)
+          if($candidate.Count -ne 1){throw "expected exactly one candidate package, got $($candidate.Count)"}
+          .\scripts\platform\Test-DDDAPlatformPackage.ps1 -PackagePath $candidate[0].FullName -ExpectedCommit $env:SOURCE_SHA -ExpectedKind candidate
+          $root=Join-Path $env:RUNNER_TEMP 'hvr-platform-lab-package'
+          Expand-Archive -LiteralPath $candidate[0].FullName -DestinationPath $root -Force
+          $runtime=Join-Path $root 'runtime\miro'
+          python -m pip install --disable-pip-version-check --no-input $runtime
+          $env:PYTHONPATH=$runtime
+          $report=Join-Path $env:RUNNER_TEMP 'platform-lab-hvr-reconcile.json'
+          python -m ddda_miro.connector_readback_wirefix --manifest (Join-Path $root 'scaffolds\miro\rem-012-5-frame-01.yaml') --report $report --source-sha $env:SOURCE_SHA --apply
+          if($LASTEXITCODE -ne 0){throw 'DDDA_PLATFORM_LAB reconcile failed'}
+          $r=Get-Content -LiteralPath $report -Raw -Encoding UTF8 | ConvertFrom-Json
+          if($r.board_id -ne $env:DDDA_MIRO_PLATFORM_LAB_BOARD_ID){throw 'reconcile resolved a board other than DDDA_PLATFORM_LAB'}
+          if($r.technical_status -ne 'PASS' -or $r.human_review_status -ne 'PENDING' -or $r.overall_status -ne 'READY_FOR_HUMAN_REVIEW'){throw 'Platform Lab acceptance state mismatch'}
+          if(-not $r.protected_frames.unchanged -or $r.protected_frames.count -ne 16){throw 'protected-frame read-back mismatch'}
+          $tips=@($r.companion_frames.second_run.details | Where-Object {$_.title -eq 'Miro Tips'})
+          if($tips.Count -ne 1){throw 'Miro Tips second-reconcile evidence missing'}
+          $tips=$tips[0]
+          if($tips.mode -ne 'reference_composite_image' -or $tips.visual_equivalence_policy -ne 'bit_exact_composite_asset'){throw 'Miro Tips composite policy mismatch'}
+          if($tips.target_visual_snapshot.sha256 -ne 'c436088d322d600c748ed99079001965e87c1b267397c096738bb8a7ab077a55'){throw 'Miro Tips composite SHA read-back mismatch'}
+          if($tips.target_visual_snapshot.item_count -ne 1 -or $tips.target_visual_snapshot.connector_count -ne 0){throw 'Miro Tips target must be one image and zero connectors'}
+          foreach($field in @('created','updated','deleted')) {
+            if($tips.items.$field -ne 0 -or $tips.connectors.$field -ne 0){throw 'second Platform Lab reconcile mutated Miro Tips'}
+          }
+          "PLATFORM_LAB_EVIDENCE=$report" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Replace DDDA_HVR by server-side copy and read back
+        shell: pwsh
+        env:
+          MIRO_HVR_ACCESS_TOKEN: ${{ secrets.MIRO_HVR_ACCESS_TOKEN }}
+        run: |
+          $ErrorActionPreference='Stop'
+          if ([string]::IsNullOrWhiteSpace($env:MIRO_HVR_ACCESS_TOKEN)) {
+            throw 'MIRO_HVR_ACCESS_TOKEN is required; cross-profile and legacy fallbacks are forbidden.'
+          }
+          $runtime=Join-Path $env:RUNNER_TEMP 'hvr-platform-lab-package\runtime\miro'
+          $env:PYTHONPATH=$runtime
+          $report=Join-Path $env:RUNNER_TEMP 'hvr-materialization.json'
+          python -m ddda_miro.hvr_materialization --source-board $env:DDDA_MIRO_PLATFORM_LAB_BOARD_ID --team-id $env:DDDA_MIRO_PRIVATE_DEV_TEAM_ID --target-name $env:DDDA_MIRO_HVR_BOARD_NAME --source-sha $env:SOURCE_SHA --report $report
+          if($LASTEXITCODE -ne 0){throw 'DDDA_HVR materialization failed'}
+          $r=Get-Content -LiteralPath $report -Raw -Encoding UTF8 | ConvertFrom-Json
+          if($r.technical_status -ne 'PASS' -or $r.human_review_status -ne 'PENDING' -or $r.overall_status -ne 'READY_FOR_HUMAN_REVIEW'){throw 'HVR materialization acceptance state mismatch'}
+          if($r.miro_tips.composite_sha256 -ne 'c436088d322d600c748ed99079001965e87c1b267397c096738bb8a7ab077a55'){throw 'HVR composite byte read-back mismatch'}
+          if($r.miro_tips.item_count -ne 1 -or $r.miro_tips.connector_count -ne 0){throw 'HVR Miro Tips target must be one image and zero connectors'}
+          "HVR_EVIDENCE=$report" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Upload HVR technical evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hvr-materialization-${{ env.PR_NUMBER }}-${{ env.SOURCE_SHA }}
+          path: |
+            ${{ runner.temp }}/platform-lab-hvr-reconcile.json
+            ${{ runner.temp }}/hvr-materialization.json
+          if-no-files-found: error
+          retention-days: 30

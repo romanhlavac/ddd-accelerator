@@ -51,6 +51,8 @@ Nový exact-SHA run musí prokázat:
 11. technical status je `PASS` a human review zůstává `PENDING`;
 12. MCP availability ani MCP quota není součástí technical PASS.
 
+Tento tok je implementován jako standardní job `Materialize DDDA_HVR from validated Platform Lab` v `DDDA platform CI`, navázaný na úspěšný `Online Miro acceptance`. Samostatný `Miro Tips reference-composite verification` workflow je záměrně no-write regresní kontrola; není náhradou HVR materializace.
+
 ## Human review
 
 HVR-2 se provádí nad **dedikovaným `DDDA_HVR` targetem zachyceným v exact-SHA evidence**, nikoli nad Platform Labem. Protože HVR logical slot je materializován server-side kopií, jeho fyzické board ID se může mezi HVR runy změnit.
