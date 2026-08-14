@@ -36,11 +36,19 @@ jobs:
         run: |
           set -euo pipefail
           python -m py_compile scripts/platform/Reconcile-DDDAProjectBacklog.py
+          python -m py_compile scripts/platform/Reconcile-DDDAProjectBacklogPresentation.py
           python -m json.tool config/governance/github-bootstrap.json >/dev/null
-          python -m pytest -q runtime/platform/tests/test_project_backlog_delivery_governance.py
+          python -m pytest -q \
+            runtime/platform/tests/test_project_backlog_delivery_governance.py \
+            runtime/platform/tests/test_project_backlog_presentation_governance.py
 
       - name: Reconcile and read back
-        run: python scripts/platform/Reconcile-DDDAProjectBacklog.py
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/platform/Reconcile-DDDAProjectBacklogPresentation.py --mode reconcile
+          python scripts/platform/Reconcile-DDDAProjectBacklog.py
+          python scripts/platform/Reconcile-DDDAProjectBacklogPresentation.py --mode verify
 
       - name: Assert versioned projections are synchronized
         shell: bash
@@ -51,7 +59,9 @@ jobs:
             docs/governance \
             docs/adr/0003-github-native-backlog-governance.md \
             scripts/platform/Reconcile-DDDAProjectBacklog.py \
-            runtime/platform/tests/test_project_backlog_delivery_governance.py
+            scripts/platform/Reconcile-DDDAProjectBacklogPresentation.py \
+            runtime/platform/tests/test_project_backlog_delivery_governance.py \
+            runtime/platform/tests/test_project_backlog_presentation_governance.py
 
       - name: Assert audit result
         shell: bash
@@ -59,19 +69,24 @@ jobs:
           set -euo pipefail
           python - <<'PY'
           import json
+          import os
           from pathlib import Path
-          p = Path('.reports/cr-delivery-audit-v6/audit.json')
-          data = json.loads(p.read_text(encoding='utf-8'))
-          assert data['source_sha'] == __import__('os').environ['GITHUB_SHA']
-          assert data['remaining_count'] == 0
+
+          audit = json.loads(Path('.reports/cr-delivery-audit-v6/audit.json').read_text(encoding='utf-8'))
+          presentation = json.loads(Path('.reports/cr-delivery-audit-v6/presentation.json').read_text(encoding='utf-8'))
+          assert audit['source_sha'] == os.environ['GITHUB_SHA']
+          assert audit['remaining_count'] == 0
+          assert presentation['remaining_count'] == 0
           print(json.dumps({
-              'source_sha': data['source_sha'],
-              'project': data['project']['title'],
-              'mapped_cr_count': data['mapped_cr_count'],
-              'open_pr_count': data['open_pr_count'],
-              'mapped_pr_count': data['mapped_pr_count'],
-              'repair_count': data['repair_count'],
-              'remaining_count': data['remaining_count'],
+              'source_sha': audit['source_sha'],
+              'project': audit['project']['title'],
+              'mapped_cr_count': audit['mapped_cr_count'],
+              'open_pr_count': audit['open_pr_count'],
+              'mapped_pr_count': audit['mapped_pr_count'],
+              'repair_count': audit['repair_count'],
+              'presentation_repair_count': presentation['repair_count'],
+              'remaining_count': audit['remaining_count'],
+              'presentation_remaining_count': presentation['remaining_count'],
           }))
           PY
 
