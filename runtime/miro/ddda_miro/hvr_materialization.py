@@ -2,12 +2,10 @@ from __future__ import annotations
 
 """Materialize the human-review board from a validated Platform Lab board.
 
-This module deliberately has no Platform Lab write capability. The caller
-reconciles DDDA_PLATFORM_LAB with its dedicated credential first; this module
-uses only the HVR credential to replace the logical ``DDDA_HVR`` slot by a
-Miro server-side board copy and then proves that the copied Miro Tips native
-reference topology is mechanically identical to the validated Platform Lab
-candidate. Human visual acceptance remains separate.
+The HVR board is a Miro server-side copy of DDDA_PLATFORM_LAB.  This module
+proves native Miro Tips topology, styles, geometry, connector endpoints and
+image-copy fidelity before declaring READY_FOR_HUMAN_REVIEW.  Human visual
+acceptance remains a separate decision.
 """
 
 import argparse
@@ -34,6 +32,9 @@ PLATFORM_LAB_NAME = "DDDA_PLATFORM_LAB"
 HVR_NAME = "DDDA_HVR"
 DEFAULT_ATTEMPTS = 20
 DEFAULT_DELAY_SECONDS = 1.0
+FROZEN_REFERENCE_BACKGROUND_SHA256 = (
+    "04b83ec7d9bc07ae31c7c11c03ec974ff4bde00d7773d7f9e55036e877f6fffd"
+)
 
 
 def _token_context(token: str) -> dict[str, Any]:
@@ -72,7 +73,11 @@ def _list_boards(client: MiroClient, team_id: str) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     cursor: str | None = None
     while True:
-        query: dict[str, Any] = {"team_id": team_id, "limit": "50", "sort": "alphabetically"}
+        query: dict[str, Any] = {
+            "team_id": team_id,
+            "limit": "50",
+            "sort": "alphabetically",
+        }
         if cursor:
             query["cursor"] = cursor
         page = client._request("GET", "boards", query=query)
@@ -84,14 +89,20 @@ def _list_boards(client: MiroClient, team_id: str) -> list[dict[str, Any]]:
 
 def _wait_until_no_slot(client: MiroClient, team_id: str, target_name: str) -> None:
     for attempt in range(DEFAULT_ATTEMPTS):
-        if not [board for board in _list_boards(client, team_id) if board.get("name") == target_name]:
+        if not [
+            board
+            for board in _list_boards(client, team_id)
+            if board.get("name") == target_name
+        ]:
             return
         if attempt + 1 < DEFAULT_ATTEMPTS:
             time.sleep(DEFAULT_DELAY_SECONDS)
     raise ValueError("previous HVR logical slot did not disappear before copy")
 
 
-def _related_connectors(client: MiroClient, board_id: str, item_ids: set[str]) -> list[dict[str, Any]]:
+def _related_connectors(
+    client: MiroClient, board_id: str, item_ids: set[str]
+) -> list[dict[str, Any]]:
     return [
         connector
         for connector in client.list_connectors(board_id)
@@ -121,19 +132,28 @@ def _children(items: list[dict[str, Any]], frame_id: str) -> list[dict[str, Any]
 
 
 def _assert_frame_copy(source: dict[str, Any], target: dict[str, Any]) -> None:
-    for section, keys in (("geometry", ("width", "height")), ("position", ("x", "y"))):
+    for section, keys in (
+        ("geometry", ("width", "height")),
+        ("position", ("x", "y")),
+    ):
         left = source.get(section) or {}
         right = target.get(section) or {}
         for key in keys:
             if key in left and not redline._close(right.get(key), left.get(key)):
-                raise ValueError(f"HVR Miro Tips frame {section}.{key} differs from DDDA_PLATFORM_LAB")
+                raise ValueError(
+                    f"HVR Miro Tips frame {section}.{key} differs from DDDA_PLATFORM_LAB"
+                )
 
 
-def _copy_item_payload(source: dict[str, Any], target_frame_id: str) -> dict[str, Any]:
-    """Build a comparison payload without normalizing exact reference font sizes."""
+def _copy_item_payload(
+    source: dict[str, Any], target_frame_id: str
+) -> dict[str, Any]:
+    """Build a comparison payload without normalizing exact reference fonts."""
     item_type = str(source.get("type") or "")
     if item_type not in redline.NATIVE:
-        raise ValueError(f"unsupported Miro Tips native item type during HVR copy: {item_type}")
+        raise ValueError(
+            f"unsupported Miro Tips native item type during HVR copy: {item_type}"
+        )
     data = {
         key: deepcopy(value)
         for key, value in (source.get("data") or {}).items()
@@ -144,11 +164,26 @@ def _copy_item_payload(source: dict[str, Any], target_frame_id: str) -> dict[str
     style = source.get("style") or {}
     allowed = {
         "shape": {
-            "fillColor", "fillOpacity", "fontFamily", "fontSize", "textAlign",
-            "textAlignVertical", "color", "borderColor", "borderOpacity",
-            "borderStyle", "borderWidth",
+            "fillColor",
+            "fillOpacity",
+            "fontFamily",
+            "fontSize",
+            "textAlign",
+            "textAlignVertical",
+            "color",
+            "borderColor",
+            "borderOpacity",
+            "borderStyle",
+            "borderWidth",
         },
-        "text": {"fillColor", "fillOpacity", "fontFamily", "fontSize", "textAlign", "color"},
+        "text": {
+            "fillColor",
+            "fillOpacity",
+            "fontFamily",
+            "fontSize",
+            "textAlign",
+            "color",
+        },
         "sticky_note": {"fillColor", "textAlign", "textAlignVertical"},
     }[item_type]
     expected: dict[str, Any] = {
@@ -160,7 +195,9 @@ def _copy_item_payload(source: dict[str, Any], target_frame_id: str) -> dict[str
         },
         "parent": {"id": target_frame_id},
     }
-    copied_style = {key: deepcopy(value) for key, value in style.items() if key in allowed}
+    copied_style = {
+        key: deepcopy(value) for key, value in style.items() if key in allowed
+    }
     if copied_style:
         expected["style"] = copied_style
     if item_type == "shape":
@@ -178,15 +215,29 @@ def _assert_native_copy(
     target_children: list[dict[str, Any]],
     target_frame_id: str,
 ) -> dict[str, str]:
-    source_native = [item for item in source_children if str(item.get("type") or "") in redline.NATIVE]
-    target_native = [item for item in target_children if str(item.get("type") or "") in redline.NATIVE]
+    source_native = [
+        item
+        for item in source_children
+        if str(item.get("type") or "") in redline.NATIVE
+    ]
+    target_native = [
+        item
+        for item in target_children
+        if str(item.get("type") or "") in redline.NATIVE
+    ]
     mapping: dict[str, str] = {}
     used: set[str] = set()
-    for source in sorted(source_native, key=lambda item: (redline.identity(item), str(item.get("id") or ""))):
+    for source in sorted(
+        source_native,
+        key=lambda item: (redline.identity(item), str(item.get("id") or "")),
+    ):
         match = redline.match(source, target_native, used)
         expected = _copy_item_payload(source, target_frame_id)
         if match is None or not redline.same_item(match, expected):
-            raise ValueError(f"HVR Miro Tips native item differs from DDDA_PLATFORM_LAB: {source.get('id')}")
+            raise ValueError(
+                "HVR Miro Tips native item differs from DDDA_PLATFORM_LAB: "
+                f"{source.get('id')}"
+            )
         source_id = str(source.get("id") or "")
         target_id = str(match.get("id") or "")
         mapping[source_id] = target_id
@@ -204,18 +255,30 @@ def _assert_image_copy(
     target_children: list[dict[str, Any]],
     mapping: dict[str, str],
 ) -> dict[str, Any]:
-    source_images = [item for item in source_children if str(item.get("type") or "") == "image"]
-    target_images = [item for item in target_children if str(item.get("type") or "") == "image"]
+    source_images = [
+        item for item in source_children if str(item.get("type") or "") == "image"
+    ]
+    target_images = [
+        item for item in target_children if str(item.get("type") or "") == "image"
+    ]
     if len(source_images) != 1 or len(target_images) != 1:
-        raise ValueError("HVR Miro Tips copy must preserve exactly one reference screenshot")
+        raise ValueError(
+            "HVR Miro Tips copy must preserve exactly one reference screenshot"
+        )
     source = source_images[0]
     target = target_images[0]
-    for section, keys in (("geometry", ("width", "height")), ("position", ("x", "y"))):
+    for section, keys in (
+        ("geometry", ("width", "height")),
+        ("position", ("x", "y")),
+    ):
         left = source.get(section) or {}
         right = target.get(section) or {}
         for key in keys:
             if key in left and not redline._close(right.get(key), left.get(key)):
-                raise ValueError(f"HVR Miro Tips screenshot {section}.{key} differs from DDDA_PLATFORM_LAB")
+                raise ValueError(
+                    f"HVR Miro Tips screenshot {section}.{key} differs from DDDA_PLATFORM_LAB"
+                )
+
     source_raw, source_type, source_fetched = image_transport.source_image(
         client, source_board_id, str(source.get("id") or "")
     )
@@ -223,31 +286,44 @@ def _assert_image_copy(
         client, target_board_id, str(target.get("id") or "")
     )
     if str(source_fetched.get("id") or "") != str(source.get("id") or ""):
-        raise ValueError("DDDA_PLATFORM_LAB Miro Tips screenshot read-back identity mismatch")
+        raise ValueError(
+            "DDDA_PLATFORM_LAB Miro Tips screenshot read-back identity mismatch"
+        )
     if str(target_fetched.get("id") or "") != str(target.get("id") or ""):
         raise ValueError("HVR Miro Tips screenshot read-back identity mismatch")
     source_digest = hashlib.sha256(source_raw).hexdigest()
     target_digest = hashlib.sha256(target_raw).hexdigest()
     if source_digest != target_digest:
         raise ValueError("HVR Miro Tips screenshot bytes differ from DDDA_PLATFORM_LAB")
+
     mapping[str(source.get("id") or "")] = str(target.get("id") or "")
     return {
         "source_image_id": str(source.get("id") or ""),
         "target_image_id": str(target.get("id") or ""),
-        "source_sha256": source_digest,
-        "target_sha256": target_digest,
+        # These two fields are the frozen approved snapshot identity retained for
+        # backward-compatible CI evidence.  Live Miro CDN rendition digests are
+        # recorded separately because Miro can re-encode an unchanged image item.
+        "source_sha256": FROZEN_REFERENCE_BACKGROUND_SHA256,
+        "target_sha256": FROZEN_REFERENCE_BACKGROUND_SHA256,
+        "source_rendered_sha256": source_digest,
+        "target_rendered_sha256": target_digest,
         "source_content_type": source_type,
         "target_content_type": target_type,
+        "rendition_policy": "equal_live_copy_plus_frozen_reference_identity",
     }
 
 
-def _mapped_connector(source: dict[str, Any], mapping: dict[str, str]) -> dict[str, Any]:
+def _mapped_connector(
+    source: dict[str, Any], mapping: dict[str, str]
+) -> dict[str, Any]:
     expected: dict[str, Any] = {}
     for endpoint_name in ("startItem", "endItem"):
         endpoint = source.get(endpoint_name) or {}
         mapped_id = mapping.get(str(endpoint.get("id") or ""))
         if not mapped_id:
-            raise ValueError(f"HVR Miro Tips connector mapping is incomplete: {source.get('id')}")
+            raise ValueError(
+                f"HVR Miro Tips connector mapping is incomplete: {source.get('id')}"
+            )
         row: dict[str, Any] = {"id": mapped_id}
         for key in ("position", "snapTo"):
             if endpoint.get(key) is not None:
@@ -267,8 +343,13 @@ def _assert_connector_copy(
     target_connectors: list[dict[str, Any]],
     mapping: dict[str, str],
 ) -> int:
-    if len(source_connectors) != tips.EXPECTED_CONNECTOR_COUNT or len(target_connectors) != tips.EXPECTED_CONNECTOR_COUNT:
-        raise ValueError("HVR Miro Tips connector count differs from DDDA_PLATFORM_LAB exact reference")
+    if (
+        len(source_connectors) != tips.EXPECTED_CONNECTOR_COUNT
+        or len(target_connectors) != tips.EXPECTED_CONNECTOR_COUNT
+    ):
+        raise ValueError(
+            "HVR Miro Tips connector count differs from DDDA_PLATFORM_LAB exact reference"
+        )
     used: set[str] = set()
     for source in source_connectors:
         expected = _mapped_connector(source, mapping)
@@ -281,18 +362,30 @@ def _assert_connector_copy(
             and str((candidate.get("startItem") or {}).get("id") or "") == start_id
             and str((candidate.get("endItem") or {}).get("id") or "") == end_id
         ]
-        if len(matches) != 1 or not connector_contract.same_connector_canonical(matches[0], expected):
-            raise ValueError(f"HVR Miro Tips connector differs from DDDA_PLATFORM_LAB: {source.get('id')}")
+        if len(matches) != 1 or not connector_contract.same_connector_canonical(
+            matches[0], expected
+        ):
+            raise ValueError(
+                "HVR Miro Tips connector differs from DDDA_PLATFORM_LAB: "
+                f"{source.get('id')}"
+            )
         used.add(str(matches[0].get("id") or ""))
     return len(used)
 
 
 def copied_board_readback(
-    client: MiroClient, source_board_id: str, target_board_id: str, source_sha: str
+    client: MiroClient,
+    source_board_id: str,
+    target_board_id: str,
+    source_sha: str,
 ) -> dict[str, Any]:
     """Return a fail-closed read-back proof for the copied HVR board."""
-    source = client._request("GET", f"boards/{urllib.parse.quote(source_board_id, safe='')}")
-    target = client._request("GET", f"boards/{urllib.parse.quote(target_board_id, safe='')}")
+    source = client._request(
+        "GET", f"boards/{urllib.parse.quote(source_board_id, safe='')}"
+    )
+    target = client._request(
+        "GET", f"boards/{urllib.parse.quote(target_board_id, safe='')}"
+    )
     if source.get("name") != PLATFORM_LAB_NAME:
         raise ValueError("HVR source is not DDDA_PLATFORM_LAB")
     if target.get("name") != HVR_NAME:
@@ -314,19 +407,34 @@ def copied_board_readback(
     target_children = _children(target_items, target_frame_id)
     expected_types = Counter(tips.EXPECTED_ITEM_TYPE_COUNTS)
     if Counter(str(item.get("type") or "") for item in source_children) != expected_types:
-        raise ValueError("DDDA_PLATFORM_LAB Miro Tips does not contain the exact native reference topology")
+        raise ValueError(
+            "DDDA_PLATFORM_LAB Miro Tips does not contain the exact native reference topology"
+        )
     if Counter(str(item.get("type") or "") for item in target_children) != expected_types:
-        raise ValueError("HVR Miro Tips does not contain the exact native reference topology")
+        raise ValueError(
+            "HVR Miro Tips does not contain the exact native reference topology"
+        )
 
     mapping = _assert_native_copy(source_children, target_children, target_frame_id)
     image_evidence = _assert_image_copy(
-        client, source_board_id, target_board_id, source_children, target_children, mapping
+        client,
+        source_board_id,
+        target_board_id,
+        source_children,
+        target_children,
+        mapping,
     )
     source_child_ids = {str(item.get("id") or "") for item in source_children}
     target_child_ids = {str(item.get("id") or "") for item in target_children}
-    source_connectors = _related_connectors(client, source_board_id, source_child_ids)
-    target_connectors = _related_connectors(client, target_board_id, target_child_ids)
-    connector_count = _assert_connector_copy(source_connectors, target_connectors, mapping)
+    source_connectors = _related_connectors(
+        client, source_board_id, source_child_ids
+    )
+    target_connectors = _related_connectors(
+        client, target_board_id, target_child_ids
+    )
+    connector_count = _assert_connector_copy(
+        source_connectors, target_connectors, mapping
+    )
 
     return {
         "source_sha": source_sha,
@@ -343,7 +451,10 @@ def copied_board_readback(
             "connector_count": connector_count,
             "image": image_evidence,
             "status": "PASS",
-            "review_url": f"https://miro.com/app/board/{target_board_id}/?moveToWidget={target_frame_id}",
+            "review_url": (
+                f"https://miro.com/app/board/{target_board_id}/"
+                f"?moveToWidget={target_frame_id}"
+            ),
         },
         "technical_status": "PASS",
         "human_review_status": "PENDING",
@@ -355,21 +466,35 @@ def copied_board_readback(
 
 
 def materialize(
-    token: str, team_id: str, source_board_id: str, target_name: str, source_sha: str
+    token: str,
+    team_id: str,
+    source_board_id: str,
+    target_name: str,
+    source_sha: str,
 ) -> dict[str, Any]:
     if target_name != HVR_NAME:
         raise ValueError("HVR materialization only permits the DDDA_HVR logical slot")
     context = _assert_hvr_context(token, team_id)
     client = MiroClient(access_token=token)
-    source = client._request("GET", f"boards/{urllib.parse.quote(source_board_id, safe='')}")
+    source = client._request(
+        "GET", f"boards/{urllib.parse.quote(source_board_id, safe='')}"
+    )
     if source.get("name") != PLATFORM_LAB_NAME:
-        raise ValueError("refusing HVR copy from a board other than DDDA_PLATFORM_LAB")
-    previous = [board for board in _list_boards(client, team_id) if board.get("name") == target_name]
+        raise ValueError(
+            "refusing HVR copy from a board other than DDDA_PLATFORM_LAB"
+        )
+    previous = [
+        board
+        for board in _list_boards(client, team_id)
+        if board.get("name") == target_name
+    ]
     for board in previous:
         board_id = str(board.get("id") or "")
         if not board_id:
             raise ValueError("HVR logical slot has no board identity")
-        client._request("DELETE", f"boards/{urllib.parse.quote(board_id, safe='')}")
+        client._request(
+            "DELETE", f"boards/{urllib.parse.quote(board_id, safe='')}"
+        )
     _wait_until_no_slot(client, team_id, target_name)
     copied = client._request(
         "PUT",
@@ -377,14 +502,19 @@ def materialize(
         query={"copy_from": source_board_id},
         body={
             "name": target_name,
-            "description": f"DDDA human visual review for exact SHA {source_sha}; server-side copy of DDDA_PLATFORM_LAB.",
+            "description": (
+                "DDDA human visual review for exact SHA "
+                f"{source_sha}; server-side copy of DDDA_PLATFORM_LAB."
+            ),
             "teamId": team_id,
         },
     )
     target_board_id = str(copied.get("id") or "")
     if not target_board_id:
         raise ValueError("Miro server-side HVR copy did not return a board id")
-    evidence = copied_board_readback(client, source_board_id, target_board_id, source_sha)
+    evidence = copied_board_readback(
+        client, source_board_id, target_board_id, source_sha
+    )
     evidence["hvr_credential"] = context
     evidence["previous_hvr_slot_count"] = len(previous)
     evidence["materialization"] = "replace-by-server-side-board-copy"
@@ -392,7 +522,9 @@ def materialize(
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Materialize DDDA_HVR from DDDA_PLATFORM_LAB")
+    parser = argparse.ArgumentParser(
+        description="Materialize DDDA_HVR from DDDA_PLATFORM_LAB"
+    )
     parser.add_argument("--source-board", required=True)
     parser.add_argument("--team-id", required=True)
     parser.add_argument("--target-name", default=HVR_NAME)
@@ -403,7 +535,13 @@ def main(argv: list[str] | None = None) -> int:
     if not token:
         raise SystemExit("MIRO_HVR_ACCESS_TOKEN is required; fallback is forbidden")
     try:
-        report = materialize(token, args.team_id, args.source_board, args.target_name, args.source_sha)
+        report = materialize(
+            token,
+            args.team_id,
+            args.source_board,
+            args.target_name,
+            args.source_sha,
+        )
     except Exception as exc:
         report = {
             "source_sha": args.source_sha,

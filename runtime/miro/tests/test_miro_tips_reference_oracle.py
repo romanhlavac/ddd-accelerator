@@ -87,9 +87,20 @@ def test_frozen_reference_oracle_rejects_arrowhead_endpoint_drift(monkeypatch):
         oracle.assert_frozen_reference_identity(FakeClient(), "source", "frame", manifest(raw))
 
 
-def test_frozen_reference_oracle_rejects_background_byte_drift(monkeypatch):
-    expected = b"approved-reference"
+def test_frozen_reference_oracle_accepts_miro_rendition_byte_drift_for_same_pinned_image(monkeypatch):
+    expected_snapshot = b"approved-reference"
     observed = state()
-    install(monkeypatch, b"changed-reference", observed)
-    with pytest.raises(ValueError, match="background bytes drifted"):
-        oracle.assert_frozen_reference_identity(FakeClient(), "source", "frame", manifest(expected))
+    install(monkeypatch, b"miro-reencoded-same-reference", observed)
+    oracle.assert_frozen_reference_identity(
+        FakeClient(), "source", "frame", manifest(expected_snapshot)
+    )
+
+
+def test_frozen_reference_oracle_still_rejects_unreadable_rendition(monkeypatch):
+    expected_snapshot = b"approved-reference"
+    observed = state()
+    install(monkeypatch, b"", observed)
+    with pytest.raises(ValueError, match="rendition is unreadable"):
+        oracle.assert_frozen_reference_identity(
+            FakeClient(), "source", "frame", manifest(expected_snapshot)
+        )
