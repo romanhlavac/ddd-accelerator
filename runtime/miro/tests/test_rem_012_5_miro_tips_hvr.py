@@ -236,22 +236,16 @@ def test_source_reference_identity_requires_frozen_native_topology_and_backgroun
         raise AssertionError("expected frozen source topology rejection")
 
 
-def test_source_reference_identity_rejects_background_byte_drift(monkeypatch):
+def test_source_reference_identity_uses_the_frozen_snapshot_not_mutable_live_image_bytes(monkeypatch):
     client = FakeClient()
-    source_bytes = b"reference-background"
-    install_image_readback(monkeypatch, client, source_bytes)
-
-    def source_image(_client, board, item_id):
-        image = next(item for item in client.items[board] if item["id"] == item_id)
-        return b"altered-reference-background", "image/png", deepcopy(image)
-
-    monkeypatch.setattr(tips.image_transport, "source_image", source_image)
-    try:
-        tips.assert_reference_identity(client, "source", "source-tips", manifest())
-    except ValueError as exc:
-        assert "background bytes" in str(exc)
-    else:
-        raise AssertionError("expected reference background byte-drift rejection")
+    monkeypatch.setattr(
+        tips.image_transport,
+        "source_image",
+        lambda *_args: (_ for _ in ()).throw(AssertionError("live reference bytes must not be read")),
+    )
+    observed = tips.assert_reference_identity(client, "source", "source-tips", manifest())
+    assert observed["reference_background_sha256"] == tips.REFERENCE_BACKGROUND_SHA256
+    assert observed["reference_background_verification"] == "frozen_manifest_snapshot"
 
 
 def test_miro_tips_replaces_native_overlay_with_one_composite_after_full_cleanup(monkeypatch):
