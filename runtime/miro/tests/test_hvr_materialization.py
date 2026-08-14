@@ -6,6 +6,7 @@ import pytest
 
 from ddda_miro import hvr_materialization as hvr
 from ddda_miro import miro_tips_hvr_fix as tips
+from ddda_miro import miro_tips_render_fidelity_fix as fidelity
 
 
 def _frame(frame_id: str) -> dict:
@@ -61,6 +62,26 @@ def _children(prefix: str, frame_id: str) -> list[dict]:
                 },
             }
         )
+    for index in range(8):
+        rows.append(
+            {
+                "id": f"{prefix}-anchor-{index}",
+                "type": "shape",
+                "parent": {"id": frame_id},
+                "position": {"x": 250.0 + index * 100.0, "y": 150.0 + index * 50.0},
+                "geometry": {"width": 8.0, "height": 8.0},
+                "data": {"shape": "circle", "content": "<p>\u200b</p>"},
+                "style": {
+                    "fillColor": "#ffffff",
+                    "fillOpacity": 0.0,
+                    "borderColor": "#ffffff",
+                    "borderOpacity": 0.0,
+                    "borderWidth": 1.0,
+                    "color": "#ffffff",
+                    "fontSize": 8,
+                },
+            }
+        )
     return rows
 
 
@@ -69,10 +90,7 @@ def _connectors(prefix: str) -> list[dict]:
         {
             "id": f"{prefix}-connector-{index}",
             "startItem": {"id": f"{prefix}-sticky-{index}"},
-            "endItem": {
-                "id": f"{prefix}-image",
-                "position": {"x": 0.10 + index * 0.05, "y": 0.20 + index * 0.03},
-            },
+            "endItem": {"id": f"{prefix}-anchor-{index}"},
             "shape": "curved",
             "style": {
                 "strokeColor": "#000000",
@@ -133,7 +151,7 @@ def _install_image_readback(monkeypatch, client: FakeClient, target_bytes: bytes
     return source_bytes
 
 
-def test_copied_board_readback_proves_native_exact_reference_and_hvr_gate(monkeypatch):
+def test_copied_board_readback_proves_visible_reference_anchors_and_hvr_gate(monkeypatch):
     client = FakeClient()
     _install_image_readback(monkeypatch, client)
     report = hvr.copied_board_readback(client, "platform", "hvr", "a" * 40)
@@ -141,11 +159,17 @@ def test_copied_board_readback_proves_native_exact_reference_and_hvr_gate(monkey
     assert report["technical_status"] == "PASS"
     assert report["human_review_status"] == "PENDING"
     assert report["overall_status"] == "READY_FOR_HUMAN_REVIEW"
-    assert report["miro_tips"]["policy"] == tips.MIRO_TIPS_VISUAL_EQUIVALENCE_POLICY
-    assert report["miro_tips"]["item_count"] == 17
-    assert report["miro_tips"]["item_type_counts"] == tips.EXPECTED_ITEM_TYPE_COUNTS
-    assert report["miro_tips"]["connector_count"] == 8
-    assert report["miro_tips"]["image"]["source_sha256"] == report["miro_tips"]["image"]["target_sha256"]
+    miro = report["miro_tips"]
+    assert miro["policy"] == tips.MIRO_TIPS_VISUAL_EQUIVALENCE_POLICY
+    assert miro["reference_structure_policy"] == fidelity.REFERENCE_STRUCTURE_POLICY
+    assert miro["visual_acceptance_authority"] == "human_review_only"
+    assert miro["item_count"] == 17
+    assert miro["physical_child_count"] == 25
+    assert miro["item_type_counts"] == tips.EXPECTED_ITEM_TYPE_COUNTS
+    assert miro["technical_anchor_count"] == 8
+    assert miro["connector_count"] == 8
+    assert miro["direct_image_connector_count"] == 0
+    assert miro["image"]["source_sha256"] == miro["image"]["target_sha256"]
     assert report["merge_allowed"] is False
 
 
@@ -159,12 +183,23 @@ def test_copied_board_readback_rejects_font_drift(monkeypatch):
         hvr.copied_board_readback(client, "platform", "hvr", "a" * 40)
 
 
-def test_copied_board_readback_rejects_arrowhead_endpoint_drift(monkeypatch):
+def test_copied_board_readback_rejects_anchor_position_drift(monkeypatch):
     client = FakeClient()
     _install_image_readback(monkeypatch, client)
-    client.connectors["hvr"][0]["endItem"]["position"] = {"x": 0.9, "y": 0.9}
+    target = next(item for item in client.items["hvr"] if item.get("id") == "hvr-anchor-0")
+    target["position"] = {"x": 999.0, "y": 999.0}
 
-    with pytest.raises(ValueError, match="connector differs"):
+    with pytest.raises(ValueError, match="technical anchor differs"):
+        hvr.copied_board_readback(client, "platform", "hvr", "a" * 40)
+
+
+def test_copied_board_readback_rejects_direct_image_callout(monkeypatch):
+    client = FakeClient()
+    _install_image_readback(monkeypatch, client)
+    client.connectors["platform"][0]["endItem"] = {"id": "platform-image"}
+    client.connectors["hvr"][0]["endItem"] = {"id": "hvr-image"}
+
+    with pytest.raises(ValueError, match="direct-image callouts"):
         hvr.copied_board_readback(client, "platform", "hvr", "a" * 40)
 
 
@@ -176,7 +211,7 @@ def test_copied_board_readback_rejects_screenshot_byte_drift(monkeypatch):
         hvr.copied_board_readback(client, "platform", "hvr", "a" * 40)
 
 
-def test_copied_board_readback_rejects_missing_native_connector(monkeypatch):
+def test_copied_board_readback_rejects_missing_anchor_connector(monkeypatch):
     client = FakeClient()
     _install_image_readback(monkeypatch, client)
     client.connectors["hvr"].pop()
