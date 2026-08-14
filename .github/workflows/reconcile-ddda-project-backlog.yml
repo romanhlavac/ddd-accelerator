@@ -1,7 +1,9 @@
-name: Reconcile DDDA Project Backlog & Delivery
+name: Reconcile DDDA Project Backlog & Delivery One Shot
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - gov/project-delivery-readback-20260814-373d1d01-run2
 
 permissions:
   contents: read
@@ -12,15 +14,42 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.DDDA_GITHUB_PROJECT_TOKEN }}
+      DDDA_AUTHORIZED_BASE_SHA: 373d1d01f94ae6076b1ad8577357f0bfb94b27ee
+      DDDA_STAGING_BRANCH: gov/project-delivery-readback-20260814-373d1d01-run2
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
 
-      - name: Record exact source SHA
+      - name: Verify staging isolation and current PR63 head
         shell: bash
         run: |
           set -euo pipefail
-          echo "Source SHA: ${GITHUB_SHA}" >> "$GITHUB_STEP_SUMMARY"
-          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$GITHUB_REF_NAME" = "$DDDA_STAGING_BRANCH"
+          git merge-base --is-ancestor "$DDDA_AUTHORIZED_BASE_SHA" HEAD
+          unexpected="$(git diff --name-only "$DDDA_AUTHORIZED_BASE_SHA" HEAD | grep -v '^\.github/workflows/reconcile-ddda-project-backlog\.yml$' || true)"
+          if [ -n "$unexpected" ]; then
+            echo "Unexpected staging diff:" >&2
+            echo "$unexpected" >&2
+            exit 1
+          fi
+          git diff --exit-code "$DDDA_AUTHORIZED_BASE_SHA" HEAD -- \
+            config/governance \
+            docs \
+            knowledge \
+            scripts/platform/Reconcile-DDDAProjectBacklog.py \
+            runtime/platform/tests/test_project_backlog_delivery_governance.py
+          actual="$(gh api repos/romanhlavac/ddd-accelerator/pulls/63 --jq .head.sha)"
+          test "$actual" = "$DDDA_AUTHORIZED_BASE_SHA"
+
+      - name: Detach exact authorized PR63 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout --detach "$DDDA_AUTHORIZED_BASE_SHA"
+          test "$(git rev-parse HEAD)" = "$DDDA_AUTHORIZED_BASE_SHA"
+          echo "Authorized source SHA: $DDDA_AUTHORIZED_BASE_SHA" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Validate persistent Project credential
         shell: bash
@@ -37,12 +66,21 @@ jobs:
           set -euo pipefail
           python -m py_compile scripts/platform/Reconcile-DDDAProjectBacklog.py
           python -m json.tool config/governance/github-bootstrap.json >/dev/null
-          python -m pytest -q runtime/platform/tests/test_project_backlog_delivery_governance.py
+          python - <<'PY'
+          import runpy
+          ns = runpy.run_path('runtime/platform/tests/test_project_backlog_delivery_governance.py')
+          tests = sorted((name, fn) for name, fn in ns.items() if name.startswith('test_') and callable(fn))
+          assert tests, 'No governance contract tests discovered'
+          for name, fn in tests:
+              fn()
+              print(f'PASS {name}')
+          print(f'{len(tests)} governance contract tests passed')
+          PY
 
-      - name: Reconcile and read back
+      - name: Reconcile and read back exact PR63 source
         run: python scripts/platform/Reconcile-DDDAProjectBacklog.py
 
-      - name: Assert versioned projections are synchronized
+      - name: Assert versioned projections are unchanged
         shell: bash
         run: |
           set -euo pipefail
@@ -59,10 +97,12 @@ jobs:
           set -euo pipefail
           python - <<'PY'
           import json
+          import os
           from pathlib import Path
           p = Path('.reports/cr-delivery-audit-v6/audit.json')
           data = json.loads(p.read_text(encoding='utf-8'))
-          assert data['source_sha'] == __import__('os').environ['GITHUB_SHA']
+          assert data['source_sha'] == os.environ['DDDA_AUTHORIZED_BASE_SHA']
+          assert data['project']['title'] == 'DDDA Platform Backlog & Delivery'
           assert data['remaining_count'] == 0
           print(json.dumps({
               'source_sha': data['source_sha'],
@@ -78,7 +118,7 @@ jobs:
       - name: Upload audit evidence
         uses: actions/upload-artifact@v4
         with:
-          name: ddda-project-backlog-delivery-audit-v6-${{ github.sha }}
+          name: ddda-project-backlog-delivery-audit-v6-pr63-373d1d01
           path: .reports/cr-delivery-audit-v6/**
           retention-days: 30
           if-no-files-found: error
