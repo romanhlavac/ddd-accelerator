@@ -1,4 +1,4 @@
-name: DDDA Project Delivery Operational Docs Prep
+name: DDDA PR63 Delivery Remediation Apply
 
 on:
   push:
@@ -8,63 +8,99 @@ on:
       - .github/workflows/reconcile-ddda-project-backlog.yml
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  prepare:
+  apply:
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TARGET_BRANCH: chore/wp-split-governance-cleanup
+      BASE_SHA: 78078b28f658a9dbef69f7772ae9dc534f75ec99
+      PACKAGE_BLOB_SHA: 5ebb059d35851d00a61a3cf1b8b378bd7bc49d17
+      PACKAGE_SHA256: 58eee419c56fea9a58b14d5d16b204109b25ac0abbf4791cb51a74b12723b4b3
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 78078b28f658a9dbef69f7772ae9dc534f75ec99
+          ref: chore/wp-split-governance-cleanup
+          fetch-depth: 0
 
-      - name: Patch current operational documentation
+      - name: Verify exact authorized base
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$BASE_SHA"
+          test "$(git branch --show-current)" = "$TARGET_BRANCH"
+
+      - name: Fetch and validate remediation package
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$RUNNER_TEMP/ddda-remediation"
+          mkdir -p "$ROOT"
+          gh api "repos/${GITHUB_REPOSITORY}/git/blobs/${PACKAGE_BLOB_SHA}" --jq '.content' | tr -d '\n' | base64 -d > "$ROOT/package.zip"
+          echo "${PACKAGE_SHA256}  $ROOT/package.zip" | sha256sum -c -
+          unzip -q "$ROOT/package.zip" -d "$ROOT/unpacked"
+          python - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP']) / 'ddda-remediation' / 'unpacked'
+          m = json.loads((root / 'manifest.json').read_text())
+          assert m['repository'] == 'romanhlavac/ddd-accelerator'
+          assert m['target_branch'] == os.environ['TARGET_BRANCH']
+          assert m['base_sha'] == os.environ['BASE_SHA']
+          assert m['impact'] == 'HIGH'
+          observed = []
+          for f in m['files']:
+              p = root / 'payload' / f['path']
+              assert p.is_file(), f['path']
+              assert hashlib.sha256(p.read_bytes()).hexdigest() == f['sha256'], f['path']
+              observed.append(f['path'])
+          assert sorted(observed) == sorted(m['expected_paths'])
+          print(json.dumps({'validated_files': len(observed), 'change_id': m['change_id']}))
+          PY
+
+      - name: Apply declared payload only
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
+          import json, os, shutil, subprocess
           from pathlib import Path
-          files = [
-              'docs/governance/project-administration-checklist.md',
-              'docs/governance/next-steps.md',
-              'docs/governance/native-github-setup-runbook.md',
-              'docs/governance/README.md',
-              'docs/governance/backlog-governance.md',
-          ]
-          out = Path('prepared')
-          for raw in files:
-              p = Path(raw)
-              text = p.read_text(encoding='utf-8')
-              text = text.replace('DDDA Platform Backlog', 'DDDA Platform Backlog & Delivery')
-              if raw.endswith('backlog-governance.md'):
-                  old = '''Work Package (nebo explicitní Other)\n↔ Change Request Issue\n↔ DDDA Platform Backlog & Delivery Project item\n\nChange Request Issue\n↔ implementation branch / Draft PR'''
-                  new = '''Work Package (nebo explicitní Other)\n↔ Change Request Issue\n↔ Project planning item\n\nChange Request Issue\n↔ implementation branch / Draft PR\n↔ Project delivery item'''
-                  if old not in text:
-                      raise SystemExit('backlog-governance invariant not found')
-                  text = text.replace(old, new)
-                  text = text.replace(
-                      'Implementační PR není automaticky druhá backlogová položka. Samostatná Project membership PR je povinná pouze tehdy, pokud ji explicitně vyžaduje planning policy. Detailní fail-closed pravidla jsou v [WP ↔ Backlog ↔ Implementation consistency](wp-backlog-consistency.md).',
-                      'Otevřený implementační PR je povinná Project delivery projection, nikoli druhý Change Request. Jeho Work Package se odvozuje z primary CR a planning `Item Type` se na PR nepoužívá. Detailní fail-closed pravidla jsou v [WP ↔ Backlog ↔ Delivery consistency](wp-backlog-consistency.md).'
-                  )
-                  text = text.replace(
-                      '- pokud planning policy používá PR Project items, metadata PR jsou konzistentní s CR;',
-                      '- každý otevřený implementační PR je Project delivery item a jeho Work Package/Status jsou konzistentní s primary CR a delivery projection;'
-                  )
-              if raw.endswith('README.md'):
-                  text = text.replace(
-                      'Change Request Issue\n↔ implementation branch / Draft PR',
-                      'Change Request Issue\n↔ implementation branch / Draft PR\n↔ Project delivery item'
-                  )
-              target = out / raw
-              target.parent.mkdir(parents=True, exist_ok=True)
-              target.write_text(text, encoding='utf-8')
+          root = Path(os.environ['RUNNER_TEMP']) / 'ddda-remediation' / 'unpacked'
+          repo = Path(os.environ['GITHUB_WORKSPACE'])
+          m = json.loads((root / 'manifest.json').read_text())
+          for rel in m['expected_paths']:
+              src = root / 'payload' / rel
+              dst = repo / rel
+              dst.parent.mkdir(parents=True, exist_ok=True)
+              shutil.copy2(src, dst)
+          got = subprocess.check_output(['git', 'diff', '--name-only'], text=True).splitlines()
+          assert sorted(got) == sorted(m['expected_paths']), {'expected': sorted(m['expected_paths']), 'actual': sorted(got)}
+          print('\n'.join(got))
           PY
-          grep -RIn -E 'DDDA Platform Backlog([^ &]|$)|Implementační PR není automaticky druhá backlogová položka|pokud planning policy používá PR Project items' prepared || true
 
-      - name: Upload prepared docs
-        uses: actions/upload-artifact@v4
-        with:
-          name: ddda-project-delivery-operational-docs-prep
-          path: prepared/
-          retention-days: 7
-          if-no-files-found: error
+      - name: Precommit validation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/platform/Reconcile-DDDAProjectBacklog.py
+          python -m json.tool config/governance/github-bootstrap.json >/dev/null
+          python -m pytest -q runtime/platform/tests/test_project_backlog_delivery_governance.py
+          ! grep -RIn -E 'Implementační PR není automaticky druhá backlogová položka|pokud planning policy používá PR Project items' docs/governance
+          grep -q 'DDDA Platform Backlog & Delivery' config/governance/backlog-policy.yaml
+          grep -q 'Implementace a Delivery' docs/governance/wp-backlog-consistency.md
+
+      - name: Create one scoped commit and fast-forward PR branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'DDDA Governance Automation'
+          git config user.email 'noreply@github.com'
+          git add --all
+          git diff --cached --check
+          test -n "$(git diff --cached --name-only)"
+          git commit -m 'feat(governance): add Project delivery projection'
+          NEW_SHA="$(git rev-parse HEAD)"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          echo "Applied exact-base remediation commit: $NEW_SHA" >> "$GITHUB_STEP_SUMMARY"
