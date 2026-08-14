@@ -190,10 +190,11 @@ def copied_board_readback(
         "hvr_board_id": target_board_id,
         "hvr_board_name": _base.HVR_NAME,
         "miro_tips": {
-            # Compatibility label retained for existing workflow evidence; it is
-            # structural only and never claims human visual acceptance.
+            # Existing field remains the historical structural compatibility
+            # contract; the v3 full-arrow contract is exposed separately.
             "policy": _base.tips.MIRO_TIPS_VISUAL_EQUIVALENCE_POLICY,
-            "reference_structure_policy": full_arrow.REFERENCE_STRUCTURE_POLICY,
+            "reference_structure_policy": fidelity.REFERENCE_STRUCTURE_POLICY,
+            "full_arrow_reference_structure_policy": full_arrow.REFERENCE_STRUCTURE_POLICY,
             "visual_acceptance_authority": full_arrow.VISUAL_ACCEPTANCE_AUTHORITY,
             "render_fidelity_policy": {
                 "routing_proxy": full_arrow.ROUTING_PROXY_POLICY,
