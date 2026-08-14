@@ -37,6 +37,8 @@ miro_tips:
   reference_source_frame_id: '3458764679531043366'
   reference_source_image_id: '3458764679531043367'
   reference_background_sha256: 04b83ec7d9bc07ae31c7c11c03ec974ff4bde00d7773d7f9e55036e877f6fffd
+  reference_freeze_commit: '67805d87b4195379af5524494c4941926c9a1565'
+  reference_freeze_at: '2026-08-14T14:05:26Z'
   reference_frame_geometry:
     width: 1919.433
     height: 1079.681

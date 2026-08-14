@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+from datetime import datetime
 from typing import Any
 
 from . import image_transport
@@ -16,16 +17,29 @@ def _color(value: Any) -> str:
     return str(value or "").casefold()
 
 
+def _timestamp(value: Any, label: str) -> datetime:
+    raw = str(value or "").strip()
+    if not raw:
+        raise ValueError(f"{label} is missing")
+    try:
+        parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ValueError(f"{label} is invalid") from exc
+    if parsed.tzinfo is None:
+        raise ValueError(f"{label} must include a timezone")
+    return parsed
+
+
 def assert_frozen_reference_identity(
     client: Any, source_board: str, source_frame_id: str, manifest: dict[str, Any]
 ) -> None:
-    """Verify immutable reference identity/topology without trusting volatile CDN bytes.
+    """Verify the frozen reference without treating Miro CDN bytes as immutable.
 
-    Miro's imageUrl is a rendition endpoint and can re-encode the same pinned image
-    item.  Therefore the static manifest hash is retained as frozen snapshot identity,
-    while the current rendition is required to be readable but is not compared to the
-    historic byte digest.  Native topology, font sizes and connector endpoints remain
-    fail-closed.
+    The historic raw SHA-256 records the rendition observed when the exact-reference
+    contract was frozen. Miro may later re-encode the same unchanged image item, so
+    current CDN bytes are diagnostic only. A real later mutation is rejected by the
+    pinned item identity plus the item's ``modifiedAt`` freeze boundary. Native
+    topology, font sizes and connector endpoints remain fail-closed.
     """
     _ORIGINAL_ASSERT_REFERENCE_IDENTITY(client, source_board, source_frame_id, manifest)
     cfg = tips._config(manifest)
@@ -65,14 +79,21 @@ def assert_frozen_reference_identity(
     expected_background = str(raw.get("reference_background_sha256") or "")
     if len(expected_background) != 64:
         raise ValueError("Miro Tips frozen reference background hash is missing")
+    freeze_commit = str(raw.get("reference_freeze_commit") or "")
+    if len(freeze_commit) != 40:
+        raise ValueError("Miro Tips reference freeze commit is missing")
+    freeze_at = _timestamp(raw.get("reference_freeze_at"), "Miro Tips reference freeze timestamp")
+
     image_bytes, content_type, image = image_transport.source_image(client, source_board, image_id)
     if str(image.get("id") or "") != image_id:
         raise ValueError("Miro Tips frozen reference background identity mismatch")
     if not image_bytes or not str(content_type or "").startswith("image/"):
         raise ValueError("Miro Tips frozen reference background rendition is unreadable")
+    modified_at = _timestamp(image.get("modifiedAt"), "Miro Tips reference image modifiedAt")
+    if modified_at > freeze_at:
+        raise ValueError("Miro Tips frozen reference image was modified after reference freeze")
 
-    # Keep a digest of the current rendition available to debuggers without making it
-    # a deployment precondition.  Miro may produce a different byte rendition later.
+    # Current rendition SHA is diagnostic only: Miro may re-encode an unchanged image.
     hashlib.sha256(image_bytes).hexdigest()
 
 
