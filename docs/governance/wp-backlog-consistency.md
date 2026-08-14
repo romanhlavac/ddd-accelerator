@@ -34,6 +34,8 @@ Jakýkoli zbývající mismatch blokuje technical governance PASS a doporučení
 - Project `Work Package` a `Item Type` CR odpovídají autoritativnímu WP a typu artefaktu.
 - Každý otevřený platformní PR má právě jednu primární vazbu `Implements #<CR>` nebo `Closes #<CR>`, pokud nejde o explicitní verzovanou legacy výjimku.
 - `Refs`, `Related`, prefix názvu ani stacked Git ancestry nejsou primární implementation authority a neurčují WP ownership.
+- Pokud Issue/PR title obsahuje explicitní prefix `[WP-XX]`, prefix musí odpovídat autoritativnímu Work Package. Absence WP prefixu je povolená; zavádějící nebo historický prefix je `PRESENTATION_WP_MISMATCH` a blokuje technical governance PASS, i když native parent a Project fields jsou správné.
+- Display/read-back kontrola názvu vychází z kanonického Issue/PR title (resp. Project item content navázaného na Issue/PR), nikoli z náhodného nebo duplicitního Project text field se jménem `Title`. Presentation metadata nesmějí odporovat autoritativnímu backlog modelu.
 - Work Package implementačního PR se odvozuje od jeho primárního CR; PR nesmí tvrdit jiné WP.
 - Pokud planning policy vede PR také jako Project item, jeho Project `Work Package` a `Item Type` musí být konzistentní s primárním CR.
 - Pre-read-back může při remediation najít chyby; ty se uloží jako evidence. Post-read-back musí mít nula nevysvětlených mismatchů.
@@ -61,6 +63,7 @@ Za governance failure se považuje zejména:
 - `CR.Project.Work Package != authoritative CR Work Package`;
 - rozpor native parentu CR a jeho Project Work Package;
 - chybějící nebo chybně klasifikovaný WP/CR Project item;
+- explicitní `[WP-XX]` prefix Issue/PR title odporuje autoritativnímu WP (`PRESENTATION_WP_MISMATCH`);
 - PR deklaruje jiné WP než jeho primární CR;
 - PR je veden jako Project item a jeho Project WP odporuje CR;
 - nezdůvodněná legacy výjimka;
@@ -91,6 +94,7 @@ Governance/backlog změna uchovává minimálně:
 - post-read-back mismatch count;
 - seznam aktivních WP/CR a otevřených PR zahrnutých do kontroly;
 - výsledky native WP parent + CR Project membership/field read-backu;
+- kontrolu explicitních WP prefixů v Issue/PR titles proti autoritativnímu WP;
 - PR → primary CR mapping a odvozené WP;
 - případnou kontrolu PR Project fields, pokud planning policy PR items používá;
 - workflow run a audit artifact při privileged live reconciliation.
