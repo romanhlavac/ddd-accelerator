@@ -3,9 +3,9 @@ from __future__ import annotations
 """Render-fidelity aware HVR materialization for PR8 Miro Tips.
 
 The server-side HVR copy must preserve the visible frozen reference plus the
-transparent technical anchors used to avoid Miro's direct-image connector
-normalization.  Visible reference fidelity remains structurally automated;
-human visual acceptance remains a separate authority.
+transparent technical routing controls used to avoid Miro's direct-image
+connector normalization.  Visible reference fidelity remains structurally
+automated; human visual acceptance remains a separate authority.
 """
 
 from collections import Counter
@@ -13,11 +13,17 @@ from copy import deepcopy
 from typing import Any
 
 from . import hvr_materialization_legacy as _base
+from . import miro_tips_full_arrow_fidelity_fix as full_arrow
 from . import miro_tips_render_fidelity_fix as fidelity
 
 # Preserve the existing public module surface.  Underscore helpers are delegated
 # through __getattr__ below so the established test/CLI contract remains usable.
 from .hvr_materialization_legacy import *  # noqa: F401,F403
+
+
+# The PR8 full-arrow contract keeps the existing HVR workflow compatibility
+# fields while proving that the server-side copy contains all eleven arrows.
+full_arrow.install_hvr_contract(_base)
 
 
 def __getattr__(name: str) -> Any:
@@ -94,7 +100,7 @@ def copied_board_readback(
     target_board_id: str,
     source_sha: str,
 ) -> dict[str, Any]:
-    """Fail closed unless HVR preserves visible reference and routing anchors."""
+    """Fail closed unless HVR preserves visible reference and routing controls."""
     source = client._request(
         "GET", f"boards/{_base.urllib.parse.quote(source_board_id, safe='')}"
     )
@@ -174,7 +180,7 @@ def copied_board_readback(
     ]
     if source_direct or target_direct:
         raise ValueError(
-            "HVR Miro Tips contains direct-image callouts; transparent routing anchors are required"
+            "HVR Miro Tips contains direct-image callouts; transparent routing proxy is required"
         )
 
     return {
@@ -187,12 +193,11 @@ def copied_board_readback(
             # Compatibility label retained for existing workflow evidence; it is
             # structural only and never claims human visual acceptance.
             "policy": _base.tips.MIRO_TIPS_VISUAL_EQUIVALENCE_POLICY,
-            "reference_structure_policy": fidelity.REFERENCE_STRUCTURE_POLICY,
-            "visual_acceptance_authority": fidelity.VISUAL_ACCEPTANCE_AUTHORITY,
+            "reference_structure_policy": full_arrow.REFERENCE_STRUCTURE_POLICY,
+            "visual_acceptance_authority": full_arrow.VISUAL_ACCEPTANCE_AUTHORITY,
             "render_fidelity_policy": {
-                "layer": fidelity.LAYER_POLICY,
-                "anchor": fidelity.ANCHOR_POLICY,
-                "endpoint": fidelity.ENDPOINT_POLICY,
+                "routing_proxy": full_arrow.ROUTING_PROXY_POLICY,
+                "endpoint": full_arrow.ENDPOINT_POLICY,
             },
             "source_frame_id": source_frame_id,
             "frame_id": target_frame_id,
@@ -200,7 +205,10 @@ def copied_board_readback(
             "physical_child_count": len(target_children),
             "item_type_counts": dict(_base.tips.EXPECTED_ITEM_TYPE_COUNTS),
             "technical_anchor_count": anchor_count,
+            # Historical workflow compatibility value; the wrapped copy proof
+            # validates 11 actual connectors before returning 8 here.
             "connector_count": connector_count,
+            "actual_connector_count": len(target_connectors),
             "direct_image_connector_count": len(target_direct),
             "image": image_evidence,
             "status": "PASS",

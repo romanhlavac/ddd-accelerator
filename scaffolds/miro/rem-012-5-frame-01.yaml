@@ -48,7 +48,11 @@ miro_tips:
     image: 1
     sticky_note: 13
     text: 3
-  expected_connector_count: 8
+  # Full visual reference contains 8 screenshot callouts plus 3 text callout arrows.
+  expected_connector_count: 11
+  expected_direct_image_connector_count: 8
+  expected_text_connector_count: 3
+  routing_proxy_policy: full_size_transparent_screenshot_geometry_proxy_v3
   container_policy: retained_verified_target_container
   visual_equivalence_policy: exact_reference_child_snapshot
   target_position:

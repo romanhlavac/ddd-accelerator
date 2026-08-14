@@ -131,6 +131,10 @@ CI/test pipeline
 22. Chat direct multi-file Contents API writes are prohibited; Chat implementation must use one atomic Git tree commit with exact-base and fast-forward guards.
 23. Missing connector access, missing board visibility or insufficient permissions are blocking conditions that must be reported explicitly.
 24. Structural Miro validation cannot satisfy human visual acceptance.
+25. When a human delegates a bounded FAST-LOOP or remediation workflow, Chat/Work owns the mechanical orchestration end to end and must not ask for confirmation of each mechanically resolvable step.
+26. Human interaction is requested only for judgment or authorization that cannot be automated, such as HVR, an explicit gate/merge/promotion/release/tag decision, or a true hard blocker with no approved alternate execution path.
+27. Chat/Work must never imply that work continues after a response unless a real external workflow or automation is actually running; otherwise it must state the exact checkpoint and provide a ready-to-copy continuation trigger.
+28. A quota or outage in an optional/local tool channel is not a hard blocker while an approved alternative execution plane can complete the same mechanical step; use the approved alternative before escalating to the human.
 
 ## 4. Change classification
 
@@ -441,3 +445,43 @@ Release package is the unit of distribution.
 Example workspace proves usability.
 Exact-SHA evidence proves what was validated.
 ```
+
+## 16. Autonomous FAST-LOOP orchestration and truthful execution state
+
+When the human delegates a bounded platform-development or remediation loop and the repository, branch, allowed write scope and governance guardrails are known, **Chat/Work owns the mechanical orchestration of that loop**. The human is not the workflow engine.
+
+Default corrective flow:
+
+```text
+review finding / technical failure
+→ root-cause analysis
+→ remediation
+→ regression coverage
+→ one scoped corrective commit
+→ exact-SHA CI
+→ package-first validation
+→ online acceptance when required
+→ Platform Lab reconcile/read-back when required
+→ HVR materialization when required
+→ human judgment
+```
+
+Operating rules:
+
+1. Continue automatically through every mechanically resolvable step inside the authorized scope. Do not ask the human to approve routine transitions such as “run tests?”, “inspect CI?”, “retry after a fix?”, “materialize HVR?” or equivalent.
+2. If a mechanical step fails and the cause can be diagnosed and corrected inside the existing authorization, analyze it, create a corrective commit rather than rewriting shared history, rerun the required exact-SHA evidence and continue the loop.
+3. Ask the human only when a human decision or action is genuinely required: HVR or other judgment-heavy review, explicit merge/promotion/release/tag authorization, unresolved ambiguity that changes approved scope, or a credential/permission/resource blocker for which no approved alternative plane exists.
+4. Optional tooling does not define the critical path. For example, Miro MCP quota or connector unavailability must not stop REST/GitHub-Actions validation when those approved planes remain available.
+5. A technical PASS never substitutes for HVR or another human gate. The autonomous loop stops at the human boundary and reports the exact evidence and review target.
+6. Merge, promotion, release and tag are never inferred from a successful FAST-LOOP; they require their separately defined explicit human authorization.
+
+### 16.1 Truthful execution-state reporting
+
+Chat/Work must distinguish an **active external execution** from an **intention to continue**.
+
+- It may say that work is running only when a real workflow, automation or connector operation has actually been started and is still running; identify the concrete execution or evidence when practical.
+- It must not say or imply “I am continuing”, “I am working on it in the background”, “I will return when it is ready”, or equivalent after sending a response if no real external execution will continue without another user turn.
+- If the current Chat turn must end while work remains and no external execution continues autonomously, state the exact checkpoint and provide one ready-to-copy continuation prompt. That prompt must preserve the repository, branch/SHA or checkpoint, remaining FAST-LOOP steps, governance guardrails and the rule that the human is contacted only at a genuine human boundary or hard blocker.
+- If an external workflow is still running when the response is sent, say exactly that; do not represent future analysis, fixes or retries as already running unless they are actually scheduled or executing.
+
+The intent is operationally strict: **autonomous orchestration while execution is active, truthful stop-state reporting when it is not.**
