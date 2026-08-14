@@ -1,4 +1,4 @@
-name: DDDA Project Delivery Preflight
+name: DDDA Project Delivery Contract Prep
 
 on:
   push:
@@ -11,87 +11,90 @@ permissions:
   contents: read
 
 jobs:
-  preflight:
-    environment: ddda-backlog-governance
+  prepare:
     runs-on: ubuntu-latest
-    env:
-      GH_TOKEN: ${{ secrets.DDDA_GITHUB_PROJECT_TOKEN }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: feature/github-native-backlog-governance
+          ref: 78078b28f658a9dbef69f7772ae9dc534f75ec99
+          fetch-depth: 1
 
-      - name: Validate persistent Project credential
+      - name: Verify exact source snapshot
         shell: bash
         run: |
           set -euo pipefail
-          test -n "${GH_TOKEN:-}"
-          gh auth status --hostname github.com >/dev/null
+          test "$(git rev-parse HEAD)" = "78078b28f658a9dbef69f7772ae9dc534f75ec99"
 
-      - name: Read current Project, views and items
+      - name: Inventory old Project contracts
         shell: bash
         run: |
           set -euo pipefail
-          gh api graphql -f query='query {
-            user(login: "romanhlavac") {
-              projectV2(number: 2) {
-                id
-                number
-                title
-                views(first: 20) {
-                  nodes { id number name layout filter }
-                }
-                fields(first: 50) {
-                  nodes {
-                    ... on ProjectV2FieldCommon { id name dataType }
-                    ... on ProjectV2SingleSelectField { options { id name } }
-                  }
-                }
-                items(first: 100) {
-                  nodes {
-                    id
-                    content {
-                      __typename
-                      ... on Issue { id number title url state }
-                      ... on PullRequest { id number title url state isDraft merged }
-                    }
-                    fieldValues(first: 50) {
-                      nodes {
-                        ... on ProjectV2ItemFieldSingleSelectValue {
-                          name
-                          field { ... on ProjectV2FieldCommon { name } }
-                        }
-                        ... on ProjectV2ItemFieldTextValue {
-                          text
-                          field { ... on ProjectV2FieldCommon { name } }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }' > project-pre-readback.json
-          jq -e '.data.user.projectV2.number == 2' project-pre-readback.json >/dev/null
-          jq '.data.user.projectV2 | {id,number,title,views,items:[.items.nodes[] | {id,content}]}' project-pre-readback.json
+          mkdir -p prep-evidence
+          grep -RIn --exclude-dir=.git --exclude='*.pyc' -E 'DDDA Platform Backlog|planned_prs_as_backlog_forbidden|Implementační PR není automaticky|Project item.*PR|View 1' config docs knowledge scripts runtime .github > prep-evidence/contract-grep.txt || true
+          cat prep-evidence/contract-grep.txt
 
-      - name: Introspect Project view mutations
+      - name: Prepare targeted config replacements
         shell: bash
         run: |
           set -euo pipefail
-          gh api graphql -f query='query {
-            __type(name: "Mutation") {
-              fields { name args { name type { kind name ofType { kind name } } } }
-            }
-          }' | jq '{view_mutations: [.data.__type.fields[] | select(.name | test("ProjectV2View"; "i"))]}' > project-view-mutations.json
-          cat project-view-mutations.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
 
-      - name: Upload preflight evidence
+          out = Path('prepared')
+          (out / 'config/governance').mkdir(parents=True, exist_ok=True)
+
+          src = Path('config/governance/backlog-policy.yaml').read_text(encoding='utf-8')
+          src = src.replace(
+              '  planned_prs_as_backlog_forbidden: true\n',
+              '  planned_prs_as_backlog_forbidden: true\n'
+              '  active_implementation_prs_project_membership_required: true\n'
+              '  pr_project_item_is_delivery_projection_not_backlog_authority: true\n'
+          )
+          src = src.replace('  name: DDDA Platform Backlog\n', '  name: DDDA Platform Backlog & Delivery\n')
+          old_views = '''  views:\n    - Work Packages\n    - WP hierarchy\n    - Delivery board\n    - Roadmap by Work Package\n    - Release scope\n    - Blocked and P0\n    - Human review queue\n    - Ready without owner\n    - Recently completed\n'''
+          new_views = '''  views:\n    - Plánování a Backlog\n    - Implementace a Delivery\n  view_contract:\n    planning:\n      name: Plánování a Backlog\n      layout: table\n      filter: is:issue\n    delivery:\n      name: Implementace a Delivery\n      layout: table\n      filter: is:pr\n  delivery_projection:\n    open_implementation_pr_membership_required: true\n    primary_change_request_relation: Implements_or_Closes\n    work_package_source: primary_change_request\n    project_item_type_field: unset\n    draft_status: In progress\n    ready_status: In review\n    blocked_override: Blocked\n'''
+          if old_views not in src:
+              raise SystemExit('Expected backlog-policy views block not found')
+          src = src.replace(old_views, new_views)
+          (out / 'config/governance/backlog-policy.yaml').write_text(src, encoding='utf-8')
+
+          cfg = json.loads(Path('config/governance/github-bootstrap.json').read_text(encoding='utf-8-sig'))
+          cfg['project_title'] = 'DDDA Platform Backlog & Delivery'
+          cfg['project_description'] = (
+              'Planning backlog and active delivery visibility for the DDDA platform. '
+              'Work Packages and Change Request Issues remain planning authority; active implementation '
+              'pull requests are maintained as delivery projections linked to one primary Change Request.'
+          )
+          cfg['delivery_projection'] = {
+              'planning_view': {'name': 'Plánování a Backlog', 'layout': 'table', 'filter': 'is:issue'},
+              'delivery_view': {'name': 'Implementace a Delivery', 'layout': 'table', 'filter': 'is:pr'},
+              'open_implementation_pr_membership_required': True,
+              'primary_change_request_relation': 'Implements_or_Closes',
+              'work_package_source': 'primary_change_request',
+              'project_item_type_field': None,
+          }
+          for group in cfg.get('item_groups', []):
+              if group.get('kind') == 'pull':
+                  (group.get('metadata') or {}).pop('Item Type', None)
+          cfg['views'] = [
+              {'name': 'Plánování a Backlog', 'layout': 'table', 'filter': 'is:issue'},
+              {'name': 'Implementace a Delivery', 'layout': 'table', 'filter': 'is:pr'},
+          ]
+          (out / 'config/governance/github-bootstrap.json').write_text(
+              json.dumps(cfg, ensure_ascii=False, indent=2) + '\n', encoding='utf-8'
+          )
+          PY
+
+          python -m json.tool prepared/config/governance/github-bootstrap.json >/dev/null
+          grep -n -E 'DDDA Platform Backlog|active_implementation|view_contract|delivery_projection' prepared/config/governance/backlog-policy.yaml prepared/config/governance/github-bootstrap.json
+
+      - name: Upload preparation evidence
         uses: actions/upload-artifact@v4
         with:
-          name: ddda-project-delivery-preflight
+          name: ddda-project-delivery-contract-prep
           path: |
-            project-pre-readback.json
-            project-view-mutations.json
-          retention-days: 30
+            prepared/
+            prep-evidence/contract-grep.txt
+          retention-days: 7
           if-no-files-found: error
