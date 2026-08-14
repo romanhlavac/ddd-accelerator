@@ -606,7 +606,16 @@ jobs:
           @'
           import json, os, time, urllib.request
 
-          required=('Validate DDDA','DDDA exact-code Miro image probe')
+          # The Checks API exposes job names, not workflow display names.  Keep
+          # this list exact and fail closed before either mutable Miro profile.
+          required=(
+              'repository-contracts',
+              'windows-powershell-51-compatibility',
+              'miro-runtime-tests',
+              'powershell7-platform-lifecycle',
+              'steering-runtime-tests',
+              'Exact-code Miro image probe',
+          )
           url=f"https://api.github.com/repos/{os.environ['REPOSITORY']}/commits/{os.environ['SOURCE_SHA']}/check-runs?per_page=100"
           headers={'Authorization':f"Bearer {os.environ['GH_TOKEN']}",'Accept':'application/vnd.github+json'}
           for _ in range(120):

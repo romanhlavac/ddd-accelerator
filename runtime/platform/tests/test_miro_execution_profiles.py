@@ -193,6 +193,8 @@ def test_standard_platform_ci_materializes_hvr_only_after_online_acceptance():
     assert "materialize-hvr:" in platform
     assert "- online-miro-acceptance" in platform
     assert "Require completed exact-SHA technical checks" in platform
+    assert "Exact-code Miro image probe" in platform
+    assert "miro-runtime-tests" in platform
     assert "Reconcile and read back DDDA_PLATFORM_LAB" in platform
     assert "Replace DDDA_HVR by server-side copy and read back" in platform
     assert "MIRO_PLATFORM_LAB_ACCESS_TOKEN" in platform
