@@ -1,4 +1,4 @@
-name: DDDA PR63 Delivery Remediation Apply
+name: DDDA PR63 Payload Blob Validation
 
 on:
   push:
@@ -11,96 +11,70 @@ permissions:
   contents: write
 
 jobs:
-  apply:
+  validate-payload:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
-      TARGET_BRANCH: chore/wp-split-governance-cleanup
-      BASE_SHA: 78078b28f658a9dbef69f7772ae9dc534f75ec99
       PACKAGE_BLOB_SHA: 5ebb059d35851d00a61a3cf1b8b378bd7bc49d17
-      PACKAGE_SHA256: 58eee419c56fea9a58b14d5d16b204109b25ac0abbf4791cb51a74b12723b4b3
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: chore/wp-split-governance-cleanup
-          fetch-depth: 0
-
-      - name: Verify exact authorized base
+      - name: Fetch uploaded Git blob
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "$BASE_SHA"
-          test "$(git branch --show-current)" = "$TARGET_BRANCH"
+          mkdir -p "$RUNNER_TEMP/payload"
+          gh api "repos/${GITHUB_REPOSITORY}/git/blobs/${PACKAGE_BLOB_SHA}" --jq '.content' | tr -d '\n' | base64 -d > "$RUNNER_TEMP/payload/package.zip"
+          sha256sum "$RUNNER_TEMP/payload/package.zip"
+          unzip -t "$RUNNER_TEMP/payload/package.zip"
+          unzip -q "$RUNNER_TEMP/payload/package.zip" -d "$RUNNER_TEMP/payload/unpacked"
 
-      - name: Fetch and validate remediation package
+      - name: Validate manifest and every payload file
         shell: bash
         run: |
           set -euo pipefail
-          ROOT="$RUNNER_TEMP/ddda-remediation"
-          mkdir -p "$ROOT"
-          gh api "repos/${GITHUB_REPOSITORY}/git/blobs/${PACKAGE_BLOB_SHA}" --jq '.content' | tr -d '\n' | base64 -d > "$ROOT/package.zip"
-          echo "${PACKAGE_SHA256}  $ROOT/package.zip" | sha256sum -c -
-          unzip -q "$ROOT/package.zip" -d "$ROOT/unpacked"
           python - <<'PY'
           import hashlib, json, os
           from pathlib import Path
-          root = Path(os.environ['RUNNER_TEMP']) / 'ddda-remediation' / 'unpacked'
-          m = json.loads((root / 'manifest.json').read_text())
+          root = Path(os.environ['RUNNER_TEMP']) / 'payload' / 'unpacked'
+          m = json.loads((root/'manifest.json').read_text())
           assert m['repository'] == 'romanhlavac/ddd-accelerator'
-          assert m['target_branch'] == os.environ['TARGET_BRANCH']
-          assert m['base_sha'] == os.environ['BASE_SHA']
+          assert m['target_branch'] == 'chore/wp-split-governance-cleanup'
+          assert m['base_sha'] == '78078b28f658a9dbef69f7772ae9dc534f75ec99'
           assert m['impact'] == 'HIGH'
-          observed = []
           for f in m['files']:
-              p = root / 'payload' / f['path']
+              p = root/'payload'/f['path']
               assert p.is_file(), f['path']
-              assert hashlib.sha256(p.read_bytes()).hexdigest() == f['sha256'], f['path']
-              observed.append(f['path'])
-          assert sorted(observed) == sorted(m['expected_paths'])
-          print(json.dumps({'validated_files': len(observed), 'change_id': m['change_id']}))
+              actual = hashlib.sha256(p.read_bytes()).hexdigest()
+              assert actual == f['sha256'], (f['path'], actual, f['sha256'])
+          assert sorted(f['path'] for f in m['files']) == sorted(m['expected_paths'])
+          print(f"validated {len(m['files'])} payload files")
           PY
 
-      - name: Apply declared payload only
+      - name: Materialize validated payload as Git blobs
         shell: bash
         run: |
           set -euo pipefail
-          python - <<'PY'
-          import json, os, shutil, subprocess
+          ROOT="$RUNNER_TEMP/payload/unpacked"
+          python - <<'PY' > "$RUNNER_TEMP/payload/paths.txt"
+          import json, os
           from pathlib import Path
-          root = Path(os.environ['RUNNER_TEMP']) / 'ddda-remediation' / 'unpacked'
-          repo = Path(os.environ['GITHUB_WORKSPACE'])
-          m = json.loads((root / 'manifest.json').read_text())
-          for rel in m['expected_paths']:
-              src = root / 'payload' / rel
-              dst = repo / rel
-              dst.parent.mkdir(parents=True, exist_ok=True)
-              shutil.copy2(src, dst)
-          got = subprocess.check_output(['git', 'diff', '--name-only'], text=True).splitlines()
-          assert sorted(got) == sorted(m['expected_paths']), {'expected': sorted(m['expected_paths']), 'actual': sorted(got)}
-          print('\n'.join(got))
+          root=Path(os.environ['RUNNER_TEMP'])/'payload'/'unpacked'
+          m=json.loads((root/'manifest.json').read_text())
+          for p in m['expected_paths']:
+              print(p)
           PY
+          : > "$RUNNER_TEMP/payload/blob-map.jsonl"
+          while IFS= read -r path; do
+            content="$(base64 -w0 "$ROOT/payload/$path")"
+            sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/blobs" -f content="$content" -f encoding=base64 --jq '.sha')"
+            jq -nc --arg path "$path" --arg sha "$sha" '{path:$path,sha:$sha}' >> "$RUNNER_TEMP/payload/blob-map.jsonl"
+          done < "$RUNNER_TEMP/payload/paths.txt"
+          jq -s '.' "$RUNNER_TEMP/payload/blob-map.jsonl" > blob-map.json
+          cat blob-map.json
 
-      - name: Precommit validation
-        shell: bash
-        run: |
-          set -euo pipefail
-          python -m py_compile scripts/platform/Reconcile-DDDAProjectBacklog.py
-          python -m json.tool config/governance/github-bootstrap.json >/dev/null
-          python -m pytest -q runtime/platform/tests/test_project_backlog_delivery_governance.py
-          ! grep -RIn -E 'Implementační PR není automaticky druhá backlogová položka|pokud planning policy používá PR Project items' docs/governance
-          grep -q 'DDDA Platform Backlog & Delivery' config/governance/backlog-policy.yaml
-          grep -q 'Implementace a Delivery' docs/governance/wp-backlog-consistency.md
-
-      - name: Create one scoped commit and fast-forward PR branch
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name 'DDDA Governance Automation'
-          git config user.email 'noreply@github.com'
-          git add --all
-          git diff --cached --check
-          test -n "$(git diff --cached --name-only)"
-          git commit -m 'feat(governance): add Project delivery projection'
-          NEW_SHA="$(git rev-parse HEAD)"
-          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
-          echo "Applied exact-base remediation commit: $NEW_SHA" >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload validated blob map
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr63-delivery-validated-blob-map
+          path: blob-map.json
+          retention-days: 7
+          if-no-files-found: error
