@@ -1,62 +1,124 @@
-## Scope
+# DDDA platform Pull Request
 
-- [ ] `platform` — obecná změna produktu DDDA
-- [ ] `project` — změna jednoho konkrétního projektu
+## Backlog relationship
 
-Aktivní Git root:
+- Parent Work Package: `WP-XX — #<issue>`
+- Change Request: `Implements #<issue>` nebo `Closes #<issue>`
+- Related GAP / defect / risk: `#...`
+- Target Milestone: `DDDA X.Y.Z` nebo `TBD`
 
-```text
-<doplnit>
-```
+> PR je jednotkou skutečné implementační změny. Nezakládej PR pouze jako plán nebo vzdálený roadmap placeholder.
 
-Aktivní projekt, pokud je scope `project`:
+## Goal
 
-```text
-<doplnit nebo N/A>
-```
+Jaký konkrétní outcome tohoto PR realizuje?
 
-## Co se mění
+## Actual change scope
 
-<!-- Stručný, ale konkrétní popis změny. -->
+### In scope implemented
 
-## Proč
+- ...
 
-<!-- Business, doménový, provozní nebo produktový důvod. -->
+### Explicitly not implemented
 
-## Dopad
+- ...
 
-- [ ] schémata artefaktů
-- [ ] projektový bootstrap
-- [ ] migrace existujících projektů
-- [ ] Miro synchronizace
-- [ ] Mermaid projekce
-- [ ] agentní pravidla / skills
-- [ ] dokumentace
-- [ ] bez dopadu na existující projekty
+### Scope changes since Issue refinement
 
-## Kompatibilita a migrace
+- none / popis schválené změny a odkaz na aktualizované Issue
 
-<!-- Uveď required DDDA ref/schema version a migrační postup. -->
+## Classification
 
-## Validace
+Platform areas:
 
-- [ ] změny byly zkontrolovány přes `git diff`
-- [ ] platformní a projektové změny nejsou smíchané
-- [ ] JSON Schema soubory jsou syntakticky validní
-- [ ] PowerShell skripty byly alespoň parserově ověřeny
-- [ ] dokumentace a příklady odpovídají implementaci
-- [ ] nebyla commitnuta tajemství ani klientská data
+- [ ] DOC
+- [ ] METHODOLOGY
+- [ ] TEMPLATE
+- [ ] SCHEMA
+- [ ] ORCHESTRATION
+- [ ] INGESTION
+- [ ] CLI
+- [ ] WORKSPACE-GENERATOR
+- [ ] EXAMPLE
+- [ ] TESTING
+- [ ] RELEASE
+- [ ] SECURITY-GOVERNANCE
 
-Použité příkazy nebo kontroly:
+Impact:
 
-```text
-<doplnit>
-```
+- [ ] LOW
+- [ ] MEDIUM
+- [ ] HIGH
+- [ ] BREAKING
 
-## Rizika a rollback
+Migration impact:
 
-<!-- Popiš rizika, rollback a případná decommission kritéria. -->
+- [ ] None
+- [ ] Non-breaking / additive
+- [ ] Breaking — migration note included
 
-## Navazující práce
+## Repository changes
 
-<!-- Co je explicitně mimo scope tohoto PR. -->
+- implementation/configuration:
+- schemas/contracts:
+- tests/fixtures:
+- documentation/examples:
+- ADR:
+- changelog:
+- migration note:
+
+## Acceptance coverage
+
+| Acceptance requirement | Implementation evidence | Test evidence | Documentation evidence | Status |
+|---|---|---|---|---|
+| ... | ... | ... | ... | covered / partial / missing / scope creep |
+
+## Test evidence
+
+- CI run / exact SHA:
+- local validation report:
+- candidate package hash:
+- suites executed:
+- online external-system evidence:
+- diagnostics retained:
+
+## Human review
+
+Judgment areas required:
+
+- [ ] scope and product outcome
+- [ ] methodology
+- [ ] architecture and contracts
+- [ ] security and isolation
+- [ ] compatibility and migration
+- [ ] usability / Miro visual acceptance
+- [ ] release readiness and residual risks
+- [ ] not required beyond normal code review
+
+HRDR / review evidence:
+
+- status: not started / in progress / GO / GO_WITH_ACCEPTED_RISKS / NO_GO
+- exact reviewed SHA:
+- evidence link:
+
+## Risks and residual risks
+
+| Risk | Status | Owner | Mitigation / follow-up |
+|---|---|---|---|
+| ... | open / accepted / mitigated | ... | ... |
+
+## Checklist
+
+- [ ] PR odkazuje na konkrétní Change Request.
+- [ ] Skutečný diff odpovídá Goal, In scope a Out of scope.
+- [ ] Každá behaviorální změna má odpovídající testy.
+- [ ] Contract change je dokumentována.
+- [ ] Významné dlouhodobé rozhodnutí má ADR.
+- [ ] Breaking změna má migration note a migration tests.
+- [ ] CHANGELOG popisuje pouze skutečně dodanou změnu.
+- [ ] Testy nepoužívají client workspace ani klientská data.
+- [ ] Release/package neobsahuje secrets, `.git`, cache ani user-specific paths.
+- [ ] Automatizace nevytváří lidské gate approval nebo GO/NO-GO.
+- [ ] Validation evidence je navázána na current head SHA.
+- [ ] Parent Work Package a roadmap budou po dokončení aktualizovány.
+- [ ] Merge ani release nebude proveden bez explicitního lidského rozhodnutí.
