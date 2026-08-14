@@ -9,6 +9,7 @@ from . import miro_tips_anchor_payload_wirefix
 from . import miro_tips_exact_font_wirefix
 from . import miro_tips_full_arrow_fidelity_fix
 from . import miro_tips_hvr_fix
+from . import miro_tips_legacy_line_fidelity_fix
 from . import miro_tips_reference_oracle
 from . import miro_tips_render_fidelity_fix
 from .client import MiroClient, normalize_miro_percentage
@@ -153,9 +154,11 @@ def main(argv: list[str] | None = None) -> int:
     miro_tips_render_fidelity_fix.install()
     miro_tips_anchor_payload_wirefix.install()
     miro_tips_full_arrow_fidelity_fix.install()
+    miro_tips_legacy_line_fidelity_fix.install()
     try:
         return recovery.main(argv)
     finally:
+        miro_tips_legacy_line_fidelity_fix.uninstall()
         miro_tips_full_arrow_fidelity_fix.uninstall()
         miro_tips_anchor_payload_wirefix.uninstall()
         miro_tips_render_fidelity_fix.uninstall()
