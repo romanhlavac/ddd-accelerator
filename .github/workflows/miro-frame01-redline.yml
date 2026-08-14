@@ -2,6 +2,10 @@ name: DDDA REM-012.5 Miro Tips exact-reference verification
 
 # Deliberately no pull_request/push trigger and no Miro write credential.
 # This workflow validates the immutable exact-reference contract only.
+# Historical compatibility markers below are RETIRED contract names only; they
+# must never be used as active delivery modes again:
+# verify_reference_composite
+# reference_composite_image
 on:
   workflow_dispatch:
     inputs:
