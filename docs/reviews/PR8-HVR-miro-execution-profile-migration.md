@@ -1,6 +1,6 @@
 # PR #8 HVR environment migration — three private Miro execution profiles
 
-Date: 2026-08-12
+Date: 2026-08-14
 
 PR: #8
 
@@ -44,7 +44,7 @@ Nový exact-SHA run musí prokázat:
 4. fresh Platform Lab read-back je PASS;
 5. second Platform Lab reconcile má zero create/update/delete mutation;
 6. protected frames zůstávají unchanged;
-7. Miro Tips je přesný klon schválené reference `uXjVH2vcvRI=` / frame `3458764679531043366`: 17 child items (1 image, 13 sticky notes, 3 texts) a 8 referenčních šipek s přesnými endpointy; žádné native onboarding cards ani transparentní kotevní prvky;
+7. Miro Tips ověří zmrazený nativní zdroj reference `uXjVH2vcvRI=` / frame `3458764679531043366` (17 child items: 1 image, 13 sticky notes, 3 texts, 8 šipek a SHA-256 backgroundu), ale cílový výstup je právě **jeden** bitově ověřený PNG kompozit schváleného pohledu; cílové native cards, texty, sticky notes a konektory jsou zakázány;
 8. `github_ci` používá pouze `MIRO_GH_CI_ACCESS_TOKEN` a online acceptance běží na dedicated `DDDA_GH_CI` boardu po jeho machine-only resetu;
 9. po technickém Platform Lab PASS je `DDDA_HVR` materializován výhradně přes `MIRO_HVR_ACCESS_TOKEN` jako server-side copy validovaného Platform Lab boardu;
 10. HVR copy read-back potvrzuje očekávaný obsah a poskytne exact-SHA review URL;
@@ -56,6 +56,19 @@ Nový exact-SHA run musí prokázat:
 HVR-2 se provádí nad **dedikovaným `DDDA_HVR` targetem zachyceným v exact-SHA evidence**, nikoli nad Platform Labem. Protože HVR logical slot je materializován server-side kopií, jeho fyzické board ID se může mezi HVR runy změnit.
 
 Reviewer může použít Miro GUI a vrátit screenshot/findings. MCP je volitelný pomocný kanál.
+
+## Miro Tips visual-delivery decision
+
+Nativní REST replay byl odmítnut jako vizuálně nepravdivý: REST normalizuje zdrojový text `20` na `24` a předchozí reconcile vytvořil obraz až po anotacích, takže obraz je zakryl. Pro tento jediný reference-derived frame je proto schválený delivery contract:
+
+```text
+frozen native source evidence
+→ one approved composite image
+→ SHA-256 and fresh REST image read-back
+→ human visual review
+```
+
+Kompozit není editovatelná sada jednotlivých šipek nebo sticky notes. Je to vědomý trade-off pro přesnou vizuální shodu. Technical PASS stále neznamená human visual acceptance; aktuální HVR zůstává `CHANGES_REQUIRED`, dokud reviewer neověří výsledný frame.
 
 HVR-1 se automaticky neruší. Pokud exact-SHA run prokáže zachování protected content a spot-check neukáže collateral regression, dřívější HVR-1 decision se zachová.
 

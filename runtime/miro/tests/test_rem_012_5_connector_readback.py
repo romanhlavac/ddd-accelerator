@@ -93,21 +93,19 @@ def test_connector_endpoint_percentage_wire_values_preserve_the_same_arrow_targe
     assert same_connector_canonical(client.full, _expected())
 
 
-def test_runtime_wires_only_the_exact_reference_clone(monkeypatch):
+def test_runtime_wires_only_the_reference_composite_delivery(monkeypatch):
     calls = []
-    for module, label in (
-        (wirefix.miro_tips_hvr_fix, "tips"),
-        (wirefix.miro_tips_hvr_semantic_fix, "semantic"),
-    ):
-        monkeypatch.setattr(module, "install", lambda label=label: calls.append(f"install:{label}"))
-        monkeypatch.setattr(module, "uninstall", lambda label=label: calls.append(f"uninstall:{label}"))
+    monkeypatch.setattr(
+        wirefix.miro_tips_hvr_fix, "install", lambda: calls.append("install:composite")
+    )
+    monkeypatch.setattr(
+        wirefix.miro_tips_hvr_fix, "uninstall", lambda: calls.append("uninstall:composite")
+    )
     monkeypatch.setattr(wirefix.recovery, "main", lambda argv: calls.append("reconcile") or 0)
 
     assert wirefix.main(["--fixture"]) == 0
     assert calls == [
-        "install:tips",
-        "install:semantic",
+        "install:composite",
         "reconcile",
-        "uninstall:semantic",
-        "uninstall:tips",
+        "uninstall:composite",
     ]

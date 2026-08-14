@@ -6,7 +6,6 @@ from typing import Any
 from . import frame00_resize_ordering_wirefix as recovery
 from . import frame01_redline as redline
 from . import miro_tips_hvr_fix
-from . import miro_tips_hvr_semantic_fix
 from .client import MiroClient, normalize_miro_percentage
 
 
@@ -144,11 +143,9 @@ def main(argv: list[str] | None = None) -> int:
     MiroClient.update_connector = update_connector_with_fresh_readback
     redline.same_connector = same_connector_canonical
     miro_tips_hvr_fix.install()
-    miro_tips_hvr_semantic_fix.install()
     try:
         return recovery.main(argv)
     finally:
-        miro_tips_hvr_semantic_fix.uninstall()
         miro_tips_hvr_fix.uninstall()
         MiroClient.update_connector = _ORIGINAL_UPDATE_CONNECTOR
         redline.same_connector = _ORIGINAL_SAME_CONNECTOR

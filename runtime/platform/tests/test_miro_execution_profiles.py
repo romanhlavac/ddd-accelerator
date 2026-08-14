@@ -168,14 +168,18 @@ def test_pr8_workflows_use_strict_profile_credentials_and_not_mcp_transport():
     assert "MIRO_CI_ACCESS_TOKEN" not in platform
 
     for marker in (
-        "MIRO_PLATFORM_LAB_ACCESS_TOKEN",
-        "MIRO_HVR_ACCESS_TOKEN",
-        "DDDA_MIRO_PLATFORM_LAB_BOARD_ID",
-        "Materialize dedicated DDDA_HVR board",
-        "copy_from",
-        "python -m ddda_miro.connector_readback_wirefix",
+        "workflow_dispatch:",
+        "verify_reference_composite",
+        "reference_composite_image",
+        "platform_lab_write_authorized=$false",
+        "hvr_write_authorized=$false",
     ):
         assert marker in hvr
+    assert "pull_request:" not in hvr
+    assert "push:" not in hvr
+    assert "MIRO_PLATFORM_LAB_ACCESS_TOKEN" not in hvr
+    assert "MIRO_HVR_ACCESS_TOKEN" not in hvr
+    assert "--apply" not in hvr
     assert "|| secrets." not in hvr
     assert "secrets.MIRO_ACCESS_TOKEN" not in hvr
     assert "mcp_server" not in hvr.casefold()
