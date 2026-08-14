@@ -303,6 +303,31 @@ def test_target_image_byte_drift_triggers_full_composite_replacement(monkeypatch
     assert result["target_visual_snapshot"]["sha256"] == tips.COMPOSITE_SHA256
 
 
+def test_target_readback_keeps_pinned_asset_identity_when_miro_normalizes_image_bytes(monkeypatch):
+    client = FakeClient()
+    install_image_readback(monkeypatch, client)
+    client.items["target"] = []
+    client.connectors["target"] = []
+    target = client.frames[("target", "target-tips")]
+    prepared = tips._prepared_composite_payload(client, "target", target)
+    prepared.update({"id": "target-composite", "type": "image"})
+    client.items["target"].append(prepared)
+
+    monkeypatch.setattr(
+        tips.image_transport,
+        "source_image",
+        lambda _client, board, item_id: (
+            b"miro-normalized-rendition",
+            "image/webp",
+            deepcopy(next(item for item in client.items[board] if item["id"] == item_id)),
+        ),
+    )
+
+    observed = tips._target_readback(client, "target", target)
+    assert observed["sha256"] == tips.COMPOSITE_SHA256
+    assert observed["rendered_sha256"] == hashlib.sha256(b"miro-normalized-rendition").hexdigest()
+
+
 def test_frame_payload_keeps_the_verified_target_slot():
     source = frame("source-tips", "Miro Tips", -18762.0, -11858.0, 1919.433, 1079.681)
     payload = tips.miro_tips_companion_frame_payload(source, {}, {}, manifest())

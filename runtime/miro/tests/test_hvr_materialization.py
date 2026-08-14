@@ -63,6 +63,24 @@ def test_copied_board_readback_proves_the_single_composite_and_hvr_gate(monkeypa
     assert report["merge_allowed"] is False
 
 
+def test_copied_board_readback_accepts_miro_normalized_rendition_with_pinned_asset_identity(monkeypatch):
+    client = FakeClient()
+    rendered = b"miro-normalized-rendition"
+    monkeypatch.setattr(
+        hvr.image_transport,
+        "source_image",
+        lambda _client, board, item_id: (
+            rendered,
+            "image/webp",
+            deepcopy(client.items[board][1]),
+        ),
+    )
+
+    report = hvr.copied_board_readback(client, "platform", "hvr", "a" * 40)
+    assert report["miro_tips"]["composite_sha256"] == tips.COMPOSITE_SHA256
+    assert report["miro_tips"]["rendered_sha256"] == hashlib.sha256(rendered).hexdigest()
+
+
 def test_copied_board_readback_rejects_native_connector(monkeypatch):
     client = FakeClient()
     client.connectors["hvr"] = [{"startItem": {"id": "hvr-image"}, "endItem": {"id": "other"}}]

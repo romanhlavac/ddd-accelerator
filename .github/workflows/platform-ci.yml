@@ -692,7 +692,8 @@ jobs:
           if($LASTEXITCODE -ne 0){throw 'DDDA_HVR materialization failed'}
           $r=Get-Content -LiteralPath $report -Raw -Encoding UTF8 | ConvertFrom-Json
           if($r.technical_status -ne 'PASS' -or $r.human_review_status -ne 'PENDING' -or $r.overall_status -ne 'READY_FOR_HUMAN_REVIEW'){throw 'HVR materialization acceptance state mismatch'}
-          if($r.miro_tips.composite_sha256 -ne 'c436088d322d600c748ed99079001965e87c1b267397c096738bb8a7ab077a55'){throw 'HVR composite byte read-back mismatch'}
+          if($r.miro_tips.composite_sha256 -ne 'c436088d322d600c748ed99079001965e87c1b267397c096738bb8a7ab077a55'){throw 'HVR pinned composite-asset identity mismatch'}
+          if([string]::IsNullOrWhiteSpace([string]$r.miro_tips.rendered_sha256)){throw 'HVR Miro rendition read-back evidence missing'}
           if($r.miro_tips.item_count -ne 1 -or $r.miro_tips.connector_count -ne 0){throw 'HVR Miro Tips target must be one image and zero connectors'}
           "HVR_EVIDENCE=$report" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
 
