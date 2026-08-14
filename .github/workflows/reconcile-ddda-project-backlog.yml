@@ -14,34 +14,26 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.DDDA_GITHUB_PROJECT_TOKEN }}
-      DDDA_AUTHORIZED_BASE_SHA: 373d1d01f94ae6076b1ad8577357f0bfb94b27ee
+      DDDA_AUTHORIZED_BASE_SHA: 91f45386bb5ca93e4654769e945f77fa40d1a6cc
       DDDA_STAGING_BRANCH: gov/project-delivery-readback-20260814-373d1d01-run2
+      DDDA_STAGING_PARENT_SHA: 345b1cdb00b5462d8e82ee2bf72441696bb2bb6d
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Verify staging isolation and current PR63 head
+      - name: Verify one-shot staging isolation and current PR63 head
         shell: bash
         run: |
           set -euo pipefail
           test "$GITHUB_REF_NAME" = "$DDDA_STAGING_BRANCH"
-          git merge-base --is-ancestor "$DDDA_AUTHORIZED_BASE_SHA" HEAD
-          unexpected="$(git diff --name-only "$DDDA_AUTHORIZED_BASE_SHA" HEAD | grep -v '^\.github/workflows/reconcile-ddda-project-backlog\.yml$' || true)"
-          if [ -n "$unexpected" ]; then
-            echo "Unexpected staging diff:" >&2
-            echo "$unexpected" >&2
-            exit 1
-          fi
-          git diff --exit-code "$DDDA_AUTHORIZED_BASE_SHA" HEAD -- \
-            config/governance \
-            docs \
-            knowledge \
-            scripts/platform/Reconcile-DDDAProjectBacklog.py \
-            runtime/platform/tests/test_project_backlog_delivery_governance.py
+          test "$(git rev-parse HEAD^)" = "$DDDA_STAGING_PARENT_SHA"
+          changed="$(git diff --name-only HEAD^ HEAD)"
+          test "$changed" = ".github/workflows/reconcile-ddda-project-backlog.yml"
           actual="$(gh api repos/romanhlavac/ddd-accelerator/pulls/63 --jq .head.sha)"
           test "$actual" = "$DDDA_AUTHORIZED_BASE_SHA"
+          git cat-file -e "$DDDA_AUTHORIZED_BASE_SHA^{commit}"
 
       - name: Detach exact authorized PR63 source
         shell: bash
@@ -107,6 +99,7 @@ jobs:
           print(json.dumps({
               'source_sha': data['source_sha'],
               'project': data['project']['title'],
+              'project_number': data['project']['number'],
               'mapped_cr_count': data['mapped_cr_count'],
               'open_pr_count': data['open_pr_count'],
               'mapped_pr_count': data['mapped_pr_count'],
@@ -118,7 +111,7 @@ jobs:
       - name: Upload audit evidence
         uses: actions/upload-artifact@v4
         with:
-          name: ddda-project-backlog-delivery-audit-v6-pr63-373d1d01
+          name: ddda-project-backlog-delivery-audit-v6-pr63-91f45386
           path: .reports/cr-delivery-audit-v6/**
           retention-days: 30
           if-no-files-found: error
