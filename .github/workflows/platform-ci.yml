@@ -668,9 +668,12 @@ jobs:
           $tips=@($r.companion_frames.second_run.details | Where-Object {$_.title -eq 'Miro Tips'})
           if($tips.Count -ne 1){throw 'Miro Tips second-reconcile evidence missing'}
           $tips=$tips[0]
-          if($tips.mode -ne 'reference_composite_image' -or $tips.visual_equivalence_policy -ne 'bit_exact_composite_asset'){throw 'Miro Tips composite policy mismatch'}
-          if($tips.target_visual_snapshot.sha256 -ne 'c436088d322d600c748ed99079001965e87c1b267397c096738bb8a7ab077a55'){throw 'Miro Tips composite SHA read-back mismatch'}
-          if($tips.target_visual_snapshot.item_count -ne 1 -or $tips.target_visual_snapshot.connector_count -ne 0){throw 'Miro Tips target must be one image and zero connectors'}
+          if($tips.mode -ne 'exact_reference_clone' -or $tips.visual_equivalence_policy -ne 'exact_reference_child_snapshot'){throw 'Miro Tips exact-reference policy mismatch'}
+          if($tips.reference_clone.status -ne 'PASS'){throw 'Miro Tips exact-reference read-back failed'}
+          if($tips.reference_clone.target_item_count -ne 17 -or $tips.reference_clone.target_connector_count -ne 8){throw 'Miro Tips exact-reference topology mismatch'}
+          if($tips.reference_clone.item_type_counts.image -ne 1 -or $tips.reference_clone.item_type_counts.sticky_note -ne 13 -or $tips.reference_clone.item_type_counts.text -ne 3){throw 'Miro Tips exact-reference item-type mismatch'}
+          if($tips.reference_clone.native_item_count -ne 16){throw 'Miro Tips exact-reference native-item mapping mismatch'}
+          if($tips.reference_source_board_id -ne 'uXjVH2vcvRI=' -or [string]$tips.reference_source_frame_id -ne '3458764679531043366' -or [string]$tips.reference_source_image_id -ne '3458764679531043367'){throw 'Miro Tips exact-reference source identity mismatch'}
           foreach($field in @('created','updated','deleted')) {
             if($tips.items.$field -ne 0 -or $tips.connectors.$field -ne 0){throw 'second Platform Lab reconcile mutated Miro Tips'}
           }
@@ -692,9 +695,11 @@ jobs:
           if($LASTEXITCODE -ne 0){throw 'DDDA_HVR materialization failed'}
           $r=Get-Content -LiteralPath $report -Raw -Encoding UTF8 | ConvertFrom-Json
           if($r.technical_status -ne 'PASS' -or $r.human_review_status -ne 'PENDING' -or $r.overall_status -ne 'READY_FOR_HUMAN_REVIEW'){throw 'HVR materialization acceptance state mismatch'}
-          if($r.miro_tips.composite_sha256 -ne 'c436088d322d600c748ed99079001965e87c1b267397c096738bb8a7ab077a55'){throw 'HVR pinned composite-asset identity mismatch'}
-          if([string]::IsNullOrWhiteSpace([string]$r.miro_tips.rendered_sha256)){throw 'HVR Miro rendition read-back evidence missing'}
-          if($r.miro_tips.item_count -ne 1 -or $r.miro_tips.connector_count -ne 0){throw 'HVR Miro Tips target must be one image and zero connectors'}
+          if($r.miro_tips.policy -ne 'exact_reference_child_snapshot'){throw 'HVR Miro Tips exact-reference policy mismatch'}
+          if($r.miro_tips.item_count -ne 17 -or $r.miro_tips.connector_count -ne 8){throw 'HVR Miro Tips exact-reference topology mismatch'}
+          if($r.miro_tips.item_type_counts.image -ne 1 -or $r.miro_tips.item_type_counts.sticky_note -ne 13 -or $r.miro_tips.item_type_counts.text -ne 3){throw 'HVR Miro Tips exact-reference item-type mismatch'}
+          if($r.miro_tips.image.source_sha256 -ne '04b83ec7d9bc07ae31c7c11c03ec974ff4bde00d7773d7f9e55036e877f6fffd' -or $r.miro_tips.image.target_sha256 -ne '04b83ec7d9bc07ae31c7c11c03ec974ff4bde00d7773d7f9e55036e877f6fffd'){throw 'HVR Miro Tips reference-image identity mismatch'}
+          if([string]::IsNullOrWhiteSpace([string]$r.miro_tips.review_url)){throw 'HVR stable review URL missing'}
           "HVR_EVIDENCE=$report" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Upload HVR technical evidence

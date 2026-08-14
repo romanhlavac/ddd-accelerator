@@ -201,3 +201,30 @@ def test_standard_platform_ci_materializes_hvr_only_after_online_acceptance():
     assert "MIRO_HVR_ACCESS_TOKEN" in platform
     assert "hvr_materialization" in platform
     assert "MIRO_ACCESS_TOKEN: ${{ secrets.MIRO_HVR_ACCESS_TOKEN }}" not in platform
+
+
+def test_standard_hvr_gate_enforces_exact_reference_clone_and_rejects_retired_composite_contract():
+    platform = (ROOT / ".github/workflows/platform-ci.yml").read_text(encoding="utf-8")
+
+    for marker in (
+        "exact_reference_clone",
+        "exact_reference_child_snapshot",
+        "reference_clone.status",
+        "reference_clone.target_item_count -ne 17",
+        "reference_clone.target_connector_count -ne 8",
+        "reference_clone.native_item_count -ne 16",
+        "3458764679531043366",
+        "3458764679531043367",
+        "04b83ec7d9bc07ae31c7c11c03ec974ff4bde00d7773d7f9e55036e877f6fffd",
+        "miro_tips.review_url",
+    ):
+        assert marker in platform
+
+    for retired in (
+        "reference_composite_image",
+        "bit_exact_composite_asset",
+        "c436088d322d600c748ed99079001965e87c1b267397c096738bb8a7ab077a55",
+        ".miro_tips.composite_sha256",
+        ".miro_tips.rendered_sha256",
+    ):
+        assert retired not in platform
