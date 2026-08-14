@@ -1,4 +1,4 @@
-name: DDDA PR63 Bootstrap Blob Materialization
+name: DDDA PR63 Final Blob Materialization
 
 on:
   push:
@@ -16,43 +16,88 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
+      SCRIPT_SHA256: bd181a9c0c2294a0366311abdc709413d1b8ae8194b3d0622a158c3441a66f06
     steps:
-      - name: Download exact-SHA preparation artifact
+      - name: Reconstruct reconciler from immutable chunk blobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          : > reconciler.b64
+          for sha in \
+            b3d2a19ed72501507adbe4784501d88f4c95900e \
+            1f13f2563aaed6759dc18fd7a58608d4021f2d0f \
+            2abe20ffc06206b5733c7851fabba5870d50b2d7 \
+            c749e4aa4b13e55b7b76c3901147cb199e47b196 \
+            b6bc9439cc1549a2e2ce96f970491c127bdf5355 \
+            321896331bba671671d37ab226991a8a9844fc3c
+          do
+            gh api "repos/${GITHUB_REPOSITORY}/git/blobs/${sha}" --jq '.content' | tr -d '\n' | base64 -d >> reconciler.b64
+          done
+          base64 -d reconciler.b64 > Reconcile-DDDAProjectBacklog.py
+          echo "${SCRIPT_SHA256}  Reconcile-DDDAProjectBacklog.py" | sha256sum -c -
+          python -m py_compile Reconcile-DDDAProjectBacklog.py
+          grep -q 'PROJECT_TITLE = "DDDA Platform Backlog & Delivery"' Reconcile-DDDAProjectBacklog.py
+          grep -q 'DELIVERY_VIEW = "Implementace a Delivery"' Reconcile-DDDAProjectBacklog.py
+          grep -q 'is:pr is:open' Reconcile-DDDAProjectBacklog.py
+
+      - name: Materialize bootstrap config from exact-SHA preparation evidence
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p prep
           gh run download 31791054765 -R "${GITHUB_REPOSITORY}" -n ddda-project-delivery-contract-prep -D prep
-          test -f prep/prepared/config/governance/github-bootstrap.json
+          cp prep/prepared/config/governance/github-bootstrap.json github-bootstrap.json
           python - <<'PY'
           import json
           from pathlib import Path
-          p=Path('prep/prepared/config/governance/github-bootstrap.json')
-          x=json.loads(p.read_text(encoding='utf-8'))
-          assert x['project_title']=='DDDA Platform Backlog & Delivery'
-          assert x['delivery_projection']['delivery_view']['name']=='Implementace a Delivery'
-          assert x['delivery_projection']['delivery_view']['filter']=='is:pr is:open'
-          assert x['views']==[
+          p = Path('github-bootstrap.json')
+          x = json.loads(p.read_text(encoding='utf-8'))
+          assert x['project_title'] == 'DDDA Platform Backlog & Delivery'
+          x['delivery_projection']['delivery_view']['filter'] = 'is:pr is:open'
+          for v in x['views']:
+              if v['name'] == 'Implementace a Delivery':
+                  v['filter'] = 'is:pr is:open'
+          assert x['views'] == [
               {'name':'Plánování a Backlog','layout':'table','filter':'is:issue'},
               {'name':'Implementace a Delivery','layout':'table','filter':'is:pr is:open'},
           ]
-          print(p.stat().st_size)
+          for group in x.get('item_groups', []):
+              if group.get('kind') == 'pull':
+                  assert 'Item Type' not in (group.get('metadata') or {})
+          p.write_text(json.dumps(x, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
           PY
+          python -m json.tool github-bootstrap.json >/dev/null
 
-      - name: Create Git blob from validated artifact file
+      - name: Create final Git blobs
         shell: bash
         run: |
           set -euo pipefail
-          file='prep/prepared/config/governance/github-bootstrap.json'
-          content="$(base64 -w0 "$file")"
-          sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/blobs" -f content="$content" -f encoding=base64 --jq '.sha')"
-          jq -nc --arg path 'config/governance/github-bootstrap.json' --arg sha "$sha" '{path:$path,sha:$sha}' > bootstrap-blob.json
-          cat bootstrap-blob.json
+          create_blob() {
+            local file="$1" path="$2" request response sha
+            request="$(mktemp)"
+            response="$(mktemp)"
+            python - "$file" "$request" <<'PY'
+          import base64, json, sys
+          src, dst = sys.argv[1], sys.argv[2]
+          with open(src, 'rb') as f:
+              payload = {'content': base64.b64encode(f.read()).decode('ascii'), 'encoding': 'base64'}
+          with open(dst, 'w', encoding='utf-8') as f:
+              json.dump(payload, f)
+          PY
+            gh api "repos/${GITHUB_REPOSITORY}/git/blobs" --input "$request" > "$response"
+            sha="$(jq -r '.sha' "$response")"
+            jq -nc --arg path "$path" --arg sha "$sha" '{path:$path,sha:$sha}'
+          }
+          {
+            create_blob Reconcile-DDDAProjectBacklog.py scripts/platform/Reconcile-DDDAProjectBacklog.py
+            create_blob github-bootstrap.json config/governance/github-bootstrap.json
+          } | jq -s '.' > final-blob-map.json
+          cat final-blob-map.json
 
-      - name: Upload blob map
+      - name: Upload final blob map
         uses: actions/upload-artifact@v4
         with:
-          name: pr63-bootstrap-blob-map
-          path: bootstrap-blob.json
+          name: pr63-final-blob-map
+          path: final-blob-map.json
           retention-days: 7
           if-no-files-found: error
