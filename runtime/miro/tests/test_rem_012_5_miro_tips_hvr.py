@@ -207,6 +207,19 @@ def test_composite_contract_rejects_retired_native_clone_fields():
         raise AssertionError("expected native-clone contract rejection")
 
 
+def test_composite_contract_accepts_zero_target_connectors_and_rejects_a_missing_value():
+    assert tips._config(manifest())
+
+    value = manifest()
+    del value["miro_tips"]["target_connector_count"]
+    try:
+        tips._config(value)
+    except ValueError as exc:
+        assert "must not contain native connectors" in str(exc)
+    else:
+        raise AssertionError("expected missing target connector count rejection")
+
+
 def test_source_reference_identity_requires_frozen_native_topology_and_background_hash(monkeypatch):
     client = FakeClient()
     install_image_readback(monkeypatch, client)

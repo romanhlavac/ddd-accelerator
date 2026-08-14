@@ -139,7 +139,10 @@ def _config(manifest: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("Miro Tips source native connector count must remain eight")
     if int(raw.get("target_item_count") or 0) != TARGET_ITEM_COUNT or target_types != TARGET_ITEM_TYPE_COUNTS:
         raise ValueError("Miro Tips delivery target must contain exactly one composite image")
-    if int(raw.get("target_connector_count") or -1) != TARGET_CONNECTOR_COUNT:
+    target_connector_count = raw.get("target_connector_count")
+    if (
+        int(target_connector_count) if target_connector_count is not None else -1
+    ) != TARGET_CONNECTOR_COUNT:
         raise ValueError("Miro Tips delivery target must not contain native connectors")
     if not 2 <= attempts <= 60 or not 0 <= delay <= 2:
         raise ValueError("Miro Tips read-back policy is out of range")
