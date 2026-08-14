@@ -1,4 +1,4 @@
-name: DDDA PR63 Final Blob Materialization
+name: DDDA PR63 Final Blob Materialization Retry
 
 on:
   push:
@@ -18,14 +18,16 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       SCRIPT_SHA256: bd181a9c0c2294a0366311abdc709413d1b8ae8194b3d0622a158c3441a66f06
     steps:
-      - name: Reconstruct reconciler from immutable chunk blobs
+      - name: Reconstruct and validate reconciler
         shell: bash
         run: |
           set -euo pipefail
           : > reconciler.b64
           for sha in \
             b3d2a19ed72501507adbe4784501d88f4c95900e \
-            1f13f2563aaed6759dc18fd7a58608d4021f2d0f \
+            0fd135cf05d801a12a7c7233cfd0fd35fbba6236 \
+            7eb539dc72e1ceb42f2f619f5485819d31da23a6 \
+            49b11e595802bd5d28e49e10e07ceeca8024f1a6 \
             2abe20ffc06206b5733c7851fabba5870d50b2d7 \
             c749e4aa4b13e55b7b76c3901147cb199e47b196 \
             b6bc9439cc1549a2e2ce96f970491c127bdf5355 \
@@ -40,7 +42,7 @@ jobs:
           grep -q 'DELIVERY_VIEW = "Implementace a Delivery"' Reconcile-DDDAProjectBacklog.py
           grep -q 'is:pr is:open' Reconcile-DDDAProjectBacklog.py
 
-      - name: Materialize bootstrap config from exact-SHA preparation evidence
+      - name: Build and validate final bootstrap config
         shell: bash
         run: |
           set -euo pipefail
@@ -97,7 +99,7 @@ jobs:
       - name: Upload final blob map
         uses: actions/upload-artifact@v4
         with:
-          name: pr63-final-blob-map
+          name: pr63-final-blob-map-retry
           path: final-blob-map.json
           retention-days: 7
           if-no-files-found: error
