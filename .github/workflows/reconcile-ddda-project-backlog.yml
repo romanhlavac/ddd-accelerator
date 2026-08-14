@@ -1,19 +1,17 @@
-name: Reconcile DDDA Project Backlog
+name: DDDA Project Delivery Preflight
 
 on:
-  workflow_dispatch:
   push:
     branches:
       - feature/github-native-backlog-governance
     paths:
       - .github/workflows/reconcile-ddda-project-backlog.yml
-      - scripts/platform/Normalize-DDDAWorkPackageIssueBodies.py
 
 permissions:
   contents: read
 
 jobs:
-  reconcile:
+  preflight:
     environment: ddda-backlog-governance
     runs-on: ubuntu-latest
     env:
@@ -29,29 +27,71 @@ jobs:
           set -euo pipefail
           test -n "${GH_TOKEN:-}"
           gh auth status --hostname github.com >/dev/null
-          gh project list --owner romanhlavac --limit 100 --format json --jq '.projects[] | select(.title=="DDDA Platform Backlog") | .number' | grep -Eq '^[0-9]+$'
 
-      - name: Normalize split Issue semantics and WP planning
-        run: python scripts/platform/Normalize-DDDAWorkPackageIssueBodies.py
-
-      - name: Validate reconciler
-        run: python -m py_compile scripts/platform/Reconcile-DDDAProjectBacklog.py
-
-      - name: Reconcile and read back
-        run: python scripts/platform/Reconcile-DDDAProjectBacklog.py
-
-      - name: Assert versioned projections are synchronized
+      - name: Read current Project, views and items
         shell: bash
         run: |
           set -euo pipefail
-          git diff --exit-code -- config/governance docs/roadmap scripts/platform/Reconcile-DDDAProjectBacklog.py
+          gh api graphql -f query='query {
+            user(login: "romanhlavac") {
+              projectV2(number: 2) {
+                id
+                number
+                title
+                views(first: 20) {
+                  nodes { id number name layout filter }
+                }
+                fields(first: 50) {
+                  nodes {
+                    ... on ProjectV2FieldCommon { id name dataType }
+                    ... on ProjectV2SingleSelectField { options { id name } }
+                  }
+                }
+                items(first: 100) {
+                  nodes {
+                    id
+                    content {
+                      __typename
+                      ... on Issue { id number title url state }
+                      ... on PullRequest { id number title url state isDraft merged }
+                    }
+                    fieldValues(first: 50) {
+                      nodes {
+                        ... on ProjectV2ItemFieldSingleSelectValue {
+                          name
+                          field { ... on ProjectV2FieldCommon { name } }
+                        }
+                        ... on ProjectV2ItemFieldTextValue {
+                          text
+                          field { ... on ProjectV2FieldCommon { name } }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }' > project-pre-readback.json
+          jq -e '.data.user.projectV2.number == 2' project-pre-readback.json >/dev/null
+          jq '.data.user.projectV2 | {id,number,title,views,items:[.items.nodes[] | {id,content}]}' project-pre-readback.json
 
-      - name: Upload audit evidence
+      - name: Introspect Project view mutations
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api graphql -f query='query {
+            __type(name: "Mutation") {
+              fields { name args { name type { kind name ofType { kind name } } } }
+            }
+          }' | jq '{view_mutations: [.data.__type.fields[] | select(.name | test("ProjectV2View"; "i"))]}' > project-view-mutations.json
+          cat project-view-mutations.json
+
+      - name: Upload preflight evidence
         uses: actions/upload-artifact@v4
         with:
-          name: ddda-project-backlog-audit-v5-normalized
+          name: ddda-project-delivery-preflight
           path: |
-            .reports/cr-backlog-audit-v5/**
-            wp-planning-normalization.json
+            project-pre-readback.json
+            project-view-mutations.json
           retention-days: 30
           if-no-files-found: error
