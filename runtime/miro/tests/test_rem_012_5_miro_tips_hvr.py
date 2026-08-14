@@ -274,7 +274,7 @@ def test_miro_tips_replaces_native_overlay_with_one_composite_after_full_cleanup
     assert client.events.count("create:target-composite") == 1
 
 
-def test_target_image_byte_drift_triggers_full_composite_replacement(monkeypatch):
+def test_target_image_transport_normalization_does_not_trigger_composite_replacement(monkeypatch):
     client = FakeClient()
     source_bytes = b"reference-background"
     install_image_readback(monkeypatch, client, source_bytes)
@@ -299,8 +299,11 @@ def test_target_image_byte_drift_triggers_full_composite_replacement(monkeypatch
     result = tips.reconcile_miro_tips_children(
         client, "source", "source-tips", "target", "target-tips", 1, manifest()
     )
-    assert result["items"] == {"created": 1, "updated": 0, "unchanged": 0, "deleted": 1}
+    assert result["items"] == {"created": 0, "updated": 0, "unchanged": 1, "deleted": 0}
     assert result["target_visual_snapshot"]["sha256"] == tips.COMPOSITE_SHA256
+    assert result["target_visual_snapshot"]["rendered_sha256"] == hashlib.sha256(
+        b"wrong-image-bytes"
+    ).hexdigest()
 
 
 def test_target_readback_keeps_pinned_asset_identity_when_miro_normalizes_image_bytes(monkeypatch):
