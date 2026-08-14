@@ -1,4 +1,4 @@
-name: DDDA Project Delivery Contract Prep
+name: DDDA Project Delivery Operational Docs Prep
 
 on:
   push:
@@ -17,84 +17,54 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: 78078b28f658a9dbef69f7772ae9dc534f75ec99
-          fetch-depth: 1
 
-      - name: Verify exact source snapshot
-        shell: bash
-        run: |
-          set -euo pipefail
-          test "$(git rev-parse HEAD)" = "78078b28f658a9dbef69f7772ae9dc534f75ec99"
-
-      - name: Inventory old Project contracts
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p prep-evidence
-          grep -RIn --exclude-dir=.git --exclude='*.pyc' -E 'DDDA Platform Backlog|planned_prs_as_backlog_forbidden|Implementační PR není automaticky|Project item.*PR|View 1' config docs knowledge scripts runtime .github > prep-evidence/contract-grep.txt || true
-          cat prep-evidence/contract-grep.txt
-
-      - name: Prepare targeted config replacements
+      - name: Patch current operational documentation
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
-          import json
           from pathlib import Path
-
-          out = Path('prepared')
-          (out / 'config/governance').mkdir(parents=True, exist_ok=True)
-
-          src = Path('config/governance/backlog-policy.yaml').read_text(encoding='utf-8')
-          src = src.replace(
-              '  planned_prs_as_backlog_forbidden: true\n',
-              '  planned_prs_as_backlog_forbidden: true\n'
-              '  active_implementation_prs_project_membership_required: true\n'
-              '  pr_project_item_is_delivery_projection_not_backlog_authority: true\n'
-          )
-          src = src.replace('  name: DDDA Platform Backlog\n', '  name: DDDA Platform Backlog & Delivery\n')
-          old_views = '''  views:\n    - Work Packages\n    - WP hierarchy\n    - Delivery board\n    - Roadmap by Work Package\n    - Release scope\n    - Blocked and P0\n    - Human review queue\n    - Ready without owner\n    - Recently completed\n'''
-          new_views = '''  views:\n    - Plánování a Backlog\n    - Implementace a Delivery\n  view_contract:\n    planning:\n      name: Plánování a Backlog\n      layout: table\n      filter: is:issue\n    delivery:\n      name: Implementace a Delivery\n      layout: table\n      filter: is:pr\n  delivery_projection:\n    open_implementation_pr_membership_required: true\n    primary_change_request_relation: Implements_or_Closes\n    work_package_source: primary_change_request\n    project_item_type_field: unset\n    draft_status: In progress\n    ready_status: In review\n    blocked_override: Blocked\n'''
-          if old_views not in src:
-              raise SystemExit('Expected backlog-policy views block not found')
-          src = src.replace(old_views, new_views)
-          (out / 'config/governance/backlog-policy.yaml').write_text(src, encoding='utf-8')
-
-          cfg = json.loads(Path('config/governance/github-bootstrap.json').read_text(encoding='utf-8-sig'))
-          cfg['project_title'] = 'DDDA Platform Backlog & Delivery'
-          cfg['project_description'] = (
-              'Planning backlog and active delivery visibility for the DDDA platform. '
-              'Work Packages and Change Request Issues remain planning authority; active implementation '
-              'pull requests are maintained as delivery projections linked to one primary Change Request.'
-          )
-          cfg['delivery_projection'] = {
-              'planning_view': {'name': 'Plánování a Backlog', 'layout': 'table', 'filter': 'is:issue'},
-              'delivery_view': {'name': 'Implementace a Delivery', 'layout': 'table', 'filter': 'is:pr'},
-              'open_implementation_pr_membership_required': True,
-              'primary_change_request_relation': 'Implements_or_Closes',
-              'work_package_source': 'primary_change_request',
-              'project_item_type_field': None,
-          }
-          for group in cfg.get('item_groups', []):
-              if group.get('kind') == 'pull':
-                  (group.get('metadata') or {}).pop('Item Type', None)
-          cfg['views'] = [
-              {'name': 'Plánování a Backlog', 'layout': 'table', 'filter': 'is:issue'},
-              {'name': 'Implementace a Delivery', 'layout': 'table', 'filter': 'is:pr'},
+          files = [
+              'docs/governance/project-administration-checklist.md',
+              'docs/governance/next-steps.md',
+              'docs/governance/native-github-setup-runbook.md',
+              'docs/governance/README.md',
+              'docs/governance/backlog-governance.md',
           ]
-          (out / 'config/governance/github-bootstrap.json').write_text(
-              json.dumps(cfg, ensure_ascii=False, indent=2) + '\n', encoding='utf-8'
-          )
+          out = Path('prepared')
+          for raw in files:
+              p = Path(raw)
+              text = p.read_text(encoding='utf-8')
+              text = text.replace('DDDA Platform Backlog', 'DDDA Platform Backlog & Delivery')
+              if raw.endswith('backlog-governance.md'):
+                  old = '''Work Package (nebo explicitní Other)\n↔ Change Request Issue\n↔ DDDA Platform Backlog & Delivery Project item\n\nChange Request Issue\n↔ implementation branch / Draft PR'''
+                  new = '''Work Package (nebo explicitní Other)\n↔ Change Request Issue\n↔ Project planning item\n\nChange Request Issue\n↔ implementation branch / Draft PR\n↔ Project delivery item'''
+                  if old not in text:
+                      raise SystemExit('backlog-governance invariant not found')
+                  text = text.replace(old, new)
+                  text = text.replace(
+                      'Implementační PR není automaticky druhá backlogová položka. Samostatná Project membership PR je povinná pouze tehdy, pokud ji explicitně vyžaduje planning policy. Detailní fail-closed pravidla jsou v [WP ↔ Backlog ↔ Implementation consistency](wp-backlog-consistency.md).',
+                      'Otevřený implementační PR je povinná Project delivery projection, nikoli druhý Change Request. Jeho Work Package se odvozuje z primary CR a planning `Item Type` se na PR nepoužívá. Detailní fail-closed pravidla jsou v [WP ↔ Backlog ↔ Delivery consistency](wp-backlog-consistency.md).'
+                  )
+                  text = text.replace(
+                      '- pokud planning policy používá PR Project items, metadata PR jsou konzistentní s CR;',
+                      '- každý otevřený implementační PR je Project delivery item a jeho Work Package/Status jsou konzistentní s primary CR a delivery projection;'
+                  )
+              if raw.endswith('README.md'):
+                  text = text.replace(
+                      'Change Request Issue\n↔ implementation branch / Draft PR',
+                      'Change Request Issue\n↔ implementation branch / Draft PR\n↔ Project delivery item'
+                  )
+              target = out / raw
+              target.parent.mkdir(parents=True, exist_ok=True)
+              target.write_text(text, encoding='utf-8')
           PY
+          grep -RIn -E 'DDDA Platform Backlog([^ &]|$)|Implementační PR není automaticky druhá backlogová položka|pokud planning policy používá PR Project items' prepared || true
 
-          python -m json.tool prepared/config/governance/github-bootstrap.json >/dev/null
-          grep -n -E 'DDDA Platform Backlog|active_implementation|view_contract|delivery_projection' prepared/config/governance/backlog-policy.yaml prepared/config/governance/github-bootstrap.json
-
-      - name: Upload preparation evidence
+      - name: Upload prepared docs
         uses: actions/upload-artifact@v4
         with:
-          name: ddda-project-delivery-contract-prep
-          path: |
-            prepared/
-            prep-evidence/contract-grep.txt
+          name: ddda-project-delivery-operational-docs-prep
+          path: prepared/
           retention-days: 7
           if-no-files-found: error
