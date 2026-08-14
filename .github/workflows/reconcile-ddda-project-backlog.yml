@@ -1,4 +1,4 @@
-name: DDDA PR63 Payload Blob Validation
+name: DDDA PR63 Bootstrap Blob Materialization
 
 on:
   push:
@@ -8,73 +8,51 @@ on:
       - .github/workflows/reconcile-ddda-project-backlog.yml
 
 permissions:
+  actions: read
   contents: write
 
 jobs:
-  validate-payload:
+  materialize:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
-      PACKAGE_BLOB_SHA: 5ebb059d35851d00a61a3cf1b8b378bd7bc49d17
     steps:
-      - name: Fetch uploaded Git blob
+      - name: Download exact-SHA preparation artifact
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/payload"
-          gh api "repos/${GITHUB_REPOSITORY}/git/blobs/${PACKAGE_BLOB_SHA}" --jq '.content' | tr -d '\n' | base64 -d > "$RUNNER_TEMP/payload/package.zip"
-          sha256sum "$RUNNER_TEMP/payload/package.zip"
-          unzip -t "$RUNNER_TEMP/payload/package.zip"
-          unzip -q "$RUNNER_TEMP/payload/package.zip" -d "$RUNNER_TEMP/payload/unpacked"
-
-      - name: Validate manifest and every payload file
-        shell: bash
-        run: |
-          set -euo pipefail
+          mkdir -p prep
+          gh run download 31791054765 -R "${GITHUB_REPOSITORY}" -n ddda-project-delivery-contract-prep -D prep
+          test -f prep/prepared/config/governance/github-bootstrap.json
           python - <<'PY'
-          import hashlib, json, os
+          import json
           from pathlib import Path
-          root = Path(os.environ['RUNNER_TEMP']) / 'payload' / 'unpacked'
-          m = json.loads((root/'manifest.json').read_text())
-          assert m['repository'] == 'romanhlavac/ddd-accelerator'
-          assert m['target_branch'] == 'chore/wp-split-governance-cleanup'
-          assert m['base_sha'] == '78078b28f658a9dbef69f7772ae9dc534f75ec99'
-          assert m['impact'] == 'HIGH'
-          for f in m['files']:
-              p = root/'payload'/f['path']
-              assert p.is_file(), f['path']
-              actual = hashlib.sha256(p.read_bytes()).hexdigest()
-              assert actual == f['sha256'], (f['path'], actual, f['sha256'])
-          assert sorted(f['path'] for f in m['files']) == sorted(m['expected_paths'])
-          print(f"validated {len(m['files'])} payload files")
+          p=Path('prep/prepared/config/governance/github-bootstrap.json')
+          x=json.loads(p.read_text(encoding='utf-8'))
+          assert x['project_title']=='DDDA Platform Backlog & Delivery'
+          assert x['delivery_projection']['delivery_view']['name']=='Implementace a Delivery'
+          assert x['delivery_projection']['delivery_view']['filter']=='is:pr is:open'
+          assert x['views']==[
+              {'name':'Plánování a Backlog','layout':'table','filter':'is:issue'},
+              {'name':'Implementace a Delivery','layout':'table','filter':'is:pr is:open'},
+          ]
+          print(p.stat().st_size)
           PY
 
-      - name: Materialize validated payload as Git blobs
+      - name: Create Git blob from validated artifact file
         shell: bash
         run: |
           set -euo pipefail
-          ROOT="$RUNNER_TEMP/payload/unpacked"
-          python - <<'PY' > "$RUNNER_TEMP/payload/paths.txt"
-          import json, os
-          from pathlib import Path
-          root=Path(os.environ['RUNNER_TEMP'])/'payload'/'unpacked'
-          m=json.loads((root/'manifest.json').read_text())
-          for p in m['expected_paths']:
-              print(p)
-          PY
-          : > "$RUNNER_TEMP/payload/blob-map.jsonl"
-          while IFS= read -r path; do
-            content="$(base64 -w0 "$ROOT/payload/$path")"
-            sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/blobs" -f content="$content" -f encoding=base64 --jq '.sha')"
-            jq -nc --arg path "$path" --arg sha "$sha" '{path:$path,sha:$sha}' >> "$RUNNER_TEMP/payload/blob-map.jsonl"
-          done < "$RUNNER_TEMP/payload/paths.txt"
-          jq -s '.' "$RUNNER_TEMP/payload/blob-map.jsonl" > blob-map.json
-          cat blob-map.json
+          file='prep/prepared/config/governance/github-bootstrap.json'
+          content="$(base64 -w0 "$file")"
+          sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/blobs" -f content="$content" -f encoding=base64 --jq '.sha')"
+          jq -nc --arg path 'config/governance/github-bootstrap.json' --arg sha "$sha" '{path:$path,sha:$sha}' > bootstrap-blob.json
+          cat bootstrap-blob.json
 
-      - name: Upload validated blob map
+      - name: Upload blob map
         uses: actions/upload-artifact@v4
         with:
-          name: pr63-delivery-validated-blob-map
-          path: blob-map.json
+          name: pr63-bootstrap-blob-map
+          path: bootstrap-blob.json
           retention-days: 7
           if-no-files-found: error
