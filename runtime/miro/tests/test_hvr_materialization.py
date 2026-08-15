@@ -5,8 +5,9 @@ from copy import deepcopy
 import pytest
 
 from ddda_miro import hvr_materialization as hvr
+from ddda_miro import miro_tips_full_arrow_fidelity_fix as full
+from ddda_miro import miro_tips_endpoint_geometry_v4 as endpoint_v4
 from ddda_miro import miro_tips_hvr_fix as tips
-from ddda_miro import miro_tips_render_fidelity_fix as fidelity
 
 
 def _frame(frame_id: str) -> dict:
@@ -62,13 +63,14 @@ def _children(prefix: str, frame_id: str) -> list[dict]:
                 },
             }
         )
-    for index in range(8):
+    # Three legacy free-form arrows require two deterministic canonical 8-unit endpoints each.
+    for index in range(endpoint_v4.EXPECTED_COMPATIBILITY_ANCHORS):
         rows.append(
             {
                 "id": f"{prefix}-anchor-{index}",
                 "type": "shape",
                 "parent": {"id": frame_id},
-                "position": {"x": 250.0 + index * 100.0, "y": 150.0 + index * 50.0},
+                "position": {"x": 80.0 + index * 20.0, "y": 250.0 + (index // 2) * 100.0},
                 "geometry": {"width": 8.0, "height": 8.0},
                 "data": {"shape": "circle", "content": "<p>\u200b</p>"},
                 "style": {
@@ -86,11 +88,14 @@ def _children(prefix: str, frame_id: str) -> list[dict]:
 
 
 def _connectors(prefix: str) -> list[dict]:
-    return [
+    rows = [
         {
-            "id": f"{prefix}-connector-{index}",
+            "id": f"{prefix}-direct-{index}",
             "startItem": {"id": f"{prefix}-sticky-{index}"},
-            "endItem": {"id": f"{prefix}-anchor-{index}"},
+            "endItem": {
+                "id": f"{prefix}-image",
+                "position": {"x": 0.08 + index * 0.1, "y": 0.12 + index * 0.07},
+            },
             "shape": "curved",
             "style": {
                 "strokeColor": "#000000",
@@ -102,16 +107,12 @@ def _connectors(prefix: str) -> list[dict]:
         }
         for index in range(8)
     ]
-
-
-def _full_arrow_connectors(prefix: str) -> list[dict]:
-    rows = _connectors(prefix)
     rows.extend(
         {
-            "id": f"{prefix}-text-connector-{index}",
-            "startItem": {"id": f"{prefix}-text-{index}"},
-            "endItem": {"id": f"{prefix}-anchor-{index}"},
-            "shape": "curved",
+            "id": f"{prefix}-legacy-{index}",
+            "startItem": {"id": f"{prefix}-anchor-{index * 2}"},
+            "endItem": {"id": f"{prefix}-anchor-{index * 2 + 1}"},
+            "shape": "straight",
             "style": {
                 "strokeColor": "#000000",
                 "strokeStyle": "normal",
@@ -172,44 +173,68 @@ def _install_image_readback(monkeypatch, client: FakeClient, target_bytes: bytes
     return source_bytes
 
 
-def test_copied_board_readback_proves_visible_reference_anchors_and_hvr_gate(monkeypatch):
+def test_copied_board_readback_proves_structural_and_endpoint_geometry_before_human_gate(monkeypatch):
     client = FakeClient()
     _install_image_readback(monkeypatch, client)
+
     report = hvr.copied_board_readback(client, "platform", "hvr", "a" * 40)
 
     assert report["technical_status"] == "PASS"
-    assert report["human_review_status"] == "PENDING"
+    assert report["STRUCTURAL_REFERENCE_MATCH"] == "PASS"
+    assert report["ENDPOINT_GEOMETRY_MATCH"] == "PASS"
+    assert report["HUMAN_VISUAL_ACCEPTANCE"] == "PENDING"
     assert report["overall_status"] == "READY_FOR_HUMAN_REVIEW"
     miro = report["miro_tips"]
-    assert miro["policy"] == tips.MIRO_TIPS_VISUAL_EQUIVALENCE_POLICY
-    assert miro["reference_structure_policy"] == fidelity.REFERENCE_STRUCTURE_POLICY
-    assert miro["visual_acceptance_authority"] == "human_review_only"
     assert miro["item_count"] == 17
-    assert miro["physical_child_count"] == 25
-    assert miro["item_type_counts"] == tips.EXPECTED_ITEM_TYPE_COUNTS
-    assert miro["technical_anchor_count"] == 8
-    assert miro["connector_count"] == 8
-    assert miro["direct_image_connector_count"] == 0
-    assert miro["image"]["source_sha256"] == miro["image"]["target_sha256"]
+    assert miro["physical_child_count"] == 23
+    assert miro["technical_anchor_count"] == 6
+    assert miro["connector_count"] == 8  # established workflow compatibility alias
+    assert miro["actual_connector_count"] == 11
+    assert miro["direct_image_connector_count"] == 8
+    assert miro["endpoint_geometry"]["matched"] == 11
+    assert miro["ENDPOINT_GEOMETRY_MATCH"] == "PASS"
+    assert miro["HUMAN_VISUAL_ACCEPTANCE"] == "PENDING"
     assert report["merge_allowed"] is False
 
 
-def test_copied_board_readback_accepts_full_eleven_arrow_copy_and_restores_legacy_contract(monkeypatch):
+def test_copied_board_readback_rejects_endpoint_shift_even_when_connector_identity_still_matches(monkeypatch):
     client = FakeClient()
-    client.connectors["platform"] = _full_arrow_connectors("platform")
-    client.connectors["hvr"] = _full_arrow_connectors("hvr")
     _install_image_readback(monkeypatch, client)
-    previous_expected = tips.EXPECTED_CONNECTOR_COUNT
+    client.connectors["hvr"][0]["endItem"]["position"]["x"] += 0.01
 
-    report = hvr.copied_board_readback(client, "platform", "hvr", "b" * 40)
+    with pytest.raises(ValueError, match="connector differs|endpoint geometry"):
+        hvr.copied_board_readback(client, "platform", "hvr", "a" * 40)
 
-    miro = report["miro_tips"]
-    assert miro["connector_count"] == 8
-    assert miro["actual_connector_count"] == 11
-    assert miro["direct_image_connector_count"] == 0
-    assert report["technical_status"] == "PASS"
-    assert report["human_review_status"] == "PENDING"
-    assert tips.EXPECTED_CONNECTOR_COUNT == previous_expected
+
+def test_copied_board_readback_rejects_missing_endpoint_control(monkeypatch):
+    client = FakeClient()
+    _install_image_readback(monkeypatch, client)
+    client.items["hvr"] = [
+        item for item in client.items["hvr"] if item.get("id") != "hvr-anchor-5"
+    ]
+
+    with pytest.raises(ValueError, match="item-type read-back|technical-anchor count"):
+        hvr.copied_board_readback(client, "platform", "hvr", "a" * 40)
+
+
+def test_copied_board_readback_rejects_generic_proxy_or_extra_control_topology(monkeypatch):
+    client = FakeClient()
+    _install_image_readback(monkeypatch, client)
+    client.items["platform"].append(
+        {
+            "id": "platform-proxy",
+            "type": "shape",
+            "parent": {"id": "platform-frame"},
+            "position": {"x": 960.648, "y": 539.841},
+            "geometry": {"width": 1919.433, "height": 1079.681},
+            "data": {"shape": "rectangle", "content": "<p>\u200b</p>"},
+            "style": {"fillOpacity": 0.0, "borderOpacity": 0.0},
+        }
+    )
+    client.items["hvr"].append(deepcopy(client.items["platform"][-1]) | {"id": "hvr-proxy", "parent": {"id": "hvr-frame"}})
+
+    with pytest.raises(ValueError, match="technical-anchor count|visible topology"):
+        hvr.copied_board_readback(client, "platform", "hvr", "a" * 40)
 
 
 def test_copied_board_readback_rejects_font_drift(monkeypatch):
@@ -222,26 +247,6 @@ def test_copied_board_readback_rejects_font_drift(monkeypatch):
         hvr.copied_board_readback(client, "platform", "hvr", "a" * 40)
 
 
-def test_copied_board_readback_rejects_anchor_position_drift(monkeypatch):
-    client = FakeClient()
-    _install_image_readback(monkeypatch, client)
-    target = next(item for item in client.items["hvr"] if item.get("id") == "hvr-anchor-0")
-    target["position"] = {"x": 999.0, "y": 999.0}
-
-    with pytest.raises(ValueError, match="technical anchor differs"):
-        hvr.copied_board_readback(client, "platform", "hvr", "a" * 40)
-
-
-def test_copied_board_readback_rejects_direct_image_callout(monkeypatch):
-    client = FakeClient()
-    _install_image_readback(monkeypatch, client)
-    client.connectors["platform"][0]["endItem"] = {"id": "platform-image"}
-    client.connectors["hvr"][0]["endItem"] = {"id": "hvr-image"}
-
-    with pytest.raises(ValueError, match="direct-image callouts"):
-        hvr.copied_board_readback(client, "platform", "hvr", "a" * 40)
-
-
 def test_copied_board_readback_rejects_screenshot_byte_drift(monkeypatch):
     client = FakeClient()
     _install_image_readback(monkeypatch, client, target_bytes=b"different-screenshot")
@@ -250,10 +255,21 @@ def test_copied_board_readback_rejects_screenshot_byte_drift(monkeypatch):
         hvr.copied_board_readback(client, "platform", "hvr", "a" * 40)
 
 
-def test_copied_board_readback_rejects_missing_anchor_connector(monkeypatch):
+def test_copied_board_readback_rejects_missing_connector(monkeypatch):
     client = FakeClient()
     _install_image_readback(monkeypatch, client)
     client.connectors["hvr"].pop()
 
     with pytest.raises(ValueError, match="connector count differs"):
         hvr.copied_board_readback(client, "platform", "hvr", "a" * 40)
+
+
+def test_human_visual_status_is_not_promoted_by_technical_endpoint_pass(monkeypatch):
+    client = FakeClient()
+    _install_image_readback(monkeypatch, client)
+    report = hvr.copied_board_readback(client, "platform", "hvr", "a" * 40)
+
+    assert report["ENDPOINT_GEOMETRY_MATCH"] == "PASS"
+    assert report["HUMAN_VISUAL_ACCEPTANCE"] == "PENDING"
+    assert report["miro_tips"]["status"] == "PASS"
+    assert "VISUAL_EQUIVALENCE_PASS" not in report

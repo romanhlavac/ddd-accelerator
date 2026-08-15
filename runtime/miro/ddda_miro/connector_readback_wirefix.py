@@ -94,13 +94,17 @@ def connector_contract_mismatches(
                 valid = all(
                     axis in position
                     and axis in source_position
-                    and abs(_coordinate(position[axis]) - _coordinate(source_position[axis])) <= 0.01
+                    and abs(_coordinate(position[axis]) - _coordinate(source_position[axis])) <= 0.001
                     for axis in ("x", "y")
                 )
             except (TypeError, ValueError):
                 valid = False
         if valid and authored.get("snapTo") is not None:
             valid = actual.get("snapTo") == authored.get("snapTo")
+        if valid:
+            authored_explicit = authored.get("position") is not None or authored.get("snapTo") is not None
+            actual_explicit = actual.get("position") is not None or actual.get("snapTo") is not None
+            valid = authored_explicit == actual_explicit
         if not valid:
             mismatches.append(
                 {

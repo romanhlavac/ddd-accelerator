@@ -77,7 +77,12 @@ jobs:
           assert tips['reference_text_font_size']==20
           assert tips['expected_item_count']==17
           assert tips['expected_item_type_counts']=={'image':1,'sticky_note':13,'text':3}
-          assert tips['expected_connector_count']==8
+          assert tips['expected_connector_count']==11
+          assert tips['expected_direct_image_connector_count']==8
+          assert tips['expected_text_connector_count']==3
+          assert len(tips['expected_rest_connector_ids'])==8
+          assert tips['routing_proxy_policy']=='no_shared_routing_proxy_v4'
+          assert tips['endpoint_geometry_tolerance_board_units']==2.0
           for retired in (
               'composite_asset_sha256',
               'composite_asset_dimensions',

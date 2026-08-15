@@ -163,3 +163,22 @@ def test_runtime_wires_exact_reference_oracles_before_reconciliation(monkeypatch
         "uninstall:oracle",
         "uninstall:font",
     ]
+
+
+def test_connector_endpoint_subpixel_tolerance_rejects_small_but_visual_shift():
+    client = _ConnectorClient()
+    client.full["endItem"]["position"] = {"x": 0.239, "y": 0.081}
+    assert not same_connector_canonical(client.full, _expected())
+
+
+def test_connector_endpoint_contract_rejects_silent_auto_anchor_fallback():
+    client = _ConnectorClient()
+    client.full["endItem"] = {"id": "end"}
+    assert not same_connector_canonical(client.full, _expected())
+
+
+def test_connector_endpoint_contract_rejects_unexpected_auto_to_explicit_change():
+    expected = _expected()
+    expected["startItem"] = {"id": "start"}
+    client = _ConnectorClient()
+    assert not same_connector_canonical(client.full, expected)

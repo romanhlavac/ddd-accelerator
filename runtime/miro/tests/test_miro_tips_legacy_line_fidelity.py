@@ -59,25 +59,23 @@ def test_legacy_arrow_endpoints_are_versioned_against_approved_reference():
         assert 0.2 < start_y < 0.5
 
 
-def test_compatibility_controls_use_six_legacy_line_endpoints_plus_one_anchor(monkeypatch):
+def test_compatibility_controls_use_exactly_six_per_endpoint_legacy_controls(monkeypatch):
     image = {
         "position": {"x": 1000.0, "y": 500.0},
         "geometry": {"width": 2000.0, "height": 1000.0},
     }
     direct = [_template() for _ in range(8)]
-    monkeypatch.setattr(
-        legacy.full.fidelity,
-        "normalized_control_position",
-        lambda connector, target_image: (123.0, 456.0),
-    )
-
     positions = legacy.compatibility_positions_with_legacy_arrows(direct, image)
 
-    assert len(positions) == 7
-    assert positions[-1] == (123.0, 456.0)
-    assert positions[0] != positions[1]
-    assert positions[2] != positions[3]
-    assert positions[4] != positions[5]
+    assert len(positions) == 6
+    radius = legacy.full.fidelity.CONTROL_ANCHOR_SIZE / 2.0
+    for index, spec in enumerate(legacy.LEGACY_ARROW_SPECS):
+        desired_start = legacy._absolute_position(image, spec["start"])
+        desired_end = legacy._absolute_position(image, spec["end"])
+        start_center = positions[index * 2]
+        end_center = positions[index * 2 + 1]
+        assert start_center == (desired_start[0] + radius, desired_start[1])
+        assert end_center == (desired_end[0] - radius, desired_end[1])
 
 
 def test_synthetic_legacy_connector_uses_two_transparent_endpoints_not_same_proxy(monkeypatch):
@@ -106,7 +104,13 @@ def test_synthetic_legacy_connector_uses_two_transparent_endpoints_not_same_prox
         {},
     )
 
-    assert payload["startItem"] == {"id": "start-anchor"}
-    assert payload["endItem"] == {"id": "end-anchor"}
+    assert payload["startItem"] == {
+        "id": "start-anchor",
+        "position": {"x": 0.0, "y": 0.5},
+    }
+    assert payload["endItem"] == {
+        "id": "end-anchor",
+        "position": {"x": 1.0, "y": 0.5},
+    }
     assert payload["startItem"]["id"] != payload["endItem"]["id"]
     assert payload["shape"] == "straight"

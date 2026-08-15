@@ -8,7 +8,11 @@ Those three legacy lines are visible in the approved reference but cannot be
 read back as REST-v2 connectors because Miro v2 does not support loose or
 dangling connectors.  This module therefore treats the approved screenshot as
 an explicit visual oracle for those three arrows and reconstructs them with
-transparent endpoint shapes.
+transparent per-endpoint shapes.  Miro enforces an 8-unit minimum circle
+geometry, so each helper centre is offset by half that rendered size and each
+connector endpoint is explicitly pinned to the facing edge.  The visible line
+therefore begins/ends at the frozen reference coordinate rather than at the
+helper centre.
 
 The endpoint coordinates below are normalized to the approved reference image
 /frame.  They are versioned data, not heuristic layout.  REST-readable
@@ -20,6 +24,7 @@ from typing import Any
 
 from . import miro_tips_full_arrow_fidelity_fix as full
 from . import miro_tips_hvr_fix as tips
+from . import miro_tips_endpoint_geometry_v4 as endpoint_v4
 from . import review_board_recovery as base
 from . import review_board_recovery_wirefix as visual
 
@@ -99,7 +104,6 @@ def _legacy_source_connectors(
         source_text = matches[0]
         style = deepcopy(template.get("style") or {})
         style["startStrokeCap"] = "none"
-        # The approved reference arrows use a filled directional arrowhead.
         style["endStrokeCap"] = style.get("endStrokeCap") or "stealth"
         result.append(
             {
@@ -151,8 +155,10 @@ def source_inventory_with_legacy_visual_arrows(
     if rows["text"]:
         raise ValueError(
             "Miro Tips legacy text arrows unexpectedly became REST-readable; "
-            "review the v3 reconstruction contract before changing behavior"
+            "review the v4 reconstruction contract before changing behavior"
         )
+
+    endpoint_v4.validate_rest_connector_identity(rows["direct_image"], manifest)
 
     template = rows["direct_image"][0]
     legacy = _legacy_source_connectors(items, image_id, template)
@@ -176,8 +182,6 @@ def source_inventory_with_legacy_visual_arrows(
         "connectors": connectors,
         "text": " ".join(_visible_text(item) for item in items),
     }
-    # Drop zero-count keys so the historical snapshot comparator keeps its
-    # exact item-type dictionary semantics.
     state["item_type_counts"] = {
         key: value for key, value in state["item_type_counts"].items() if value
     }
@@ -201,15 +205,18 @@ def compatibility_positions_with_legacy_arrows(
 ) -> list[tuple[float, float]]:
     if len(direct_connectors) != REFERENCE_REST_CONNECTOR_COUNT:
         raise ValueError("Miro Tips direct screenshot connector set must contain eight rows")
-    # Six control endpoints reproduce the three legacy lines exactly.  The
-    # seventh compatibility anchor preserves the pre-existing eight-control
-    # HVR copy contract (seven circles plus the full-size routing proxy).
+    radius = float(full.fidelity.CONTROL_ANCHOR_SIZE) / 2.0
     positions: list[tuple[float, float]] = []
     for spec in LEGACY_ARROW_SPECS:
-        positions.append(_absolute_position(target_image, spec["start"]))
-        positions.append(_absolute_position(target_image, spec["end"]))
-    positions.append(full.fidelity.normalized_control_position(direct_connectors[0], target_image))
-    if len(positions) != full.EXPECTED_COMPATIBILITY_ANCHORS:
+        start = _absolute_position(target_image, spec["start"])
+        end = _absolute_position(target_image, spec["end"])
+        if abs(start[1] - end[1]) > 0.01 or start[0] <= end[0]:
+            raise ValueError(
+                f"Miro Tips legacy visual arrow {spec['key']} is no longer a left-pointing horizontal contract"
+            )
+        positions.append((start[0] + radius, start[1]))
+        positions.append((end[0] - radius, end[1]))
+    if len(positions) != endpoint_v4.EXPECTED_COMPATIBILITY_ANCHORS:
         raise AssertionError("Miro Tips control-artifact compatibility count changed")
     return positions
 
@@ -263,8 +270,14 @@ def connector_payload_with_legacy_visual_arrow(
     payload = visual.readable_connector_payload(
         source, anchor_id, end_anchor_id, manifest
     )
-    payload["startItem"] = {"id": anchor_id}
-    payload["endItem"] = {"id": end_anchor_id}
+    payload["startItem"] = {
+        "id": anchor_id,
+        "position": {"x": 0.0, "y": 0.5},
+    }
+    payload["endItem"] = {
+        "id": end_anchor_id,
+        "position": {"x": 1.0, "y": 0.5},
+    }
     payload["shape"] = "straight"
     return payload
 
@@ -280,10 +293,12 @@ def reconcile_connectors_with_legacy_visual_arrows(
     manifest: dict[str, Any],
 ) -> dict[str, Any]:
     used: set[str] = set()
-    for connector in source_inventory["text_connectors"]:
-        spec = connector["_ddda_legacy_visual_arrow"]
-        start_x, start_y = _absolute_position(target_image, spec["start"])
-        end_x, end_y = _absolute_position(target_image, spec["end"])
+    positions = compatibility_positions_with_legacy_arrows(
+        source_inventory["direct_image_connectors"], target_image
+    )
+    for index, connector in enumerate(source_inventory["text_connectors"]):
+        start_x, start_y = positions[index * 2]
+        end_x, end_y = positions[index * 2 + 1]
         start_anchor = _find_anchor(
             client, target_board, target_frame_id, start_x, start_y, used
         )
@@ -307,7 +322,13 @@ def reconcile_connectors_with_legacy_visual_arrows(
 def install() -> None:
     global _INSTALLED
     if _INSTALLED:
+        endpoint_v4.install()
+        full._source_inventory = source_inventory_with_legacy_visual_arrows
+        full._compatibility_anchor_positions = compatibility_positions_with_legacy_arrows
+        full._connector_payload = connector_payload_with_legacy_visual_arrow
+        full._reconcile_connectors = reconcile_connectors_with_legacy_visual_arrows
         return
+    endpoint_v4.install()
     full._source_inventory = source_inventory_with_legacy_visual_arrows
     full._compatibility_anchor_positions = compatibility_positions_with_legacy_arrows
     full._connector_payload = connector_payload_with_legacy_visual_arrow
@@ -323,4 +344,5 @@ def uninstall() -> None:
     full._compatibility_anchor_positions = _ORIGINAL_COMPATIBILITY_POSITIONS
     full._connector_payload = _ORIGINAL_CONNECTOR_PAYLOAD
     full._reconcile_connectors = _ORIGINAL_RECONCILE_CONNECTORS
+    endpoint_v4.uninstall()
     _INSTALLED = False

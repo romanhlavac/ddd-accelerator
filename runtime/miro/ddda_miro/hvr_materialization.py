@@ -2,10 +2,10 @@ from __future__ import annotations
 
 """Render-fidelity aware HVR materialization for PR8 Miro Tips.
 
-The server-side HVR copy must preserve the visible frozen reference plus the
-transparent technical routing controls used to avoid Miro's direct-image
-connector normalization.  Visible reference fidelity remains structurally
-automated; human visual acceptance remains a separate authority.
+The server-side HVR copy must preserve the visible frozen reference, the eight
+direct screenshot attachments, and the six compensated 8-unit transparent per-endpoint controls used only for
+the three legacy free-form lines.  Structural and endpoint-geometry evidence
+are automated; human visual acceptance remains a separate authority.
 """
 
 from collections import Counter
@@ -14,6 +14,8 @@ from typing import Any
 
 from . import hvr_materialization_legacy as _base
 from . import miro_tips_full_arrow_fidelity_fix as full_arrow
+from . import miro_tips_endpoint_geometry_v4 as endpoint_v4
+from . import miro_tips_legacy_line_fidelity_fix as legacy_line
 from . import miro_tips_render_fidelity_fix as fidelity
 
 # Preserve the existing public module surface.  Underscore helpers are delegated
@@ -33,14 +35,14 @@ def __getattr__(name: str) -> Any:
 def _visible(children: list[dict[str, Any]], frame_id: str) -> list[dict[str, Any]]:
     return [
         item for item in children
-        if not fidelity.is_control_anchor(item, frame_id)
+        if not full_arrow.is_control_artifact(item, frame_id)
     ]
 
 
 def _anchors(children: list[dict[str, Any]], frame_id: str) -> list[dict[str, Any]]:
     return [
         item for item in children
-        if fidelity.is_control_anchor(item, frame_id)
+        if full_arrow.is_control_artifact(item, frame_id)
     ]
 
 
@@ -126,7 +128,62 @@ def _assert_connector_copy_with_full_arrow_compatibility(
         _base.tips.EXPECTED_CONNECTOR_COUNT = previous_expected
 
 
-def copied_board_readback(
+def _assert_hvr_endpoint_geometry(
+    source_connectors: list[dict[str, Any]],
+    target_connectors: list[dict[str, Any]],
+    mapping: dict[str, str],
+    target_children: list[dict[str, Any]],
+) -> dict[str, Any]:
+    items = {str(item.get("id") or ""): item for item in target_children}
+    used: set[str] = set()
+    rows: list[dict[str, Any]] = []
+    for source in source_connectors:
+        expected = deepcopy(source)
+        for endpoint_name in ("startItem", "endItem"):
+            endpoint = deepcopy(source.get(endpoint_name) or {})
+            source_id = str(endpoint.get("id") or "")
+            target_id = mapping.get(source_id)
+            if not target_id:
+                raise ValueError(
+                    f"HVR endpoint contract has no mapped item for {source_id}"
+                )
+            endpoint["id"] = target_id
+            expected[endpoint_name] = endpoint
+        start_id = str((expected.get("startItem") or {}).get("id") or "")
+        end_id = str((expected.get("endItem") or {}).get("id") or "")
+        matches = [
+            row for row in target_connectors
+            if str(row.get("id") or "") not in used
+            and str((row.get("startItem") or {}).get("id") or "") == start_id
+            and str((row.get("endItem") or {}).get("id") or "") == end_id
+            and _base.redline.same_connector(row, expected)
+        ]
+        if len(matches) != 1:
+            raise ValueError(
+                "HVR endpoint-geometry connector mapping differs from DDDA_PLATFORM_LAB: "
+                f"source={source.get('id')}"
+            )
+        target = matches[0]
+        used.add(str(target.get("id") or ""))
+        rows.append(
+            endpoint_v4.connector_geometry_evidence(
+                str(source.get("id") or ""), expected, target, items
+            )
+        )
+    if len(rows) != full_arrow.EXPECTED_REFERENCE_CONNECTORS:
+        raise ValueError(
+            f"HVR endpoint geometry validated {len(rows)} connectors; expected 11"
+        )
+    return {
+        "status": "PASS",
+        "matched": len(rows),
+        "expected": full_arrow.EXPECTED_REFERENCE_CONNECTORS,
+        "tolerance_board_units": endpoint_v4.ENDPOINT_GEOMETRY_TOLERANCE,
+        "connectors": rows,
+    }
+
+
+def _copied_board_readback_v4(
     client: _base.MiroClient,
     source_board_id: str,
     target_board_id: str,
@@ -210,10 +267,17 @@ def copied_board_readback(
         connector for connector in target_connectors
         if str((connector.get("endItem") or {}).get("id") or "") == target_image_id
     ]
-    if source_direct or target_direct:
+    if len(source_direct) != full_arrow.EXPECTED_DIRECT_IMAGE_CONNECTORS:
         raise ValueError(
-            "HVR Miro Tips contains direct-image callouts; transparent routing proxy is required"
+            "DDDA_PLATFORM_LAB Miro Tips must contain eight direct screenshot callouts"
         )
+    if len(target_direct) != full_arrow.EXPECTED_DIRECT_IMAGE_CONNECTORS:
+        raise ValueError(
+            "HVR Miro Tips must preserve eight direct screenshot callouts"
+        )
+    endpoint_geometry = _assert_hvr_endpoint_geometry(
+        source_connectors, target_connectors, mapping, target_children
+    )
 
     return {
         "source_sha": source_sha,
@@ -226,11 +290,11 @@ def copied_board_readback(
             # contract; the v3 full-arrow contract is exposed separately.
             "policy": _base.tips.MIRO_TIPS_VISUAL_EQUIVALENCE_POLICY,
             "reference_structure_policy": fidelity.REFERENCE_STRUCTURE_POLICY,
-            "full_arrow_reference_structure_policy": full_arrow.REFERENCE_STRUCTURE_POLICY,
-            "visual_acceptance_authority": full_arrow.VISUAL_ACCEPTANCE_AUTHORITY,
+            "full_arrow_reference_structure_policy": endpoint_v4.REFERENCE_STRUCTURE_POLICY,
+            "visual_acceptance_authority": endpoint_v4.VISUAL_ACCEPTANCE_AUTHORITY,
             "render_fidelity_policy": {
-                "routing_proxy": full_arrow.ROUTING_PROXY_POLICY,
-                "endpoint": full_arrow.ENDPOINT_POLICY,
+                "routing_proxy": endpoint_v4.ROUTING_PROXY_POLICY,
+                "endpoint": endpoint_v4.ENDPOINT_POLICY,
             },
             "source_frame_id": source_frame_id,
             "frame_id": target_frame_id,
@@ -238,12 +302,14 @@ def copied_board_readback(
             "physical_child_count": len(target_children),
             "item_type_counts": dict(_base.tips.EXPECTED_ITEM_TYPE_COUNTS),
             "technical_anchor_count": anchor_count,
-            # Historical workflow compatibility value; the wrapped copy proof
-            # validates 11 actual connectors before returning 8 here.
             "connector_count": connector_count,
             "actual_connector_count": len(target_connectors),
             "direct_image_connector_count": len(target_direct),
             "image": image_evidence,
+            "STRUCTURAL_REFERENCE_MATCH": "PASS",
+            "ENDPOINT_GEOMETRY_MATCH": "PASS",
+            "HUMAN_VISUAL_ACCEPTANCE": "PENDING",
+            "endpoint_geometry": endpoint_geometry,
             "status": "PASS",
             "review_url": (
                 f"https://miro.com/app/board/{target_board_id}/"
@@ -251,12 +317,30 @@ def copied_board_readback(
             ),
         },
         "technical_status": "PASS",
+        "STRUCTURAL_REFERENCE_MATCH": "PASS",
+        "ENDPOINT_GEOMETRY_MATCH": "PASS",
+        "HUMAN_VISUAL_ACCEPTANCE": "PENDING",
         "human_review_status": "PENDING",
         "overall_status": "READY_FOR_HUMAN_REVIEW",
         "merge_allowed": False,
         "promotion_allowed": False,
         "release_allowed": False,
     }
+
+
+def copied_board_readback(
+    client: _base.MiroClient,
+    source_board_id: str,
+    target_board_id: str,
+    source_sha: str,
+) -> dict[str, Any]:
+    legacy_line.install()
+    try:
+        return _copied_board_readback_v4(
+            client, source_board_id, target_board_id, source_sha
+        )
+    finally:
+        legacy_line.uninstall()
 
 
 # The legacy materializer owns credential checks, logical-slot replacement and

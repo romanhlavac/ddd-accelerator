@@ -52,7 +52,21 @@ miro_tips:
   expected_connector_count: 11
   expected_direct_image_connector_count: 8
   expected_text_connector_count: 3
-  routing_proxy_policy: full_size_transparent_screenshot_geometry_proxy_v3
+  expected_rest_connector_ids:
+    - '3458764679531043384'
+    - '3458764679531043385'
+    - '3458764679531043388'
+    - '3458764679531043389'
+    - '3458764679531043390'
+    - '3458764679531043391'
+    - '3458764679531043392'
+    - '3458764679531043394'
+  legacy_visual_arrow_keys:
+    - navigation_mode
+    - sticky_notes
+    - connection_lines
+  endpoint_geometry_tolerance_board_units: 2.0
+  routing_proxy_policy: no_shared_routing_proxy_v4
   container_policy: retained_verified_target_container
   visual_equivalence_policy: exact_reference_child_snapshot
   target_position:
