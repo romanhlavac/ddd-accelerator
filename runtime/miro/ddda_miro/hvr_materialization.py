@@ -2,10 +2,12 @@ from __future__ import annotations
 
 """Render-fidelity aware HVR materialization for PR8 Miro Tips.
 
-The server-side HVR copy must preserve the visible frozen reference, the eight
-direct screenshot attachments, and the six compensated 8-unit transparent per-endpoint controls used only for
-the three legacy free-form lines.  Structural and endpoint-geometry evidence
-are automated; human visual acceptance remains a separate authority.
+The server-side HVR copy must preserve the visible frozen reference, eight
+versioned raster arrow overlays for the non-round-trippable curved screenshot
+callouts, and the six compensated 8-unit transparent per-endpoint controls used
+only for the three deterministic straight text arrows. Structural, asset and
+endpoint-geometry evidence are automated; human visual acceptance remains a
+separate authority.
 """
 
 from collections import Counter
@@ -17,6 +19,7 @@ from . import miro_tips_full_arrow_fidelity_fix as full_arrow
 from . import miro_tips_endpoint_geometry_v4 as endpoint_v4
 from . import miro_tips_legacy_line_fidelity_fix as legacy_line
 from . import miro_tips_render_fidelity_fix as fidelity
+from . import miro_tips_visual_overlay_v5 as visual_v5
 
 # Preserve the existing public module surface.  Underscore helpers are delegated
 # through __getattr__ below so the established test/CLI contract remains usable.
@@ -25,7 +28,6 @@ from .hvr_materialization_legacy import *  # noqa: F401,F403
 
 # The PR8 full-arrow contract keeps the existing HVR workflow compatibility
 # fields while proving that the server-side copy contains all eleven arrows.
-full_arrow.install_hvr_contract(_base)
 
 
 def __getattr__(name: str) -> Any:
@@ -36,6 +38,7 @@ def _visible(children: list[dict[str, Any]], frame_id: str) -> list[dict[str, An
     return [
         item for item in children
         if not full_arrow.is_control_artifact(item, frame_id)
+        and not visual_v5.is_visual_overlay(item, frame_id)
     ]
 
 
@@ -101,29 +104,28 @@ def _assert_connector_copy_with_full_arrow_compatibility(
     target_connectors: list[dict[str, Any]],
     mapping: dict[str, str],
 ) -> int:
-    """Validate the 11-arrow contract while preserving the legacy report field.
+    """Validate the v5 physical connector contract.
 
-    The legacy copier validates against ``tips.EXPECTED_CONNECTOR_COUNT`` before
-    the full-arrow wrapper can translate the proven count back to the historical
-    workflow compatibility value of eight.  During an actual v3 HVR copy, both
-    boards legitimately contain eleven arrows (eight direct callouts plus three
-    text callouts), so bind the legacy verifier to that exact count only for the
-    duration of this proof and restore the module contract immediately after it.
+    The eight curved screenshot callouts are raster visual overlays because the
+    Miro REST connector contract cannot round-trip their authored curve path.
+    Only the three deterministic straight text callouts remain physical Miro
+    connectors and are copied server-side into HVR.
     """
     source_count = len(source_connectors)
     target_count = len(target_connectors)
     if source_count != target_count:
+        raise ValueError("HVR Miro Tips connector count differs from DDDA_PLATFORM_LAB")
+    if source_count != visual_v5.PHYSICAL_CONNECTOR_COUNT:
         raise ValueError(
-            "HVR Miro Tips connector count differs from DDDA_PLATFORM_LAB exact reference"
+            f"HVR Miro Tips v5 requires {visual_v5.PHYSICAL_CONNECTOR_COUNT} physical connectors, got {source_count}"
         )
-
-    if source_count != full_arrow.EXPECTED_REFERENCE_CONNECTORS:
-        return int(_base._assert_connector_copy(source_connectors, target_connectors, mapping))
-
     previous_expected = _base.tips.EXPECTED_CONNECTOR_COUNT
-    _base.tips.EXPECTED_CONNECTOR_COUNT = full_arrow.EXPECTED_REFERENCE_CONNECTORS
+    _base.tips.EXPECTED_CONNECTOR_COUNT = visual_v5.PHYSICAL_CONNECTOR_COUNT
     try:
-        return int(_base._assert_connector_copy(source_connectors, target_connectors, mapping))
+        actual = int(_base._assert_connector_copy(source_connectors, target_connectors, mapping))
+        if actual != visual_v5.PHYSICAL_CONNECTOR_COUNT:
+            raise ValueError(f"HVR Miro Tips validated {actual} physical connectors; expected {visual_v5.PHYSICAL_CONNECTOR_COUNT}")
+        return full_arrow.EXPECTED_DIRECT_IMAGE_CONNECTORS  # historical workflow compatibility alias
     finally:
         _base.tips.EXPECTED_CONNECTOR_COUNT = previous_expected
 
@@ -170,14 +172,14 @@ def _assert_hvr_endpoint_geometry(
                 str(source.get("id") or ""), expected, target, items
             )
         )
-    if len(rows) != full_arrow.EXPECTED_REFERENCE_CONNECTORS:
+    if len(rows) != visual_v5.PHYSICAL_CONNECTOR_COUNT:
         raise ValueError(
-            f"HVR endpoint geometry validated {len(rows)} connectors; expected 11"
+            f"HVR endpoint geometry validated {len(rows)} connectors; expected {visual_v5.PHYSICAL_CONNECTOR_COUNT}"
         )
     return {
         "status": "PASS",
         "matched": len(rows),
-        "expected": full_arrow.EXPECTED_REFERENCE_CONNECTORS,
+        "expected": visual_v5.PHYSICAL_CONNECTOR_COUNT,
         "tolerance_board_units": endpoint_v4.ENDPOINT_GEOMETRY_TOLERANCE,
         "connectors": rows,
     }
@@ -245,6 +247,17 @@ def _copied_board_readback_v4(
         mapping,
     )
 
+    source_overlay = visual_v5.overlay_evidence(
+        [item for item in source_children if visual_v5.is_visual_overlay(item, source_frame_id)],
+        source_frame_id,
+    )
+    target_overlay = visual_v5.overlay_evidence(
+        [item for item in target_children if visual_v5.is_visual_overlay(item, target_frame_id)],
+        target_frame_id,
+    )
+    if source_overlay["count"] != visual_v5.VISUAL_ARROW_COUNT or target_overlay["count"] != visual_v5.VISUAL_ARROW_COUNT:
+        raise ValueError("HVR Miro Tips visual-arrow overlay count mismatch")
+
     source_child_ids = {str(item.get("id") or "") for item in source_children}
     target_child_ids = {str(item.get("id") or "") for item in target_children}
     source_connectors = _base._related_connectors(
@@ -259,22 +272,10 @@ def _copied_board_readback_v4(
 
     source_image_id = str(image_evidence["source_image_id"])
     target_image_id = str(image_evidence["target_image_id"])
-    source_direct = [
-        connector for connector in source_connectors
-        if str((connector.get("endItem") or {}).get("id") or "") == source_image_id
-    ]
-    target_direct = [
-        connector for connector in target_connectors
-        if str((connector.get("endItem") or {}).get("id") or "") == target_image_id
-    ]
-    if len(source_direct) != full_arrow.EXPECTED_DIRECT_IMAGE_CONNECTORS:
-        raise ValueError(
-            "DDDA_PLATFORM_LAB Miro Tips must contain eight direct screenshot callouts"
-        )
-    if len(target_direct) != full_arrow.EXPECTED_DIRECT_IMAGE_CONNECTORS:
-        raise ValueError(
-            "HVR Miro Tips must preserve eight direct screenshot callouts"
-        )
+    source_direct = [connector for connector in source_connectors if source_image_id in full_arrow._endpoint_ids(connector)]
+    target_direct = [connector for connector in target_connectors if target_image_id in full_arrow._endpoint_ids(connector)]
+    if source_direct or target_direct:
+        raise ValueError("Miro Tips v5 forbids native direct-image curved connectors in Platform Lab and HVR")
     endpoint_geometry = _assert_hvr_endpoint_geometry(
         source_connectors, target_connectors, mapping, target_children
     )
@@ -290,11 +291,11 @@ def _copied_board_readback_v4(
             # contract; the v3 full-arrow contract is exposed separately.
             "policy": _base.tips.MIRO_TIPS_VISUAL_EQUIVALENCE_POLICY,
             "reference_structure_policy": fidelity.REFERENCE_STRUCTURE_POLICY,
-            "full_arrow_reference_structure_policy": endpoint_v4.REFERENCE_STRUCTURE_POLICY,
+            "full_arrow_reference_structure_policy": "native_children_plus_visual_arrow_overlays_v5",
             "visual_acceptance_authority": endpoint_v4.VISUAL_ACCEPTANCE_AUTHORITY,
             "render_fidelity_policy": {
-                "routing_proxy": endpoint_v4.ROUTING_PROXY_POLICY,
-                "endpoint": endpoint_v4.ENDPOINT_POLICY,
+                "routing_proxy": "native_curved_router_forbidden_v5",
+                "endpoint": "raster_visual_oracle_for_8_curves_plus_3_deterministic_straight_connectors",
             },
             "source_frame_id": source_frame_id,
             "frame_id": target_frame_id,
@@ -305,9 +306,12 @@ def _copied_board_readback_v4(
             "connector_count": connector_count,
             "actual_connector_count": len(target_connectors),
             "direct_image_connector_count": len(target_direct),
+            "visual_arrow_overlay_count": target_overlay["count"],
+            "visual_arrow_overlays": target_overlay,
             "image": image_evidence,
             "STRUCTURAL_REFERENCE_MATCH": "PASS",
             "ENDPOINT_GEOMETRY_MATCH": "PASS",
+            "VISUAL_ARROW_ORACLE_MATCH": "PASS",
             "HUMAN_VISUAL_ACCEPTANCE": "PENDING",
             "endpoint_geometry": endpoint_geometry,
             "status": "PASS",
@@ -319,6 +323,7 @@ def _copied_board_readback_v4(
         "technical_status": "PASS",
         "STRUCTURAL_REFERENCE_MATCH": "PASS",
         "ENDPOINT_GEOMETRY_MATCH": "PASS",
+        "VISUAL_ARROW_ORACLE_MATCH": "PASS",
         "HUMAN_VISUAL_ACCEPTANCE": "PENDING",
         "human_review_status": "PENDING",
         "overall_status": "READY_FOR_HUMAN_REVIEW",
@@ -335,11 +340,13 @@ def copied_board_readback(
     source_sha: str,
 ) -> dict[str, Any]:
     legacy_line.install()
+    visual_v5.install()
     try:
         return _copied_board_readback_v4(
             client, source_board_id, target_board_id, source_sha
         )
     finally:
+        visual_v5.uninstall()
         legacy_line.uninstall()
 
 

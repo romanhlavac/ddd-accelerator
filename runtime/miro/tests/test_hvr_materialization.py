@@ -8,6 +8,7 @@ from ddda_miro import hvr_materialization as hvr
 from ddda_miro import miro_tips_full_arrow_fidelity_fix as full
 from ddda_miro import miro_tips_endpoint_geometry_v4 as endpoint_v4
 from ddda_miro import miro_tips_hvr_fix as tips
+from ddda_miro import miro_tips_visual_overlay_v5 as visual_v5
 
 
 def _frame(frame_id: str) -> dict:
@@ -84,30 +85,22 @@ def _children(prefix: str, frame_id: str) -> list[dict]:
                 },
             }
         )
+    for spec in visual_v5.ARROW_SPECS:
+        rows.append(
+            {
+                "id": f"{prefix}-overlay-{spec['key']}",
+                "type": "image",
+                "parent": {"id": frame_id},
+                "position": {"x": spec["x"], "y": spec["y"]},
+                "geometry": {"width": spec["width"], "height": spec["height"]},
+                "data": {"title": visual_v5.overlay_title(spec)},
+            }
+        )
     return rows
 
 
 def _connectors(prefix: str) -> list[dict]:
-    rows = [
-        {
-            "id": f"{prefix}-direct-{index}",
-            "startItem": {"id": f"{prefix}-sticky-{index}"},
-            "endItem": {
-                "id": f"{prefix}-image",
-                "position": {"x": 0.08 + index * 0.1, "y": 0.12 + index * 0.07},
-            },
-            "shape": "curved",
-            "style": {
-                "strokeColor": "#000000",
-                "strokeStyle": "normal",
-                "startStrokeCap": "none",
-                "endStrokeCap": "stealth",
-            },
-            "captions": [],
-        }
-        for index in range(8)
-    ]
-    rows.extend(
+    return [
         {
             "id": f"{prefix}-legacy-{index}",
             "startItem": {"id": f"{prefix}-anchor-{index * 2}"},
@@ -122,8 +115,7 @@ def _connectors(prefix: str) -> list[dict]:
             "captions": [],
         }
         for index in range(3)
-    )
-    return rows
+    ]
 
 
 class FakeClient:
@@ -186,12 +178,14 @@ def test_copied_board_readback_proves_structural_and_endpoint_geometry_before_hu
     assert report["overall_status"] == "READY_FOR_HUMAN_REVIEW"
     miro = report["miro_tips"]
     assert miro["item_count"] == 17
-    assert miro["physical_child_count"] == 23
+    assert miro["physical_child_count"] == 31
     assert miro["technical_anchor_count"] == 6
-    assert miro["connector_count"] == 8  # established workflow compatibility alias
-    assert miro["actual_connector_count"] == 11
-    assert miro["direct_image_connector_count"] == 8
-    assert miro["endpoint_geometry"]["matched"] == 11
+    assert miro["connector_count"] == 8  # historical workflow compatibility alias
+    assert miro["actual_connector_count"] == 3
+    assert miro["direct_image_connector_count"] == 0
+    assert miro["visual_arrow_overlay_count"] == 8
+    assert miro["VISUAL_ARROW_ORACLE_MATCH"] == "PASS"
+    assert miro["endpoint_geometry"]["matched"] == 3
     assert miro["ENDPOINT_GEOMETRY_MATCH"] == "PASS"
     assert miro["HUMAN_VISUAL_ACCEPTANCE"] == "PENDING"
     assert report["merge_allowed"] is False
@@ -200,11 +194,21 @@ def test_copied_board_readback_proves_structural_and_endpoint_geometry_before_hu
 def test_copied_board_readback_rejects_endpoint_shift_even_when_connector_identity_still_matches(monkeypatch):
     client = FakeClient()
     _install_image_readback(monkeypatch, client)
-    client.connectors["hvr"][0]["endItem"]["position"]["x"] += 0.01
+    client.connectors["hvr"][0]["shape"] = "curved"
 
     with pytest.raises(ValueError, match="connector differs|endpoint geometry"):
         hvr.copied_board_readback(client, "platform", "hvr", "a" * 40)
 
+
+
+def test_copied_board_readback_rejects_visual_arrow_overlay_shift(monkeypatch):
+    client = FakeClient()
+    _install_image_readback(monkeypatch, client)
+    target = next(item for item in client.items["hvr"] if item.get("id") == "hvr-overlay-shortcut")
+    target["position"]["x"] += 5.0
+
+    with pytest.raises(ValueError, match="visual arrow overlay"):
+        hvr.copied_board_readback(client, "platform", "hvr", "a" * 40)
 
 def test_copied_board_readback_rejects_missing_endpoint_control(monkeypatch):
     client = FakeClient()

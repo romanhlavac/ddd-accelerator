@@ -62,7 +62,7 @@ Změny pro další verzi se během vývoje zapisují sem. Před promotion se vš
 
 ### Fixed
 
-- PR8 Miro Tips endpoint-geometry fidelity: shared full-image routing proxy nahrazen osmi přímými screenshot attachments a šesti transparentními 8-unit per-endpoint controls s kompenzací jejich Miro-rendered poloměru pro tři legacy free-form arrows; zmrazeno osm REST-readable connector IDs a jedenáctiřádkový endpoint contract; acceptance fail-closed ověřuje endpoint geometry, zakazuje silent auto-anchor fallback a po HVR copy zachovává `HUMAN_VISUAL_ACCEPTANCE=PENDING`;
+- PR8 Miro Tips visual-arrow fidelity: po HVR důkazu, že Miro REST endpoint metadata + `shape=curved` neumí reprodukovat ručně routovanou křivku, je osm screenshot calloutů převedeno na osm těsně oříznutých transparentních golden-arrow overlay PNG s verzovanými SHA-256 a frozen frame geometrií; fyzické Miro connectory zůstávají pouze tři deterministické straight text callouty nad šesti per-endpoint controls. Acceptance zakazuje native curved screenshot connectors, ověřuje 8/8 overlay identity/geometry, 3/3 connector geometry, zero-mutation second reconcile a HVR copy se `HUMAN_VISUAL_ACCEPTANCE=PENDING`;
 - opravena chybná plošná interpretace „Chat/Work-only“, která dočasně deaktivovala Cursor i pro vlastní DDDA project runtime; zákaz Cursoru nyní platí pouze pro vývoj platformy;
 - candidate-package validation sanitizuje ambientní `PYTHONPATH`, `PYTHONHOME` a DDDA root proměnné před spuštěním child procesů;
 - Miro CLI běží v Python isolated mode a před prvním vzdáleným zápisem ověřuje skutečně importovaný modul, jeho SHA-256 a render contract;
