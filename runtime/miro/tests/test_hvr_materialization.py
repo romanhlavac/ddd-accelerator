@@ -104,6 +104,27 @@ def _connectors(prefix: str) -> list[dict]:
     ]
 
 
+def _full_arrow_connectors(prefix: str) -> list[dict]:
+    rows = _connectors(prefix)
+    rows.extend(
+        {
+            "id": f"{prefix}-text-connector-{index}",
+            "startItem": {"id": f"{prefix}-text-{index}"},
+            "endItem": {"id": f"{prefix}-anchor-{index}"},
+            "shape": "curved",
+            "style": {
+                "strokeColor": "#000000",
+                "strokeStyle": "normal",
+                "startStrokeCap": "none",
+                "endStrokeCap": "stealth",
+            },
+            "captions": [],
+        }
+        for index in range(3)
+    )
+    return rows
+
+
 class FakeClient:
     def __init__(self) -> None:
         self.items = {
@@ -171,6 +192,24 @@ def test_copied_board_readback_proves_visible_reference_anchors_and_hvr_gate(mon
     assert miro["direct_image_connector_count"] == 0
     assert miro["image"]["source_sha256"] == miro["image"]["target_sha256"]
     assert report["merge_allowed"] is False
+
+
+def test_copied_board_readback_accepts_full_eleven_arrow_copy_and_restores_legacy_contract(monkeypatch):
+    client = FakeClient()
+    client.connectors["platform"] = _full_arrow_connectors("platform")
+    client.connectors["hvr"] = _full_arrow_connectors("hvr")
+    _install_image_readback(monkeypatch, client)
+    previous_expected = tips.EXPECTED_CONNECTOR_COUNT
+
+    report = hvr.copied_board_readback(client, "platform", "hvr", "b" * 40)
+
+    miro = report["miro_tips"]
+    assert miro["connector_count"] == 8
+    assert miro["actual_connector_count"] == 11
+    assert miro["direct_image_connector_count"] == 0
+    assert report["technical_status"] == "PASS"
+    assert report["human_review_status"] == "PENDING"
+    assert tips.EXPECTED_CONNECTOR_COUNT == previous_expected
 
 
 def test_copied_board_readback_rejects_font_drift(monkeypatch):

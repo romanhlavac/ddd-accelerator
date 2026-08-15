@@ -94,6 +94,38 @@ def _assert_anchor_copy(
     return len(used)
 
 
+def _assert_connector_copy_with_full_arrow_compatibility(
+    source_connectors: list[dict[str, Any]],
+    target_connectors: list[dict[str, Any]],
+    mapping: dict[str, str],
+) -> int:
+    """Validate the 11-arrow contract while preserving the legacy report field.
+
+    The legacy copier validates against ``tips.EXPECTED_CONNECTOR_COUNT`` before
+    the full-arrow wrapper can translate the proven count back to the historical
+    workflow compatibility value of eight.  During an actual v3 HVR copy, both
+    boards legitimately contain eleven arrows (eight direct callouts plus three
+    text callouts), so bind the legacy verifier to that exact count only for the
+    duration of this proof and restore the module contract immediately after it.
+    """
+    source_count = len(source_connectors)
+    target_count = len(target_connectors)
+    if source_count != target_count:
+        raise ValueError(
+            "HVR Miro Tips connector count differs from DDDA_PLATFORM_LAB exact reference"
+        )
+
+    if source_count != full_arrow.EXPECTED_REFERENCE_CONNECTORS:
+        return int(_base._assert_connector_copy(source_connectors, target_connectors, mapping))
+
+    previous_expected = _base.tips.EXPECTED_CONNECTOR_COUNT
+    _base.tips.EXPECTED_CONNECTOR_COUNT = full_arrow.EXPECTED_REFERENCE_CONNECTORS
+    try:
+        return int(_base._assert_connector_copy(source_connectors, target_connectors, mapping))
+    finally:
+        _base.tips.EXPECTED_CONNECTOR_COUNT = previous_expected
+
+
 def copied_board_readback(
     client: _base.MiroClient,
     source_board_id: str,
@@ -164,7 +196,7 @@ def copied_board_readback(
     target_connectors = _base._related_connectors(
         client, target_board_id, target_child_ids
     )
-    connector_count = _base._assert_connector_copy(
+    connector_count = _assert_connector_copy_with_full_arrow_compatibility(
         source_connectors, target_connectors, mapping
     )
 
