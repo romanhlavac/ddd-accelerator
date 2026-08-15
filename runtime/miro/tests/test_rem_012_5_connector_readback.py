@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from ddda_miro import connector_readback_wirefix as wirefix
 from ddda_miro import miro_tips_exact_font_wirefix as fontfix
+from ddda_miro.client import MiroClient
 from ddda_miro.connector_readback_wirefix import (
     connector_contract_mismatches,
+    prepare_connector_payload_with_percentage_endpoints,
     same_connector_canonical,
     update_connector_with_fresh_readback,
 )
@@ -90,6 +92,24 @@ def test_connector_endpoint_percentage_wire_values_preserve_the_same_arrow_targe
     client.full["startItem"]["position"] = {"x": "100%", "y": "50%"}
     client.full["endItem"]["position"] = {"x": "23.7%", "y": "8.1%"}
     assert same_connector_canonical(client.full, _expected())
+
+
+def test_connector_endpoint_positions_are_serialized_as_miro_percentage_values():
+    client = MiroClient("token")
+    authored = {
+        "startItem": {"id": "start", "position": {"x": 1.0, "y": 0.5}},
+        "endItem": {"id": "end", "position": {"x": 0.237, "y": 0.081}},
+        "shape": "straight",
+        "captions": [{"content": "reference", "position": 0.5}],
+    }
+
+    prepared = prepare_connector_payload_with_percentage_endpoints(client, authored)
+
+    assert prepared["startItem"]["position"] == {"x": "100%", "y": "50%"}
+    assert prepared["endItem"]["position"] == {"x": "23.7%", "y": "8.1%"}
+    assert prepared["captions"][0]["position"] == "50%"
+    assert authored["startItem"]["position"] == {"x": 1.0, "y": 0.5}
+    assert authored["endItem"]["position"] == {"x": 0.237, "y": 0.081}
 
 
 def test_exact_miro_tips_font_wirefix_preserves_reference_font_20(monkeypatch):

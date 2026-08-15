@@ -16,6 +16,7 @@ from .client import MiroClient, normalize_miro_percentage
 
 
 _ORIGINAL_UPDATE_CONNECTOR = MiroClient.update_connector
+_ORIGINAL_PREPARE_CONNECTOR_PAYLOAD = MiroClient._prepare_connector_payload
 _ORIGINAL_SAME_CONNECTOR = redline.same_connector
 
 
@@ -30,6 +31,24 @@ def _fresh_connector(client: MiroClient, board_id: str, connector_id: str) -> di
             f"connector {connector_id} fresh read expected exactly one result, got {len(hits)}"
         )
     return hits[0]
+
+
+def prepare_connector_payload_with_percentage_endpoints(
+    self: MiroClient, payload: dict[str, Any]
+) -> dict[str, Any]:
+    """Serialize authored/read-back connector endpoint positions as Miro Percentage values."""
+    prepared = _ORIGINAL_PREPARE_CONNECTOR_PAYLOAD(self, payload)
+    for endpoint_name in ("startItem", "endItem"):
+        endpoint = prepared.get(endpoint_name)
+        if not isinstance(endpoint, dict):
+            continue
+        position = endpoint.get("position")
+        if not isinstance(position, dict):
+            continue
+        for axis in ("x", "y"):
+            if axis in position:
+                position[axis] = normalize_miro_percentage(position[axis])
+    return prepared
 
 
 def update_connector_with_fresh_readback(
@@ -146,6 +165,7 @@ def connector_contract_error(
 
 
 def main(argv: list[str] | None = None) -> int:
+    MiroClient._prepare_connector_payload = prepare_connector_payload_with_percentage_endpoints
     MiroClient.update_connector = update_connector_with_fresh_readback
     redline.same_connector = same_connector_canonical
     miro_tips_exact_font_wirefix.install()
@@ -165,6 +185,7 @@ def main(argv: list[str] | None = None) -> int:
         miro_tips_hvr_fix.uninstall()
         miro_tips_reference_oracle.uninstall()
         miro_tips_exact_font_wirefix.uninstall()
+        MiroClient._prepare_connector_payload = _ORIGINAL_PREPARE_CONNECTOR_PAYLOAD
         MiroClient.update_connector = _ORIGINAL_UPDATE_CONNECTOR
         redline.same_connector = _ORIGINAL_SAME_CONNECTOR
 
