@@ -1,0 +1,219 @@
+name: PR8 final governance read-back
+
+on:
+  push:
+    branches:
+      - gov/pr8-final-readback-20260816-8dceddb3
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  readback:
+    name: Exact-SHA final governance read-back
+    environment: ddda-backlog-governance
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      TARGET_SHA: 8dceddb30219534add1d0b9fc804189103b15b68
+      TARGET_PR: '8'
+      TARGET_VERSION: '0.1.0'
+      BOOTSTRAP_PATH: .github/workflows/pr8-final-governance-readback.yml
+      GH_TOKEN: ${{ secrets.DDDA_GITHUB_PROJECT_TOKEN }}
+      ACTIONS_GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Checkout bounded bootstrap commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fail-closed bootstrap preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          parent="$(git rev-parse HEAD^1)"
+          test "$actual" = "$GITHUB_SHA"
+          test "$parent" = "$TARGET_SHA"
+          changed="$(git diff --name-only "$TARGET_SHA" "$GITHUB_SHA")"
+          test "$changed" = "$BOOTSTRAP_PATH"
+          live_head="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$TARGET_PR" --jq '.head.sha')"
+          live_state="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$TARGET_PR" --jq '.state')"
+          live_merged="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$TARGET_PR" --jq '.merged')"
+          live_draft="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$TARGET_PR" --jq '.draft')"
+          test "$live_head" = "$TARGET_SHA"
+          test "$live_state" = 'open'
+          test "$live_merged" = 'false'
+          test "$live_draft" = 'false'
+          echo "Bootstrap preflight PASS; target=$live_head"
+
+      - name: Detach exact PR8 target SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout --detach "$TARGET_SHA"
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          test -z "$(git status --porcelain)"
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install governance test dependency
+        shell: bash
+        run: python -m pip install --disable-pip-version-check "pytest>=8,<9"
+
+      - name: Validate Project credential and exact-SHA contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${GH_TOKEN:-}"
+          gh auth status --hostname github.com >/dev/null
+          count="$(gh project list --owner romanhlavac --limit 100 --format json --jq '[.projects[] | select((.title=="DDDA Platform Backlog & Delivery" or .title=="DDDA Platform Backlog") and (.closed|not))] | length')"
+          test "$count" = '1'
+          python -m py_compile scripts/platform/Reconcile-DDDAProjectBacklog.py
+          python -m py_compile scripts/platform/Reconcile-DDDAProjectBacklogCore.py
+          python -m py_compile scripts/platform/Reconcile-DDDAProjectBacklogPresentation.py
+          python -m json.tool config/governance/github-bootstrap.json >/dev/null
+          python -m pytest -q \
+            runtime/platform/tests/test_project_backlog_delivery_governance.py \
+            runtime/platform/tests/test_project_backlog_presentation_governance.py
+
+      - name: Reconcile live governance projection
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/platform/Reconcile-DDDAProjectBacklogPresentation.py --mode reconcile
+          cp .reports/cr-delivery-audit-v6/presentation.json .reports/cr-delivery-audit-v6/presentation-reconcile.json
+          python scripts/platform/Reconcile-DDDAProjectBacklog.py
+
+      - name: Project explicit HVR PASS to PR8 delivery item
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import importlib.util
+          from pathlib import Path
+
+          path = Path('scripts/platform/Reconcile-DDDAProjectBacklogCore.py')
+          spec = importlib.util.spec_from_file_location('ddda_governance_core', path)
+          if spec is None or spec.loader is None:
+              raise SystemExit('Cannot load governance core')
+          core = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(core)
+
+          repairs = []
+          number, project_id, fields, _ = core.resolve_project(repairs)
+          items = core.content_item_map(number, 'PullRequest')
+          item = items.get(8)
+          if not item:
+              raise SystemExit('PR #8 is missing from Project delivery projection')
+          current = core.values(item)
+          if current.get('Human Review') != 'PASS':
+              core.set_select(project_id, fields, item['id'], 'Human Review', 'PASS')
+          print('Projected Human Review=PASS for PR #8')
+          PY
+
+      - name: Final reconcile and fail-closed read-back
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/platform/Reconcile-DDDAProjectBacklog.py
+          python scripts/platform/Reconcile-DDDAProjectBacklogPresentation.py --mode verify
+          cp .reports/cr-delivery-audit-v6/presentation.json .reports/cr-delivery-audit-v6/presentation-verify.json
+          python - <<'PY'
+          import json
+          import os
+          import urllib.request
+          from pathlib import Path
+
+          target = os.environ['TARGET_SHA']
+          root = Path('.reports/cr-delivery-audit-v6')
+          audit = json.loads((root / 'audit.json').read_text(encoding='utf-8'))
+          pre = json.loads((root / 'presentation-reconcile.json').read_text(encoding='utf-8'))
+          post = json.loads((root / 'presentation-verify.json').read_text(encoding='utf-8'))
+
+          assert audit['source_sha'] == target, (audit['source_sha'], target)
+          assert audit['remaining_count'] == 0, audit['remaining_count']
+          assert pre['remaining_count'] == 0, pre['remaining_count']
+          assert post['before_count'] == 0, post['before_count']
+          assert post['repair_count'] == 0, post['repair_count']
+          assert post['remaining_count'] == 0, post['remaining_count']
+
+          delivery = {int(row['pr']): row for row in audit['delivery_final']}
+          assert 8 in delivery, 'PR #8 missing from delivery read-back'
+          row = delivery[8]
+          assert row['wp'] == 'WP-08', row
+          assert row['result'] == 'PASS', row
+          assert row['fields'].get('Human Review') == 'PASS', row
+          assert row['fields'].get('Target Release') == '0.1.0', row
+
+          req = urllib.request.Request(
+              'https://api.github.com/repos/romanhlavac/ddd-accelerator/pulls/8',
+              headers={
+                  'Authorization': 'Bearer ' + os.environ['ACTIONS_GH_TOKEN'],
+                  'Accept': 'application/vnd.github+json',
+              },
+          )
+          with urllib.request.urlopen(req, timeout=30) as response:
+              pr = json.loads(response.read().decode('utf-8'))
+          assert pr['state'] == 'open'
+          assert not pr['merged']
+          assert not pr['draft']
+          assert pr['head']['sha'] == target
+
+          print(json.dumps({
+              'source_sha': audit['source_sha'],
+              'project': audit['project']['title'],
+              'mapped_cr_count': audit['mapped_cr_count'],
+              'open_pr_count': audit['open_pr_count'],
+              'mapped_pr_count': audit['mapped_pr_count'],
+              'repair_count': audit['repair_count'],
+              'remaining_count': audit['remaining_count'],
+              'presentation_remaining_count': post['remaining_count'],
+              'pr8_delivery': row,
+              'live_pr8_head': pr['head']['sha'],
+          }, ensure_ascii=False))
+          PY
+
+      - name: Assert release side effects remain absent
+        shell: bash
+        run: |
+          set -euo pipefail
+          live_head="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/feat/project-steering-and-documentation" --jq '.object.sha')"
+          test "$live_head" = "$TARGET_SHA"
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v$TARGET_VERSION" >/dev/null 2>&1; then
+            echo "Unexpected tag v$TARGET_VERSION exists" >&2
+            exit 1
+          fi
+          if gh api "repos/$GITHUB_REPOSITORY/releases/tags/v$TARGET_VERSION" >/dev/null 2>&1; then
+            echo "Unexpected release v$TARGET_VERSION exists" >&2
+            exit 1
+          fi
+          echo 'No merge, release, promotion or tag side effect observed.'
+
+      - name: Assert exact-SHA source contracts remained unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          git diff --exit-code -- \
+            config/governance \
+            docs/governance \
+            docs/adr/0003-github-native-backlog-governance.md \
+            scripts/platform/Reconcile-DDDAProjectBacklog.py \
+            scripts/platform/Reconcile-DDDAProjectBacklogCore.py \
+            scripts/platform/Reconcile-DDDAProjectBacklogPresentation.py \
+            runtime/platform/tests/test_project_backlog_delivery_governance.py \
+            runtime/platform/tests/test_project_backlog_presentation_governance.py
+
+      - name: Upload final governance evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: ddda-pr8-final-governance-readback-8dceddb3
+          path: .reports/cr-delivery-audit-v6/**
+          retention-days: 30
+          if-no-files-found: error
