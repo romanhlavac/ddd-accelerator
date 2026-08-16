@@ -818,6 +818,21 @@
     {
       "kind": "issue",
       "numbers": [
+        65
+      ],
+      "metadata": {
+        "Status": "Backlog",
+        "Work Package": "Other",
+        "Item Type": "Change Request",
+        "Target Release": "TBD",
+        "Blocked": "No",
+        "Human Review": "Pending",
+        "Outcome summary": "Canonical branch taxonomy and safe lifecycle/cleanup for persistent implementation and ephemeral automation branches."
+      }
+    },
+    {
+      "kind": "issue",
+      "numbers": [
         42
       ],
       "metadata": {
