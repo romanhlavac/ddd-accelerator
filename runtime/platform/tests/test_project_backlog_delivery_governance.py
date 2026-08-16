@@ -1,10 +1,12 @@
 import json
+import runpy
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 BOOTSTRAP = ROOT / "config/governance/github-bootstrap.json"
 POLICY = ROOT / "config/governance/backlog-policy.yaml"
 RECONCILER = ROOT / "scripts/platform/Reconcile-DDDAProjectBacklog.py"
+RECONCILER_CORE = ROOT / "scripts/platform/Reconcile-DDDAProjectBacklogCore.py"
 WORKFLOW = ROOT / ".github/workflows/reconcile-ddda-project-backlog.yml"
 CONSISTENCY = ROOT / "docs/governance/wp-backlog-consistency.md"
 
@@ -48,7 +50,11 @@ def test_policy_keeps_planned_prs_out_of_backlog_but_requires_active_delivery_me
 
 
 def test_reconciler_enforces_delivery_membership_mapping_and_readback():
-    text = RECONCILER.read_text(encoding="utf-8")
+    text = (
+        RECONCILER_CORE.read_text(encoding="utf-8")
+        + "\n"
+        + RECONCILER.read_text(encoding="utf-8")
+    )
 
     required_fragments = [
         'PROJECT_TITLE = "DDDA Platform Backlog & Delivery"',
@@ -63,13 +69,81 @@ def test_reconciler_enforces_delivery_membership_mapping_and_readback():
         "PRESENTATION_WP_MISMATCH",
         '"remaining_count": 0',
         'REPORT_DIR = Path(".reports/cr-delivery-audit-v6")',
+        "active_dependency_projection",
+        "CLOSED_ITEM_ACTIVE_BLOCKER",
+        "CLOSED_ITEM_BLOCKED_FLAG",
+        "TERMINAL_STATUS_MISMATCH",
+        "PLANNING_STALE_BLOCKED_STATUS",
     ]
     for fragment in required_fragments:
         assert fragment in text, fragment
 
 
+def test_active_dependency_projection_materializes_only_unresolved_edges():
+    ns = runpy.run_path(
+        str(RECONCILER),
+        run_name="ddda_project_backlog_reconciler_contract_test",
+    )
+    project = ns["active_dependency_projection"]
+
+    expected = {
+        9: "WP-08",
+        10: "WP-08",
+        11: "WP-08",
+        12: "WP-08",
+        13: "WP-08",
+        14: "WP-08",
+    }
+    dependencies = {
+        9: {10},
+        10: {11},
+        11: {12},
+        12: {14},
+        14: {13},
+    }
+    details = {
+        9: {"state": "open"},
+        10: {"state": "closed", "state_reason": "completed"},
+        11: {"state": "closed", "state_reason": "completed"},
+        12: {"state": "open"},
+        13: {"state": "closed", "state_reason": "completed"},
+        14: {"state": "open"},
+    }
+
+    assert project(expected, dependencies, details) == {
+        9: set(),
+        10: set(),
+        11: set(),
+        12: {14},
+        13: set(),
+        14: set(),
+    }
+
+
+def test_active_dependency_projection_covers_all_governed_items_and_rejects_unknown_endpoints():
+    ns = runpy.run_path(
+        str(RECONCILER),
+        run_name="ddda_project_backlog_reconciler_contract_test_2",
+    )
+    project = ns["active_dependency_projection"]
+
+    expected = {1: "WP-08", 2: "WP-08"}
+    details = {
+        1: {"state": "open"},
+        2: {"state": "open"},
+    }
+    assert project(expected, {}, details) == {1: set(), 2: set()}
+
+    try:
+        project(expected, {1: {99}}, details)
+    except RuntimeError as exc:
+        assert "outside governed Change Request set" in str(exc)
+    else:
+        raise AssertionError("unknown dependency endpoint must fail closed")
+
+
 def test_project_view_creation_uses_supported_graphql_contract():
-    text = RECONCILER.read_text(encoding="utf-8")
+    text = RECONCILER_CORE.read_text(encoding="utf-8")
 
     unsupported = (
         'createProjectV2View(input:{projectId:$projectId,name:$name,'
@@ -97,6 +171,10 @@ def test_consistency_contract_is_fail_closed_for_planning_and_delivery():
         "DELIVERY_HAS_PLANNING_ITEM_TYPE",
         "remaining_mismatches = 0",
         "PR: #8",
+        "CLOSED_ITEM_ACTIVE_BLOCKER",
+        "CLOSED_ITEM_BLOCKED_FLAG",
+        "PLANNING_STALE_BLOCKED_STATUS",
+        "unresolved dependency projection",
     ]:
         assert fragment in text, fragment
 
@@ -108,6 +186,7 @@ def test_privileged_workflow_is_manual_exact_sha_and_publishes_v6_audit():
     assert "pull_request:" not in text
     assert "environment: ddda-backlog-governance" in text
     assert 'test "$(git rev-parse HEAD)" = "$GITHUB_SHA"' in text
+    assert "Reconcile-DDDAProjectBacklogCore.py" in text
     assert "test_project_backlog_delivery_governance.py" in text
     assert ".reports/cr-delivery-audit-v6/audit.json" in text
     assert "remaining_count" in text

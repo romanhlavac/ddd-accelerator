@@ -36,6 +36,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m py_compile scripts/platform/Reconcile-DDDAProjectBacklog.py
+          python -m py_compile scripts/platform/Reconcile-DDDAProjectBacklogCore.py
           python -m py_compile scripts/platform/Reconcile-DDDAProjectBacklogPresentation.py
           python -m json.tool config/governance/github-bootstrap.json >/dev/null
           python -m pytest -q \
@@ -59,6 +60,7 @@ jobs:
             docs/governance \
             docs/adr/0003-github-native-backlog-governance.md \
             scripts/platform/Reconcile-DDDAProjectBacklog.py \
+            scripts/platform/Reconcile-DDDAProjectBacklogCore.py \
             scripts/platform/Reconcile-DDDAProjectBacklogPresentation.py \
             runtime/platform/tests/test_project_backlog_delivery_governance.py \
             runtime/platform/tests/test_project_backlog_presentation_governance.py

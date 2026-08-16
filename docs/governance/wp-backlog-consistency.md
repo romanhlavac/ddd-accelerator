@@ -51,13 +51,18 @@ Další analytické view mohou existovat pouze jako odvozené pohledy; nesmějí
 - Change Request má právě jedno autoritativní Work Package přes native Parent/Sub-issue, nebo je explicitně `Other`.
 - Každý governed Change Request a Work Package požadovaný verzovaným kontraktem je planning položkou `DDDA Platform Backlog & Delivery`.
 - Project `Work Package` a `Item Type` Issue odpovídají autoritativnímu WP a typu artefaktu.
-- Native dependency vztahy odpovídají verzovanému governance kontraktu.
+- `dependencies` ve verzovaném governance kontraktu vyjadřují prerequisite/historical topology; live native `blocked_by` je **unresolved dependency projection** a materializuje pouze vztah, kde blocked Issue i blocker zůstávají otevřené.
+- Uzavření blockeru splní prerequisite: aktivní native `blocked_by` hrana se odstraní, ale historická traceability zůstává v Git kontraktu a GitHub timeline.
+- Uzavřený `completed` Change Request musí mít Project `Status = Done`, `Blocked = No` a nula aktivních native blockerů.
+- Uzavřený `not_planned`/`duplicate` Change Request musí mít Project `Status = Cancelled`, `Blocked = No` a nula aktivních native blockerů.
+- Otevřený Change Request s alespoň jedním unresolved native blockerem má `Blocked = Yes` a `Status = Blocked`; bez unresolved blockeru má `Blocked = No` a nesmí zůstat ve stale `Status = Blocked`.
+- Repository-wide reconciliation kontroluje a mechanicky čistí aktivní dependency projection pro **všechny** governed Change Requests, nikoli pouze položky právě uvedené na levé straně `dependencies`.
 
 ### Delivery
 
 - Každý otevřený platformní PR má právě jednu primární vazbu `Implements #<CR>` nebo `Closes #<CR>`, pokud nejde o explicitní verzovanou legacy výjimku.
 - `Refs`, `Related`, prefix názvu ani stacked Git ancestry nejsou primární implementation authority a neurčují WP ownership.
-- Work Package implementačního PR se odvozuje od jeho primary CR; PR nesmí tvrdit jiné WP.
+- Work Package implementačního PR se odvozuje z jeho primary CR; PR nesmí tvrdit jiné WP.
 - Každý otevřený implementační PR je Project delivery item.
 - Project `Work Package` PR odpovídá odvozenému WP primary CR.
 - Project `Item Type` PR je prázdný; delivery PR se nesmí klasifikovat jako planning artefakt.
@@ -102,6 +107,12 @@ Za governance failure se považuje zejména:
 - PR Project Work Package odporuje odvozenému WP (`DELIVERY_WORK_PACKAGE_MISMATCH`);
 - PR Project Status odporuje delivery state (`DELIVERY_STATUS_MISMATCH`);
 - PR má nastaven planning `Item Type` (`DELIVERY_HAS_PLANNING_ITEM_TYPE`);
+- uzavřený Change Request má stále aktivní native blocker (`CLOSED_ITEM_ACTIVE_BLOCKER`);
+- uzavřený Change Request má `Blocked != No` (`CLOSED_ITEM_BLOCKED_FLAG`);
+- terminal Project status neodpovídá GitHub closure reason (`TERMINAL_STATUS_MISMATCH`);
+- planning `Blocked` neodpovídá unresolved dependency projection (`PLANNING_BLOCKED_FLAG_MISMATCH`);
+- otevřený Change Request s unresolved blockerem nemá `Status = Blocked` (`PLANNING_BLOCKED_STATUS_MISMATCH`);
+- Change Request bez unresolved blockeru zůstal ve `Status = Blocked` (`PLANNING_STALE_BLOCKED_STATUS`);
 - Project title nebo některá kanonická view/filter projekce neodpovídá kontraktu;
 - nezdůvodněná legacy výjimka;
 - libovolný nevysvětlený post-change mismatch.
@@ -118,6 +129,7 @@ Nejednoznačné vlastnictví je blocking condition vyžadující explicitní gov
 config/governance/backlog-policy.yaml
 config/governance/github-bootstrap.json
 scripts/platform/Reconcile-DDDAProjectBacklog.py
+scripts/platform/Reconcile-DDDAProjectBacklogCore.py
 ```
 
 Privileged live Project reconciliation musí zůstat oddělena od ne-reviewovaného PR kódu. Workflow s Project tokenem se nespouští automaticky z běžného `pull_request` triggeru.
@@ -132,6 +144,8 @@ Governance/backlog/delivery změna uchovává minimálně:
 - post-read-back mismatch count;
 - seznam aktivních WP/CR a všech otevřených PR zahrnutých do kontroly;
 - výsledky native WP parent + planning Project membership/field read-backu;
+- unresolved dependency projection včetně odstraněných resolved/stale `blocked_by` hran;
+- terminal status + `Blocked` consistency pro uzavřené CR a blocked/status consistency pro otevřené CR;
 - kontrolu explicitních WP prefixů v Issue/PR titles proti autoritativnímu WP;
 - PR → primary CR mapping a odvozené WP;
 - PR Project membership + `Work Package` + `Status` + absence `Item Type`;
