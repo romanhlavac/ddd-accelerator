@@ -1,0 +1,149 @@
+schema_version: 1
+remediation_id: REM-PR8-HVA-CC-012.5
+authorized_base_sha: ed14f57363c359e60633f9f1da9ad69dee8b5bda
+board_id: uXjVH0doLYY=
+frame00_id: '3458764680243144441'
+frame00_replacement:
+  policy: discover_verified_or_replace_legacy_container
+  legacy_frame_id: '3458764680243144441'
+  title: 00 – Navigace, legenda a stav artefaktů (Control Center)
+  target_top_left:
+    x: -21500
+    y: -3000
+  staging_center:
+    x: -28000
+    y: -542.79
+  fill_color: '#f8fafc'
+frame_id: '3458764680243144449'
+source_board_id: uXjVH2vcvRI=
+source_frame_id: '3458764679494310883'
+source_frame_title: 01 – DDD Starter journey, gates a iterace
+accepted_frame00_contract: rem-012-4-frame-00.yaml
+frame00_sticky_colors:
+  phase_gate_state: light_yellow
+  owner_next_action: light_blue
+  attention_blockers: light_green
+frame00_container_policy: transactional_replace_irreducible_container_preserve_accepted_top_left_pending_human_equivalence_check
+replace_entire_frame_children: true
+readability:
+  methodology_min_font_size: 80
+  methodology_width: 4800
+  methodology_x: 2600
+  methodology_y: 850
+  connector_caption_min_font_size: 48
+miro_tips:
+  mode: exact_reference_clone
+  reference_source_board_id: uXjVH2vcvRI=
+  reference_source_frame_id: '3458764679531043366'
+  reference_source_image_id: '3458764679531043367'
+  reference_background_sha256: 04b83ec7d9bc07ae31c7c11c03ec974ff4bde00d7773d7f9e55036e877f6fffd
+  reference_freeze_commit: '67805d87b4195379af5524494c4941926c9a1565'
+  reference_freeze_at: '2026-08-14T14:05:26Z'
+  reference_frame_geometry:
+    width: 1919.433
+    height: 1079.681
+  reference_text_font_size: 20
+  expected_item_count: 17
+  expected_item_type_counts:
+    image: 1
+    sticky_note: 13
+    text: 3
+  # Full visual reference contains 8 screenshot callouts plus 3 text callout arrows.
+  expected_connector_count: 11
+  expected_direct_image_connector_count: 8
+  expected_text_connector_count: 3
+  expected_rest_connector_ids:
+    - '3458764679531043384'
+    - '3458764679531043385'
+    - '3458764679531043388'
+    - '3458764679531043389'
+    - '3458764679531043390'
+    - '3458764679531043391'
+    - '3458764679531043392'
+    - '3458764679531043394'
+  legacy_visual_arrow_keys:
+    - navigation_mode
+    - sticky_notes
+    - connection_lines
+  endpoint_geometry_tolerance_board_units: 2.0
+  routing_proxy_policy: no_shared_routing_proxy_v4
+  container_policy: retained_verified_target_container
+  visual_equivalence_policy: exact_reference_child_snapshot
+  target_position:
+    x: -19834.447049390445
+    y: -11727.529671450406
+  vertical_offset_y: 600
+  readback_attempts: 20
+  readback_delay_seconds: 0.5
+  required_markers:
+    - toggle between navigation mode & edit mode
+    - stickies / post-its
+    - arrows / connection lines
+    - press tab after typing a sticky
+    - alt-drag copies whatever you selected
+    - shift-drag to select multiple items at once
+    - right-click-drag to drag the board around
+    - moved something by accident
+    - an overview of all frames
+    - enable or disable seeing the mouse pointers of others
+    - click on the avator of the facilitator
+    - consult a map of the board
+    - zoom to a 100%
+    - add your own tips here
+source_companion_frames:
+  - id: '3458764679531043366'
+    title: Miro Tips
+    min_images: 1
+    mode: exact_reference_clone
+    source_board_id: uXjVH2vcvRI=
+  - id: '3458764679531716415'
+    title: Align
+    min_images: 2
+  - id: '3458764679532531400'
+    title: Discover
+    min_images: 2
+  - id: '3458764679532531576'
+    title: Decompose
+    min_images: 2
+  - id: '3458764679532531636'
+    title: Strategize
+    min_images: 2
+  - id: '3458764679532834577'
+    title: Connect
+    min_images: 2
+  - id: '3458764679532834532'
+    title: Organize
+    min_images: 2
+  - id: '3458764679532834637'
+    title: Define
+    min_images: 2
+  - id: '3458764679532834681'
+    title: Code
+    min_images: 2
+source_sentinels:
+  - G1 · Align
+  - G8 · Code
+  - METODIKA A ZDROJE
+  - ALIGN & UNDERSTAND
+  - STRATEGIC ARCHITECTURE
+  - STRATEGY & ORG DESIGN
+  - TACTICAL ARCHITECTURE
+source_forbidden_sentinels:
+  - JAK ČÍST STAV GATE
+protected_frames:
+  - '3458764680243144458'
+  - '3458764680243144461'
+  - '3458764680243144467'
+  - '3458764680243144471'
+  - '3458764680243144475'
+  - '3458764680243144485'
+  - '3458764680243144495'
+  - '3458764680243144501'
+  - '3458764680243144503'
+  - '3458764680243144505'
+  - '3458764680243144507'
+  - '3458764680243144510'
+  - '3458764680243144512'
+  - '3458764680243144515'
+  - '3458764680243144516'
+  - '3458764680243144520'

@@ -1,0 +1,49 @@
+schema_version: 1
+manifest_id: rem-012-1b-managed-image-transport
+diagnostic_only: true
+board:
+  name: DDDA REM-012.1B image transport probe
+  description: Isolated, automatically cleaned diagnostic board for managed Miro image transport.
+frames:
+  - id: phase-visual
+    title: A – Phase visual transport
+    position: {x: -1600, y: 0}
+    geometry: {width: 2800, height: 1900}
+  - id: workshop-example
+    title: B – Workshop example transport
+    position: {x: 1600, y: 0}
+    geometry: {width: 2800, height: 1900}
+assets:
+  - id: starter-process-align
+    usage: phase-thumbnail
+    source:
+      board_id: uXjVH2vcvRI=
+      frame_id: "3458764679531716415"
+      item_id: "3458764679531716416"
+      title: Domain-Driven Design starter modeling process
+    target:
+      frame_id: phase-visual
+      position: {x: 0, y: 80}
+      width: 2200
+  - id: starter-process-align-pin
+    usage: phase-highlight
+    source:
+      board_id: uXjVH2vcvRI=
+      frame_id: "3458764679531716415"
+      item_id: "3458764679531716417"
+      title: Align phase marker
+    target:
+      frame_id: phase-visual
+      position: {x: -980, y: -560}
+      width: 260
+  - id: align-business-model-canvas
+    usage: workshop-reference
+    source:
+      board_id: uXjVH27wYU4=
+      frame_id: "3458764567890733009"
+      item_id: "3458764567890733049"
+      title: "Align: Business model canvas"
+    target:
+      frame_id: workshop-example
+      position: {x: 0, y: 0}
+      width: 2200

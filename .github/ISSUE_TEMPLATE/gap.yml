@@ -1,0 +1,106 @@
+name: GAP / idea
+description: Zachytit nově nalezenou mezeru, problém nebo produktový nápad před triage.
+title: "[GAP] "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        GAP Issue je vstup do backlogu. Nezakládej kvůli němu branch ani plánovaný PR, dokud neprojde triage a nevznikne implementační Change Request.
+  - type: textarea
+    id: origin
+    attributes:
+      label: Origin and evidence
+      description: Kde byl GAP nalezen a jaká evidence jej podporuje?
+      placeholder: Human review, GAP analysis, incident, user feedback, architecture review...
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / GAP
+      description: Co dnes chybí, nefunguje nebo vyžaduje nepřiměřenou ruční práci?
+    validations:
+      required: true
+  - type: textarea
+    id: value
+    attributes:
+      label: Expected platform value
+      description: Jaký outcome nebo snížení rizika přinese řešení?
+    validations:
+      required: true
+  - type: textarea
+    id: affected_users
+    attributes:
+      label: Affected users and workflows
+      description: Koho se GAP týká a ve které části platformního lifecycle?
+    validations:
+      required: true
+  - type: textarea
+    id: initial_scope
+    attributes:
+      label: Initial scope hypothesis
+      description: Prvotní In scope a Out of scope. Nemusí být finální.
+      placeholder: |
+        In scope:
+        - ...
+
+        Out of scope:
+        - ...
+    validations:
+      required: true
+  - type: dropdown
+    id: dominant_area
+    attributes:
+      label: Dominant platform area
+      options:
+        - DOC
+        - METHODOLOGY
+        - TEMPLATE
+        - SCHEMA
+        - ORCHESTRATION
+        - INGESTION
+        - CLI
+        - WORKSPACE-GENERATOR
+        - EXAMPLE
+        - TESTING
+        - RELEASE
+        - SECURITY-GOVERNANCE
+        - Unknown / requires discovery
+    validations:
+      required: true
+  - type: dropdown
+    id: urgency
+    attributes:
+      label: Initial urgency hypothesis
+      options:
+        - P0 candidate — safety/release/data-integrity blocker
+        - P1 candidate — high product value
+        - P2 candidate — planned important improvement
+        - P3 candidate — long-term/opportunistic
+        - Unknown — decide during triage
+    validations:
+      required: true
+  - type: textarea
+    id: assumptions
+    attributes:
+      label: Assumptions and open questions
+      description: Co zatím nevíme a co je nutné ověřit?
+  - type: textarea
+    id: relationships
+    attributes:
+      label: Related Work Package, issues, PRs or ADRs
+      description: Uveď odkazy nebo `none known`.
+    validations:
+      required: true
+  - type: checkboxes
+    id: boundaries
+    attributes:
+      label: Backlog boundaries
+      options:
+        - label: Tento Issue nepředstírá zahájenou implementaci.
+          required: true
+        - label: Nebyl kvůli němu založen prázdný nebo plánovaný PR.
+          required: true
+        - label: Neobsahuje klientská data ani secrets.
+          required: true

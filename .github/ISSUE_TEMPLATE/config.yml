@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: DDDA backlog governance
+    url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/governance/README.md
+    about: Pravidla pro GAP, Work Packages, Change Requests, Project, Milestones a PR lifecycle.
+  - name: DDDA product roadmap
+    url: https://github.com/romanhlavac/ddd-accelerator/blob/main/docs/roadmap/README.md
+    about: Dlouhodobá produktová vize a stav Work Packages.

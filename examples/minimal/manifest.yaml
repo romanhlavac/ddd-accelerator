@@ -1,0 +1,22 @@
+{
+  "manifest": {
+    "schema_version": 1,
+    "example_id": "minimal-claims-modernization",
+    "description": "Synthetic minimal example for DDDA platform smoke, E2E and acceptance validation.",
+    "project_intake": "input/project-intake.yaml",
+    "files": [
+      {
+        "source": "input/project-intake.yaml",
+        "target": "ingestion/raw/project-intake.yaml",
+        "role": "project-intake",
+        "required": true
+      },
+      {
+        "source": "input/domain-notes.md",
+        "target": "ingestion/raw/domain-notes.md",
+        "role": "domain-notes",
+        "required": true
+      }
+    ]
+  }
+}

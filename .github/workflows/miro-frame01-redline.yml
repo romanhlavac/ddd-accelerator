@@ -1,0 +1,128 @@
+name: DDDA REM-012.5 Miro Tips exact-reference verification
+
+# Deliberately no pull_request/push trigger and no Miro write credential.
+# This workflow validates the immutable exact-reference contract only.
+# Historical compatibility markers below are RETIRED contract names only; they
+# must never be used as active delivery modes again:
+# verify_reference_composite
+# reference_composite_image
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Safe no-write exact-reference verification.
+        required: true
+        type: choice
+        default: verify_exact_reference
+        options:
+          - verify_exact_reference
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ddda-miro-tips-exact-reference-${{ github.repository }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-exact-reference:
+    name: Verify frozen Miro Tips exact-reference contract
+    if: inputs.operation == 'verify_exact_reference'
+    runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      SOURCE_SHA: ${{ github.sha }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.SOURCE_SHA }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Verify no-write exact-reference source contract
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $actual=(git rev-parse HEAD).Trim()
+          if($actual -ne $env:SOURCE_SHA){throw "checkout SHA '$actual' differs from '$env:SOURCE_SHA'"}
+          @'
+          from pathlib import Path
+          from ruamel.yaml import YAML
+
+          root=Path('.')
+          workflow=(root/'.github/workflows/miro-frame01-redline.yml').read_text(encoding='utf-8')
+          assert 'workflow_dispatch:' in workflow
+          forbidden=(
+              'pull'+'_'+'request:',
+              'push'+':',
+              'MIRO_'+'PLATFORM_LAB_ACCESS_TOKEN',
+              'MIRO_'+'HVR_ACCESS_TOKEN',
+              '--'+'apply',
+          )
+          assert not [value for value in forbidden if value in workflow]
+
+          manifest=YAML(typ='safe').load((root/'scaffolds/miro/rem-012-5-frame-01.yaml').read_text(encoding='utf-8'))
+          tips=manifest['miro_tips']
+          assert tips['mode']=='exact_reference_clone'
+          assert tips['visual_equivalence_policy']=='exact_reference_child_snapshot'
+          assert tips['reference_source_board_id']=='uXjVH2vcvRI='
+          assert str(tips['reference_source_frame_id'])=='3458764679531043366'
+          assert str(tips['reference_source_image_id'])=='3458764679531043367'
+          assert tips['reference_background_sha256']=='04b83ec7d9bc07ae31c7c11c03ec974ff4bde00d7773d7f9e55036e877f6fffd'
+          assert tips['reference_frame_geometry']=={'width':1919.433,'height':1079.681}
+          assert tips['reference_text_font_size']==20
+          assert tips['expected_item_count']==17
+          assert tips['expected_item_type_counts']=={'image':1,'sticky_note':13,'text':3}
+          assert tips['expected_connector_count']==11
+          assert tips['expected_direct_image_connector_count']==8
+          assert tips['expected_text_connector_count']==3
+          assert len(tips['expected_rest_connector_ids'])==8
+          assert tips['routing_proxy_policy']=='no_shared_routing_proxy_v4'
+          assert tips['endpoint_geometry_tolerance_board_units']==2.0
+          for retired in (
+              'composite_asset_sha256',
+              'composite_asset_dimensions',
+              'target_item_count',
+              'target_item_type_counts',
+              'target_connector_count',
+          ):
+              assert retired not in tips, f'retired composite target contract remains: {retired}'
+          '@ | python -
+
+      - name: Run exact-reference regression and mutation tests
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          python -m pip install --disable-pip-version-check --no-input pytest 'ruamel.yaml>=0.18,<0.19' requests pyyaml
+          $env:PYTHONPATH=Join-Path $PWD.Path 'runtime\miro'
+          python -m pytest `
+            runtime/miro/tests/test_rem_012_5_miro_tips_hvr.py `
+            runtime/miro/tests/test_miro_tips_reference_oracle.py `
+            runtime/miro/tests/test_rem_012_5_connector_readback.py `
+            runtime/platform/tests/test_miro_execution_profiles.py -q
+          if($LASTEXITCODE -ne 0){throw 'Miro Tips exact-reference regression tests failed'}
+
+      - name: Publish no-write verification evidence
+        shell: pwsh
+        run: |
+          [ordered]@{
+            source_sha=$env:SOURCE_SHA
+            delivery_mode='exact_reference_clone'
+            oracle='frozen_reference_property_diff'
+            platform_lab_write_authorized=$false
+            hvr_write_authorized=$false
+            technical_status='PASS_IF_ALL_PREVIOUS_STEPS_PASSED'
+            human_review_status='PENDING'
+            overall_status='PENDING_HUMAN_REVIEW'
+          } | ConvertTo-Json | Set-Content -LiteralPath 'miro-tips-exact-reference-verification.json' -Encoding UTF8
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: miro-tips-exact-reference-${{ env.SOURCE_SHA }}
+          path: miro-tips-exact-reference-verification.json
+          if-no-files-found: error
+          retention-days: 30

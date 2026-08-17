@@ -1,0 +1,230 @@
+schema_version: 1
+remediation_id: REM-PR8-HVA-CC-012.3
+authorized_predecessor_sha: 562787796b7a60a1988f4b10247396900ce59bc4
+board_id: uXjVH1phki0=
+source_board_id: uXjVH27wYU4=
+frames:
+  control:
+    id: '3458764679756478046'
+    expected: {x: -16427.6455, y: 372.9065, width: 7000, height: 4914.42}
+  journey:
+    id: '3458764679756478059'
+    expected: {x: 9076.7807, y: -8458.9227, width: 58008.9, height: 10144.3}
+  align:
+    id: '3458764679756478064'
+    expected: {x: -16927.6455, y: 6006.3133, width: 6000, height: 4800}
+protected_frames:
+  - '3458764679756478065'
+  - '3458764679756478067'
+  - '3458764679756478070'
+  - '3458764679756478072'
+  - '3458764679756478075'
+  - '3458764679756478082'
+  - '3458764679756478086'
+  - '3458764679756478088'
+  - '3458764679756478089'
+  - '3458764679756478090'
+  - '3458764679756478091'
+  - '3458764679756478092'
+  - '3458764679756478093'
+  - '3458764679756478094'
+  - '3458764679756478096'
+health_palette:
+  maturity:
+    scaffold: '#EAF3FB'
+    working: '#C9E0F5'
+    candidate: '#9FC7EA'
+    validated: '#6FA8D8'
+    accepted: '#3F86C4'
+    superseded: '#1F5F98'
+  attention: '#F2994A'
+  blocking_clear: '#27AE60'
+  blocking_active: '#EB5757'
+frame_00_maturity_items:
+  - {key: scaffold, label: SCAFFOLD, count: 1, x: 1050, y: 4580, width: 800, height: 180, font_size: 24, fill_color: '#EAF3FB', text_color: '#1F3B64'}
+  - {key: working, label: WORKING, count: 2, x: 2050, y: 4580, width: 800, height: 180, font_size: 24, fill_color: '#C9E0F5', text_color: '#1F3B64'}
+  - {key: candidate, label: CANDIDATE, count: 0, x: 3050, y: 4580, width: 800, height: 180, font_size: 24, fill_color: '#9FC7EA', text_color: '#17395F'}
+  - {key: validated, label: VALIDATED, count: 0, x: 4050, y: 4580, width: 800, height: 180, font_size: 24, fill_color: '#6FA8D8', text_color: '#102A43'}
+  - {key: accepted, label: ACCEPTED, count: 0, x: 5050, y: 4580, width: 800, height: 180, font_size: 24, fill_color: '#3F86C4', text_color: '#FFFFFF'}
+  - {key: superseded, label: SUPERSEDED, count: 0, x: 6050, y: 4580, width: 800, height: 180, font_size: 24, fill_color: '#1F5F98', text_color: '#FFFFFF'}
+frame_00_registry_reference:
+  key: project-artifact-registry
+  type: text
+  frame: control
+  x: 1850
+  y: 3150
+  width: 3100
+  font_size: 36
+  style:
+    color: '#1F3B64'
+    textAlign: left
+  content: '<p><a href="https://github.com/romanhlavac/ddd-accelerator/blob/feat/project-steering-and-documentation/examples/minimal/projects/acceptance-claims-modernization/docs/artifacts/index.md"><strong>OTEVŘÍT PLNÝ PROJEKTOVÝ ARTIFACT REGISTRY →</strong></a></p><p>Project-owned Git/YAML je source of truth.</p>'
+updates:
+  - id: '3458764679756505802'
+    type: text
+    frame: control
+    x: 1800
+    y: 500
+    width: 3000
+    font_size: 64
+    content: '<p><strong>CONTROL CENTER — začněte zde</strong></p><p>Tento projekt modernizuje vyhodnocování pojistných událostí. Cílem je zpřístupnit rozhodovací pravidla, zrychlit bezpečnou změnu a umožnit vysvětlitelné rozhodnutí.</p>'
+  - id: '3458764679756505810'
+    type: text
+    frame: control
+    x: 5200
+    y: 700
+    width: 3000
+    font_size: 36
+    content: '<p><strong>Jak board použít poprvé</strong></p><p>1. Přečtěte aktuální stav a otázku rozhodnutí. 2. Otevřete zvýrazněnou fázi ve framu 01. 3. Doplňte evidence v pracovním framu. 4. Oprávněný člověk zapíše rozhodnutí do Git decision recordu. Miro ani technický PASS gate neschvalují.</p>'
+  - {id: '3458764679756548469', type: sticky_note, frame: control, x: 1200, y: 1850, width: 1900}
+  - {id: '3458764679756548472', type: sticky_note, frame: control, x: 3500, y: 1850, width: 2000}
+  - {id: '3458764679756548475', type: sticky_note, frame: control, x: 5800, y: 1850, width: 1900}
+  - id: '3458764679756523217'
+    type: shape
+    frame: control
+    x: 3500
+    y: 3700
+    width: 6600
+    height: 2300
+    font_size: 64
+    style:
+      fillColor: '#E7F1FF'
+      borderColor: '#4B79A1'
+      color: '#1F3B64'
+      textAlign: left
+      textAlignVertical: top
+    content: '<p><strong>ARTIFACT HEALTH SUMMARY — acceptance-claims-modernization</strong></p>'
+  - id: '3458764679756523219'
+    type: shape
+    frame: control
+    x: 1500
+    y: 3900
+    width: 2300
+    height: 1250
+    font_size: 44
+    style:
+      fillColor: '#FFFFFF'
+      borderColor: '#8AA9C7'
+      color: '#1F2937'
+      textAlign: left
+      textAlignVertical: top
+    content: '<p><strong>3 ARTEFAKTY</strong></p><p><br /></p><p>Summary maturity:</p><p><strong>SCAFFOLD: 1</strong><br /><strong>WORKING: 2</strong><br />…<br /><strong>SUPERSEDED: 0</strong></p><p>Summary review flagů:</p><p><strong>🟧 ATTENTION: 1</strong><br /><strong>🟩 BLOCKING: 0</strong></p>'
+  - id: '3458764679756523220'
+    type: text
+    frame: control
+    x: 3500
+    y: 4820
+    width: 6300
+    font_size: 28
+    style:
+      color: '#1F3B64'
+      textAlign: left
+    content: '<p><strong>MATURITY:</strong> světlejší modrá = ranější úroveň; tmavší modrá = pokročilejší úroveň. <strong>REVIEW FLAGS:</strong> 🟧 ATTENTION vyžaduje lidskou kontrolu nebo doplnění, ale nemusí zastavit gate. 🟩 BLOCKING = 0 znamená bez blockeru; 🟥 BLOCKING &gt; 0 znamená zastavit postup.</p>'
+  - id: '3458764679756523140'
+    type: text
+    frame: journey
+    x: 2600
+    y: 250
+    width: 4500
+    font_size: 48
+    content: '<p><strong>01 — DDD STARTER JOURNEY</strong></p><p>Čtěte zleva doprava. Velký referenční obraz ukazuje celou cestu a pin zvýrazňuje aktuální fázi. Karta pod ním vysvětluje rozhodovací gate; spodní prvky ukazují pracovní jazyk.</p>'
+  - id: '3458764679756523198'
+    type: text
+    frame: journey
+    x: 29000
+    y: 180
+    width: 6500
+    font_size: 48
+    content: '<p><strong>JAK ČÍST STAV GATE</strong> — stav popisuje připravenost k lidskému rozhodnutí, nikoli stav artefaktu.</p>'
+  - {id: '3458764679756523206', type: shape, frame: journey, x: 6500, y: 850, width: 9000, height: 900, font_size: 36}
+  - {id: '3458764679756523207', type: shape, frame: journey, x: 17500, y: 850, width: 9000, height: 900, font_size: 36}
+  - {id: '3458764679756523209', type: shape, frame: journey, x: 28500, y: 850, width: 9000, height: 900, font_size: 36}
+  - {id: '3458764679756523211', type: shape, frame: journey, x: 39500, y: 850, width: 9000, height: 900, font_size: 36}
+  - {id: '3458764679756523216', type: shape, frame: journey, x: 50500, y: 850, width: 9000, height: 900, font_size: 36}
+  - {id: '3458764679756505818', type: shape, frame: journey, x: 4000, y: 6100, width: 5000, height: 1600, font_size: 80}
+  - {id: '3458764679756505863', type: shape, frame: journey, x: 11000, y: 6100, width: 5000, height: 1600, font_size: 80}
+  - {id: '3458764679756505903', type: shape, frame: journey, x: 18000, y: 6100, width: 5000, height: 1600, font_size: 80}
+  - {id: '3458764679756522937', type: shape, frame: journey, x: 25000, y: 6100, width: 5000, height: 1600, font_size: 80}
+  - {id: '3458764679756522972', type: shape, frame: journey, x: 32000, y: 6100, width: 5000, height: 1600, font_size: 80}
+  - {id: '3458764679756523017', type: shape, frame: journey, x: 39000, y: 6100, width: 5000, height: 1600, font_size: 80}
+  - {id: '3458764679756523057', type: shape, frame: journey, x: 46000, y: 6100, width: 5000, height: 1600, font_size: 80}
+  - {id: '3458764679756523095', type: shape, frame: journey, x: 53000, y: 6100, width: 5000, height: 1600, font_size: 80}
+  - {id: '3458764679756505827', type: shape, frame: journey, x: 4000, y: 7600, width: 700, height: 700, font_size: 64}
+  - {id: '3458764679756505869', type: shape, frame: journey, x: 11000, y: 7600, width: 700, height: 700, font_size: 64}
+  - {id: '3458764679756505905', type: shape, frame: journey, x: 18000, y: 7600, width: 700, height: 700, font_size: 64}
+  - {id: '3458764679756522941', type: shape, frame: journey, x: 25000, y: 7600, width: 700, height: 700, font_size: 64}
+  - {id: '3458764679756522978', type: shape, frame: journey, x: 32000, y: 7600, width: 700, height: 700, font_size: 64}
+  - {id: '3458764679756523019', type: shape, frame: journey, x: 39000, y: 7600, width: 700, height: 700, font_size: 64}
+  - {id: '3458764679756523061', type: shape, frame: journey, x: 46000, y: 7600, width: 700, height: 700, font_size: 64}
+  - {id: '3458764679756523098', type: shape, frame: journey, x: 53000, y: 7600, width: 700, height: 700, font_size: 64}
+images:
+  manifest_id: rem-012-3-hvr-remediation
+  assets:
+    - {id: phase-align-base, source_board_id: 'uXjVH2vcvRI=', source_frame_id: '3458764679531716415', source_item_id: '3458764679531716416', expected_sha256: '4ef989128feb63c579ae9a4edb99a14752c3796ad323ad6b74c38aafb879f940', target_frame: journey, x_centered: -25004.45, y_centered: -1772.15, width: 6500}
+    - {id: phase-align-pin, source_board_id: 'uXjVH2vcvRI=', source_frame_id: '3458764679531716415', source_item_id: '3458764679531716417', expected_sha256: '27f5b8a6f60597a9ce41012f721e982ec429746fbfbe7758f5aa7aaa19224132', target_frame: journey, x_centered: -27700.19, y_centered: -2508.23, width: 812}
+    - {id: phase-discover-base, source_board_id: 'uXjVH2vcvRI=', source_frame_id: '3458764679532531400', source_item_id: '3458764679532531401', expected_sha256: '4ef989128feb63c579ae9a4edb99a14752c3796ad323ad6b74c38aafb879f940', target_frame: journey, x_centered: -18004.45, y_centered: -1772.15, width: 6500}
+    - {id: phase-discover-pin, source_board_id: 'uXjVH2vcvRI=', source_frame_id: '3458764679532531400', source_item_id: '3458764679532531402', expected_sha256: '27f5b8a6f60597a9ce41012f721e982ec429746fbfbe7758f5aa7aaa19224132', target_frame: journey, x_centered: -19777.45, y_centered: -2432.15, width: 812}
+    - {id: phase-decompose-base, source_board_id: 'uXjVH2vcvRI=', source_frame_id: '3458764679532531576', source_item_id: '3458764679532531577', expected_sha256: '4ef989128feb63c579ae9a4edb99a14752c3796ad323ad6b74c38aafb879f940', target_frame: journey, x_centered: -11004.45, y_centered: -1772.15, width: 6500}
+    - {id: phase-decompose-pin, source_board_id: 'uXjVH2vcvRI=', source_frame_id: '3458764679532531576', source_item_id: '3458764679532531578', expected_sha256: '27f5b8a6f60597a9ce41012f721e982ec429746fbfbe7758f5aa7aaa19224132', target_frame: journey, x_centered: -11703.45, y_centered: -3006.15, width: 812}
+    - {id: phase-strategize-base, source_board_id: 'uXjVH2vcvRI=', source_frame_id: '3458764679532531636', source_item_id: '3458764679532531637', expected_sha256: '4ef989128feb63c579ae9a4edb99a14752c3796ad323ad6b74c38aafb879f940', target_frame: journey, x_centered: -4004.45, y_centered: -1772.15, width: 6500}
+    - {id: phase-strategize-pin, source_board_id: 'uXjVH2vcvRI=', source_frame_id: '3458764679532531636', source_item_id: '3458764679532531638', expected_sha256: '27f5b8a6f60597a9ce41012f721e982ec429746fbfbe7758f5aa7aaa19224132', target_frame: journey, x_centered: -3626.45, y_centered: -3079.15, width: 812}
+    - {id: phase-connect-base, source_board_id: 'uXjVH2vcvRI=', source_frame_id: '3458764679532834577', source_item_id: '3458764679532834578', expected_sha256: '4ef989128feb63c579ae9a4edb99a14752c3796ad323ad6b74c38aafb879f940', target_frame: journey, x_centered: 2995.55, y_centered: -1772.15, width: 6500}
+    - {id: phase-connect-pin, source_board_id: 'uXjVH2vcvRI=', source_frame_id: '3458764679532834577', source_item_id: '3458764679532834579', expected_sha256: '27f5b8a6f60597a9ce41012f721e982ec429746fbfbe7758f5aa7aaa19224132', target_frame: journey, x_centered: 2561.55, y_centered: -1772.15, width: 812}
+    - {id: phase-organize-base, source_board_id: 'uXjVH2vcvRI=', source_frame_id: '3458764679532834532', source_item_id: '3458764679532834533', expected_sha256: '4ef989128feb63c579ae9a4edb99a14752c3796ad323ad6b74c38aafb879f940', target_frame: journey, x_centered: 9995.55, y_centered: -1772.15, width: 6500}
+    - {id: phase-organize-pin, source_board_id: 'uXjVH2vcvRI=', source_frame_id: '3458764679532834532', source_item_id: '3458764679532834534', expected_sha256: '27f5b8a6f60597a9ce41012f721e982ec429746fbfbe7758f5aa7aaa19224132', target_frame: journey, x_centered: 10572.55, y_centered: -1904.15, width: 812}
+    - {id: phase-define-base, source_board_id: 'uXjVH2vcvRI=', source_frame_id: '3458764679532834637', source_item_id: '3458764679532834638', expected_sha256: '4ef989128feb63c579ae9a4edb99a14752c3796ad323ad6b74c38aafb879f940', target_frame: journey, x_centered: 16995.55, y_centered: -1772.15, width: 6500}
+    - {id: phase-define-pin, source_board_id: 'uXjVH2vcvRI=', source_frame_id: '3458764679532834637', source_item_id: '3458764679532834639', expected_sha256: '27f5b8a6f60597a9ce41012f721e982ec429746fbfbe7758f5aa7aaa19224132', target_frame: journey, x_centered: 18383.55, y_centered: -2472.15, width: 812}
+    - {id: phase-code-base, source_board_id: 'uXjVH2vcvRI=', source_frame_id: '3458764679532834681', source_item_id: '3458764679532834682', expected_sha256: '4ef989128feb63c579ae9a4edb99a14752c3796ad323ad6b74c38aafb879f940', target_frame: journey, x_centered: 23995.55, y_centered: -1772.15, width: 6500}
+    - {id: phase-code-pin, source_board_id: 'uXjVH2vcvRI=', source_frame_id: '3458764679532834681', source_item_id: '3458764679532834683', expected_sha256: '27f5b8a6f60597a9ce41012f721e982ec429746fbfbe7758f5aa7aaa19224132', target_frame: journey, x_centered: 26648.55, y_centered: -2498.15, width: 812}
+    - {id: align-bmc, source_board_id: 'uXjVH27wYU4=', source_frame_id: '3458764567890733009', source_item_id: '3458764567890733049', expected_sha256: '18d82268341240c56f7f950a99b5064907247e1ef31a91443d59dc298404ee62', target_frame: align, x_centered: 386, y_centered: -1382, width: 2314}
+native_clones:
+  - name: align-onboarding
+    source_frame_id: '3458764567890733009'
+    target_frame: align
+    scale: 2.0
+    offset_x: 500
+    offset_y: 200
+    expected_supported_count: 8
+  - name: filled-bmc-example
+    source_frame_id: '3458764567890733010'
+    target_frame: align
+    scale: 2.7
+    offset_x: 700
+    offset_y: 2000
+    expected_supported_count: 121
+cleanup_ids:
+  - '3458764679756478099'
+  - '3458764679756478101'
+  - '3458764679756478103'
+  - '3458764679756478104'
+  - '3458764679756478105'
+  - '3458764679756478111'
+  - '3458764679756478112'
+project_registry:
+  project_id: acceptance-claims-modernization
+  yaml_path: examples/minimal/projects/acceptance-claims-modernization/artifacts/registry.yaml
+  markdown_path: examples/minimal/projects/acceptance-claims-modernization/docs/artifacts/index.md
+  github_url: https://github.com/romanhlavac/ddd-accelerator/blob/feat/project-steering-and-documentation/examples/minimal/projects/acceptance-claims-modernization/docs/artifacts/index.md
+  markdown_sha256: 9f9da4289176e1835ae391b80dce3fd2da7c9c6ad4f4c602ce2fcab14d5773b4
+  expected_artifact_ids: [project-charter, ddda.current-status, ddda.next-actions]
+control_verification:
+  required_phrases:
+    - CONTROL CENTER — začněte zde
+    - Jak board použít poprvé
+    - ARTIFACT HEALTH SUMMARY — acceptance-claims-modernization
+    - OTEVŘÍT PLNÝ PROJEKTOVÝ ARTIFACT REGISTRY
+    - Project-owned Git/YAML je source of truth
+    - 3 ARTEFAKTY
+    - Summary maturity
+    - SCAFFOLD
+    - WORKING
+    - SUPERSEDED
+    - Summary review flagů
+    - 🟧 ATTENTION: 1
+    - 🟩 BLOCKING: 0
+    - 🟥 BLOCKING > 0
+  forbidden_phrases:
+    - HEALTH: ATTENTION
+    - 🟦 MATURITY
+    - PROVENANCE · GENERATED
+    - PROJECT / GATE STATE — kompaktní legenda

@@ -1,39 +1,35 @@
 ---
-description: Chat-first pracovní režim DDDA
+description: DDDA project-work guardrails for Cursor
 alwaysApply: true
 ---
 
-# DDDA Chat-First Guardrails
+# DDDA project-work guardrails
 
-Před každou změnou:
+Toto pravidlo je součástí DDDA project runtime v Cursoru. Nevztahuje se na vývoj DDDA platformy.
 
-1. určete `scope: platform` nebo `scope: project`,
-2. u projektového scope určete aktivní projekt a Git root,
-3. pojmenujte business nebo architektonické rozhodnutí, které má práce podpořit,
-4. načtěte `docs/README.md`, relevantní cookbook a `project.yaml`,
-5. oddělte evidence, hypotézy, rozhodnutí a generované projekce.
+Před každou projektovou změnou:
+
+1. potvrď `scope: project` a aktivní project repository;
+2. pojmenuj business nebo architektonické rozhodnutí, které práce podporuje;
+3. načti projektový status, tailoring, relevantní cookbook a knowledge soubory;
+4. odděl evidence, hypotézy, rozhodnutí a generované projekce.
 
 ## Práce se zdroji
 
-- Zachovávejte terminologii vstupů.
-- U závěrů uvádějte source path nebo workshop reference.
-- Rozpory nevyhlazujte; zapisujte je jako hotspot nebo conflict record.
-- Obecné znalosti označte jako inference, pokud nejsou doloženy projektovým zdrojem.
+- Zachovávej terminologii vstupů.
+- U důležitých závěrů uváděj source path nebo workshop reference.
+- Rozpory zapisuj jako hotspot nebo conflict record.
+- Obecné znalosti označ jako inference, pokud nejsou doloženy projektovým zdrojem.
 
-## Volání skriptů
+## Projektové skripty a Miro
 
-Před voláním skriptu vysvětlete:
+Před voláním DDDA skriptu vysvětli účel, dotčené projektové soubory nebo Miro items, očekávaný výstup, validaci a rollback.
 
-- proč se volá,
-- které soubory nebo Miro položky může změnit,
-- parametry a očekávaný výstup,
-- validační a rollback krok.
+Miro write musí nejprve proběhnout jako dry-run. Nové položky vytvořené přímo v Miru se nesmějí automaticky promovat do YAML bez explicitního review.
 
-Miro write operace musí nejprve proběhnout jako dry-run. Nové položky vytvořené přímo v Miru se nesmí automaticky promovat do YAML; použijte explicitní `PromoteNew` až po review.
+## Bezpečnost a Git
 
-## Konflikty a Git
-
-- Nikdy nepoužívejte implicitní last-write-wins pro sémantiku.
-- Neřešte conflict record bez doménového nebo architektonického rozhodnutí.
-- Necommitujte tokeny, secrets ani klientská data do platformního repozitáře.
-- Neprovádějte push, merge, release ani fyzické Miro delete bez explicitního potvrzení uživatele.
+- Neřeš sémantický konflikt implicitním last-write-wins.
+- Necommituj secrets ani neveřejná data mimo schválený project repository.
+- Neprováděj push, merge, release ani fyzický Miro delete bez explicitního potvrzení.
+- Neměň DDDA platform repository. Platformní defect nebo enhancement zaznamenej jako change request pro Chat/Work platform-development flow.

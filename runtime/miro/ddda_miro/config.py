@@ -11,6 +11,7 @@ from .yamlio import load_yaml
 @dataclass(slots=True)
 class ProjectConfig:
     root: Path
+    platform_root: Path
     raw: dict[str, Any]
     project_id: str
     name: str
@@ -27,6 +28,7 @@ class ProjectConfig:
     @classmethod
     def load(cls, root: Path, platform_root: Path | None = None) -> "ProjectConfig":
         root = root.resolve()
+        resolved_platform_root = platform_root.resolve() if platform_root else root
         raw = load_yaml(root / "project.yaml")
         if not isinstance(raw, dict):
             raise ValueError(f"Invalid or missing project.yaml in {root}")
@@ -47,9 +49,10 @@ class ProjectConfig:
         miro_project_id = miro.get("project_id") or (os.environ.get(str(miro.get("project_id_env"))) if miro.get("project_id_env") else None)
         scaffold = Path(str(miro.get("scaffold") or "scaffolds/miro/strategic-ddd-method-board.yaml"))
         if not scaffold.is_absolute():
-            scaffold = (platform_root.resolve() if platform_root else root) / scaffold
+            scaffold = resolved_platform_root / scaffold
         return cls(
             root=root,
+            platform_root=resolved_platform_root,
             raw=raw,
             project_id=project_id,
             name=str(project.get("name") or project_id),

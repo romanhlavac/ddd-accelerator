@@ -52,19 +52,32 @@ function ConvertFrom-DDDAGitPorcelain {
 function Assert-DDDAGitChangesWithinPath {
     param(
         [string]$PorcelainText,
-        [Parameter(Mandatory = $true)][string]$AllowedPrefix,
+        [Parameter(Mandatory = $true)][string[]]$AllowedPrefix,
         [Parameter(Mandatory = $true)][string]$Label
     )
 
-    $normalizedPrefix = $AllowedPrefix.Replace('\', '/').TrimStart('/')
+    $normalizedPrefixes = @(
+        $AllowedPrefix |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+            ForEach-Object { $_.Replace('\', '/').TrimStart('/') }
+    )
+
+    if ($normalizedPrefixes.Count -eq 0) {
+        throw "$Label nemá definovanou žádnou povolenou cestu."
+    }
+
+    $entries = @(ConvertFrom-DDDAGitPorcelain -PorcelainText $PorcelainText)
     $unexpected = @(
-        ConvertFrom-DDDAGitPorcelain -PorcelainText $PorcelainText |
-            Where-Object { -not $_.Path.StartsWith($normalizedPrefix, [System.StringComparison]::OrdinalIgnoreCase) }
+        $entries |
+            Where-Object {
+                $path = $_.Path
+                -not (@($normalizedPrefixes | Where-Object { $path.StartsWith($_, [System.StringComparison]::OrdinalIgnoreCase) }).Count -gt 0)
+            }
     )
 
     if ($unexpected.Count -gt 0) {
-        throw "$Label obsahuje změny mimo '$normalizedPrefix':`n$($unexpected.Line -join "`n")"
+        throw "$Label obsahuje změny mimo povolené cesty '$($normalizedPrefixes -join ', ')':`n$($unexpected.Line -join "`n")"
     }
 
-    return @(ConvertFrom-DDDAGitPorcelain -PorcelainText $PorcelainText)
+    return $entries
 }
