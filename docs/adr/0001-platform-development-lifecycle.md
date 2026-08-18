@@ -1,6 +1,6 @@
 # ADR: Reprodukovatelný lifecycle vývoje DDDA platformy
 
-Status: Accepted
+Status: Accepted — amended 2026-08-18 by ADR 0008
 
 Date: 2026-07-26
 
@@ -19,26 +19,58 @@ Prioritní quality attributes:
 
 ## Decision
 
-Zavádíme tento lifecycle:
+Git je source of truth, PR je jednotka platformní změny a candidate/release package je jednotka reprodukovatelné validace/distribuce. Package-dependent smoke, E2E a acceptance musí běžet z nově rozbaleného package, ne z development working tree.
+
+### Amendment 2026-08-18 — implementation merge ≠ release promotion
+
+Post-release review DDDA 0.1.0 a PR #74 ukázaly, že původní lineární sekvence `human review → promote-pr → merge → release` směšovala dvě různé governance boundaries. ADR 0008 proto tento lifecycle prospektivně zpřesňuje.
+
+#### Governed implementation PR
 
 ```text
 change request
-→ feature branch
+→ feature/fix branch
 → implementation
-→ CI
+→ exact-SHA CI
 → validate-pr nad exact PR head
-→ human review
-→ promote-pr s explicitním potvrzením
-→ merge
+→ Human Review pro stejné SHA/package
+→ merge-pr -DryRun
+→ explicitní human merge authorization
+→ merge-pr -ConfirmMerge
+→ merge do main
+→ NO release package
+→ NO release validation
+→ NO release tag
+```
+
+Implementation merge nevyžaduje HRDR ani Release Scope Gate. `merge-pr` je merge-only command a nesmí volat release/tag execution path.
+
+#### Release candidate
+
+Až po integraci práce určené pro konkrétní release:
+
+```text
+release candidate (typicky release/<version> PR nebo ekvivalent)
+→ exact-SHA candidate validation
+→ release cut / changelog consistency
+→ Human Release Decision Record
+→ strict Release Scope Gate
+→ promotion dry-run
+→ explicitní Human Release Decision
+→ samostatná explicitní release/promotion authorization
+→ canonical promotion
+→ release-candidate merge, pokud jej workflow vyžaduje
 → release package
-→ generated example workspace
+→ generated release-validation workspace
 → manifest-driven ingestion
 → smoke + acceptance
 → release report
 → release tag
 ```
 
-Git je source of truth, PR je jednotka změny a candidate/release package je jednotka distribuce a validace. Smoke, E2E a acceptance testy musí běžet z nově rozbaleného package, ne z development working tree.
+Release Scope Gate vyžaduje kompletní/konzistentní release scope, ale **není** precondition pro předchozí merge jednotlivých implementačních PR. Tím se zachová strict release governance bez multi-PR deadlocku.
+
+Human Review, implementation merge authorization, Human Release Decision a release/promotion authorization jsou odlišné lidské boundaries. Automation nesmí žádnou z nich inferovat z technického PASS ani z jiné authorization.
 
 Veřejným entry pointem je `ddda.ps1`. Specializované skripty zůstávají interními stavebními bloky a compatibility entry points.
 
@@ -77,29 +109,36 @@ Pros:
 
 - silná reprodukovatelnost a auditovatelnost;
 - jasná hranice platforma/workspace/release;
-- automatizovatelný promotion gate;
+- automatizovatelné mechanical gates;
 - example workspace prokazuje reálnou použitelnost balíčku.
 
 Cons:
 
 - delší validation běh;
 - potřeba správy dočasných clone, package a reportů;
-- promotion vyžaduje dostupnou GitHub autentizaci; GitHub CLI je pouze volitelný provider a není povinnou závislostí.
+- release promotion vyžaduje dostupnou GitHub autentizaci; GitHub CLI je pouze volitelný provider.
+
+### D. Jeden promote-pr pro implementation merge i release
+
+Zamítnuto dodatkem 2026-08-18. Se strict Release Scope Gate může vytvořit kruhovou závislost u multi-PR releasu a směšuje integration a release authority.
 
 ## Consequences
 
 Positive:
 
-- jeden doporučený command flow;
-- validation report je svázán s PR head SHA a package hashem;
+- exact-SHA validation report je svázán s PR head SHA a package hashem;
 - klientský workspace se nepoužívá jako test fixture;
-- běžné testy nemohou samy mergovat nebo tagovat.
+- běžné testy nemohou samy mergovat nebo tagovat;
+- implementation PR lze bezpečně integrovat bez vytvoření release;
+- strict Release Scope Gate se aplikuje až na skutečný release candidate;
+- merge a release authorization zůstávají oddělené.
 
 Negative:
 
-- více platformního kódu a testovací infrastruktury;
+- lifecycle má explicitně dva orchestration commands/boundaries (`merge-pr`, `promote-pr`);
+- před release je potřeba explicitní release candidate;
 - E2E a online Miro acceptance jsou pomalejší než unit testy;
-- release proces má explicitní nároky na nástroje a oprávnění.
+- release proces má explicitní nároky na nástroje, evidence a oprávnění.
 
 New obligations:
 
@@ -107,7 +146,9 @@ New obligations:
 - doplnit ADR u dlouhodobých rozhodnutí;
 - doplnit migration note u změn kompatibility;
 - udržovat minimal example a invariant-based regression;
-- zachovat fail-closed promotion.
+- zachovat fail-closed implementation merge i release promotion;
+- Human Review evidence vázat na exact implementation SHA/package;
+- HRDR + Release Scope Gate vázat na exact release candidate.
 
 ## Impact
 
@@ -128,7 +169,7 @@ Existing workspaces:
 
 Migration:
 
-- none; změna je aditivní.
+- none; změna je aditivní/non-breaking governance tightening.
 
 ## Validation
 
@@ -137,10 +178,13 @@ Migration:
 - security test package contents a path isolation;
 - offline acceptance;
 - volitelný online Miro acceptance;
-- promotion dry-run bez merge oprávnění.
+- governed `merge-pr` dry-run bez side effects;
+- multi-PR anti-deadlock regression;
+- strict release-scope regression;
+- promotion dry-run bez release side effects.
 
 ## Follow-up actions
 
-- [ ] Použít lifecycle pro PR #9–#11.
-- [ ] Po prvním release zpřesnit časové limity a retention reportů.
-- [ ] Podle repository policy upravit počet požadovaných approvals.
+- [ ] Používat oddělený implementation merge / release candidate lifecycle pro post-0.1.0 stabilization.
+- [ ] Po maintenance release zpřesnit časové limity a retention reportů.
+- [ ] Podle repository policy upravit počet požadovaných approvals a merge strategy (#70).
