@@ -1,7 +1,7 @@
 ﻿[CmdletBinding()]
 param(
     [Parameter(Mandatory = $true, Position = 0)]
-    [ValidateSet("doctor", "test", "validate-pr", "promote-pr")]
+    [ValidateSet("doctor", "test", "validate-pr", "review-pr", "promote-pr")]
     [string]$Command,
 
     [ValidateSet("lint", "schema", "unit", "component", "integration", "smoke", "regression", "security", "e2e", "acceptance", "all")]
@@ -10,6 +10,9 @@ param(
     [int]$Pr,
     [string]$Version,
     [string]$PackagePath,
+    [string]$Reviewer,
+    [string]$DecisionOwner,
+    [switch]$PublishScaffold,
     [switch]$WithMiro,
     [switch]$Full,
     [switch]$CleanupOnFailure,
@@ -92,6 +95,19 @@ switch ($Command) {
         if ($NonInteractive) { $arguments += "-NonInteractive" }
         Invoke-DDDACommandScript -RelativePath "scripts/platform/Invoke-DDDAValidatePr.ps1" -Arguments $arguments
     }
+    "review-pr" {
+        if ($Pr -le 0) {
+            throw "Příkaz review-pr vyžaduje kladné -Pr."
+        }
+        if ([string]::IsNullOrWhiteSpace($Version)) {
+            throw "Příkaz review-pr vyžaduje -Version."
+        }
+        $arguments = @("-PlatformPath", $platformRoot, "-Pr", [string]$Pr, "-Version", $Version)
+        if (-not [string]::IsNullOrWhiteSpace($Reviewer)) { $arguments += @("-Reviewer", $Reviewer) }
+        if (-not [string]::IsNullOrWhiteSpace($DecisionOwner)) { $arguments += @("-DecisionOwner", $DecisionOwner) }
+        if ($PublishScaffold) { $arguments += "-PublishScaffold" }
+        Invoke-DDDACommandScript -RelativePath "scripts/platform/Invoke-DDDAReviewPr.ps1" -Arguments $arguments
+    }
     "promote-pr" {
         if ($Pr -le 0) {
             throw "Příkaz promote-pr vyžaduje kladné -Pr."
@@ -109,6 +125,6 @@ switch ($Command) {
         if (-not [string]::IsNullOrWhiteSpace($MiroTeamId)) { $arguments += @("-MiroTeamId", $MiroTeamId) }
         if ($NonInteractive) { $arguments += "-NonInteractive" }
         if ($DryRun) { $arguments += "-DryRun" }
-        Invoke-DDDACommandScript -RelativePath "scripts/platform/Invoke-DDDAPromotePr.ps1" -Arguments $arguments
+        Invoke-DDDACommandScript -RelativePath "scripts/platform/Invoke-DDDDAGovernedPromotePr.ps1" -Arguments $arguments
     }
 }

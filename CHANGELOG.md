@@ -6,6 +6,15 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 ## [Unreleased]
 
+### Added
+
+- machine-readable `human-release-decision.schema.json`, `review-pr` scaffold a fail-closed Release Scope Gate pro exact PR SHA / candidate package / release-version identity;
+- ADR 0008 a developer runbook oddělující Human Release Decision od mechanické release-scope completeness.
+
+### Changed
+
+- public `promote-pr` nyní před interním release executorem vyžaduje validní human HRDR a read-only Release Scope Gate PASS nad Milestone, native blockers a GitHub Project V2 projekcí.
+
 Změny pro další verzi se během vývoje zapisují sem. Před promotion se všechny položky přesunou do jediné verze `X.Y.Z` s ISO datem a tato sekce zůstane bez release položek.
 
 ## [0.1.0] - 2026-07-28
@@ -42,9 +51,9 @@ Změny pro další verzi se během vývoje zapisují sem. Před promotion se vš
 - vývoj DDDA platformy používá pouze Chat a Work; GitHub Actions je autoritativní execution plane pro shell, build, testy, candidate package a package-first acceptance, secrets zůstávají mimo Chat/Work runtime a Work zapisuje pouze na explicitní platformní PR branch;
 - vlastní práce architekta v konkrétním DDDA projektu probíhá v Cursoru, který poskytuje chat, agentic práci s projektovými soubory, artefakty a kódem; Cursor nesmí měnit DDDA platform repository;
 - platformní defect nebo obecný enhancement nalezený při projektové práci se předává jako change request do Chat/Work platform-development flow;
-- Miro visual acceptance vyžaduje skutečné načtení referenčních a cílových framů, side-by-side porovnání, obrázky, fonty, geometrii, překryvy, využití plochy a first-viewer usability; strukturální PASS zůstává oddělen od human review;
-- corrective remediation `REM-PR8-HVA-CC-011`: syntetický claims scénář používá jednotný business problém a ubiquitous language; všechny povinné DDD Starter vazby míří na exact `moveToWidget` frame, G7 overview odpovídá Bounded Context Canvasu a odkazy označené jako kuchařka míří výhradně pod `docs/cookbooks/`;
-- corrective remediation `REM-PR8-HVA-CC-010`: frame `01` vlastní nejméně 61 navigovatelných child items a zobrazuje exact redline/DDD Starter traceability; workshopové vzory citují konkrétní source frames a rozpoznatelně adaptují Business Model Canvas, EventStorming, Process Modelling, Strategic Classification, Context Map, Bounded Context Canvas a Domain Message Flow;
+- Miro visual acceptance vyžaduje skutečné načtení referenčních a cílových framů, side-by-side porovnání, obrázky, fonty, geometrii, překryvy, využití plochy a first-viewer usability; strukturální PASS zůstává oddęlen od human review;
+- corrective remediation `REM-PR8-HVA-CC-011`: syntetický claims scénář používá jednotný business problém a ubiquitous language; všechny povinné DDD`Starter vazby míří na exact `moveToWidget` frame, G7 overview odpovídá Bounded Context Canvasu a odkazy označené jako kuchařka míří výhradně pod `docs/cookbooks/`;
+- corrective remediation `REM-PR8-HVA-CC-010`: frame `01` vlastní nejméně 61 navigovatelných child items a zobrazuje exact redline/DDD Starter traceability; workshopové vzory citují konkrétní source frames a rozpoznatelnę adaptují Business Model Canvas, EventStorming, Process Modelling, Strategic Classification, Context Map, Bounded Context Canvas a Domain Message Flow;
 - Miro scaffold schema `2.5`, remote acceptance a content digest kontrolují parent vazby frame `01`, nejméně 280 remote items a nejméně 11 viditelných DDD Starter source captions; HUMAN REVIEW zůstává `PENDING`;
 - korekce `REM-PR8-HVA-CC-002`: Miro scaffold schema `2.4` používá deterministické stage columns a ve frames `20–82` kanonický shell `method guide | editable work area | VZOR / LEGENDA`; frames `01` a `10` zůstávají interně beze změny;
 - Control Center odděluje `Project / Gate State`, `Artifact Lifecycle` a `Artifact Provenance` a promítá managed YAML do jediného devítisloupcového Artifact Registry;
@@ -85,7 +94,7 @@ Změny pro další verzi se během vývoje zapisují sem. Před promotion se vš
 - Miro board obsahuje kompaktní first-user onboarding, základní DDD Starter/DDDA zdroje a explicitní Control Center název;
 - vyšší metodické zóny jsou zarovnané a stage, gate, zone i feedback flow používají stabilní shapes a popsané Miro connectors;
 - workshopové mini-vzory používají metodicky specifické sticky notes, shapes a table-grid reprezentace namísto generických karet;
-- každý pracovní frame má oddělený panel `VZOR / LEGENDA`, jehož položky a connectors jsou explicitně vyřazeny z Miro → YAML synchronizace a ingestion;
+- každý pracovní frame má oddęlený panel `VZOR / LEGENDA`, jehož položky a connectors jsou explicitnę vyřazeny z Miro → YAML synchronizace a ingestion;
 - artifact-status projekce v Control Center používá deterministický shape-grid, protože Miro REST API v2 neposkytuje vytvoření nativní tabulky;
 - syntetická legacy workspace compatibility regrese dokazuje non-breaking/aditivní kontrakt bez klientských dat;
 - ADR odstranil zastaralý požadavek na GitHub CLI jako povinnou závislost promotion.
