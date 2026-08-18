@@ -8,7 +8,14 @@
 - GitHub autentizace používá podporovaný provider chain;
 - secret-bearing online acceptance běží v GitHub Actions / schváleném secret store.
 
-GitHub token se nikdy nevypisuje ani nepředává jako veřejný CLI argument.
+Kanonický GitHub authentication provider order je:
+
+1. `GH_TOKEN`;
+2. `GITHUB_TOKEN`;
+3. `gh auth token`;
+4. `git credential helper`.
+
+GitHub CLI není povinná závislost. GitHub token se nikdy nevypisuje ani nepředává jako veřejný CLI argument a nesmí se objevit v Chat/Work kontextu, logu, reportu ani shell history.
 
 Stav ověř:
 

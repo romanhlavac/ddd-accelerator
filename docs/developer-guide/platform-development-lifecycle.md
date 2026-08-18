@@ -64,6 +64,17 @@ Zakázáno:
 
 GitHub Actions je autoritativní execution plane pro shell, build, testy, candidate package a package-first acceptance.
 
+## GitHub authentication contract
+
+Governed merge/release commands používají stejný kanonický provider order:
+
+1. `GH_TOKEN`;
+2. `GITHUB_TOKEN`;
+3. `gh auth token`;
+4. `git credential helper`.
+
+GitHub CLI není povinná závislost. Token se nikdy nepředává jako CLI argument a nesmí se objevit v Chat/Work kontextu, logu, reportu ani shell history. Secret-bearing execution zůstává v GitHub Actions nebo schváleném secret store.
+
 ## Kanonické toky
 
 DDDA explicitně odděluje **integraci implementačního PR** od **release/promotion**.
