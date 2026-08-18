@@ -100,7 +100,6 @@ def tracked_or_distributed_files(root: Path) -> list[Path]:
     ]
 
 
-
 def _section_body(text: str, heading_match: re.Match[str]) -> str:
     start = heading_match.end()
     next_heading = re.search(r"^##\s+", text[start:], re.MULTILINE)
@@ -190,10 +189,9 @@ def validate_release_contracts(root: Path) -> list[str]:
         failures.append(
             f"CHANGELOG.md must contain exactly one '## [Unreleased]' heading, found {len(unreleased_matches)}"
         )
-    elif RELEASE_ITEM_PATTERN.search(_section_body(changelog, unreleased_matches[0])):
-        failures.append(
-            "CHANGELOG.md [Unreleased] contains release items; cut them into a versioned release before promotion"
-        )
+    # Development changes intentionally live under Unreleased. Requiring that
+    # section to be empty belongs to promotion-time Assert-DDDAPlatformChangelogRelease,
+    # not ordinary PR/source repository validation.
 
     release_matches = list(RELEASE_HEADING_PATTERN.finditer(changelog))
     if not release_matches:
@@ -241,6 +239,7 @@ def validate_release_contracts(root: Path) -> list[str]:
             )
 
     return failures
+
 
 def validate_lint(root: Path) -> list[str]:
     failures: list[str] = []

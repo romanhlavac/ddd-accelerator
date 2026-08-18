@@ -60,6 +60,16 @@ Volitelné parametry:
 
 Příkaz testuje exact PR head SHA, candidate package a generovaný example workspace. Aktivní větev a working tree nemění.
 
+### Review PR / HRDR scaffold
+
+Po dokončení frozen-candidate validace lze vytvořit Human Release Decision Record scaffold:
+
+```powershell
+.\ddda.ps1 review-pr -Pr 8 -Version 0.1.1 -Reviewer <login> -DecisionOwner <login> -PublishScaffold
+```
+
+`review-pr` načte live PR HEAD, PASS `validate-pr` evidence pro stejný SHA, znovu ověří candidate package SHA-256 a current release milestone. Automation vytváří pouze `decision=pending`; nevytváří `GO`, nepřijímá residual risk a nevolí člověka, který smí release rozhodnout.
+
 ### Promote PR
 
 Preflight:
@@ -80,11 +90,13 @@ Volitelné parametry:
 - `-KeepArtifacts` — zachová promotion workspace;
 - `-NonInteractive` — zakáže secret prompt.
 
-`-ConfirmMerge` je povinná explicitní approval boundary. Bez něj se merge neprovede.
+Public `promote-pr` nejdříve fail-closed validuje právě jeden authoritativní human HRDR a Release Scope Gate nad live Milestone, native blockers a GitHub Project V2 projection. Interní release executor se nespustí, dokud gate není `PASS`.
 
-GitHub autentizace se načítá v pořadí `GH_TOKEN` → `GITHUB_TOKEN` → `gh auth token` → Git credential helper. GitHub CLI není povinný. Token nemá veřejný CLI parametr.
+`-ConfirmMerge` je povinná explicitní approval boundary. Ani HRDR `GO` / `GO_WITH_ACCEPTED_RISKS` není samo o sobě merge authorization.
 
-Preflight vyžaduje release sekci `## [X.Y.Z] - YYYY-MM-DD` odpovídající `-Version X.Y.Z`, prázdnou `## [Unreleased]` sekci a volný tag `vX.Y.Z`.
+GitHub autentizace se načítá v pořadí `GH_TOKEN` → `GITHUB_TOKEN` → `gh auth token` → Git credential helper. GitHub CLI není povinný. Token nemá veřejný CLI parametr. Release Scope Gate navíc používá `DDDA_GITHUB_PROJECT_TOKEN` výhradně z GitHub Actions / secret store pro read-only Project V2 evidence.
+
+Během běžného vývoje mohou být release položky pod `## [Unreleased]`. Promotion preflight vyžaduje release sekci `## [X.Y.Z] - YYYY-MM-DD` odpovídající `-Version X.Y.Z`, prázdnou `## [Unreleased]` sekci a volný tag `vX.Y.Z`.
 
 ## Interní platform lifecycle skripty
 
@@ -107,6 +119,14 @@ Z rozbaleného package vytvoří workspace, ingestuje minimal example a iniciali
 ### `New-DDDAValidationReport.ps1`
 
 Vytvoří JSON a Markdown validation report svázaný se source SHA a package SHA-256.
+
+### `Invoke-DDDAGovernedPromotePr.ps1`
+
+Read-only governance wrapper pro public `promote-pr`: ověří HRDR human provenance, exact candidate identity a Release Scope Gate; teprve po PASS deleguje na interní `Invoke-DDDAPromotePr.ps1`.
+
+### `Test-DDDAReleaseScope.py`
+
+Read-only collector/evaluator live GitHub release scope. Používá Milestone/Issue/native dependency evidence a Project V2 read-back. Chybějící/nejednoznačná evidence je FAIL.
 
 ## Project steering compatibility commands
 

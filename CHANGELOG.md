@@ -6,6 +6,15 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 ## [Unreleased]
 
+### Added
+
+- machine-readable `human-release-decision.schema.json`, `review-pr` scaffold a fail-closed Release Scope Gate pro exact PR SHA / candidate package / release-version identity;
+- ADR 0008 a developer runbook oddělující Human Release Decision od mechanické release-scope completeness.
+
+### Changed
+
+- public `promote-pr` nyní před interním release executorem vyžaduje validní human HRDR a read-only Release Scope Gate PASS nad Milestone, native blockers a GitHub Project V2 projekcí.
+
 Změny pro další verzi se během vývoje zapisují sem. Před promotion se všechny položky přesunou do jediné verze `X.Y.Z` s ISO datem a tato sekce zůstane bez release položek.
 
 ## [0.1.0] - 2026-07-28
