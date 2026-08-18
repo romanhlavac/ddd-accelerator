@@ -120,7 +120,7 @@ CI/test pipeline
 11. Mechanical checks are automated; humans decide only judgment-heavy questions.
 12. Client data, credentials and user-specific absolute paths are forbidden in examples and packages.
 13. Chat output is advisory; technical guarantees live in Git, CI, schemas, scripts and tests.
-14. Merge, tag, release and promotion require a separate explicit governance action.
+14. Implementation merge, release promotion and tag creation are distinct governance side effects and each requires its own explicit human authorization when applicable.
 15. Validation evidence must identify the exact commit SHA and candidate-package hash.
 16. Chat and Work are the only supported ChatGPT interfaces for DDDA platform development.
 17. Codex and `/agent` are prohibited by the active development policy.
@@ -135,6 +135,8 @@ CI/test pipeline
 26. Human interaction is requested only for judgment or authorization that cannot be automated, such as HVR, an explicit gate/merge/promotion/release/tag decision, or a true hard blocker with no approved alternate execution path.
 27. Chat/Work must never imply that work continues after a response unless a real external workflow or automation is actually running; otherwise it must state the exact checkpoint and provide a ready-to-copy continuation trigger.
 28. A quota or outage in an optional/local tool channel is not a hard blocker while an approved alternative execution plane can complete the same mechanical step; use the approved alternative before escalating to the human.
+29. A governed implementation PR may be merged after exact-SHA technical evidence, Human Review and explicit merge authorization without evaluating release-scope completeness and without creating a release or tag.
+30. HRDR and Release Scope Gate apply to the actual release candidate boundary, after included implementation work has been integrated/terminal; `promote-pr` is a release command, not the general implementation-PR merge command.
 
 ## 4. Change classification
 
@@ -168,6 +170,10 @@ The classification determines tests, ADR, migration and review obligations.
 
 ## 5. Standard lifecycle
 
+DDDA separates implementation integration from release promotion.
+
+### 5.1 Governed implementation PR
+
 ```text
 change request in Chat or Work
 → impact analysis
@@ -177,10 +183,32 @@ change request in Chat or Work
 → GitHub Actions exact-SHA validation
 → push/PR CI
 → validate-pr
-→ human review
+→ Human Review for the same exact SHA/candidate package
+→ merge-pr dry-run
+→ explicit human merge authorization
+→ governed merge into main
+→ NO release package
+→ NO release validation
+→ NO tag
+```
+
+The Human Review and merge authorization are distinct boundaries. A technical PASS cannot create either one. `merge-pr` must not require HRDR or Release Scope Gate and must not call release/tag execution paths.
+
+### 5.2 Release candidate
+
+After all work intended for a release has been integrated and the release-scope Issues are terminal or explicitly deferred outside the release:
+
+```text
+release candidate preparation (typically release/<version> PR or equivalent governed candidate)
+→ exact-SHA candidate validation
+→ release cut / changelog consistency
+→ Human Release Decision Record for the exact release candidate
+→ Release Scope Gate
 → promotion dry-run
-→ explicit promotion decision
-→ merge
+→ explicit Human Release Decision
+→ separate explicit release/promotion authorization
+→ canonical promotion
+→ release-candidate merge when applicable
 → release package
 → generated release-validation workspace
 → ingestion
@@ -189,7 +217,9 @@ change request in Chat or Work
 → tag
 ```
 
-Never recommend merge when a mandatory technical or human gate is not satisfied.
+Release Scope Gate stays strict: incomplete current-release scope is a release failure. It is not evaluated as a prerequisite for merging the individual implementation PRs whose integration is required to make that scope terminal.
+
+Never recommend an implementation merge or release when its mandatory technical or human gate is not satisfied.
 
 ## 6. Required PR content
 
@@ -224,7 +254,7 @@ Use the existing DDDA test taxonomy, not ad hoc names:
 - migration;
 - security/isolation.
 
-A “remediation test” is not a separate test type. The correct term is **remediation validation run**: an orchestration that composes existing guards and suites.
+A “remediation test” is not a separate test type. The correct term is **remediation validation run**: an orchestration that composes existing tests and guards.
 
 Tests that mutate repository state must run in an isolated clone, worktree or fixture. Do not assert that the developer working tree is clean while intentionally using it as the mutable test subject.
 
@@ -255,10 +285,14 @@ Prefer the stable entry point:
 .\ddda.ps1 doctor
 .\ddda.ps1 test -Suite <suite>
 .\ddda.ps1 validate-pr -Pr <PR_NUMBER>
-.\ddda.ps1 promote-pr -Pr <PR_NUMBER> -Version <VERSION> -DryRun
+.\ddda.ps1 merge-pr -Pr <PR_NUMBER> -DryRun
+.\ddda.ps1 review-pr -Pr <RELEASE_PR_NUMBER> -Version <VERSION> ...
+.\ddda.ps1 promote-pr -Pr <RELEASE_PR_NUMBER> -Version <VERSION> -DryRun
 ```
 
-A real merge/promotion requires explicit confirmation and all required evidence for the same SHA.
+Actual implementation merge requires explicit `merge-pr ... -ConfirmMerge` authorization. It performs merge only.
+
+Actual release promotion requires its own explicit authorization and all release-candidate HRDR/Release Scope Gate evidence for the same SHA. A prior implementation merge authorization never implies release or tag authorization.
 
 In Chat/Work-only operation, standard GitHub Actions workflows invoke these contracts. One-off bootstrap workflows are not a normal implementation mechanism and must not be introduced when an existing self-service workflow can be extended.
 
@@ -338,7 +372,7 @@ Required rules:
    push only the validated SHA; never force-push automatically.
 
 8. Handoff
-   return to normal PR CI, review, acceptance and promotion.
+   return to normal PR CI, review, acceptance and the appropriate governed merge/release boundary.
 ```
 
 Rollback requirements:
@@ -415,7 +449,8 @@ A platform change is done only when:
 - mandatory human review is complete;
 - connector/access limitations were disclosed;
 - no prohibited execution interface was used;
-- merge/promotion was not performed without explicit authorization.
+- implementation merge was not performed without explicit merge authorization;
+- release promotion/tag was not performed without its separate explicit authorization.
 
 ## 15. Runtime registration rule
 
@@ -473,7 +508,7 @@ Operating rules:
 3. Ask the human only when a human decision or action is genuinely required: HVR or other judgment-heavy review, explicit merge/promotion/release/tag authorization, unresolved ambiguity that changes approved scope, or a credential/permission/resource blocker for which no approved alternative plane exists.
 4. Optional tooling does not define the critical path. For example, Miro MCP quota or connector unavailability must not stop REST/GitHub-Actions validation when those approved planes remain available.
 5. A technical PASS never substitutes for HVR or another human gate. The autonomous loop stops at the human boundary and reports the exact evidence and review target.
-6. Merge, promotion, release and tag are never inferred from a successful FAST-LOOP; they require their separately defined explicit human authorization.
+6. Implementation merge and release promotion are separate side-effect boundaries. Neither may be inferred from a successful FAST-LOOP or from the other authorization.
 
 ### 16.1 Truthful execution-state reporting
 

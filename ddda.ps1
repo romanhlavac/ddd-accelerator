@@ -1,7 +1,7 @@
 ﻿[CmdletBinding()]
 param(
     [Parameter(Mandatory = $true, Position = 0)]
-    [ValidateSet("doctor", "test", "validate-pr", "review-pr", "promote-pr")]
+    [ValidateSet("doctor", "test", "validate-pr", "merge-pr", "review-pr", "promote-pr")]
     [string]$Command,
 
     [ValidateSet("lint", "schema", "unit", "component", "integration", "smoke", "regression", "security", "e2e", "acceptance", "all")]
@@ -94,6 +94,15 @@ switch ($Command) {
         if (-not [string]::IsNullOrWhiteSpace($MiroTeamId)) { $arguments += @("-MiroTeamId", $MiroTeamId) }
         if ($NonInteractive) { $arguments += "-NonInteractive" }
         Invoke-DDDACommandScript -RelativePath "scripts/platform/Invoke-DDDAValidatePr.ps1" -Arguments $arguments
+    }
+    "merge-pr" {
+        if ($Pr -le 0) {
+            throw "Příkaz merge-pr vyžaduje kladné -Pr."
+        }
+        $arguments = @("-PlatformPath", $platformRoot, "-Pr", [string]$Pr)
+        if ($ConfirmMerge) { $arguments += "-ConfirmMerge" }
+        if ($DryRun) { $arguments += "-DryRun" }
+        Invoke-DDDACommandScript -RelativePath "scripts/platform/Invoke-DDDAGovernedMergePr.ps1" -Arguments $arguments
     }
     "review-pr" {
         if ($Pr -le 0) {

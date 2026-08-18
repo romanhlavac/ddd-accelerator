@@ -13,6 +13,7 @@ function Assert-True {
 
 $platformRoot = [System.IO.Path]::GetFullPath($PlatformPath).TrimEnd('\', '/')
 $entryPath = Join-Path $platformRoot "ddda.ps1"
+$governedMergePath = Join-Path $platformRoot "scripts/platform/Invoke-DDDAGovernedMergePr.ps1"
 $governedPromotionPath = Join-Path $platformRoot "scripts/platform/Invoke-DDDAGovernedPromotePr.ps1"
 $promotionPath = Join-Path $platformRoot "scripts/platform/Invoke-DDDAPromotePr.ps1"
 $releaseGovernanceSupportPath = Join-Path $platformRoot "scripts/platform/DDDAReleaseGovernanceSupport.ps1"
@@ -27,11 +28,12 @@ $gateCommandPath = Join-Path $platformRoot "scripts/Complete-DDDALifecycleStep.p
 $enginePath = Join-Path $platformRoot "runtime/steering/ddda_steering/engine.py"
 $gateSchemaPath = Join-Path $platformRoot "schemas/gate-status.schema.json"
 
-foreach ($path in @($entryPath, $governedPromotionPath, $promotionPath, $releaseGovernanceSupportPath, $releaseScopeCollectorPath, $hrdrSchemaPath, $githubSupportPath, $platformSupportPath, $changelogPath, $policyPath, $acceptancePath, $gateCommandPath, $enginePath, $gateSchemaPath)) {
-    Assert-True -Condition (Test-Path -LiteralPath $path -PathType Leaf) -Message "Chybí promotion nebo gate kontrakt: $path"
+foreach ($path in @($entryPath, $governedMergePath, $governedPromotionPath, $promotionPath, $releaseGovernanceSupportPath, $releaseScopeCollectorPath, $hrdrSchemaPath, $githubSupportPath, $platformSupportPath, $changelogPath, $policyPath, $acceptancePath, $gateCommandPath, $enginePath, $gateSchemaPath)) {
+    Assert-True -Condition (Test-Path -LiteralPath $path -PathType Leaf) -Message "Chybí merge/promotion nebo gate kontrakt: $path"
 }
 
 $entry = Get-Content -LiteralPath $entryPath -Raw -Encoding UTF8
+$governedMerge = Get-Content -LiteralPath $governedMergePath -Raw -Encoding UTF8
 $governedPromotion = Get-Content -LiteralPath $governedPromotionPath -Raw -Encoding UTF8
 $promotion = Get-Content -LiteralPath $promotionPath -Raw -Encoding UTF8
 $releaseGovernanceSupport = Get-Content -LiteralPath $releaseGovernanceSupportPath -Raw -Encoding UTF8
@@ -49,22 +51,51 @@ $gateSchema = Get-Content -LiteralPath $gateSchemaPath -Raw -Encoding UTF8
 . $platformSupportPath
 . $githubSupportPath
 
-Assert-True -Condition ($entry -match 'ValidateSet\("doctor",\s*"test",\s*"validate-pr",\s*"review-pr",\s*"promote-pr"\)') -Message "Root CLI nepublikuje review-pr + promote-pr contract."
-Assert-True -Condition ($entry -match 'Invoke-DDDAGovernedPromotePr\.ps1') -Message "Root CLI obchází governed promotion wrapper."
+# Issue #9: root CLI must expose separate implementation merge and release promotion boundaries.
+Assert-True -Condition ($entry -match 'ValidateSet\("doctor",\s*"test",\s*"validate-pr",\s*"merge-pr",\s*"review-pr",\s*"promote-pr"\)') -Message "Root CLI nepublikuje oddělený merge-pr + review-pr + promote-pr contract."
+Assert-True -Condition ($entry -match 'Invoke-DDDAGovernedMergePr\.ps1') -Message "Root CLI neroutuje merge-pr přes governed implementation merge."
+Assert-True -Condition ($entry -match 'Invoke-DDDAGovernedPromotePr\.ps1') -Message "Root CLI obchází governed release promotion wrapper."
 Assert-True -Condition ($entry -match '\[switch\]\$ConfirmMerge') -Message "Root CLI nemá explicitní ConfirmMerge."
-Assert-True -Condition ($entry -match '\[switch\]\$DryRun') -Message "Root CLI nemá promotion DryRun."
+Assert-True -Condition ($entry -match '\[switch\]\$DryRun') -Message "Root CLI nemá DryRun."
 Assert-True -Condition ([bool]$policy.require_explicit_confirmation) -Message "Development policy nevyžaduje explicitní confirmation."
 Assert-True -Condition ($policy.merge_method -in @("squash", "merge", "rebase")) -Message "Development policy má nepodporovaný merge method."
 Assert-True -Condition (@($policy.required_documents).Count -ge 3) -Message "Development policy nemá povinné governance dokumenty."
 
-# Issue #9: public promotion must be gated before the legacy executor is reachable.
+# Governed implementation merge: exact evidence + human review + explicit confirmation; no release path.
+$mergeDryRunMatch = [regex]::Match($governedMerge, 'if\s*\(\$DryRun\)', [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)
+$mergeConfirmationMatch = [regex]::Match($governedMerge, 'require_explicit_confirmation[^\r\n]+\$ConfirmMerge', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+$mergeApiMatch = [regex]::Match($governedMerge, 'Merge-DDDAGitHubPullRequest', [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)
+Assert-True -Condition ($mergeDryRunMatch.Success) -Message "merge-pr nemá fail-safe DryRun větev."
+Assert-True -Condition ($mergeConfirmationMatch.Success) -Message "merge-pr nemá explicitní confirmation guard."
+Assert-True -Condition ($mergeApiMatch.Success) -Message "merge-pr neobsahuje controlled GitHub API merge."
+Assert-True -Condition ($mergeDryRunMatch.Index -lt $mergeApiMatch.Index) -Message "merge-pr DryRun musí předcházet merge side effectu."
+Assert-True -Condition ($mergeConfirmationMatch.Index -lt $mergeApiMatch.Index) -Message "merge-pr confirmation musí předcházet merge side effectu."
+Assert-True -Condition ($governedMerge -match 'Get-DDDACandidateValidationEvidence') -Message "merge-pr není vázán na exact-SHA validate-pr evidence."
+Assert-True -Condition ($governedMerge -match 'PackageSha256') -Message "merge-pr neověřuje candidate package hash."
+Assert-True -Condition ($governedMerge -match 'Get-DDDAHumanPrReviewComments') -Message "merge-pr nenačítá authoritativní Human Review."
+Assert-True -Condition ($governedMerge -match 'candidate_package_sha256') -Message "merge-pr neváže Human Review na candidate package hash."
+Assert-True -Condition ($governedMerge -match 'reviewed_sha') -Message "merge-pr neváže Human Review na exact PR SHA."
+Assert-True -Condition ($governedMerge -match 'verdict[^\r\n]+pass') -Message "merge-pr nevyžaduje Human Review PASS."
+Assert-True -Condition ($governedMerge -match '-HeadSha\s+\$headSha') -Message "merge-pr nechrání GitHub merge exact head SHA."
+Assert-True -Condition ($governedMerge -match 'Release Scope Gate:\s+NOT APPLICABLE') -Message "merge-pr nedeklaruje Release Scope Gate jako N/A na implementation boundary."
+Assert-True -Condition ($governedMerge -notmatch 'Get-DDDAHrdrComments') -Message "merge-pr nesmí vyžadovat HRDR."
+Assert-True -Condition ($governedMerge -notmatch 'Test-DDDAReleaseScope') -Message "merge-pr nesmí vyhodnocovat Release Scope Gate collector."
+Assert-True -Condition ($governedMerge -notmatch 'Invoke-DDDAPromotePr\.ps1') -Message "merge-pr nesmí volat release promotion executor."
+Assert-True -Condition ($governedMerge -notmatch 'New-DDDAPlatformPackage') -Message "merge-pr nesmí vytvářet release package."
+Assert-True -Condition ($governedMerge -notmatch 'release-workspace') -Message "merge-pr nesmí vytvářet release validation workspace."
+Assert-True -Condition ($governedMerge -notmatch '@\("tag"') -Message "merge-pr nesmí vytvářet Git tag."
+Assert-True -Condition ($releaseGovernanceSupport -match 'ddda:human-pr-review:v1') -Message "Governance support nemá stabilní Human Review marker."
+Assert-True -Condition ($releaseGovernanceSupport -match 'Get-DDDAHumanPrReviewComments') -Message "Governance support neumí načíst Human Review evidence."
+Assert-True -Condition ($releaseGovernanceSupport -notmatch 'Set-DDDAHumanPrReview') -Message "Automation support nesmí publikovat Human Review PASS setter."
+
+# Public release promotion must stay strictly gated before the release executor is reachable.
 $scopeGateMatch = [regex]::Match($governedPromotion, 'release_scope_gate_status[^\r\n]+PASS', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
 $sideEffectsMatch = [regex]::Match($governedPromotion, 'side_effects_allowed', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
 $legacyExecutorMatch = [regex]::Match($governedPromotion, 'Invoke-DDDAPromotePr\.ps1', [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)
 Assert-True -Condition ($scopeGateMatch.Success) -Message "Governed promotion nevyžaduje Release Scope Gate PASS."
 Assert-True -Condition ($sideEffectsMatch.Success) -Message "Governed promotion neověřuje side_effects_allowed."
-Assert-True -Condition ($legacyExecutorMatch.Success) -Message "Governed promotion nevolá canonical legacy release executor až po gate."
-Assert-True -Condition ($scopeGateMatch.Index -lt $legacyExecutorMatch.Index) -Message "Release Scope Gate musí předcházet legacy release executor side effects."
+Assert-True -Condition ($legacyExecutorMatch.Success) -Message "Governed promotion nevolá canonical release executor až po gate."
+Assert-True -Condition ($scopeGateMatch.Index -lt $legacyExecutorMatch.Index) -Message "Release Scope Gate musí předcházet release executor side effects."
 Assert-True -Condition ($governedPromotion -match 'Get-DDDAHrdrComments') -Message "Governed promotion nenačítá authoritativní HRDR."
 Assert-True -Condition ($governedPromotion -match 'commentAuthorType\s*-eq\s*"Bot"') -Message "Governed promotion neodmítá bot HRDR provenance."
 Assert-True -Condition ($governedPromotion -match 'DDDA_GITHUB_PROJECT_TOKEN') -Message "Release Scope Gate nevyžaduje Project V2 read-back token."
@@ -75,29 +106,29 @@ Assert-True -Condition ($releaseScopeCollector -match 'Project V2') -Message "Re
 
 $dryRunMatch = [regex]::Match($promotion, 'if\s*\(\$DryRun\)', [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)
 $confirmationMatch = [regex]::Match($promotion, 'if\s*\(\[bool\]\$policy\.require_explicit_confirmation\s*-and\s*-not\s*\$ConfirmMerge\)', [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)
-$mergeMatch = [regex]::Match($promotion, 'Merge-DDDAGitHubPullRequest', [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)
+$promotionMergeMatch = [regex]::Match($promotion, 'Merge-DDDAGitHubPullRequest', [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)
 $releaseGateMatch = [regex]::Match($promotion, 'if\s*\(\s*-not\s+\$releasePassed(?:\s*-or\s*-not\s+\$releaseReportCreated)?\s*\)', [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)
 $tagCreationMatch = [regex]::Match($promotion, 'Invoke-DDDAPlatformGit[^\r\n]+@\("tag"', [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)
 $changelogGuardMatch = [regex]::Match($promotion, 'Assert-DDDAPlatformChangelogRelease', [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)
 
 $dryRunIndex = if ($dryRunMatch.Success) { $dryRunMatch.Index } else { -1 }
 $confirmationIndex = if ($confirmationMatch.Success) { $confirmationMatch.Index } else { -1 }
-$mergeIndex = if ($mergeMatch.Success) { $mergeMatch.Index } else { -1 }
+$promotionMergeIndex = if ($promotionMergeMatch.Success) { $promotionMergeMatch.Index } else { -1 }
 $releaseGateIndex = if ($releaseGateMatch.Success) { $releaseGateMatch.Index } else { -1 }
 $tagCreationIndex = if ($tagCreationMatch.Success) { $tagCreationMatch.Index } else { -1 }
 $changelogGuardIndex = if ($changelogGuardMatch.Success) { $changelogGuardMatch.Index } else { -1 }
 
 Assert-True -Condition ($dryRunIndex -ge 0) -Message "Promotion nemá fail-safe DryRun větev."
 Assert-True -Condition ($confirmationIndex -ge 0) -Message "Promotion nemá explicitní confirmation guard."
-Assert-True -Condition ($mergeIndex -ge 0) -Message "Promotion neobsahuje kontrolovaný GitHub API merge."
-Assert-True -Condition ($dryRunIndex -lt $mergeIndex) -Message "DryRun guard musí předcházet merge operaci."
-Assert-True -Condition ($confirmationIndex -lt $mergeIndex) -Message "Confirmation guard musí předcházet merge operaci."
+Assert-True -Condition ($promotionMergeIndex -ge 0) -Message "Promotion neobsahuje kontrolovaný release-candidate merge."
+Assert-True -Condition ($dryRunIndex -lt $promotionMergeIndex) -Message "Promotion DryRun guard musí předcházet merge operaci."
+Assert-True -Condition ($confirmationIndex -lt $promotionMergeIndex) -Message "Promotion confirmation guard musí předcházet merge operaci."
 Assert-True -Condition ($promotion -match '-HeadSha\s+\$headSha') -Message "Promotion nechrání merge exact head SHA."
 Assert-True -Condition ($promotion -match 'validation-reports/pr-\$Pr-\$headSha') -Message "Promotion nehledá validation report podle PR a exact SHA."
 Assert-True -Condition ($promotion -match 'actualCandidateHash') -Message "Promotion neověřuje candidate package hash."
 Assert-True -Condition ($changelogGuardIndex -ge 0) -Message "Promotion neověřuje changelog release contract."
 Assert-True -Condition ($changelogGuardIndex -lt $dryRunIndex) -Message "Changelog release contract musí být ověřen před DryRun PASS."
-Assert-True -Condition ($changelogGuardIndex -lt $mergeIndex) -Message "Changelog release contract musí být ověřen před merge."
+Assert-True -Condition ($changelogGuardIndex -lt $promotionMergeIndex) -Message "Changelog release contract musí být ověřen před release-candidate merge."
 Assert-True -Condition ($platformSupport -match 'function\s+Assert-DDDAPlatformChangelogRelease') -Message "Platform support neobsahuje changelog release validator."
 Assert-True -Condition ($promotion -match '\$tag\s*=\s*\[string\]\$changelogRelease\.Tag') -Message "Release tag není odvozen ze stejného changelog/version kontraktu."
 Assert-True -Condition ($changelog -match '(?m)^## \[Unreleased\]\s*$') -Message "Changelog nemá kanonickou [Unreleased] sekci."
@@ -105,8 +136,6 @@ $versionHeadingPattern = '(?m)^## \[(?<version>(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(
 $versionHeading = [regex]::Match($changelog, $versionHeadingPattern, [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)
 Assert-True -Condition $versionHeading.Success -Message "Changelog nemá platný versioned release cut."
 if ($versionHeading.Success) {
-    # Promotion guard itself remains strict. Development-time repository validation
-    # may contain Unreleased entries, so validate the existing cut in an isolated fixture below.
     Assert-True -Condition ($versionHeading.Groups["version"].Value -match '^\d+\.\d+\.\d+$') -Message "Changelog release heading nemá SemVer."
 }
 Assert-True -Condition ($promotion -notmatch 'Get-Command\s+"gh"[^\r\n]+throw') -Message "Promotion nesmí tvrdě vyžadovat instalovaný GitHub CLI."
@@ -125,7 +154,7 @@ Assert-True -Condition ($releaseGateIndex -ge 0) -Message "Promotion nemá relea
 Assert-True -Condition ($tagCreationIndex -ge 0) -Message "Promotion neobsahuje kontrolované vytvoření release tagu."
 Assert-True -Condition ($releaseGateIndex -lt $tagCreationIndex) -Message "Release validation gate musí předcházet vytvoření tagu."
 
-# Issue #13: promotion may trust acceptance PASS only if acceptance proves that automation did not create a human decision.
+# Issue #13: automation must not manufacture human decisions.
 Assert-True -Condition ($acceptance -notmatch '-Outcome\s+["'']?passed') -Message "Acceptance runner stále automaticky vytváří passed."
 Assert-True -Condition ($acceptance -match 'ready_for_review') -Message "Acceptance runner neověřuje ready_for_review."
 Assert-True -Condition ($acceptance -match 'human_decision_created\s*=\s*\$false') -Message "Acceptance report nedokládá, že nebylo vytvořeno lidské rozhodnutí."
@@ -168,39 +197,24 @@ Development notes only.
     Assert-True -Condition ($release.Tag -eq "v1.2.3") -Message "Changelog validator neodvodil tag."
 
     $mismatchRejected = $false
-    try {
-        $null = Assert-DDDAPlatformChangelogRelease -Path $tempChangelog -Version "1.2.4"
-    }
-    catch {
-        $mismatchRejected = $true
-    }
+    try { $null = Assert-DDDAPlatformChangelogRelease -Path $tempChangelog -Version "1.2.4" } catch { $mismatchRejected = $true }
     Assert-True -Condition $mismatchRejected -Message "Changelog validator neodmítl neshodu promotion verze."
 
     $unreleasedText = Get-Content -LiteralPath $tempChangelog -Raw -Encoding UTF8
     $unreleasedText = $unreleasedText.Replace("Development notes only.", "- unassigned release item.")
     Set-Content -LiteralPath $tempChangelog -Encoding UTF8 -Value $unreleasedText
     $unreleasedRejected = $false
-    try {
-        $null = Assert-DDDAPlatformChangelogRelease -Path $tempChangelog -Version "1.2.3"
-    }
-    catch {
-        $unreleasedRejected = $true
-    }
+    try { $null = Assert-DDDAPlatformChangelogRelease -Path $tempChangelog -Version "1.2.3" } catch { $unreleasedRejected = $true }
     Assert-True -Condition $unreleasedRejected -Message "Promotion changelog guard neodmítl nepřiřazenou Unreleased položku."
 
     $invalidDateText = $unreleasedText.Replace("- unassigned release item.", "Development notes only.").Replace("2026-07-28", "2026-02-30")
     Set-Content -LiteralPath $tempChangelog -Encoding UTF8 -Value $invalidDateText
     $invalidDateRejected = $false
-    try {
-        $null = Assert-DDDAPlatformChangelogRelease -Path $tempChangelog -Version "1.2.3"
-    }
-    catch {
-        $invalidDateRejected = $true
-    }
+    try { $null = Assert-DDDAPlatformChangelogRelease -Path $tempChangelog -Version "1.2.3" } catch { $invalidDateRejected = $true }
     Assert-True -Condition $invalidDateRejected -Message "Changelog validator neodmítl neplatné ISO datum."
 }
 finally {
     Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
 
-Write-Host "DDDA promotion guards: PASS"
+Write-Host "DDDA merge/promotion guards: PASS"

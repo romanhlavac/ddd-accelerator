@@ -2,6 +2,7 @@
 $ErrorActionPreference = "Stop"
 
 $script:DDDAHrdrMarker = "<!-- ddda:human-release-decision:v1 -->"
+$script:DDDAHumanPrReviewMarker = "<!-- ddda:human-pr-review:v1 -->"
 
 function Get-DDDACandidateValidationEvidence {
     param(
@@ -107,6 +108,26 @@ function Get-DDDAHrdrComments {
     return @($matches)
 }
 
+function Get-DDDAHumanPrReviewComments {
+    param(
+        [Parameter(Mandatory = $true)][string]$RepositorySlug,
+        [Parameter(Mandatory = $true)][int]$Pr,
+        [Parameter(Mandatory = $true)][string]$Token
+    )
+
+    $matches = [System.Collections.Generic.List[object]]::new()
+    for ($page = 1; ; $page++) {
+        $batch = @(Invoke-DDDAGitHubApi -Method GET -Path "repos/$RepositorySlug/issues/$Pr/comments?per_page=100&page=$page" -Token $Token)
+        foreach ($comment in $batch) {
+            if ([string]$comment.body -like "*$script:DDDAHumanPrReviewMarker*") {
+                $matches.Add($comment)
+            }
+        }
+        if ($batch.Count -lt 100) { break }
+    }
+    return @($matches)
+}
+
 function ConvertFrom-DDDAHrdrComment {
     param([Parameter(Mandatory = $true)][object]$Comment)
 
@@ -121,6 +142,24 @@ function ConvertFrom-DDDAHrdrComment {
     }
     catch {
         throw "Authoritativní HRDR JSON nelze parse: $($_.Exception.Message)"
+    }
+    return $record
+}
+
+function ConvertFrom-DDDAHumanPrReviewComment {
+    param([Parameter(Mandatory = $true)][object]$Comment)
+
+    $body = [string]$Comment.body
+    $pattern = '(?s)```json\s*(?<json>\{.*?\})\s*```'
+    $match = [regex]::Match($body, $pattern, [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)
+    if (-not $match.Success) {
+        throw "Authoritativní Human Review comment neobsahuje očekávaný fenced JSON objekt."
+    }
+    try {
+        $record = $match.Groups["json"].Value | ConvertFrom-Json
+    }
+    catch {
+        throw "Authoritativní Human Review JSON nelze parse: $($_.Exception.Message)"
     }
     return $record
 }
