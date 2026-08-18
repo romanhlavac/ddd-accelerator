@@ -137,6 +137,7 @@ CI/test pipeline
 28. A quota or outage in an optional/local tool channel is not a hard blocker while an approved alternative execution plane can complete the same mechanical step; use the approved alternative before escalating to the human.
 29. A governed implementation PR may be merged after exact-SHA technical evidence, Human Review and explicit merge authorization without evaluating release-scope completeness and without creating a release or tag.
 30. HRDR and Release Scope Gate apply to the actual release candidate boundary, after included implementation work has been integrated/terminal; `promote-pr` is a release command, not the general implementation-PR merge command.
+31. Merge, promotion, release and tag are never inferred from technical PASS, Human Review, FAST-LOOP completion or one another.
 
 ## 4. Change classification
 
@@ -509,6 +510,7 @@ Operating rules:
 4. Optional tooling does not define the critical path. For example, Miro MCP quota or connector unavailability must not stop REST/GitHub-Actions validation when those approved planes remain available.
 5. A technical PASS never substitutes for HVR or another human gate. The autonomous loop stops at the human boundary and reports the exact evidence and review target.
 6. Implementation merge and release promotion are separate side-effect boundaries. Neither may be inferred from a successful FAST-LOOP or from the other authorization.
+7. Merge, promotion, release and tag are never inferred from technical PASS, Human Review, FAST-LOOP completion or one another.
 
 ### 16.1 Truthful execution-state reporting
 
