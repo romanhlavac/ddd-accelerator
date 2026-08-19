@@ -146,6 +146,8 @@ INGESTION, CLI, WORKSPACE-GENERATOR, EXAMPLE,
 TESTING, RELEASE, SECURITY-GOVERNANCE
 ```
 
+Impact je `LOW`, `MEDIUM`, `HIGH` nebo `BREAKING`. Pro governed merge jej lze auditovatelně zapsat do PR body markeru `ddda:change-classification:v1`; chybějící marker se při merge považuje za `UNKNOWN` a používá fail-safe merge-commit-only policy.
+
 ## 2. Feature branch a implementace
 
 `main` se nemění přímo. Doporučené názvy:
@@ -231,6 +233,17 @@ Skutečný merge:
 
 `merge-pr` fail-closed ověřuje live PR state, exact head SHA, required CI, exact-SHA `validate-pr`, candidate package hash, Human Review PASS stejného SHA/package, required governance docs a repository merge policy.
 
+Po aktivaci ADR 0009 je merge strategy risk-based:
+
+```text
+HIGH / BREAKING → merge commit REQUIRED
+LOW / MEDIUM    → merge commit DEFAULT; squash jen explicitní human exception
+UNKNOWN         → merge commit only
+rebase           → forbidden
+```
+
+Wrong merge method musí failnout před irreversible merge. Pro canonical merge následuje server-side ancestry read-back: validated PR HEAD musí být parent/ancestor výsledného main state. LOW/MEDIUM squash exception je samostatný human record vázaný na stejné PR/SHA/package/impact; automation jej nesmí vytvořit. Detailní kontrakt je v ADR 0009 a `docs/developer-guide/merge-strategy.md`.
+
 `merge-pr`:
 
 - **nevyhodnocuje HRDR**;
@@ -241,6 +254,12 @@ Skutečný merge:
 - bez explicitního `-ConfirmMerge` nemerguje.
 
 To umožňuje bezpečně integrovat více implementačních PR před sestavením release candidate bez kruhové závislosti na release-scope completeness.
+
+### 6.2 Prospective transition #70
+
+#70 mění samotný merge contract. Jeho vlastní integraci proto stále řídí pre-existing `main` policy z exact base `297f61f6012f180e70805999df2ac1abe9616a05`, která používala squash. Nová merge-commit policy se stává autoritativní až po integraci #70 do `main`.
+
+Transition je versioned, exact-base-bound a single-purpose; není to HIGH/BREAKING squash exception pro budoucí PR. HVR #70 musí tento bootstrap trade-off explicitně posoudit. Historické PR/tagy se nepřepisují.
 
 ## 7. Release candidate a HRDR
 
@@ -283,6 +302,8 @@ Po canonical release-candidate merge vznikne release package; tag se vytvoří a
 
 Work musí rozlišit connector/access failure, implementation failure, CI/test failure, Human Review rejection, implementation merge failure, release-scope failure a release validation failure. Nedokončená práce se nesmí prezentovat jako PASS.
 
+Post-merge ancestry failure se nikdy neopravuje automatickým force-pushem nebo přepisem shared history; vyžaduje zachování diagnostiky a explicitní recovery rozhodnutí.
+
 ## 10. Definition of Done
 
 Implementační PR je připraven k merge pouze když:
@@ -294,6 +315,7 @@ Implementační PR je připraven k merge pouze když:
 - relevantní acceptance je PASS;
 - compatibility/ADR/changelog obligations jsou splněny;
 - mandatory Human Review je PASS pro stejné SHA/package;
+- impact/merge strategy preflight je PASS;
 - merge nebyl proveden bez explicitní human merge authorization.
 
 Release je připraven pouze když navíc existuje validní release candidate, HRDR, Release Scope Gate PASS, explicitní Human Release Decision a samostatná release/promotion authorization. Technický PASS ani implementační merge sám o sobě release neautorizuje.

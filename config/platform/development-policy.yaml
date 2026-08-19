@@ -1,7 +1,55 @@
 {
   "schema_version": 1,
   "base_branch": "main",
-  "merge_method": "squash",
+  "merge_method": "merge",
+  "merge_strategy": {
+    "schema_version": 1,
+    "classification_marker": "<!-- ddda:change-classification:v1 -->",
+    "squash_exception_marker": "<!-- ddda:squash-exception:v1 -->",
+    "default_method": "merge",
+    "unknown_impact_allowed_methods": [
+      "merge"
+    ],
+    "impacts": {
+      "LOW": {
+        "default_method": "merge",
+        "allowed_methods": [
+          "merge",
+          "squash"
+        ],
+        "squash_requires_human_exception": true
+      },
+      "MEDIUM": {
+        "default_method": "merge",
+        "allowed_methods": [
+          "merge",
+          "squash"
+        ],
+        "squash_requires_human_exception": true
+      },
+      "HIGH": {
+        "default_method": "merge",
+        "allowed_methods": [
+          "merge"
+        ],
+        "squash_requires_human_exception": false
+      },
+      "BREAKING": {
+        "default_method": "merge",
+        "allowed_methods": [
+          "merge"
+        ],
+        "squash_requires_human_exception": false
+      }
+    },
+    "bootstrap_transition": {
+      "change_issue": 70,
+      "legacy_base_sha": "297f61f6012f180e70805999df2ac1abe9616a05",
+      "legacy_merge_method": "squash",
+      "prospective_after_integration": true,
+      "reason": "Issue #70 changes the merge contract itself. Its own integration remains governed by the pre-existing main policy; the new merge-commit contract applies only after #70 is integrated into main."
+    }
+  },
   "minimum_approvals": 0,
   "require_explicit_confirmation": true,
   "execution_interfaces": {
@@ -101,7 +149,9 @@
     "docs/adr/0005-chat-work-only-development-operating-model.md",
     "docs/adr/0006-chat-atomic-platform-implementation.md",
     "docs/adr/0007-miro-execution-profiles-and-persistent-validation-boards.md",
+    "docs/adr/0009-exact-sha-merge-strategy.md",
     "docs/developer-guide/chat-work-operating-model.md",
+    "docs/developer-guide/merge-strategy.md",
     "docs/developer-guide/miro-execution-profiles.md",
     "docs/migration/pr8-non-breaking-steering-extension.md"
   ],
