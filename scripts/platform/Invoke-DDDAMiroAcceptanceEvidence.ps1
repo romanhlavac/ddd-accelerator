@@ -151,6 +151,12 @@ try {
             $ErrorActionPreference = $previousPreference
         }
 
+        $handoff = Get-DDDAMiroBoardIdentityHandoff -ChildOutput $childOutput
+        if ($null -ne $handoff) {
+            $boardId = [string]$handoff.board_id
+            $boardUrl = [string]$handoff.board_url
+        }
+
         $childOutput | ForEach-Object { Write-Host $_ }
         foreach ($line in $childOutput) {
             $text = [string]$line
@@ -166,8 +172,12 @@ try {
         $report = Get-Content -LiteralPath $reportPath -Raw -Encoding UTF8 | ConvertFrom-Json
         $workspace = [string]$report.workspace
         $projectPath = [string]$report.project
-        $boardId = [string]$report.miro_board_id
-        if (-not [string]::IsNullOrWhiteSpace($boardId)) {
+        $reportBoardId = [string]$report.miro_board_id
+        if (-not [string]::IsNullOrWhiteSpace($reportBoardId)) {
+            if (-not [string]::IsNullOrWhiteSpace($boardId) -and $boardId -ne $reportBoardId) {
+                throw "Miro board identity handoff '$boardId' neodpovídá child reportu '$reportBoardId'."
+            }
+            $boardId = $reportBoardId
             $boardUrl = "https://miro.com/app/board/$boardId/"
         }
 

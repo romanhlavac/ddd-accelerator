@@ -24,6 +24,36 @@ function Get-DDDAMiroEvidencePropertyValue {
     return $property.Value
 }
 
+function Get-DDDAMiroBoardIdentityHandoff {
+    param([object[]]$ChildOutput = @())
+
+    $text = (($ChildOutput | ForEach-Object { [string]$_ }) -join [Environment]::NewLine)
+    if ([string]::IsNullOrWhiteSpace($text)) {
+        return $null
+    }
+
+    $matches = [regex]::Matches($text, '(?m)^DDDA_MIRO_BOARD_ID_HANDOFF:(?<id>[^\r\n]+?)\s*$')
+    if ($matches.Count -eq 0) {
+        return $null
+    }
+
+    $ids = @(
+        $matches |
+            ForEach-Object { [string]$_.Groups['id'].Value.Trim() } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+            Select-Object -Unique
+    )
+    if ($ids.Count -ne 1) {
+        throw "Miro board identity handoff je nejednoznačný. Nalezené identity: $($ids -join ', ')"
+    }
+
+    return [pscustomobject][ordered]@{
+        board_id = [string]$ids[0]
+        board_url = "https://miro.com/app/board/$($ids[0])/"
+        source = "create_board_stderr_handoff"
+    }
+}
+
 function New-DDDANotRunMiroEvidence {
     param(
         [string]$Workspace,
