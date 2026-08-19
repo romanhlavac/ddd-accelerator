@@ -1,6 +1,6 @@
 # ADR: Reprodukovatelný lifecycle vývoje DDDA platformy
 
-Status: Accepted — amended 2026-08-18 by ADR 0008
+Status: Accepted — amended 2026-08-18 by ADR 0008; amended 2026-08-20 by ADR 0009
 
 Date: 2026-07-26
 
@@ -72,6 +72,25 @@ Release Scope Gate vyžaduje kompletní/konzistentní release scope, ale **není
 
 Human Review, implementation merge authorization, Human Release Decision a release/promotion authorization jsou odlišné lidské boundaries. Automation nesmí žádnou z nich inferovat z technického PASS ani z jiné authorization.
 
+### Amendment 2026-08-20 — exact-SHA ancestry a merge strategy
+
+ADR 0009 prospektivně zpřesňuje způsob samotného implementation merge:
+
+```text
+HIGH / BREAKING → merge commit REQUIRED
+LOW / MEDIUM    → merge commit DEFAULT; squash jen explicitní human exception
+UNKNOWN impact  → merge commit only
+rebase           → forbidden
+```
+
+Důvodem je zachování exact validated PR HEAD jako přímo dohledatelného ancestor výsledného `main` state. Čitelnost hlavní historie se řeší first-parent pohledem, nikoli ztrátou reviewované ancestry.
+
+LOW/MEDIUM squash exception je samostatný human-governed record vázaný na stejné PR/SHA/candidate package/impact a musí po merge vytvořit explicitní source→result mapping. Automation ji nesmí vytvořit ani inferovat.
+
+Pro canonical merge provádí `merge-pr` server-side post-read-back a ověřuje validated PR HEAD jako parent/ancestor výsledného merge commit.
+
+#70 mění merge policy samotnou; jeho vlastní integraci proto řídí pre-existing policy z exact base `297f61f6012f180e70805999df2ac1abe9616a05`. Nový contract je účinný až po integraci #70 do `main`. Transition je exact-base-bound a není precedentem pro budoucí HIGH/BREAKING squash. Historie PR #8 / `v0.1.0` ani dalších již mergovaných PR se nepřepisuje.
+
 Veřejným entry pointem je `ddda.ps1`. Specializované skripty zůstávají interními stavebními bloky a compatibility entry points.
 
 ## Options considered
@@ -122,6 +141,10 @@ Cons:
 
 Zamítnuto dodatkem 2026-08-18. Se strict Release Scope Gate může vytvořit kruhovou závislost u multi-PR releasu a směšuje integration a release authority.
 
+### E. Globální squash jako merge default
+
+Zamítnuto dodatkem 2026-08-20 pro HIGH/BREAKING. Squash zachová výsledný obsah, ale exact reviewed PR HEAD není ancestor výsledného main state a audit závisí na externím mappingu. Detail trade-offu a LOW/MEDIUM exception popisuje ADR 0009.
+
 ## Consequences
 
 Positive:
@@ -131,14 +154,18 @@ Positive:
 - běžné testy nemohou samy mergovat nebo tagovat;
 - implementation PR lze bezpečně integrovat bez vytvoření release;
 - strict Release Scope Gate se aplikuje až na skutečný release candidate;
-- merge a release authorization zůstávají oddělené.
+- merge a release authorization zůstávají oddělené;
+- HIGH/BREAKING validated SHA zůstává po merge v ancestry;
+- first-parent history zachovává čitelnost bez ztráty auditability.
 
 Negative:
 
 - lifecycle má explicitně dva orchestration commands/boundaries (`merge-pr`, `promote-pr`);
 - před release je potřeba explicitní release candidate;
 - E2E a online Miro acceptance jsou pomalejší než unit testy;
-- release proces má explicitní nároky na nástroje, evidence a oprávnění.
+- release proces má explicitní nároky na nástroje, evidence a oprávnění;
+- historie obsahuje více merge commits;
+- LOW/MEDIUM squash vyžaduje explicitní human exception evidence.
 
 New obligations:
 
@@ -148,7 +175,9 @@ New obligations:
 - udržovat minimal example a invariant-based regression;
 - zachovat fail-closed implementation merge i release promotion;
 - Human Review evidence vázat na exact implementation SHA/package;
-- HRDR + Release Scope Gate vázat na exact release candidate.
+- HRDR + Release Scope Gate vázat na exact release candidate;
+- wrong merge method odmítnout před irreversible merge;
+- canonical merge ověřit post-merge ancestry read-backem.
 
 ## Impact
 
@@ -179,12 +208,14 @@ Migration:
 - offline acceptance;
 - volitelný online Miro acceptance;
 - governed `merge-pr` dry-run bez side effects;
+- impact → merge-method matrix a wrong-method negative regression;
+- canonical merge ancestry invariant a LOW/MEDIUM squash exception contract;
 - multi-PR anti-deadlock regression;
 - strict release-scope regression;
 - promotion dry-run bez release side effects.
 
 ## Follow-up actions
 
-- [ ] Používat oddělený implementation merge / release candidate lifecycle pro post-0.1.0 stabilization.
+- [x] Používat oddělený implementation merge / release candidate lifecycle pro post-0.1.0 stabilization.
 - [ ] Po maintenance release zpřesnit časové limity a retention reportů.
-- [ ] Podle repository policy upravit počet požadovaných approvals a merge strategy (#70).
+- [x] Verzovat risk-based merge strategy a exact-SHA ancestry contract v ADR 0009 / #70; activation zůstává podmíněna HVR a samostatnou merge authorization #70.
