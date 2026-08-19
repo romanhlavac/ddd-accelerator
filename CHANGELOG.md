@@ -20,6 +20,7 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 ### Fixed
 
 - promotion dry-run wrapper nyní používá operation-local výsledek a explicitní post-read-back side-effect assertions; očekávaná `404` absence tagu/GitHub Release je PASS assertion, zatímco auth/network/API chyby zůstávají FAIL, takže PR8-class `semantic PASS / wrapper FAIL` false-negative se nemůže opakovat přes stale `$LASTEXITCODE`.
+- annotated release tag nyní používá deterministic non-secret Git identity pouze v izolovaném release-source clone; clean runner proto nezávisí na ambientním `user.name`/`user.email` a bounded recovery po post-validation tag failure je explicitně zdokumentována.
 
 Změny pro další verzi se během vývoje zapisují sem. Před promotion se všechny položky přesunou do jediné verze `X.Y.Z` s ISO datem a tato sekce zůstane bez release položek.
 

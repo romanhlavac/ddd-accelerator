@@ -273,6 +273,20 @@ try {
     $null = Invoke-DDDAPlatformNative -Command "git" -Arguments @(
         "clone", "--branch", [string]$policy.base_branch, "--single-branch", $originUrl, $releaseSource
     )
+
+    # Release tags are annotated objects and require a tagger identity. Configure it
+    # only in the isolated release-source clone so clean runners never depend on
+    # ambient/global Git identity and no user-specific metadata leaks into the tag.
+    $releaseTaggerName = "DDDA Release Tagger"
+    $releaseTaggerEmail = "ddda-release-tagger@example.invalid"
+    $null = Invoke-DDDAPlatformGit -Repository $releaseSource -Arguments @("config", "user.name", $releaseTaggerName)
+    $null = Invoke-DDDAPlatformGit -Repository $releaseSource -Arguments @("config", "user.email", $releaseTaggerEmail)
+    $configuredTaggerName = Invoke-DDDAPlatformGit -Repository $releaseSource -Arguments @("config", "--get", "user.name")
+    $configuredTaggerEmail = Invoke-DDDAPlatformGit -Repository $releaseSource -Arguments @("config", "--get", "user.email")
+    if ($configuredTaggerName -ne $releaseTaggerName -or $configuredTaggerEmail -ne $releaseTaggerEmail) {
+        throw "Release-source Git tagger identity could not be configured deterministically."
+    }
+
     $releaseHead = Invoke-DDDAPlatformGit -Repository $releaseSource -Arguments @("rev-parse", "HEAD")
     if ($releaseHead -ne $mergeCommit) {
         throw "Aktuální main HEAD '$releaseHead' neodpovídá merge commit '$mergeCommit'."
