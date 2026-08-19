@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ddda.local/schemas/human-release-decision.schema.json",
+  "title": "DDDA Human Release Decision Record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "repository",
+    "pr",
+    "branch",
+    "source_sha",
+    "candidate_package_sha256",
+    "version",
+    "reviewer",
+    "decision_owner",
+    "decision",
+    "decided_at",
+    "scope_issues",
+    "findings",
+    "accepted_risks"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "repository": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$" },
+    "pr": { "type": "integer", "minimum": 1 },
+    "branch": { "type": "string", "minLength": 1 },
+    "source_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "candidate_package_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "version": { "type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$" },
+    "reviewer": { "type": "string" },
+    "decision_owner": { "type": "string" },
+    "decision": { "enum": ["pending", "go", "go_with_accepted_risks", "no_go"] },
+    "decided_at": { "type": ["string", "null"], "format": "date-time" },
+    "scope_issues": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "integer", "minimum": 1 }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "severity", "summary"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "severity": { "enum": ["green", "amber", "red"] },
+          "summary": { "type": "string", "minLength": 1 },
+          "evidence": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+        }
+      }
+    },
+    "accepted_risks": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["risk_id", "issue", "owner", "rationale", "target_horizon"],
+        "properties": {
+          "risk_id": { "type": "string", "minLength": 1 },
+          "issue": { "type": "integer", "minimum": 1 },
+          "owner": { "type": "string", "minLength": 1 },
+          "rationale": { "type": "string", "minLength": 1 },
+          "target_horizon": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "evidence": { "type": "object", "additionalProperties": true }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "decision": { "const": "pending" } }, "required": ["decision"] },
+      "then": { "properties": { "decided_at": { "type": "null" } } },
+      "else": {
+        "properties": {
+          "reviewer": { "type": "string", "minLength": 1 },
+          "decision_owner": { "type": "string", "minLength": 1 },
+          "decided_at": { "type": "string", "format": "date-time" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "decision": { "const": "go" } }, "required": ["decision"] },
+      "then": { "properties": { "accepted_risks": { "maxItems": 0 } } }
+    },
+    {
+      "if": { "properties": { "decision": { "const": "go_with_accepted_risks" } }, "required": ["decision"] },
+      "then": { "properties": { "accepted_risks": { "minItems": 1 } } }
+    }
+  ]
+}
