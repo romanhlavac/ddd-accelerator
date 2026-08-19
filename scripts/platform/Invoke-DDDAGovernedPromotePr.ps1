@@ -19,6 +19,7 @@ $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "DDDAPlatformSupport.ps1")
 . (Join-Path $PSScriptRoot "DDDAGitHubSupport.ps1")
 . (Join-Path $PSScriptRoot "DDDAReleaseGovernanceSupport.ps1")
+. (Join-Path $PSScriptRoot "DDDAPromotionResultSupport.ps1")
 
 Assert-DDDAPlatformSemanticVersion -Version $Version
 $platformRoot = Get-DDDAPlatformGitRoot -Path $PlatformPath
@@ -133,4 +134,92 @@ if ($DryRun) { $arguments += "-DryRun" }
 
 # This is the only call into the legacy release executor. No merge/release/tag
 # code is reachable until the read-only Release Scope Gate returned PASS.
-Invoke-DDDAPlatformChildPowerShell -ScriptPath (Join-Path $PSScriptRoot "Invoke-DDDAPromotePr.ps1") -Arguments $arguments
+$executorPath = Join-Path $PSScriptRoot "Invoke-DDDAPromotePr.ps1"
+if (-not $DryRun) {
+    Invoke-DDDAPlatformChildPowerShell -ScriptPath $executorPath -Arguments $arguments
+    return
+}
+
+# Issue #67: promotion dry-run result is operation-local and machine-readable.
+# Expected 404 responses for absent tag/GitHub Release are classified as successful
+# absence assertions; auth/network/5xx failures remain FAIL without ambient process state.
+$resultRoot = Join-Path (Get-DDDAPlatformStateRoot) ("promotion/pr-$Pr-$headSha/$Version")
+New-Item -ItemType Directory -Path $resultRoot -Force | Out-Null
+$resultPath = Join-Path $resultRoot "dry-run-result.json"
+$tag = "v$Version"
+$beforeSnapshot = $null
+$afterSnapshot = $null
+$sideEffectResult = $null
+$promotionPreflightStatus = "NOT_RUN"
+$sideEffectAssertionsStatus = "NOT_RUN"
+$wrapperStatus = "FAIL"
+$errorMessage = $null
+
+try {
+    $beforeSnapshot = Get-DDDAPromotionDryRunSnapshot -RepositorySlug $repositorySlug -Pr $Pr -Tag $tag -Token $githubAuth.Token
+    if ([bool]$beforeSnapshot.pr_merged) {
+        throw "Dry-run precondition failed: PR #$Pr is already merged."
+    }
+    if ([string]$beforeSnapshot.head_sha -ne $headSha) {
+        throw "Dry-run precondition failed: PR head changed before executor invocation."
+    }
+    if ([string]$beforeSnapshot.tag_status -ne "ABSENT") {
+        throw "Dry-run precondition failed: canonical tag $tag already exists."
+    }
+    if ([string]$beforeSnapshot.github_release_status -ne "ABSENT") {
+        throw "Dry-run precondition failed: GitHub Release for $tag already exists."
+    }
+
+    try {
+        Invoke-DDDAPlatformChildPowerShell -ScriptPath $executorPath -Arguments $arguments
+        $promotionPreflightStatus = "PASS"
+    }
+    catch {
+        $promotionPreflightStatus = "FAIL"
+        throw
+    }
+
+    $afterSnapshot = Get-DDDAPromotionDryRunSnapshot -RepositorySlug $repositorySlug -Pr $Pr -Tag $tag -Token $githubAuth.Token
+    $sideEffectResult = Test-DDDAPromotionDryRunSideEffects -Before $beforeSnapshot -After $afterSnapshot -ExpectedHeadSha $headSha
+    $sideEffectAssertionsStatus = [string]$sideEffectResult.status
+    if ($sideEffectAssertionsStatus -ne "PASS") {
+        throw "Promotion dry-run side-effect assertions failed: $(@($sideEffectResult.failures) -join ', ')"
+    }
+    $wrapperStatus = "PASS"
+}
+catch {
+    $errorMessage = $_.Exception.Message
+    if ($promotionPreflightStatus -eq "PASS" -and $sideEffectAssertionsStatus -eq "NOT_RUN") {
+        $sideEffectAssertionsStatus = "FAIL"
+    }
+}
+finally {
+    $result = [ordered]@{
+        schema_version = 1
+        repository = $repositorySlug
+        pr = $Pr
+        source_sha = $headSha
+        candidate_package_sha256 = [string]$validation.PackageSha256
+        version = $Version
+        release_scope_gate_status = [string]$gate.release_scope_gate_status
+        promotion_preflight_status = $promotionPreflightStatus
+        side_effect_assertions_status = $sideEffectAssertionsStatus
+        wrapper_status = $wrapperStatus
+        assertions = if ($null -eq $sideEffectResult) { $null } else { $sideEffectResult.assertions }
+        failing_assertions = if ($null -eq $sideEffectResult) { @() } else { @($sideEffectResult.failures) }
+        before = $beforeSnapshot
+        after = $afterSnapshot
+        error = $errorMessage
+        evidence_path = $resultPath
+    }
+    Write-DDDAPlatformJson -Value $result -Path $resultPath -Depth 30
+    Write-Host "Promotion dry-run evidence: $resultPath"
+}
+
+if ($wrapperStatus -ne "PASS") {
+    throw "Governed promotion dry-run FAIL. Evidence: $resultPath. $errorMessage"
+}
+Write-Host "DDDA governed promotion dry-run: PASS"
+Write-Host "Promotion preflight:       $promotionPreflightStatus"
+Write-Host "Side-effect assertions:    $sideEffectAssertionsStatus"
+Write-Host "Wrapper status:            $wrapperStatus"
