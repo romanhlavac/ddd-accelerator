@@ -12,6 +12,7 @@ param(
     [string]$PackagePath,
     [string]$Reviewer,
     [string]$DecisionOwner,
+    [ValidateSet("merge", "squash")][string]$MergeMethod,
     [switch]$PublishScaffold,
     [switch]$WithMiro,
     [switch]$Full,
@@ -100,6 +101,7 @@ switch ($Command) {
             throw "Příkaz merge-pr vyžaduje kladné -Pr."
         }
         $arguments = @("-PlatformPath", $platformRoot, "-Pr", [string]$Pr)
+        if (-not [string]::IsNullOrWhiteSpace($MergeMethod)) { $arguments += @("-MergeMethod", $MergeMethod) }
         if ($ConfirmMerge) { $arguments += "-ConfirmMerge" }
         if ($DryRun) { $arguments += "-DryRun" }
         Invoke-DDDACommandScript -RelativePath "scripts/platform/Invoke-DDDAGovernedMergePr.ps1" -Arguments $arguments
