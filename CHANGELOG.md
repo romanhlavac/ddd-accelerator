@@ -10,17 +10,20 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 - machine-readable `human-release-decision.schema.json`, `review-pr` scaffold a fail-closed Release Scope Gate pro exact release-candidate SHA / candidate package / release-version identity;
 - governed implementation command `merge-pr` a machine-readable Human Review marker `ddda:human-pr-review:v1`, vázané na exact PR SHA a candidate package hash;
-- ADR 0008 a developer runbook oddělující Human Review/implementation merge, Human Release Decision a mechanickou release-scope completeness.
+- ADR 0008 a developer runbook oddělující Human Review/implementation merge, Human Release Decision a mechanickou release-scope completeness;
+- ADR 0009 a versioned merge-strategy contract zachovávající exact validated SHA ancestry pro HIGH/BREAKING změny a explicitní human squash exception pro LOW/MEDIUM.
 
 ### Changed
 
 - platform lifecycle nyní explicitně odděluje governed merge implementačních PR od skutečného release/promotion; implementation merge nevyžaduje HRDR ani Release Scope Gate a nesmí vytvořit release package, release validation nebo tag;
-- public `promote-pr` zůstává strict release-candidate command: před interním release executorem vyžaduje validní human HRDR a read-only Release Scope Gate PASS nad Milestone, native blockers a GitHub Project V2 projekcí.
+- public `promote-pr` zůstává strict release-candidate command: před interním release executorem vyžaduje validní human HRDR a read-only Release Scope Gate PASS nad Milestone, native blockers a GitHub Project V2 projekcí;
+- governed implementation merge používá po aktivaci #70 merge commit jako canonical default; HIGH/BREAKING a neklasifikované PR nesmějí squash/rebase, LOW/MEDIUM squash vyžaduje explicitní human exception a canonical merge ověřuje validated PR HEAD server-side jako parent/ancestor výsledného main state.
 
 ### Fixed
 
-- promotion dry-run wrapper nyní používá operation-local výsledek a explicitní post-read-back side-effect assertions; očekávaná `404` absence tagu/GitHub Release je PASS assertion, zatímco auth/network/API chyby zůstávají FAIL, takže PR8-class `semantic PASS / wrapper FAIL` false-negative se nemůže opakovat přes stale `$LASTEXITCODE`.
-- annotated release tag nyní používá deterministic non-secret Git identity pouze v izolovaném release-source clone; clean runner proto nezávisí na ambientním `user.name`/`user.email` a bounded recovery po post-validation tag failure je explicitně zdokumentována.
+- promotion dry-run wrapper nyní používá operation-local výsledek a explicitní post-read-back side-effect assertions; očekávaná `404` absence tagu/GitHub Release je PASS assertion, zatímco auth/network/API chyby zůstávají FAIL, takže PR8-class `semantic PASS / wrapper FAIL` false-negative se nemůže opakovat přes stale `$LASTEXITCODE`;
+- annotated release tag nyní používá deterministic non-secret Git identity pouze v izolovaném release-source clone; clean runner proto nezávisí na ambientním `user.name`/`user.email` a bounded recovery po post-validation tag failure je explicitně zdokumentována;
+- Miro acceptance evidence zachová exact board ID/URL i při child failure po vytvoření boardu, ale před child reportem; konfliktní handoff identity nebo mismatch s reportem failují closed a cleanup může cílit na skutečně vytvořený board.
 
 Změny pro další verzi se během vývoje zapisují sem. Před promotion se všechny položky přesunou do jediné verze `X.Y.Z` s ISO datem a tato sekce zůstane bez release položek.
 

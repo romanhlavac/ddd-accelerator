@@ -2,6 +2,7 @@
 param(
     [string]$PlatformPath = (Resolve-Path (Join-Path $PSScriptRoot "../..")).Path,
     [Parameter(Mandatory = $true)][ValidateRange(1, 2147483647)][int]$Pr,
+    [ValidateSet("merge", "squash")][string]$MergeMethod,
     [switch]$ConfirmMerge,
     [switch]$DryRun
 )
@@ -11,6 +12,7 @@ $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "DDDAPlatformSupport.ps1")
 . (Join-Path $PSScriptRoot "DDDAGitHubSupport.ps1")
 . (Join-Path $PSScriptRoot "DDDAReleaseGovernanceSupport.ps1")
+. (Join-Path $PSScriptRoot "DDDAMergeStrategySupport.ps1")
 
 $platformRoot = Get-DDDAPlatformGitRoot -Path $PlatformPath
 if ($platformRoot -ne [System.IO.Path]::GetFullPath($PlatformPath).TrimEnd('\', '/')) {
@@ -40,6 +42,10 @@ if ([bool]$prInfo.draft) {
 $baseRefName = [string]$prInfo.base.ref
 if ($baseRefName -ne [string]$policy.base_branch) {
     throw "PR #$Pr míří do '$baseRefName', očekáváno '$($policy.base_branch)'."
+}
+$baseSha = [string]$prInfo.base.sha
+if ($baseSha -notmatch '^[0-9a-f]{40}$') {
+    throw "GitHub nevrátil platný base SHA."
 }
 $mergeStateStatus = ([string]$prInfo.mergeable_state).ToUpperInvariant()
 if ($mergeStateStatus -notin @("CLEAN", "HAS_HOOKS", "UNSTABLE")) {
@@ -119,19 +125,56 @@ foreach ($relative in @($policy.required_documents)) {
     }
 }
 
-$mergeMethod = [string]$policy.merge_method
-if ($mergeMethod -notin @("squash", "merge", "rebase")) {
-    throw "Nepodporovaná merge_method v policy: $mergeMethod"
+$impact = Get-DDDAChangeImpactFromPrBody -Body ([string]$prInfo.body)
+$requestedMergeMethod = if ([string]::IsNullOrWhiteSpace($MergeMethod)) { "" } else { $MergeMethod }
+$strategyDecision = Resolve-DDDAMergeStrategy `
+    -Policy $policy `
+    -Impact $impact `
+    -RequestedMethod $requestedMergeMethod `
+    -Pr $Pr `
+    -BaseSha $baseSha `
+    -PrBody ([string]$prInfo.body)
+$effectiveMergeMethod = [string]$strategyDecision.merge_method
+
+$squashException = $null
+if ([bool]$strategyDecision.human_squash_exception_required) {
+    $exceptionComments = [System.Collections.Generic.List[object]]::new()
+    for ($page = 1; ; $page++) {
+        $batch = @(Invoke-DDDAGitHubApi -Method GET -Path "repos/$repositorySlug/issues/$Pr/comments?per_page=100&page=$page" -Token $githubAuth.Token)
+        foreach ($comment in $batch) {
+            if ([string]$comment.body -like "*$script:DDDASquashExceptionMarker*") {
+                $exceptionComments.Add($comment)
+            }
+        }
+        if ($batch.Count -lt 100) { break }
+    }
+    if ($exceptionComments.Count -ne 1) {
+        throw "LOW/MEDIUM squash vyžaduje právě jeden authoritativní human squash exception marker. Nalezeno: $($exceptionComments.Count)."
+    }
+    $exceptionComment = $exceptionComments[0]
+    $squashException = ConvertFrom-DDDASquashExceptionComment -Comment $exceptionComment
+    Assert-DDDASquashExceptionRecord `
+        -Record $squashException `
+        -CommentAuthor ([string]$exceptionComment.user.login) `
+        -CommentAuthorType ([string]$exceptionComment.user.type) `
+        -Repository $repositorySlug `
+        -Pr $Pr `
+        -HeadSha $headSha `
+        -CandidatePackageSha256 ([string]$validation.PackageSha256) `
+        -Impact $impact
 }
 
 Write-Host "=== DDDA governed implementation merge preflight ==="
 Write-Host "Repository:        $repositorySlug"
 Write-Host "PR:                $Pr"
 Write-Host "Head SHA:          $headSha"
+Write-Host "Base SHA:          $baseSha"
 Write-Host "Candidate SHA-256: $($validation.PackageSha256)"
 Write-Host "CI checks:         PASS ($($checkSummary.CheckRunCount) check runs)"
 Write-Host "Human Review:      PASS ($commentAuthor)"
-Write-Host "Merge method:      $mergeMethod"
+Write-Host "Impact:            $impact"
+Write-Host "Merge method:      $effectiveMergeMethod"
+Write-Host "Bootstrap transition: $([bool]$strategyDecision.bootstrap_transition)"
 Write-Host "Release Scope Gate: NOT APPLICABLE (implementation merge)"
 Write-Host "Release/tag side effects: DISABLED"
 
@@ -152,7 +195,7 @@ $mergeResult = Merge-DDDAGitHubPullRequest `
     -RepositorySlug $repositorySlug `
     -Pr $Pr `
     -HeadSha $headSha `
-    -MergeMethod $mergeMethod `
+    -MergeMethod $effectiveMergeMethod `
     -Token $githubAuth.Token
 
 $mergeCommit = [string]$mergeResult.sha
@@ -165,22 +208,67 @@ if (-not [bool]$postMerge.merged) {
     throw "GitHub nepotvrdil merge PR #$Pr."
 }
 
+$sourceToResultRelation = $null
+$ancestryVerified = $false
+if ($effectiveMergeMethod -eq "merge") {
+    $mergeCommitInfo = Invoke-DDDAGitHubApi -Method GET -Path "repos/$repositorySlug/commits/$mergeCommit" -Token $githubAuth.Token
+    $parentShas = @($mergeCommitInfo.parents | ForEach-Object { [string]$_.sha })
+    if ($headSha -notin $parentShas) {
+        throw "Post-merge ancestry read-back selhal: validated PR HEAD $headSha není parent výsledného merge commit $mergeCommit."
+    }
+    $compare = Invoke-DDDAGitHubApi -Method GET -Path "repos/$repositorySlug/compare/$headSha...$mergeCommit" -Token $githubAuth.Token
+    if ([string]$compare.merge_base_commit.sha -ne $headSha) {
+        throw "Post-merge ancestry read-back selhal: validated PR HEAD není ancestor výsledného main state."
+    }
+    $sourceToResultRelation = "ancestor"
+    $ancestryVerified = $true
+}
+elseif ($effectiveMergeMethod -eq "squash") {
+    $sourceToResultRelation = "explicit_squash_mapping"
+}
+else {
+    throw "Neočekávaný merge method po merge: $effectiveMergeMethod"
+}
+
+$exceptionEvidence = $null
+if ($null -ne $squashException) {
+    $exceptionEvidence = [ordered]@{
+        type = "human_low_medium_exception"
+        reason = [string]$squashException.reason
+        reviewer = [string]$squashException.reviewer
+        approved_at = [string]$squashException.approved_at
+    }
+}
+elseif ([bool]$strategyDecision.bootstrap_transition) {
+    $transition = $policy.merge_strategy.bootstrap_transition
+    $exceptionEvidence = [ordered]@{
+        type = "prospective_policy_bootstrap"
+        change_issue = [int]$transition.change_issue
+        legacy_base_sha = [string]$transition.legacy_base_sha
+        reason = [string]$transition.reason
+    }
+}
+
 $evidenceRoot = Join-Path (Get-DDDAPlatformStateRoot) ("merge-reports/pr-$Pr-$headSha")
 New-Item -ItemType Directory -Path $evidenceRoot -Force | Out-Null
 $evidencePath = Join-Path $evidenceRoot "result.json"
-Write-DDDAPlatformJson -Path $evidencePath -Depth 20 -Value ([ordered]@{
-    schema_version = 1
+Write-DDDAPlatformJson -Path $evidencePath -Depth 30 -Value ([ordered]@{
+    schema_version = 2
     repository = $repositorySlug
     pr = $Pr
-    source_sha = $headSha
+    impact = $impact
+    validated_source_head_sha = $headSha
     candidate_package_sha256 = [string]$validation.PackageSha256
     human_review = [ordered]@{
         reviewer = $commentAuthor
         reviewed_at = [string]$review.reviewed_at
         verdict = "pass"
     }
-    merge_method = $mergeMethod
-    merge_sha = $mergeCommit
+    merge_method = $effectiveMergeMethod
+    resulting_merge_sha = $mergeCommit
+    source_to_result_relation = $sourceToResultRelation
+    ancestry_verified = $ancestryVerified
+    squash_exception = $exceptionEvidence
     merged = $true
     release_scope_gate = "NOT_APPLICABLE"
     release_side_effects = $false
@@ -191,5 +279,6 @@ Write-DDDAPlatformJson -Path $evidencePath -Depth 20 -Value ([ordered]@{
 Write-Host ""
 Write-Host "DDDA merge-pr: PASS"
 Write-Host "PR #$Pr merged as $mergeCommit."
+Write-Host "Source→result: $sourceToResultRelation"
 Write-Host "Evidence: $evidencePath"
 Write-Host "Nebyl vytvořen release package, release validation ani tag."
