@@ -50,6 +50,27 @@ foreach ($parameterName in @("KeepReviewBoard", "MiroTeamId", "EvidenceOutputPat
     Assert-True -Condition $wrapperCommand.Parameters.ContainsKey($parameterName) -Message "Miro evidence wrapper nemá parametr $parameterName."
 }
 
+$partialFailureOutput = @(
+    "DDDA Miro runtime provenance: PASS",
+    "DDDA_MIRO_BOARD_ID_HANDOFF:uXjV-PartialFailure=",
+    "DDDA Miro error: synthetic failure after board creation"
+)
+$partialHandoff = Get-DDDAMiroBoardIdentityHandoff -ChildOutput $partialFailureOutput
+Assert-Equal -Expected "uXjV-PartialFailure=" -Actual $partialHandoff.board_id -Message "Failure-path handoff nezachoval board ID."
+Assert-Equal -Expected "https://miro.com/app/board/uXjV-PartialFailure=/" -Actual $partialHandoff.board_url -Message "Failure-path handoff nevytvořil board URL."
+
+$conflictingHandoffRejected = $false
+try {
+    $null = Get-DDDAMiroBoardIdentityHandoff -ChildOutput @(
+        "DDDA_MIRO_BOARD_ID_HANDOFF:uXjV-One=",
+        "DDDA_MIRO_BOARD_ID_HANDOFF:uXjV-Two="
+    )
+}
+catch {
+    $conflictingHandoffRejected = $true
+}
+Assert-True -Condition $conflictingHandoffRejected -Message "Conflicting board identity handoff musí fail-closed."
+
 $tempRoot = Join-Path $env:TEMP ("ddda-miro-evidence-test-" + [Guid]::NewGuid().ToString("N"))
 try {
     New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
