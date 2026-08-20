@@ -174,8 +174,16 @@ jobs:
           if ($actual -ne $env:VALIDATED_AFTER_SHA) {
             throw "Validated remediation SHA drifted before push."
           }
+          $targetRef = '${{ steps.pr.outputs.head_ref }}'
+          if ([string]::IsNullOrWhiteSpace($targetRef)) {
+            throw 'Resolved PR head ref is empty before remediation push.'
+          }
+          $refspec = '{0}:{1}' -f $env:VALIDATED_AFTER_SHA, $targetRef
           gh auth setup-git
-          git push origin "$env:VALIDATED_AFTER_SHA:${{ steps.pr.outputs.head_ref }}"
+          git push origin $refspec
+          if ($LASTEXITCODE -ne 0) {
+            throw "Validated remediation push failed for ref '$targetRef'."
+          }
 
       - name: Stage execution evidence
         if: always()
@@ -213,6 +221,7 @@ jobs:
 
       - name: Comment execution result
         if: always()
+        continue-on-error: true
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
