@@ -1,0 +1,55 @@
+name: PR86 one-shot governance normalization
+
+on:
+  push:
+    branches:
+      - automation/pr86-governance-normalization
+
+permissions:
+  contents: write
+
+jobs:
+  normalize:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout exact PR86 staging candidate
+        uses: actions/checkout@v4
+        with:
+          ref: fix/16-0.1.1-governance-normalization
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Assert exact staging SHA
+        shell: pwsh
+        run: |
+          $expected = 'ff4b871bc314700eb612742313f5a0b95e4e5c38'
+          $actual = (git rev-parse HEAD).Trim()
+          if ($actual -ne $expected) { throw "PR86 staging SHA drift: expected $expected actual $actual" }
+          if ((git status --porcelain)) { throw 'Working tree is not clean.' }
+
+      - name: Configure deterministic implementation identity
+        shell: pwsh
+        run: |
+          git config user.name 'DDDA Governance Automation'
+          git config user.email 'ddda-governance@example.invalid'
+
+      - name: Apply guarded normalization remediation
+        shell: pwsh
+        run: |
+          .\scripts\remediation\normalize-0.1.1-governance.ps1 -RepositoryRoot $env:GITHUB_WORKSPACE -NoPush
+
+      - name: Push exact corrective commit to PR86 branch
+        shell: pwsh
+        run: |
+          $newSha = (git rev-parse HEAD).Trim()
+          if ($newSha -eq 'ff4b871bc314700eb612742313f5a0b95e4e5c38') { throw 'Remediation did not create a corrective commit.' }
+          git push origin HEAD:refs/heads/fix/16-0.1.1-governance-normalization
+          "Corrective SHA: $newSha" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+
+      - name: Delete one-shot automation branch
+        if: success()
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --method DELETE repos/romanhlavac/ddd-accelerator/git/refs/heads/automation/pr86-governance-normalization
