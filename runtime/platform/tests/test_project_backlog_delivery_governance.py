@@ -223,7 +223,7 @@ def test_0_1_1_governance_normalization_contract():
     assert meta[88]["Item Type"] == "Enabler"
     assert meta[88]["Work Package"] == "Other"
     assert meta[88]["Target Release"] == "TBD"
-    assert meta[88]["Status"] == "Backlog
+    assert meta[88]["Status"] == "Backlog"
 
 
 def test_governance_projection_is_transactional_and_fail_closed():
