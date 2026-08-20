@@ -23,8 +23,26 @@ def test_remediation_script_existence_is_checked_after_exact_pr_checkout():
     assert checkout < run < existence
 
 
+def test_remediation_push_refspec_avoids_powershell_env_colon_ambiguity():
+    workflow = WORKFLOW.read_text(encoding="utf-8-sig")
+
+    assert '$refspec = \'{0}:{1}\' -f $env:VALIDATED_AFTER_SHA, $targetRef' in workflow
+    assert 'git push origin $refspec' in workflow
+    assert 'git push origin "$env:VALIDATED_AFTER_SHA:' not in workflow
+
+
 def test_broker_failure_comment_uses_issues_rest_api():
     workflow = WORKFLOW.read_text(encoding="utf-8-sig")
     assert 'gh api --method POST "repos/$env:REPOSITORY/issues/$env:PR_NUMBER/comments"' in workflow
     assert 'gh pr comment $env:PR_NUMBER' not in workflow
     assert 'issues: write' in workflow
+
+
+def test_broker_result_comment_failure_is_non_destructive():
+    workflow = WORKFLOW.read_text(encoding="utf-8-sig")
+
+    start = workflow.index('- name: Comment execution result')
+    block = workflow[start:]
+    assert 'if: always()' in block
+    assert 'continue-on-error: true' in block
+    assert workflow.index('- name: Upload execution evidence') < start
