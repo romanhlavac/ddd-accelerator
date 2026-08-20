@@ -7,6 +7,7 @@ BOOTSTRAP = ROOT / "config/governance/github-bootstrap.json"
 POLICY = ROOT / "config/governance/backlog-policy.yaml"
 RECONCILER = ROOT / "scripts/platform/Reconcile-DDDAProjectBacklog.py"
 RECONCILER_CORE = ROOT / "scripts/platform/Reconcile-DDDAProjectBacklogCore.py"
+RELEASE_PLANNING = ROOT / "scripts/platform/Reconcile-DDDAReleasePlanning.py"
 WORKFLOW = ROOT / ".github/workflows/reconcile-ddda-project-backlog.yml"
 CONSISTENCY = ROOT / "docs/governance/wp-backlog-consistency.md"
 
@@ -185,9 +186,110 @@ def test_privileged_workflow_is_manual_exact_sha_and_publishes_v6_audit():
     assert "workflow_dispatch:" in text
     assert "pull_request:" not in text
     assert "environment: ddda-backlog-governance" in text
+    assert "uses: actions/setup-python@v5" in text
+    assert 'python-version: "3.12"' in text
+    assert 'python -m pip install --disable-pip-version-check "pytest>=8,<9"' in text
     assert 'test "$(git rev-parse HEAD)" = "$GITHUB_SHA"' in text
     assert "Reconcile-DDDAProjectBacklogCore.py" in text
     assert "test_project_backlog_delivery_governance.py" in text
     assert ".reports/cr-delivery-audit-v6/audit.json" in text
     assert "remaining_count" in text
     assert "ddda-project-backlog-delivery-audit-v6-${{ github.sha }}" in text
+
+
+def test_release_planning_readback_retries_boundedly_until_consistent():
+    ns = runpy.run_path(str(RELEASE_PLANNING))
+    results = [
+        ([{"result": "stale"}], [{"result": "MILESTONE_MEMBERSHIP_MISMATCH"}]),
+        ([{"result": "fresh"}], []),
+    ]
+    sleeps = []
+
+    def fake_verify(_specs):
+        return results.pop(0)
+
+    rows, problems, attempts = ns["verify_eventually"](
+        [],
+        max_attempts=3,
+        delay_seconds=2,
+        verify_fn=fake_verify,
+        sleep_fn=sleeps.append,
+    )
+
+    assert rows == [{"result": "fresh"}]
+    assert problems == []
+    assert attempts == 2
+    assert sleeps == [2]
+
+    exhausted_sleeps = []
+    rows, problems, attempts = ns["verify_eventually"](
+        [],
+        max_attempts=2,
+        delay_seconds=2,
+        verify_fn=lambda _specs: (
+            [{"result": "stale"}],
+            [{"result": "MILESTONE_MEMBERSHIP_MISMATCH"}],
+        ),
+        sleep_fn=exhausted_sleeps.append,
+    )
+
+    assert rows == [{"result": "stale"}]
+    assert problems == [{"result": "MILESTONE_MEMBERSHIP_MISMATCH"}]
+    assert attempts == 2
+    assert exhausted_sleeps == [2]
+
+
+
+def test_0_1_1_governance_normalization_contract():
+    cfg = json.loads((ROOT / "config/governance/github-bootstrap.json").read_text(encoding="utf-8-sig"))
+    specs = {x["title"]: x for x in cfg["milestones"]}
+    assert set(specs) == {"DDDA 0.1.0", "DDDA 0.1.1"}
+    assert specs["DDDA 0.1.0"]["state"] == "closed"
+    assert specs["DDDA 0.1.0"]["issues"] == [10, 11, 13, 14]
+    assert specs["DDDA 0.1.0"]["pulls"] == [8]
+    assert specs["DDDA 0.1.1"]["state"] == "open"
+    assert specs["DDDA 0.1.1"]["issues"] == [9, 12, 67, 68, 70]
+    assert specs["DDDA 0.1.1"]["pulls"] == []
+
+    meta = {}
+    for group in cfg["item_groups"]:
+        if group.get("kind") != "issue":
+            continue
+        for number in group.get("numbers", []):
+            meta[int(number)] = group.get("metadata", {})
+    assert meta[44]["Item Type"] == "Defect"
+    assert meta[44]["Status"] == "Ready"
+    assert meta[67]["Item Type"] == "Defect" and meta[67]["Target Release"] == "0.1.1"
+    assert meta[68]["Item Type"] == "Defect" and meta[68]["Target Release"] == "0.1.1"
+    assert meta[70]["Item Type"] == "Change Request" and meta[70]["Target Release"] == "0.1.1"
+    assert meta[75]["Item Type"] == "Enabler"
+    assert meta[85]["Work Package"] == "Other"
+    assert meta[85]["Target Release"] == "TBD"
+    assert meta[85]["Status"] == "Backlog"
+    assert meta[88]["Item Type"] == "Enabler"
+    assert meta[88]["Work Package"] == "Other"
+    assert meta[88]["Target Release"] == "TBD"
+    assert meta[88]["Status"] == "Backlog"
+
+
+def test_governance_projection_is_transactional_and_fail_closed():
+    consistency = (ROOT / "docs/governance/wp-backlog-consistency.md").read_text(encoding="utf-8")
+    skill = (ROOT / "knowledge/ddda-platform-development-skill.md").read_text(encoding="utf-8-sig")
+    assert "Issue/PR + Project projection je jeden celek" in consistency
+    assert "BLOCKED / GOVERNANCE_INCOMPLETE" in consistency
+    assert "remaining_mismatches = 0" in consistency
+    assert "Backlog / Project transactional completion" in skill
+    assert "remaining_mismatches = 0" in skill
+
+
+def test_reconciler_supports_non_cr_planning_items_and_target_correction():
+    core = (ROOT / "scripts/platform/Reconcile-DDDAProjectBacklogCore.py").read_text(encoding="utf-8-sig")
+    release = (ROOT / "scripts/platform/Reconcile-DDDAReleasePlanning.py").read_text(encoding="utf-8")
+    workflow = (ROOT / ".github/workflows/reconcile-ddda-project-backlog.yml").read_text(encoding="utf-8-sig")
+    assert '{"Change Request", "Defect", "Risk", "Enabler", "GAP"}' in core
+    assert 'current.get("Target Release") != target' in core
+    assert 'TARGET_RELEASE_MISMATCH' in core
+    assert 'REMOVE_FROM_MILESTONE' in release
+    assert 'MILESTONE_MEMBERSHIP_MISMATCH' in release
+    assert 'Reconcile-DDDAReleasePlanning.py --mode reconcile' in workflow
+    assert 'release_planning[\'remaining_count\'] == 0' in workflow

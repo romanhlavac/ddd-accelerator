@@ -15,6 +15,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install governance test dependencies
+        shell: bash
+        run: python -m pip install --disable-pip-version-check "pytest>=8,<9"
+
       - name: Record exact source SHA
         shell: bash
         run: |
@@ -35,6 +44,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          python -m py_compile scripts/platform/Reconcile-DDDAReleasePlanning.py
           python -m py_compile scripts/platform/Reconcile-DDDAProjectBacklog.py
           python -m py_compile scripts/platform/Reconcile-DDDAProjectBacklogCore.py
           python -m py_compile scripts/platform/Reconcile-DDDAProjectBacklogPresentation.py
@@ -47,9 +57,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          python scripts/platform/Reconcile-DDDAReleasePlanning.py --mode reconcile
           python scripts/platform/Reconcile-DDDAProjectBacklogPresentation.py --mode reconcile
           python scripts/platform/Reconcile-DDDAProjectBacklog.py
           python scripts/platform/Reconcile-DDDAProjectBacklogPresentation.py --mode verify
+          python scripts/platform/Reconcile-DDDAReleasePlanning.py --mode verify
 
       - name: Assert versioned projections are synchronized
         shell: bash
@@ -59,6 +71,7 @@ jobs:
             config/governance \
             docs/governance \
             docs/adr/0003-github-native-backlog-governance.md \
+            scripts/platform/Reconcile-DDDAReleasePlanning.py \
             scripts/platform/Reconcile-DDDAProjectBacklog.py \
             scripts/platform/Reconcile-DDDAProjectBacklogCore.py \
             scripts/platform/Reconcile-DDDAProjectBacklogPresentation.py \
@@ -76,9 +89,12 @@ jobs:
 
           audit = json.loads(Path('.reports/cr-delivery-audit-v6/audit.json').read_text(encoding='utf-8'))
           presentation = json.loads(Path('.reports/cr-delivery-audit-v6/presentation.json').read_text(encoding='utf-8'))
+          release_planning = json.loads(Path('.reports/cr-delivery-audit-v6/release-planning.json').read_text(encoding='utf-8'))
           assert audit['source_sha'] == os.environ['GITHUB_SHA']
+          assert release_planning['source_sha'] == os.environ['GITHUB_SHA']
           assert audit['remaining_count'] == 0
           assert presentation['remaining_count'] == 0
+          assert release_planning['remaining_count'] == 0
           print(json.dumps({
               'source_sha': audit['source_sha'],
               'project': audit['project']['title'],

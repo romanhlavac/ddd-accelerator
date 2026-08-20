@@ -108,8 +108,9 @@ def load_contract():
             hierarchy[c] = wp
 
     expected = dict(hierarchy)
+    planning_types = {"Change Request", "Defect", "Risk", "Enabler", "GAP"}
     for n, meta in item_meta.items():
-        if meta.get("Item Type") == "Change Request" and meta.get("Work Package") == "Other":
+        if meta.get("Item Type") in planning_types and meta.get("Work Package") == "Other":
             expected[n] = "Other"
 
     dependencies = {int(x["blocked"]): {int(v) for v in x.get("blocked_by", [])} for x in cfg.get("dependencies", [])}
@@ -318,7 +319,7 @@ def reconcile_planning(wp_parent, item_meta, expected, details, project_number, 
         else:
             item_id = item["id"]
             current = values(item)
-        item_type = "Work Package" if n in wp_parent.values() else "Change Request"
+        item_type = "Work Package" if n in wp_parent.values() else item_meta.get(n, {}).get("Item Type", "Change Request")
         desired_wp = wp if wp != "Other" else "Other"
         if current.get("Item Type") != item_type:
             set_select(project_id, fields, item_id, "Item Type", item_type)
@@ -327,7 +328,7 @@ def reconcile_planning(wp_parent, item_meta, expected, details, project_number, 
             set_select(project_id, fields, item_id, "Work Package", desired_wp)
             repairs.append({"issue": n, "action": "SET_WORK_PACKAGE", "value": desired_wp})
 
-        if item_type == "Change Request":
+        if item_type != "Work Package":
             status = current.get("Status")
             if data["state"] == "closed":
                 wanted = "Cancelled" if data.get("state_reason") in ("not_planned", "duplicate") else "Done"
@@ -341,7 +342,7 @@ def reconcile_planning(wp_parent, item_meta, expected, details, project_number, 
         milestone = (data.get("milestone") or {}).get("title")
         meta = item_meta.get(n, {})
         target = milestone or meta.get("Target Release")
-        if target and not current.get("Target Release"):
+        if target and current.get("Target Release") != target:
             set_text(project_id, fields, item_id, "Target Release", target)
             repairs.append({"issue": n, "action": "SET_TARGET_RELEASE", "value": target})
 
@@ -438,8 +439,15 @@ def verify_planning(wp_parent, expected, dependencies, project_number):
             v = values(item)
             if v.get("Work Package") != wp:
                 rowprobs.append("WORK_PACKAGE_MISMATCH")
-            if v.get("Item Type") != "Change Request":
+            _, _, item_meta, _, _ = load_contract()
+            wanted_type = item_meta.get(n, {}).get("Item Type", "Change Request")
+            if v.get("Item Type") != wanted_type:
                 rowprobs.append("ITEM_TYPE_MISMATCH")
+            data = issue(n)
+            milestone = (data.get("milestone") or {}).get("title")
+            wanted_target = milestone or item_meta.get(n, {}).get("Target Release")
+            if wanted_target and v.get("Target Release") != wanted_target:
+                rowprobs.append("TARGET_RELEASE_MISMATCH")
         rows.append({"issue": n, "wp": wp, "parent": parent, "fields": v, "result": "PASS" if not rowprobs else "+".join(rowprobs)})
         if rowprobs:
             problems.append(rows[-1])

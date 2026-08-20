@@ -649,36 +649,6 @@
     {
       "kind": "issue",
       "numbers": [
-        9,
-        12,
-        14
-      ],
-      "metadata": {
-        "Status": "Blocked",
-        "Work Package": "WP-08",
-        "Item Type": "Change Request",
-        "Target Release": "0.1.0",
-        "Blocked": "Yes",
-        "Human Review": "Pending"
-      }
-    },
-    {
-      "kind": "issue",
-      "numbers": [
-        15
-      ],
-      "metadata": {
-        "Status": "In progress",
-        "Work Package": "WP-08",
-        "Item Type": "Change Request",
-        "Target Release": "0.1.0",
-        "Blocked": "Yes",
-        "Human Review": "Pending"
-      }
-    },
-    {
-      "kind": "issue",
-      "numbers": [
         21,
         22
       ],
@@ -818,21 +788,6 @@
     {
       "kind": "issue",
       "numbers": [
-        65
-      ],
-      "metadata": {
-        "Status": "Backlog",
-        "Work Package": "Other",
-        "Item Type": "Change Request",
-        "Target Release": "TBD",
-        "Blocked": "No",
-        "Human Review": "Pending",
-        "Outcome summary": "Canonical branch taxonomy and safe lifecycle/cleanup for persistent implementation and ephemeral automation branches."
-      }
-    },
-    {
-      "kind": "issue",
-      "numbers": [
         42
       ],
       "metadata": {
@@ -860,20 +815,6 @@
     {
       "kind": "issue",
       "numbers": [
-        44
-      ],
-      "metadata": {
-        "Status": "Backlog",
-        "Work Package": "Other",
-        "Item Type": "Defect",
-        "Target Release": "TBD",
-        "Blocked": "No",
-        "Human Review": "Not required"
-      }
-    },
-    {
-      "kind": "issue",
-      "numbers": [
         49
       ],
       "metadata": {
@@ -883,22 +824,6 @@
         "Target Release": "TBD",
         "Blocked": "Yes",
         "Human Review": "Not required"
-      }
-    },
-    {
-      "kind": "issue",
-      "numbers": [
-        17
-      ],
-      "metadata": {
-        "Status": "Blocked",
-        "Work Package": "WP-08",
-        "Item Type": "Work Package",
-        "Target Release": "0.1.0",
-        "Blocked": "Yes",
-        "Human Review": "Pending",
-        "Outcome summary": "Close the already implemented DDDA 0.1.0 platform foundation and PR8 remediation/release evidence without new feature scope.",
-        "Priority": "P0"
       }
     },
     {
@@ -1136,6 +1061,159 @@
         "Human Review": "Pending",
         "Outcome summary": "Package-first EventStorming E2E acceptance without mandatory multi-agent runtime."
       }
+    },
+    {
+      "kind": "issue",
+      "numbers": [
+        9,
+        12
+      ],
+      "metadata": {
+        "Status": "Done",
+        "Work Package": "WP-08",
+        "Item Type": "Change Request",
+        "Target Release": "0.1.1",
+        "Blocked": "No",
+        "Human Review": "PASS"
+      }
+    },
+    {
+      "kind": "issue",
+      "numbers": [
+        14
+      ],
+      "metadata": {
+        "Status": "Done",
+        "Work Package": "WP-08",
+        "Item Type": "Change Request",
+        "Target Release": "0.1.0",
+        "Blocked": "No",
+        "Human Review": "Pending"
+      }
+    },
+    {
+      "kind": "issue",
+      "numbers": [
+        15
+      ],
+      "metadata": {
+        "Status": "Cancelled",
+        "Work Package": "WP-08",
+        "Item Type": "Change Request",
+        "Target Release": "TBD",
+        "Blocked": "No",
+        "Human Review": "Not required",
+        "Outcome summary": "Historical PR8 pre-release execution plan; superseded after successful DDDA 0.1.0 release."
+      }
+    },
+    {
+      "kind": "issue",
+      "numbers": [
+        17
+      ],
+      "metadata": {
+        "Status": "In progress",
+        "Priority": "P0",
+        "Work Package": "WP-08",
+        "Item Type": "Work Package",
+        "Target Release": "0.1.0",
+        "Blocked": "No",
+        "Human Review": "Not required",
+        "Outcome summary": "Released DDDA 0.1.0 foundation with finite 0.1.1 stabilization handoff coordinated by #75."
+      }
+    },
+    {
+      "kind": "issue",
+      "numbers": [
+        44
+      ],
+      "metadata": {
+        "Status": "Ready",
+        "Priority": "P0",
+        "Work Package": "Other",
+        "Item Type": "Defect",
+        "Target Release": "TBD",
+        "Blocked": "No",
+        "Human Review": "Not required",
+        "Outcome summary": "Pre-release prerequisite: prove effective main protection/ruleset and required-check enforcement before DDDA 0.1.1 release readiness."
+      }
+    },
+    {
+      "kind": "issue",
+      "numbers": [
+        65,
+        66,
+        69,
+        73,
+        85
+      ],
+      "metadata": {
+        "Status": "Backlog",
+        "Work Package": "Other",
+        "Item Type": "Change Request",
+        "Target Release": "TBD",
+        "Blocked": "No",
+        "Human Review": "Pending"
+      }
+    },
+    {
+      "kind": "issue",
+      "numbers": [
+        67,
+        68
+      ],
+      "metadata": {
+        "Status": "Done",
+        "Work Package": "Other",
+        "Item Type": "Defect",
+        "Target Release": "0.1.1",
+        "Blocked": "No",
+        "Human Review": "PASS"
+      }
+    },
+    {
+      "kind": "issue",
+      "numbers": [
+        70
+      ],
+      "metadata": {
+        "Status": "Done",
+        "Work Package": "Other",
+        "Item Type": "Change Request",
+        "Target Release": "0.1.1",
+        "Blocked": "No",
+        "Human Review": "PASS"
+      }
+    },
+    {
+      "kind": "issue",
+      "numbers": [
+        75
+      ],
+      "metadata": {
+        "Status": "In progress",
+        "Priority": "P0",
+        "Work Package": "Other",
+        "Item Type": "Enabler",
+        "Target Release": "0.1.1",
+        "Blocked": "No",
+        "Human Review": "Not required",
+        "Outcome summary": "Coordinate approved DDDA 0.1.1 stabilization scope, governance normalization, release prerequisites and release-candidate gates."
+      }
+    },
+    {
+      "kind": "issue",
+      "numbers": [
+        88
+      ],
+      "metadata": {
+        "Status": "Backlog",
+        "Work Package": "Other",
+        "Item Type": "Enabler",
+        "Target Release": "TBD",
+        "Blocked": "No",
+        "Human Review": "Pending"
+      }
     }
   ],
   "views": [
@@ -1152,15 +1230,13 @@
   ],
   "milestone": {
     "title": "DDDA 0.1.0",
-    "description": "First validated DDDA platform release with lifecycle and project-steering foundation. Milestone membership is release scope, not release approval.",
+    "state": "closed",
+    "description": "Released DDDA 0.1.0 foundation. Historical milestone membership is release scope evidence, not approval.",
     "issues": [
-      9,
       10,
       11,
-      12,
       13,
-      14,
-      15
+      14
     ],
     "pulls": [
       8
@@ -1211,5 +1287,34 @@
     "primary_change_request_relation": "Implements_or_Closes",
     "work_package_source": "primary_change_request",
     "project_item_type_field": null
-  }
+  },
+  "milestones": [
+    {
+      "title": "DDDA 0.1.0",
+      "state": "closed",
+      "description": "Released DDDA 0.1.0 foundation. Historical milestone membership is release scope evidence, not approval.",
+      "issues": [
+        10,
+        11,
+        13,
+        14
+      ],
+      "pulls": [
+        8
+      ]
+    },
+    {
+      "title": "DDDA 0.1.1",
+      "state": "open",
+      "description": "Approved stabilization release scope from #75. Milestone membership is release scope, not release approval.",
+      "issues": [
+        9,
+        12,
+        67,
+        68,
+        70
+      ],
+      "pulls": []
+    }
+  ]
 }
