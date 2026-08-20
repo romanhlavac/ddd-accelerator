@@ -8,7 +8,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath $RepositoryRoot
 
-$expectedParent = '492cf7d1b343bb444fd96a8202e875f79f22225c'
+$expectedParent = '7831b87690757589518ff13ff8682f0bff980054'
 $current = (& git rev-parse HEAD).Trim()
 $parent = (& git rev-parse HEAD^).Trim()
 if ($parent -ne $expectedParent) {
@@ -49,7 +49,7 @@ if (-not (Test-Path -LiteralPath $originalPath -PathType Leaf)) {
 $text = Get-Content -LiteralPath $originalPath -Raw -Encoding UTF8
 
 $oldExpected = '$expectedBase = ''1f66880c30b7bc1814d21200ef6fcc5b08cadfba'''
-$newExpected = '$expectedBase = ''492cf7d1b343bb444fd96a8202e875f79f22225c'''
+$newExpected = '$expectedBase = ''7831b87690757589518ff13ff8682f0bff980054'''
 $text = Replace-LiteralOnce $text $oldExpected $newExpected 'Expected-base'
 
 # Patch only the fragile CHANGELOG insertion line. Matching a single semantic
@@ -131,6 +131,14 @@ $newTestBlock = @'
     assert meta[88]["Status"] == "Backlog"
 '@
 $text = Replace-LiteralOnce $text $oldTestLine $newTestBlock 'Regression-test insertion for #88'
+
+# The trusted broker establishes Python but does not install test dependencies.
+# Keep this temporary PR86-scoped compatibility shim until #88 hardens dependency
+# parity in the broker itself. Pin to the same pytest major range as standard CI.
+& python -m pip install --disable-pip-version-check 'pytest>=8,<9'
+if ($LASTEXITCODE -ne 0) {
+    throw 'Failed to install pytest required by governance regression tests.'
+}
 
 $oldCleanup = @'
 $scriptPath = Join-Path $RepositoryRoot 'scripts/remediation/normalize-0.1.1-governance.ps1'
