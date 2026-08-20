@@ -185,6 +185,9 @@ def test_privileged_workflow_is_manual_exact_sha_and_publishes_v6_audit():
     assert "workflow_dispatch:" in text
     assert "pull_request:" not in text
     assert "environment: ddda-backlog-governance" in text
+    assert "uses: actions/setup-python@v5" in text
+    assert 'python-version: "3.12"' in text
+    assert 'python -m pip install --disable-pip-version-check "pytest>=8,<9"' in text
     assert 'test "$(git rev-parse HEAD)" = "$GITHUB_SHA"' in text
     assert "Reconcile-DDDAProjectBacklogCore.py" in text
     assert "test_project_backlog_delivery_governance.py" in text
