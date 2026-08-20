@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)][string]$RepositoryRoot,
     [switch]$NoPush
@@ -8,7 +8,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath $RepositoryRoot
 
-$expectedParent = 'ff4b871bc314700eb612742313f5a0b95e4e5c38'
+$expectedParent = '237a23047775c0157a8365990f3f73e231ebac2c'
 $current = (& git rev-parse HEAD).Trim()
 $parent = (& git rev-parse HEAD^).Trim()
 if ($parent -ne $expectedParent) {
@@ -19,7 +19,6 @@ if ((& git status --porcelain)) {
 }
 
 $originalRel = 'scripts/remediation/normalize-0.1.1-governance.ps1'
-$wrapperRel = 'scripts/remediation/normalize-0.1.1-governance-r2.ps1'
 $originalPath = Join-Path $RepositoryRoot $originalRel
 if (-not (Test-Path -LiteralPath $originalPath -PathType Leaf)) {
     throw "Original normalization remediation script is missing: $originalRel"
@@ -27,14 +26,22 @@ if (-not (Test-Path -LiteralPath $originalPath -PathType Leaf)) {
 
 $text = Get-Content -LiteralPath $originalPath -Raw -Encoding UTF8
 
-$oldExpected = "$expectedBase = '1f66880c30b7bc1814d21200ef6fcc5b08cadfba'"
-$newExpected = "$expectedBase = 'ff4b871bc314700eb612742313f5a0b95e4e5c38'"
+$oldExpected = '$expectedBase = ''1f66880c30b7bc1814d21200ef6fcc5b08cadfba'''
+$newExpected = '$expectedBase = ''237a23047775c0157a8365990f3f73e231ebac2c'''
 if (($text.Split($oldExpected).Count - 1) -ne 1) {
     throw 'Expected-base preimage is not unique in original remediation script.'
 }
 $text = $text.Replace($oldExpected, $newExpected)
 
 $oldChangelog = @'
+changelog = CHANGELOG.read_text(encoding='utf-8-sig')
+changed_anchor = '### Changed\n\n'
+entry = '- GitHub-native backlog governance nyní považžuje Issue/PR mutation, Project planning/delivery projection a release Milestone projection za jednu fail-closed transakci; DDDA 0.1.0/0.1.1 scope je versioned a canonical reconciler opravuje Project/Milestone drift před Ready/merge/release doporučením.\n'
+if entry not in changelog:
+    changelog = replace_once(changelog, changed_anchor, changed_anchor + entry, 'changelog changed section')
+CHANGELOG.write_text(changelog, encoding='utf-8')
+'@
+$oldChangelogFallback = @'
 changelog = CHANGELOG.read_text(encoding='utf-8-sig')
 changed_anchor = '### Changed\n\n'
 entry = '- GitHub-native backlog governance nyní považuje Issue/PR mutation, Project planning/delivery projection a release Milestone projection za jednu fail-closed transakci; DDDA 0.1.0/0.1.1 scope je versioned a canonical reconciler opravuje Project/Milestone drift před Ready/merge/release doporučením.\n'
@@ -61,10 +68,15 @@ if entry not in changelog:
     changelog = changelog[:start] + unreleased + changelog[next_release:]
 CHANGELOG.write_text(changelog, encoding='utf-8')
 '@
-if (($text.Split($oldChangelog).Count - 1) -ne 1) {
+if (($text.Split($oldChangelogFallback).Count - 1) -eq 1) {
+    $text = $text.Replace($oldChangelogFallback, $newChangelog)
+}
+elseif (($text.Split($oldChangelog).Count - 1) -eq 1) {
+    $text = $text.Replace($oldChangelog, $newChangelog)
+}
+else {
     throw 'Changelog-fix preimage is not unique in original remediation script.'
 }
-$text = $text.Replace($oldChangelog, $newChangelog)
 
 $oldCleanup = @'
 $scriptPath = Join-Path $RepositoryRoot 'scripts/remediation/normalize-0.1.1-governance.ps1'
