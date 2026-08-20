@@ -1,11 +1,14 @@
 import argparse
 import json
 import subprocess
+import time
 from pathlib import Path
 
 REPO = "romanhlavac/ddd-accelerator"
 CFG_PATH = Path("config/governance/github-bootstrap.json")
 REPORT_PATH = Path(".reports/cr-delivery-audit-v6/release-planning.json")
+READBACK_ATTEMPTS = 10
+READBACK_DELAY_SECONDS = 2
 
 
 def cmd(*args, json_out=False, stdin=None):
@@ -144,6 +147,24 @@ def verify(specs):
     return rows, problems
 
 
+def verify_eventually(
+    specs,
+    max_attempts=READBACK_ATTEMPTS,
+    delay_seconds=READBACK_DELAY_SECONDS,
+    verify_fn=None,
+    sleep_fn=None,
+):
+    if max_attempts < 1:
+        raise ValueError("max_attempts must be at least 1")
+    verify_fn = verify_fn or verify
+    sleep_fn = sleep_fn or time.sleep
+    for attempt in range(1, max_attempts + 1):
+        rows, problems = verify_fn(specs)
+        if not problems or attempt == max_attempts:
+            return rows, problems, attempt
+        sleep_fn(delay_seconds)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", choices=("reconcile", "verify"), default="verify")
@@ -152,7 +173,10 @@ def main(argv=None):
     repairs = []
     if args.mode == "reconcile":
         repairs, _ = reconcile(specs)
-    rows, problems = verify(specs)
+        rows, problems, readback_attempts = verify_eventually(specs)
+    else:
+        rows, problems = verify(specs)
+        readback_attempts = 1
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
     source_sha = cmd("git", "rev-parse", "HEAD")
     report = {
@@ -160,6 +184,7 @@ def main(argv=None):
         "mode": args.mode,
         "source_sha": source_sha,
         "repair_count": len(repairs),
+        "readback_attempts": readback_attempts,
         "remaining_count": len(problems),
         "repairs": repairs,
         "milestones": rows,

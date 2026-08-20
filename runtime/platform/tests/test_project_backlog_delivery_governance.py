@@ -7,6 +7,7 @@ BOOTSTRAP = ROOT / "config/governance/github-bootstrap.json"
 POLICY = ROOT / "config/governance/backlog-policy.yaml"
 RECONCILER = ROOT / "scripts/platform/Reconcile-DDDAProjectBacklog.py"
 RECONCILER_CORE = ROOT / "scripts/platform/Reconcile-DDDAProjectBacklogCore.py"
+RELEASE_PLANNING = ROOT / "scripts/platform/Reconcile-DDDAReleasePlanning.py"
 WORKFLOW = ROOT / ".github/workflows/reconcile-ddda-project-backlog.yml"
 CONSISTENCY = ROOT / "docs/governance/wp-backlog-consistency.md"
 
@@ -194,6 +195,48 @@ def test_privileged_workflow_is_manual_exact_sha_and_publishes_v6_audit():
     assert ".reports/cr-delivery-audit-v6/audit.json" in text
     assert "remaining_count" in text
     assert "ddda-project-backlog-delivery-audit-v6-${{ github.sha }}" in text
+
+
+def test_release_planning_readback_retries_boundedly_until_consistent():
+    ns = runpy.run_path(str(RELEASE_PLANNING))
+    results = [
+        ([{"result": "stale"}], [{"result": "MILESTONE_MEMBERSHIP_MISMATCH"}]),
+        ([{"result": "fresh"}], []),
+    ]
+    sleeps = []
+
+    def fake_verify(_specs):
+        return results.pop(0)
+
+    rows, problems, attempts = ns["verify_eventually"](
+        [],
+        max_attempts=3,
+        delay_seconds=2,
+        verify_fn=fake_verify,
+        sleep_fn=sleeps.append,
+    )
+
+    assert rows == [{"result": "fresh"}]
+    assert problems == []
+    assert attempts == 2
+    assert sleeps == [2]
+
+    exhausted_sleeps = []
+    rows, problems, attempts = ns["verify_eventually"](
+        [],
+        max_attempts=2,
+        delay_seconds=2,
+        verify_fn=lambda _specs: (
+            [{"result": "stale"}],
+            [{"result": "MILESTONE_MEMBERSHIP_MISMATCH"}],
+        ),
+        sleep_fn=exhausted_sleeps.append,
+    )
+
+    assert rows == [{"result": "stale"}]
+    assert problems == [{"result": "MILESTONE_MEMBERSHIP_MISMATCH"}]
+    assert attempts == 2
+    assert exhausted_sleeps == [2]
 
 
 
