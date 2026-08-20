@@ -26,6 +26,12 @@ Post-change výsledek musí být:
 remaining_mismatches = 0
 ```
 
+## Governance transakce: Issue/PR + Project projection je jeden celek
+
+Vytvoření nebo změna governed CR/Defect/Enabler, jeho statusu, WP/dependency vztahu, implementation PR nebo primary `Implements/Closes` vazby **není dokončená GitHub governance operace**, dokud není v témže orchestration flow materializována odpovídající Project planning/delivery projection a repository-wide post-read-back neskončí `remaining_mismatches = 0`.
+
+Connector/API omezení není důvod přeskočit projekci. Pokud canonical privileged reconciler nelze spustit, operace zůstává explicitně `BLOCKED / GOVERNANCE_INCOMPLETE`; nesmí být označena `Ready`, `Done`, governance `PASS` ani doporučena k merge. Člověk nemá ručně hlídat, zda byl Project aktualizován.
+
 Jakýkoli zbývající mismatch blokuje technical governance PASS a doporučení Ready/merge, i když code CI a package-first validace jsou zelené.
 
 ## Kanonické Project projekce

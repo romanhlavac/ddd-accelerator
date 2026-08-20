@@ -561,50 +561,44 @@ function Ensure-Views {
 }
 
 function Ensure-Milestone {
-    Write-Section "Milestone"
+    Write-Section "Milestones"
 
-    $milestones = Invoke-GhJson -Arguments @(
-        "api",
-        "-H", "Accept: application/vnd.github+json",
-        "-H", "X-GitHub-Api-Version: $($Config.api_version)",
-        "repos/$($Config.repository)/milestones?state=all&per_page=100"
-    )
-
-    $milestone = @($milestones | Where-Object { $_.title -eq $Config.milestone.title }) | Select-Object -First 1
-    if (-not $milestone) {
-        Write-Action "Create Milestone '$($Config.milestone.title)' without a due date"
-        if ($Apply) {
-            Invoke-GhJsonInput -Endpoint "repos/$($Config.repository)/milestones" -Body @{
-                title = $Config.milestone.title
-                state = "open"
-                description = $Config.milestone.description
-            } | Out-Null
-            $Changes.Add("Created Milestone '$($Config.milestone.title)'.")
-        }
+    $configured = @()
+    if ($Config.PSObject.Properties.Name -contains "milestones" -and @($Config.milestones).Count -gt 0) {
+        $configured = @($Config.milestones)
+    }
+    elseif ($Config.PSObject.Properties.Name -contains "milestone" -and $Config.milestone) {
+        $configured = @($Config.milestone)
     }
     else {
-        Write-Host "Milestone '$($Config.milestone.title)' already exists."
+        throw "No milestone contract is configured."
     }
 
-    Write-Action "Assign configured Issues and PRs to Milestone '$($Config.milestone.title)'"
-    if ($Apply) {
-        if (@($Config.milestone.issues).Count -gt 0) {
-            $args = @("issue", "edit") + @($Config.milestone.issues | ForEach-Object { "$_" }) + @(
-                "-R", $Config.repository,
-                "--milestone", $Config.milestone.title
-            )
-            Invoke-Gh -Arguments $args | Out-Null
+    foreach ($spec in $configured) {
+        $milestones = Invoke-GhJson -Arguments @(
+            "api",
+            "-H", "Accept: application/vnd.github+json",
+            "-H", "X-GitHub-Api-Version: $($Config.api_version)",
+            "repos/$($Config.repository)/milestones?state=all&per_page=100"
+        )
+        $matches = @($milestones | Where-Object { $_.title -eq $spec.title })
+        if ($matches.Count -gt 1) { throw "Ambiguous milestone title '$($spec.title)'." }
+        $milestone = $matches | Select-Object -First 1
+        if (-not $milestone) {
+            Write-Action "Create Milestone '$($spec.title)'"
+            if ($Apply) {
+                Invoke-GhJsonInput -Endpoint "repos/$($Config.repository)/milestones" -Body @{
+                    title = $spec.title
+                    state = if ($spec.state) { $spec.state } else { "open" }
+                    description = $spec.description
+                } | Out-Null
+                $Changes.Add("Created Milestone '$($spec.title)'.")
+            }
         }
-
-        foreach ($number in $Config.milestone.pulls) {
-            Invoke-Gh -Arguments @(
-                "pr", "edit", "$number",
-                "-R", $Config.repository,
-                "--milestone", $Config.milestone.title
-            ) | Out-Null
-        }
-        $Changes.Add("Assigned configured release scope to Milestone '$($Config.milestone.title)'.")
+        Write-Action "Reconcile exact membership for Milestone '$($spec.title)' through canonical release-planning reconciler"
     }
+
+    $ManualSteps.Add("Use Reconcile-DDDAReleasePlanning.py / the privileged backlog reconciliation workflow for exact milestone membership and stale-membership removal; do not treat this initializer as release approval.")
 }
 
 function Write-Report {

@@ -522,3 +522,7 @@ Chat/Work must distinguish an **active external execution** from an **intention 
 - If an external workflow is still running when the response is sent, say exactly that; do not represent future analysis, fixes or retries as already running unless they are actually scheduled or executing.
 
 The intent is operationally strict: **autonomous orchestration while execution is active, truthful stop-state reporting when it is not.**
+
+## Backlog / Project transactional completion
+
+Pro DDDA platform backlog/delivery governance je GitHub Issue/PR mutation a její `DDDA Platform Backlog & Delivery` projection jedna fail-closed transakce. CR/Defect/Enabler/PR creation, state/relationship change nebo implementation authority change není `Ready`/`Done`/governance `PASS`, dokud canonical Project/Milestone reconciliation a repository-wide read-back nevrátí `remaining_mismatches = 0`. Nedostupná Project mutation surface je blocker k dokončení governance transakce, ne důvod projekci odložit nebo ji přenést na člověka k ruční kontrole.
