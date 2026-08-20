@@ -181,7 +181,11 @@ Na Chat/Work-only cestě tyto příkazy spouštějí standardní GitHub Actions 
 
 ## 4. Candidate package
 
-`validate-pr` načte exact PR head SHA, vytvoří izolovaný checkout a candidate package pomocí `git archive`. Package dostane `ddda-package.json` s původem, verzí a source commit SHA.
+Standardní PR CI načte exact PR head SHA a vytvoří pomocí `git archive` právě jeden canonical candidate package. Stabilní package metadata jsou odvozena z exact SHA; package dostane `ddda-package.json` s původem, verzí a `source_commit`.
+
+Navazující `validate-pr-command` čeká na package job, stáhne jeho exact-SHA artifact a předá ZIP do `validate-pr -PackagePath`. V tomto režimu `validate-pr` package znovu nesestavuje: ověří `kind=candidate`, `source_commit=current PR HEAD`, přepočítá SHA-256 a stejný hash zapíše do `result.json` i `result.md`. Lokální spuštění bez `-PackagePath` zůstává convenience cestou, ale jeho package není CI governance evidence.
+
+Candidate artifact a validation report jsou společně dohledatelné přes repository, PR, exact HEAD SHA, workflow run, artifact ID/name a package SHA-256. Publikovaný report používá přenositelné reference; runner-local cesta není součástí evidence.
 
 Package nesmí obsahovat `.git/`, `.ddda/`, `.tmp/`, reports, releases, dist, caches, credentials, client data ani uživatelské absolutní cesty.
 
@@ -231,7 +235,7 @@ Skutečný merge:
 .\ddda.ps1 merge-pr -Pr 74 -ConfirmMerge
 ```
 
-`merge-pr` fail-closed ověřuje live PR state, exact head SHA, required CI, exact-SHA `validate-pr`, candidate package hash, Human Review PASS stejného SHA/package, required governance docs a repository merge policy.
+`merge-pr` fail-closed ověřuje live PR state, exact head SHA, required CI, exact-SHA `validate-pr`, candidate package hash, Human Review PASS stejného SHA/package, required governance docs a repository merge policy. Standardní `Governed merge dry-run` běží na čistém runneru, stáhne candidate i report ze stejného workflow runu a předá jejich nové lokální cesty přes `-PackagePath` a `-ValidationReportPath`; nikdy nepoužívá cestu uloženou na předchozím runneru.
 
 Po aktivaci ADR 0009 je merge strategy risk-based:
 

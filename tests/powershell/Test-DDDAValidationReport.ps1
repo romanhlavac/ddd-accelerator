@@ -26,7 +26,7 @@ try {
             name = "lint"
             status = "PASS"
             duration_ms = 10
-            details = $null
+            details = "Log: $(Join-Path $tempRoot 'validation/logs/lint.log')"
         }
     ) -Path $passSuites
     Write-DDDAPlatformText -Value "synthetic candidate package" -Path $packagePath
@@ -54,13 +54,19 @@ try {
     Assert-True -Condition $passWithoutPackageRejected -Message "PASS report bez package musí být odmítnut."
 
     $passRoot = Join-Path $tempRoot "pass-report"
-    & (Join-Path $PlatformPath "scripts/platform/New-DDDAValidationReport.ps1") -ValidationId "valid-pass" -Status PASS -SourceKind pr -Repository "romanhlavac/ddd-accelerator" -Commit $commit -Pr 8 -Branch "feature/test" -PackagePath $packagePath -SuitesJsonPath $passSuites -OutputRoot $passRoot
+    & (Join-Path $PlatformPath "scripts/platform/New-DDDAValidationReport.ps1") -ValidationId "valid-pass" -Status PASS -SourceKind pr -Repository "romanhlavac/ddd-accelerator" -Commit $commit -Pr 8 -Branch "feature/test" -PackagePath $packagePath -PackageArtifactName "ddda-candidate-$commit" -WorkflowRunId "123456" -Workspace $tempRoot -SuitesJsonPath $passSuites -OutputRoot $passRoot -Diagnostics (Join-Path $tempRoot 'validation/logs/lint.log') -PortablePaths
 
     $passJsonPath = Join-Path $passRoot "result.json"
     Assert-True -Condition (Test-Path -LiteralPath $passJsonPath -PathType Leaf) -Message "PASS validation report nebyl vytvořen."
-    $passReport = Get-Content -LiteralPath $passJsonPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    $passJsonText = Get-Content -LiteralPath $passJsonPath -Raw -Encoding UTF8
+    $passReport = $passJsonText | ConvertFrom-Json
     Assert-True -Condition ($passReport.status -eq "PASS") -Message "PASS report nemá status PASS."
     Assert-True -Condition ($passReport.package.sha256 -eq (Get-DDDAPlatformFileHash -Path $packagePath)) -Message "PASS report neobsahuje správný package hash."
+    Assert-True -Condition ($passReport.package.path -eq (Split-Path -Leaf $packagePath)) -Message "Portable PASS report musí používat přenositelnou package identity."
+    Assert-True -Condition ($passReport.package.artifact_name -eq "ddda-candidate-$commit") -Message "PASS report neobsahuje canonical artifact name."
+    Assert-True -Condition ([string]$passReport.package.workflow_run_id -eq "123456") -Message "PASS report neobsahuje source workflow run ID."
+    Assert-True -Condition ($passJsonText -notlike "*$tempRoot*") -Message "Publikovaná JSON evidence nesmí obsahovat absolutní test/runner cestu."
+    Assert-True -Condition ((Get-Content -LiteralPath (Join-Path $passRoot 'result.md') -Raw -Encoding UTF8) -notlike "*$tempRoot*") -Message "Publikovaná Markdown evidence nesmí obsahovat absolutní test/runner cestu."
     Assert-True -Condition (@($passReport.suites).Count -eq 1) -Message "PASS report neobsahuje očekávanou suite."
 
     Write-Host "DDDA validation report tests: PASS"

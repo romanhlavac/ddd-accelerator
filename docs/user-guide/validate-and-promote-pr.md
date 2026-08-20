@@ -37,7 +37,7 @@ Včetně Miro, pokud je relevantní:
 .\ddda.ps1 validate-pr -Pr 74 -WithMiro -Full -CleanupOnFailure
 ```
 
-Příkaz nemění aktivní větev ani working tree. PR načte přes exact head SHA, vytvoří izolovaný candidate package a package-first validation evidence.
+Příkaz nemění aktivní větev ani working tree. Lokálně načte exact head SHA a vytvoří izolovaný candidate package. Ve standardním CI se candidate sestaví pouze jednou v `Platform validation`; `One-command PR validation` stáhne tentýž artifact a zavolá `validate-pr -PackagePath`, takže reportovaný hash patří fyzicky nahranému ZIPu.
 
 ## Governed implementation merge
 
@@ -62,6 +62,8 @@ Dry-run fail-closed ověří:
 - impact classification a merge method odpovídají repository merge-strategy policy.
 
 Dry-run neprovede merge, release, promotion ani tag.
+
+Standardní CI job `Governed merge dry-run` čeká na Human Review. Potom na novém čistém runneru stáhne candidate a validation report ze stejného workflow runu, přepočítá hash a ověří shodu s reportem i Human Review. Dočasná cesta z validačního runneru se nepoužívá.
 
 ### Merge strategy a exact-SHA ancestry
 

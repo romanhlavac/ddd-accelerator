@@ -2,6 +2,8 @@
 param(
     [string]$PlatformPath = (Resolve-Path (Join-Path $PSScriptRoot "../..")).Path,
     [Parameter(Mandatory = $true)][ValidateRange(1, 2147483647)][int]$Pr,
+    [string]$PackagePath,
+    [string]$ValidationReportPath,
     [ValidateSet("merge", "squash")][string]$MergeMethod,
     [switch]$ConfirmMerge,
     [switch]$DryRun
@@ -57,7 +59,13 @@ if ($headSha -notmatch '^[0-9a-f]{40}$') {
 }
 
 try {
-    $checkSummary = Assert-DDDAGitHubChecksPassed -RepositorySlug $repositorySlug -Commit $headSha -Token $githubAuth.Token
+    $ignoredCheckRunNames = if ($DryRun -and -not [string]::IsNullOrWhiteSpace([string]$env:DDDA_CURRENT_CHECK_NAME)) {
+        @([string]$env:DDDA_CURRENT_CHECK_NAME)
+    }
+    else {
+        @()
+    }
+    $checkSummary = Assert-DDDAGitHubChecksPassed -RepositorySlug $repositorySlug -Commit $headSha -Token $githubAuth.Token -IgnoredCheckRunNames $ignoredCheckRunNames
 }
 catch {
     throw "CI kontroly PR #$Pr nejsou všechny PASS:`n$($_.Exception.Message)"
@@ -72,7 +80,18 @@ if ($minimumApprovals -gt 0) {
     }
 }
 
-$validation = Get-DDDACandidateValidationEvidence -Pr $Pr -HeadSha $headSha
+$validationArguments = @{
+    Pr = $Pr
+    HeadSha = $headSha
+}
+if (-not [string]::IsNullOrWhiteSpace($PackagePath)) { $validationArguments["PackagePath"] = $PackagePath }
+if (-not [string]::IsNullOrWhiteSpace($ValidationReportPath)) { $validationArguments["ValidationReportPath"] = $ValidationReportPath }
+$validation = Get-DDDACandidateValidationEvidence @validationArguments
+Invoke-DDDAPlatformChildPowerShell -ScriptPath (Join-Path $platformRoot "scripts/platform/Test-DDDAPlatformPackage.ps1") -Arguments @(
+    "-PackagePath", [string]$validation.PackagePath,
+    "-ExpectedCommit", $headSha,
+    "-ExpectedKind", "candidate"
+) -SuppressOutput
 
 $reviewComments = @(Get-DDDAHumanPrReviewComments -RepositorySlug $repositorySlug -Pr $Pr -Token $githubAuth.Token)
 if ($reviewComments.Count -ne 1) {

@@ -39,6 +39,24 @@ try {
     & (Join-Path $platformRoot "scripts/platform/Test-DDDAPlatformPackage.ps1") -PackagePath $firstPackage -ExpectedCommit $first.source_commit -ExpectedKind candidate
     if ($LASTEXITCODE -ne 0) { throw "Validace reprodukovatelného package selhala." }
 
+    $wrongCommitRejected = $false
+    try {
+        & (Join-Path $platformRoot "scripts/platform/Test-DDDAPlatformPackage.ps1") -PackagePath $firstPackage -ExpectedCommit "0000000000000000000000000000000000000000" -ExpectedKind candidate
+    }
+    catch {
+        $wrongCommitRejected = $true
+    }
+    if (-not $wrongCommitRejected) { throw "Package s jiným source_commit nebyl odmítnut." }
+
+    $wrongKindRejected = $false
+    try {
+        & (Join-Path $platformRoot "scripts/platform/Test-DDDAPlatformPackage.ps1") -PackagePath $firstPackage -ExpectedCommit $first.source_commit -ExpectedKind release
+    }
+    catch {
+        $wrongKindRejected = $true
+    }
+    if (-not $wrongKindRejected) { throw "Package jiného druhu než candidate nebyl odmítnut." }
+
     Write-Host "DDDA platform package reproducibility: PASS"
     Write-Host "Source commit: $($first.source_commit)"
     Write-Host "SHA-256:      $($first.sha256)"

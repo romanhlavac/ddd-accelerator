@@ -22,6 +22,7 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 ### Fixed
 
+- exact-SHA PR governance nyní používá jeden canonical candidate artifact napříč platform CI, `validate-pr`, remote brokerem, validation reportem, Human Review a isolated `merge-pr -DryRun`; paralelní rebuildy, runner-local evidence paths a chybějící či víceznačné artifact identity failují closed;
 - promotion dry-run wrapper nyní používá operation-local výsledek a explicitní post-read-back side-effect assertions; očekávaná `404` absence tagu/GitHub Release je PASS assertion, zatímco auth/network/API chyby zůstávají FAIL, takže PR8-class `semantic PASS / wrapper FAIL` false-negative se nemůže opakovat přes stale `$LASTEXITCODE`;
 - annotated release tag nyní používá deterministic non-secret Git identity pouze v izolovaném release-source clone; clean runner proto nezávisí na ambientním `user.name`/`user.email` a bounded recovery po post-validation tag failure je explicitně zdokumentována;
 - Miro acceptance evidence zachová exact board ID/URL i při child failure po vytvoření boardu, ale před child reportem; konfliktní handoff identity nebo mismatch s reportem failují closed a cleanup může cílit na skutečně vytvořený board.
