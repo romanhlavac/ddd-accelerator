@@ -53,3 +53,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh api --method DELETE repos/romanhlavac/ddd-accelerator/git/refs/heads/automation/pr86-governance-normalization
+
+# retrigger 2026-08-20T12:15+02:00
