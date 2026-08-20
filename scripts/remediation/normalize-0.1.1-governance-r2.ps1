@@ -8,7 +8,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath $RepositoryRoot
 
-$expectedParent = '7831b87690757589518ff13ff8682f0bff980054'
+$expectedParent = 'fa04c13da29ce72a769ab0d0815631f871b901b1'
 $current = (& git rev-parse HEAD).Trim()
 $parent = (& git rev-parse HEAD^).Trim()
 if ($parent -ne $expectedParent) {
@@ -49,7 +49,7 @@ if (-not (Test-Path -LiteralPath $originalPath -PathType Leaf)) {
 $text = Get-Content -LiteralPath $originalPath -Raw -Encoding UTF8
 
 $oldExpected = '$expectedBase = ''1f66880c30b7bc1814d21200ef6fcc5b08cadfba'''
-$newExpected = '$expectedBase = ''7831b87690757589518ff13ff8682f0bff980054'''
+$newExpected = '$expectedBase = ''fa04c13da29ce72a769ab0d0815631f871b901b1'''
 $text = Replace-LiteralOnce $text $oldExpected $newExpected 'Expected-base'
 
 # Patch only the fragile CHANGELOG insertion line. Matching a single semantic
@@ -148,6 +148,7 @@ $newCleanup = @'
 $scriptPaths = @(
     (Join-Path $RepositoryRoot 'scripts/remediation/normalize-0.1.1-governance.ps1')
     (Join-Path $RepositoryRoot 'scripts/remediation/normalize-0.1.1-governance-r2.ps1')
+    (Join-Path $RepositoryRoot 'noop')
 )
 foreach ($path in $scriptPaths) {
     if (Test-Path -LiteralPath $path -PathType Leaf) {
