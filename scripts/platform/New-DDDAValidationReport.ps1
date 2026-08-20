@@ -52,16 +52,19 @@ function ConvertTo-DDDAPortableEvidenceText {
     $portable = $Value
     if (-not [string]::IsNullOrWhiteSpace($workspaceFull)) {
         $portable = $portable.Replace($workspaceFull, ("validation/" + $ValidationId))
+        $portable = $portable.Replace($workspaceFull.Replace('\', '\\'), ("validation/" + $ValidationId))
         $portable = $portable.Replace($workspaceFull.Replace('\', '/'), ("validation/" + $ValidationId))
     }
     if (-not [string]::IsNullOrWhiteSpace($packageFull)) {
         $portable = $portable.Replace($packageFull, (Split-Path -Leaf $packageFull))
+        $portable = $portable.Replace($packageFull.Replace('\', '\\'), (Split-Path -Leaf $packageFull))
         $portable = $portable.Replace($packageFull.Replace('\', '/'), (Split-Path -Leaf $packageFull))
     }
     foreach ($root in @($RedactedRoots)) {
         if (-not [string]::IsNullOrWhiteSpace([string]$root)) {
             $rootFull = [System.IO.Path]::GetFullPath([string]$root)
             $portable = $portable.Replace($rootFull, '[redacted-root]')
+            $portable = $portable.Replace($rootFull.Replace('\', '\\'), '[redacted-root]')
             $portable = $portable.Replace($rootFull.Replace('\', '/'), '[redacted-root]')
         }
     }
