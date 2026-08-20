@@ -26,6 +26,11 @@ if ([bool]$remote.same_repository_only -and $HeadRepository -ne $Repository) {
     throw "Remote execution is allowed only for same-repository pull requests."
 }
 
+$miroTeamId = ""
+if ($remote.PSObject.Properties.Name -contains "miro_team_id") {
+    $miroTeamId = [string]$remote.miro_team_id
+}
+
 $normalized = $CommandText.Trim()
 $result = [ordered]@{
     status = "PASS"
@@ -36,7 +41,7 @@ $result = [ordered]@{
     head_repository = $HeadRepository
     action = $null
     remediation_script = $null
-    miro_team_id = [string]$remote.miro_team_id
+    miro_team_id = $miroTeamId
     keep_review_board = $true
     merge_allowed = $false
     promotion_allowed = $false
@@ -63,9 +68,8 @@ elseif ($normalized -match '^/ddda remediate\s+(?<path>scripts/remediation/[A-Za
     if (-not $fullScriptPath.StartsWith($allowedRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
         throw "Remediation script escapes the allowed root."
     }
-    if (-not (Test-Path -LiteralPath $fullScriptPath -PathType Leaf)) {
-        throw "Remediation script does not exist at the exact PR head: $scriptPath"
-    }
+    # Existence is intentionally not checked on the trusted default-branch checkout.
+    # The workflow checks the path after checkout of the authorized exact PR head.
     $result.action = "remediate"
     $result.remediation_script = $scriptPath
 }

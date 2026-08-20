@@ -139,6 +139,9 @@ jobs:
             throw 'Remediation checkout drifted before execution.'
           }
           $script = Join-Path $PWD.Path $env:REMEDIATION_SCRIPT
+          if (-not (Test-Path -LiteralPath $script -PathType Leaf)) {
+            throw "Authorized remediation script does not exist at exact PR head: $env:REMEDIATION_SCRIPT"
+          }
           & $script -RepositoryRoot $PWD.Path -NoPush
           if ($LASTEXITCODE -ne 0) {
             throw "Remediation script failed with exit code $LASTEXITCODE."
@@ -224,4 +227,4 @@ jobs:
 
           No merge, tag, release or promotion was performed.
           "@
-          gh pr comment $env:PR_NUMBER --repo $env:REPOSITORY --body $body
+          gh api --method POST "repos/$env:REPOSITORY/issues/$env:PR_NUMBER/comments" -f body="$body" | Out-Null
