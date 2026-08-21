@@ -11,6 +11,21 @@ function Assert-True {
     if (-not $Condition) { throw $Message }
 }
 
+function Assert-Throws {
+    param(
+        [Parameter(Mandatory = $true)][scriptblock]$Action,
+        [Parameter(Mandatory = $true)][string]$Message
+    )
+    $threw = $false
+    try {
+        & $Action
+    }
+    catch {
+        $threw = $true
+    }
+    Assert-True -Condition $threw -Message $Message
+}
+
 $platformRoot = [System.IO.Path]::GetFullPath($PlatformPath).TrimEnd('\', '/')
 $entryPath = Join-Path $platformRoot "ddda.ps1"
 $governedMergePath = Join-Path $platformRoot "scripts/platform/Invoke-DDDAGovernedMergePr.ps1"
@@ -100,6 +115,69 @@ Assert-True -Condition ($governedMerge -notmatch '@\("tag"') -Message "merge-pr 
 Assert-True -Condition ($releaseGovernanceSupport -match 'ddda:human-pr-review:v1') -Message "Governance support nemá stabilní Human Review marker."
 Assert-True -Condition ($releaseGovernanceSupport -match 'Get-DDDAHumanPrReviewComments') -Message "Governance support neumí načíst Human Review evidence."
 Assert-True -Condition ($releaseGovernanceSupport -notmatch 'Set-DDDAHumanPrReview') -Message "Automation support nesmí publikovat Human Review PASS setter."
+
+# Issue #88 regression: REST JSON arrays must be materialized before marker and
+# author extraction; only user.login is canonical and display name is ignored.
+$humanComment = [pscustomobject]@{
+    body = '<!-- ddda:human-pr-review:v1 -->'
+    user = [pscustomobject]@{
+        login = 'romanhlavac'
+        name = 'romanhlavac'
+        type = 'User'
+    }
+}
+$humanReview = [pscustomobject]@{ reviewer = 'romanhlavac' }
+$canonicalLogin = Assert-DDDAHumanPrReviewCommentProvenance -Comment $humanComment -Review $humanReview
+Assert-True -Condition ($canonicalLogin -eq 'romanhlavac') -Message "Canonical Human Review author musí být pouze GitHub user.login."
+Assert-True -Condition ($canonicalLogin -notmatch '\s') -Message "Display name nesmí být concatenován do canonical GitHub loginu."
+
+$missingLoginComment = [pscustomobject]@{ user = [pscustomobject]@{ name = 'romanhlavac'; type = 'User' } }
+Assert-Throws -Action {
+    Assert-DDDAHumanPrReviewCommentProvenance -Comment $missingLoginComment -Review $humanReview
+} -Message "Chybějící Human Review user.login musí failnout closed."
+
+$ambiguousLoginComment = [pscustomobject]@{
+    user = [pscustomobject]@{ login = @('romanhlavac', 'other-user'); name = 'romanhlavac'; type = 'User' }
+}
+Assert-Throws -Action {
+    Assert-DDDAHumanPrReviewCommentProvenance -Comment $ambiguousLoginComment -Review $humanReview
+} -Message "Víceznačný Human Review user.login musí failnout closed."
+
+$botComment = [pscustomobject]@{ user = [pscustomobject]@{ login = 'reviewer[bot]'; name = 'Reviewer'; type = 'Bot' } }
+Assert-Throws -Action {
+    Assert-DDDAHumanPrReviewCommentProvenance -Comment $botComment -Review ([pscustomobject]@{ reviewer = 'reviewer[bot]' })
+} -Message "Bot Human Review author musí failnout closed."
+
+Assert-Throws -Action {
+    Assert-DDDAHumanPrReviewCommentProvenance -Comment $humanComment -Review ([pscustomobject]@{ reviewer = 'other-user' })
+} -Message "Human Review reviewer/user.login mismatch musí failnout closed."
+
+$reviewMarker = '<!-- ddda:human-pr-review:v1 -->'
+$script:humanReviewCommentApiResponse = @(
+    $humanComment,
+    [pscustomobject]@{
+        body = '<!-- ddda:human-pr-review-duplicate:v1 --> non-authoritative ddda:human-pr-review:v1'
+        user = [pscustomobject]@{ login = 'romanhlavac'; name = 'romanhlavac'; type = 'User' }
+    },
+    [pscustomobject]@{
+        body = '<!-- ddda:human-pr-review-superseded:v1 --> historical record'
+        user = [pscustomobject]@{ login = 'romanhlavac'; name = 'romanhlavac'; type = 'User' }
+    }
+)
+$originalGitHubApi = (Get-Command Invoke-DDDAGitHubApi).ScriptBlock
+try {
+    Set-Item -Path Function:Invoke-DDDAGitHubApi -Value {
+        param($Method, $Path, $Token, $Body)
+        Write-Output -NoEnumerate $script:humanReviewCommentApiResponse
+    }
+    $selectedHumanComments = @(Get-DDDAHumanPrReviewComments -RepositorySlug 'romanhlavac/ddd-accelerator' -Pr 92 -Token 'test-only')
+}
+finally {
+    Set-Item -Path Function:Invoke-DDDAGitHubApi -Value $originalGitHubApi
+}
+Assert-True -Condition ($selectedHumanComments.Count -eq 1) -Message "Právě jeden authoritative Human Review marker musí projít selection."
+Assert-True -Condition ($selectedHumanComments[0].body -eq $reviewMarker) -Message "Duplicate/superseded Human Review marker musí být ignorován."
+Assert-True -Condition ($releaseGovernanceSupport -match '\$response\s*=\s*Invoke-DDDAGitHubApi[\s\S]+?\$batch\s*=\s*@\(\$response\)') -Message "GitHub Issues Comments REST array musí být materializován před iterací."
 
 # Issue #88: one exact-SHA validation decision must preserve one canonical candidate identity.
 Assert-True -Condition ($validatePr -match '\[string\]\$PackagePath') -Message "validate-pr nemá řízený PackagePath input."

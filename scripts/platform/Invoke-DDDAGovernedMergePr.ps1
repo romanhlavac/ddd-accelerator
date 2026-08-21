@@ -98,15 +98,6 @@ if ($reviewComments.Count -ne 1) {
     throw "Governed implementation merge vyžaduje právě jeden authoritativní Human Review marker. Nalezeno: $($reviewComments.Count)."
 }
 $reviewComment = $reviewComments[0]
-$commentAuthor = [string]$reviewComment.user.login
-$commentAuthorType = [string]$reviewComment.user.type
-if (
-    [string]::IsNullOrWhiteSpace($commentAuthor) -or
-    $commentAuthorType -eq "Bot" -or
-    $commentAuthor -match '\[bot\]$'
-) {
-    throw "Human Review musí mít lidskou GitHub provenance."
-}
 $review = ConvertFrom-DDDAHumanPrReviewComment -Comment $reviewComment
 if ([int]$review.schema_version -ne 1 -or [string]$review.kind -ne "implementation_pr_review") {
     throw "Human Review má nepodporovaný contract."
@@ -120,9 +111,7 @@ if ([string]$review.reviewed_sha -ne $headSha) {
 if ([string]$review.candidate_package_sha256 -ne [string]$validation.PackageSha256) {
     throw "Human Review candidate package hash neodpovídá exact-SHA validate-pr evidence."
 }
-if ([string]$review.reviewer -ne $commentAuthor) {
-    throw "Human Review reviewer '$([string]$review.reviewer)' neodpovídá human comment authorovi '$commentAuthor'."
-}
+$commentAuthor = Assert-DDDAHumanPrReviewCommentProvenance -Comment $reviewComment -Review $review
 if ([string]$review.verdict -ne "pass") {
     throw "Human Review není PASS. verdict=$([string]$review.verdict)"
 }

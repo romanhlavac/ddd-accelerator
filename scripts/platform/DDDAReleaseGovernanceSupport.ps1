@@ -130,7 +130,8 @@ function Get-DDDAHrdrComments {
 
     $matches = [System.Collections.Generic.List[object]]::new()
     for ($page = 1; ; $page++) {
-        $batch = @(Invoke-DDDAGitHubApi -Method GET -Path "repos/$RepositorySlug/issues/$Pr/comments?per_page=100&page=$page" -Token $Token)
+        $response = Invoke-DDDAGitHubApi -Method GET -Path "repos/$RepositorySlug/issues/$Pr/comments?per_page=100&page=$page" -Token $Token
+        $batch = @($response)
         foreach ($comment in $batch) {
             if ([string]$comment.body -like "*$script:DDDAHrdrMarker*") {
                 $matches.Add($comment)
@@ -150,7 +151,12 @@ function Get-DDDAHumanPrReviewComments {
 
     $matches = [System.Collections.Generic.List[object]]::new()
     for ($page = 1; ; $page++) {
-        $batch = @(Invoke-DDDAGitHubApi -Method GET -Path "repos/$RepositorySlug/issues/$Pr/comments?per_page=100&page=$page" -Token $Token)
+        # Invoke-RestMethod intentionally returns a JSON array as one pipeline
+        # object. Assign it first and only then materialize its items; wrapping
+        # the command directly in @() preserves a nested Object[] and causes
+        # PowerShell member enumeration to concatenate all comment authors.
+        $response = Invoke-DDDAGitHubApi -Method GET -Path "repos/$RepositorySlug/issues/$Pr/comments?per_page=100&page=$page" -Token $Token
+        $batch = @($response)
         foreach ($comment in $batch) {
             if ([string]$comment.body -like "*$script:DDDAHumanPrReviewMarker*") {
                 $matches.Add($comment)
@@ -159,6 +165,44 @@ function Get-DDDAHumanPrReviewComments {
         if ($batch.Count -lt 100) { break }
     }
     return @($matches)
+}
+
+function Assert-DDDAHumanPrReviewCommentProvenance {
+    param(
+        [Parameter(Mandatory = $true)][object]$Comment,
+        [Parameter(Mandatory = $true)][object]$Review
+    )
+
+    $users = @($Comment.user)
+    if ($users.Count -ne 1) {
+        throw "Human Review comment nemá právě jednu GitHub user identity."
+    }
+
+    $logins = @($users[0].login)
+    if ($logins.Count -ne 1 -or [string]::IsNullOrWhiteSpace([string]$logins[0])) {
+        throw "Human Review comment nemá právě jeden neprázdný canonical GitHub user.login."
+    }
+    $commentAuthor = [string]$logins[0]
+
+    $authorTypes = @($users[0].type)
+    if (
+        $authorTypes.Count -ne 1 -or
+        [string]::IsNullOrWhiteSpace([string]$authorTypes[0]) -or
+        [string]$authorTypes[0] -eq "Bot" -or
+        $commentAuthor -match '\[bot\]$'
+    ) {
+        throw "Human Review musí mít lidskou GitHub provenance."
+    }
+
+    $reviewers = @($Review.reviewer)
+    if ($reviewers.Count -ne 1 -or [string]::IsNullOrWhiteSpace([string]$reviewers[0])) {
+        throw "Human Review nemá právě jednoho neprázdného reviewer login."
+    }
+    if ([string]$reviewers[0] -ne $commentAuthor) {
+        throw "Human Review reviewer '$([string]$reviewers[0])' neodpovídá human comment authorovi '$commentAuthor'."
+    }
+
+    return $commentAuthor
 }
 
 function ConvertFrom-DDDAHrdrComment {
