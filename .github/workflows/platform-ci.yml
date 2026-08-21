@@ -10,7 +10,11 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: read
+  checks: read
   contents: read
+  issues: read
+  pull-requests: read
 
 concurrency:
   group: ddda-platform-ci-${{ github.workflow }}-${{ github.ref }}
@@ -71,7 +75,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $version = 'ci.' + $env:GITHUB_RUN_ID + '.' + $env:SOURCE_SHA.Substring(0, 12)
+          $version = 'candidate.' + $env:SOURCE_SHA
           $output = Join-Path $env:RUNNER_TEMP ('ddda-candidate-' + $env:SOURCE_SHA.Substring(0, 12) + '.zip')
           $json = .\scripts\platform\New-DDDAPlatformPackage.ps1 -PlatformPath $PWD.Path -Kind candidate -Version $version -SourceRef $env:SOURCE_SHA -OutputPath $output -Json | Out-String
           $package = $json.Trim() | ConvertFrom-Json
@@ -137,10 +141,11 @@ jobs:
           name: ddda-candidate-${{ env.SOURCE_SHA }}
           path: ${{ steps.package.outputs.package_path }}
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 14
 
   validate-pr-command:
     name: One-command PR validation
+    needs: validate-platform
     if: github.event_name == 'pull_request'
     runs-on: windows-latest
     timeout-minutes: 90
@@ -161,6 +166,12 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Download canonical candidate package
+        uses: actions/download-artifact@v4
+        with:
+          name: ddda-candidate-${{ env.SOURCE_SHA }}
+          path: ${{ runner.temp }}/canonical-candidate
+
       - name: Run exact validate-pr command
         shell: pwsh
         run: |
@@ -169,7 +180,18 @@ jobs:
           if ($actual -ne $env:SOURCE_SHA) {
               throw "Checkout SHA '$actual' neodpovídá PR head '$env:SOURCE_SHA'."
           }
-          .\ddda.ps1 validate-pr -Pr ([int]$env:PR_NUMBER) -CleanupOnFailure -NonInteractive
+          $artifactName = 'ddda-candidate-' + $env:SOURCE_SHA
+          $packages = @(Get-ChildItem -LiteralPath (Join-Path $env:RUNNER_TEMP 'canonical-candidate') -Filter '*.zip' -File -Recurse)
+          if ($packages.Count -ne 1) {
+              throw "Canonical candidate artifact musí obsahovat právě jeden package; nalezeno: $($packages.Count)."
+          }
+          "CANONICAL_PACKAGE_PATH=$($packages[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          .\ddda.ps1 validate-pr `
+            -Pr ([int]$env:PR_NUMBER) `
+            -PackagePath $packages[0].FullName `
+            -PackageArtifactName $artifactName `
+            -CleanupOnFailure `
+            -NonInteractive
 
       - name: Verify PASS report for exact SHA
         shell: pwsh
@@ -177,14 +199,29 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $reportRoot = Join-Path $env:LOCALAPPDATA ("DDDA\validation-reports\pr-{0}-{1}" -f $env:PR_NUMBER, $env:SOURCE_SHA)
           $reports = @(Get-ChildItem -LiteralPath $reportRoot -Filter result.json -File -Recurse -ErrorAction Stop | Sort-Object LastWriteTimeUtc -Descending)
-          if ($reports.Count -eq 0) {
-              throw "validate-pr nevytvořil report pod $reportRoot."
+          if ($reports.Count -ne 1) {
+              throw "validate-pr musí vytvořit právě jeden report pod $reportRoot; nalezeno: $($reports.Count)."
           }
-          $report = Get-Content -LiteralPath $reports[0].FullName -Raw -Encoding UTF8 | ConvertFrom-Json
+          $reportText = Get-Content -LiteralPath $reports[0].FullName -Raw -Encoding UTF8
+          $report = $reportText | ConvertFrom-Json
           if ($report.status -ne 'PASS' -or $report.source.commit -ne $env:SOURCE_SHA -or [int]$report.source.pr -ne [int]$env:PR_NUMBER) {
               throw "Validation report není PASS pro exact PR head. Report: $($reports[0].FullName)"
           }
+          $actualHash = (Get-FileHash -LiteralPath $env:CANONICAL_PACKAGE_PATH -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ([string]$report.package.sha256 -ne $actualHash) {
+              throw 'Validation report package hash neodpovídá canonical candidate artifactu.'
+          }
+          $expectedArtifactName = 'ddda-candidate-' + $env:SOURCE_SHA
+          if ([string]$report.package.artifact_name -ne $expectedArtifactName -or [string]$report.package.workflow_run_id -ne [string]$env:GITHUB_RUN_ID) {
+              throw 'Validation report neodkazuje na canonical candidate artifact tohoto workflow runu.'
+          }
+          foreach ($privateRoot in @($env:RUNNER_TEMP, $env:LOCALAPPDATA, $env:USERPROFILE)) {
+              if (-not [string]::IsNullOrWhiteSpace($privateRoot) -and $reportText.Contains($privateRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+                  throw 'Publikovaná validation evidence obsahuje absolutní runner/user cestu.'
+              }
+          }
           Write-Host "Validated report: $($reports[0].FullName)"
+          Write-Host "Canonical candidate SHA-256: $actualHash"
 
       - name: Stage validate-pr reports
         if: always()
@@ -712,3 +749,94 @@ jobs:
             ${{ runner.temp }}/hvr-materialization.json
           if-no-files-found: error
           retention-days: 30
+
+  human-review-readiness:
+    name: Human Review readiness
+    needs:
+      - validate-platform
+      - validate-pr-command
+    if: github.event_name == 'pull_request'
+    runs-on: windows-latest
+    timeout-minutes: 10
+    outputs:
+      ready: ${{ steps.human-review.outputs.ready }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+
+    steps:
+      - name: Detect authoritative Human Review
+        id: human-review
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $comments = gh api "repos/${{ github.repository }}/issues/$env:PR_NUMBER/comments?per_page=100" | ConvertFrom-Json
+          $marker = '<!-- ddda:human-pr-review:v1 -->'
+          $matches = @($comments | Where-Object { [string]$_.body -like "*$marker*" })
+          if ($matches.Count -gt 1) {
+            throw "Nalezeno více authoritativních Human Review markerů: $($matches.Count)."
+          }
+          $ready = if ($matches.Count -eq 1) { 'true' } else { 'false' }
+          "ready=$ready" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          if ($ready -eq 'false') {
+            Write-Host 'Human Review readiness: PENDING. Governed merge dry-run je pro tuto fázi NOT_RUN.'
+          }
+          else {
+            Write-Host 'Human Review readiness: READY. Dependent governed merge dry-run musí provést skutečný preflight.'
+          }
+
+  governed-merge-dry-run:
+    name: Governed merge dry-run
+    needs:
+      - validate-platform
+      - validate-pr-command
+      - human-review-readiness
+    if: github.event_name == 'pull_request' && needs.human-review-readiness.outputs.ready == 'true'
+    runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      DDDA_CURRENT_CHECK_NAME: Governed merge dry-run
+      GH_TOKEN: ${{ github.token }}
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.SOURCE_SHA }}
+
+      - name: Download exact-run canonical candidate
+        uses: actions/download-artifact@v4
+        with:
+          name: ddda-candidate-${{ env.SOURCE_SHA }}
+          path: ${{ runner.temp }}/canonical-candidate
+
+      - name: Download exact-run validation evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: validate-pr-${{ env.PR_NUMBER }}-${{ env.SOURCE_SHA }}
+          path: ${{ runner.temp }}/validation-evidence
+
+      - name: Run isolated governed merge preflight
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $actual = (git rev-parse HEAD).Trim()
+          if ($actual -ne $env:SOURCE_SHA) {
+            throw "Checkout SHA '$actual' neodpovídá exact PR head '$env:SOURCE_SHA'."
+          }
+          $packages = @(Get-ChildItem -LiteralPath (Join-Path $env:RUNNER_TEMP 'canonical-candidate') -Filter '*.zip' -File -Recurse)
+          $reports = @(Get-ChildItem -LiteralPath (Join-Path $env:RUNNER_TEMP 'validation-evidence') -Filter 'result.json' -File -Recurse)
+          if ($packages.Count -ne 1) {
+            throw "Canonical candidate artifact je chybějící nebo víceznačný; nalezeno packages: $($packages.Count)."
+          }
+          if ($reports.Count -ne 1) {
+            throw "Validation evidence artifact je chybějící nebo víceznačný; nalezeno reports: $($reports.Count)."
+          }
+          .\ddda.ps1 merge-pr `
+            -Pr ([int]$env:PR_NUMBER) `
+            -PackagePath $packages[0].FullName `
+            -ValidationReportPath $reports[0].FullName `
+            -DryRun

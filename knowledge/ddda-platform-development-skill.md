@@ -138,6 +138,7 @@ CI/test pipeline
 29. A governed implementation PR may be merged after exact-SHA technical evidence, Human Review and explicit merge authorization without evaluating release-scope completeness and without creating a release or tag.
 30. HRDR and Release Scope Gate apply to the actual release candidate boundary, after included implementation work has been integrated/terminal; `promote-pr` is a release command, not the general implementation-PR merge command.
 31. Merge, promotion, release and tag are never inferred from technical PASS, Human Review, FAST-LOOP completion or one another.
+32. One exact-SHA validation decision uses one canonical candidate package identity: the package is built once, every validation consumer receives that physical artifact, and report, Human Review and merge preflight must agree on its recalculated SHA-256. A consumer must never rebuild the package to manufacture equivalent evidence.
 
 ## 4. Change classification
 

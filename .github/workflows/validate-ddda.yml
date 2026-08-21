@@ -130,50 +130,13 @@ jobs:
           name: lifecycle-contracts-pwsh-${{ github.run_id }}
           path: ${{ runner.temp }}/lifecycle-contracts-pwsh.log
           if-no-files-found: error
-      - name: Build and validate candidate package
-        id: package
-        shell: pwsh
-        run: |
-          $package = Join-Path $env:RUNNER_TEMP "ddda-ci-candidate.zip"
-          $result = ./scripts/platform/New-DDDAPlatformPackage.ps1 -PlatformPath $PWD -Kind candidate -Version "ci.${{ github.run_id }}.${{ github.run_attempt }}" -OutputPath $package -Json | ConvertFrom-Json
-          ./scripts/platform/Test-DDDAPlatformPackage.ps1 -PackagePath $package -ExpectedCommit "${{ github.sha }}" -ExpectedKind candidate
-          "package=$package" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          "sha256=$($result.sha256)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-      - name: Package-first smoke and E2E lifecycle
-        shell: pwsh
-        run: |
-          $log = Join-Path $env:RUNNER_TEMP "package-lifecycle-pwsh.log"
-          $previousPreference = $ErrorActionPreference
-          $code = 1
-          try {
-            $ErrorActionPreference = "Continue"
-            & ./tests/powershell/Test-DDDAPlatformLifecycle.ps1 -PackagePath "${{ steps.package.outputs.package }}" -ExpectedCommit "${{ github.sha }}" *> $log
-            $code = $LASTEXITCODE
-            if ($null -eq $code) { $code = 0 }
-          }
-          catch {
-            ($_ | Out-String) | Add-Content -LiteralPath $log -Encoding UTF8
-            $code = 1
-          }
-          finally {
-            $ErrorActionPreference = $previousPreference
-          }
-          Get-Content -LiteralPath $log -Tail 220
-          exit $code
-      - name: Upload package lifecycle diagnostics
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: package-lifecycle-pwsh-${{ github.run_id }}
-          path: ${{ runner.temp }}/package-lifecycle-pwsh.log
-          if-no-files-found: error
       - name: Platform test dispatcher
         shell: pwsh
         run: |
           ./ddda.ps1 test -Suite lint
           ./ddda.ps1 test -Suite schema
           ./ddda.ps1 test -Suite unit
-          ./ddda.ps1 test -Suite security -PackagePath "${{ steps.package.outputs.package }}"
+          ./ddda.ps1 test -Suite security
 
   windows-powershell-51-compatibility:
     runs-on: windows-latest

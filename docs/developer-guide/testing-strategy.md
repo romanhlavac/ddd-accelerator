@@ -125,6 +125,8 @@ Test běží v component, integration i regression suite, aby byl kontrakt vidit
 
 Smoke, integration, E2E a acceptance během `validate-pr` běží z nově rozbaleného candidate package. Lokální Git baseline vytvořená uvnitř rozbaleného package slouží jen k ověření Git guardrails a není součástí distribuovaného ZIP.
 
+CI contract test navíc dokládá single-candidate invariant: `validate-platform` je jediný production candidate builder, `validate-pr-command` na něj explicitně čeká a sekundární workflow ani remote broker nevytvářejí paralelní candidate package. Regrese pokrývají reuse přes `-PackagePath`, odmítnutí jiného `source_commit` nebo `kind`, shodu artifact/report hashe, fail-closed chybějící či víceznačnou evidence, portable report bez secretů a absolutních uživatelských cest a isolated `merge-pr -DryRun` bez lokálního validation adresáře. Samostatně chrání pre-HR semantiku: readiness coordinator nesmí být vydáván za merge-preflight PASS, dependent dry-run je bez Human Review `skipped`/`NOT_RUN` a po Human Review znovu používá existující exact-run candidate místo rebuildu.
+
 Tím se odděluje:
 
 ```text

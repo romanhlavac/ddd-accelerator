@@ -10,6 +10,9 @@ param(
     [int]$Pr,
     [string]$Version,
     [string]$PackagePath,
+    [string]$PackageArtifactName,
+    [string]$PackageWorkflowRunId,
+    [string]$ValidationReportPath,
     [string]$Reviewer,
     [string]$DecisionOwner,
     [ValidateSet("merge", "squash")][string]$MergeMethod,
@@ -87,6 +90,9 @@ switch ($Command) {
             throw "Příkaz validate-pr vyžaduje kladné -Pr."
         }
         $arguments = @("-PlatformPath", $platformRoot, "-Pr", [string]$Pr)
+        if (-not [string]::IsNullOrWhiteSpace($PackagePath)) { $arguments += @("-PackagePath", $PackagePath) }
+        if (-not [string]::IsNullOrWhiteSpace($PackageArtifactName)) { $arguments += @("-PackageArtifactName", $PackageArtifactName) }
+        if (-not [string]::IsNullOrWhiteSpace($PackageWorkflowRunId)) { $arguments += @("-PackageWorkflowRunId", $PackageWorkflowRunId) }
         if ($WithMiro) { $arguments += "-WithMiro" }
         if ($Full) { $arguments += "-Full" }
         if ($CleanupOnFailure) { $arguments += "-CleanupOnFailure" }
@@ -101,6 +107,8 @@ switch ($Command) {
             throw "Příkaz merge-pr vyžaduje kladné -Pr."
         }
         $arguments = @("-PlatformPath", $platformRoot, "-Pr", [string]$Pr)
+        if (-not [string]::IsNullOrWhiteSpace($PackagePath)) { $arguments += @("-PackagePath", $PackagePath) }
+        if (-not [string]::IsNullOrWhiteSpace($ValidationReportPath)) { $arguments += @("-ValidationReportPath", $ValidationReportPath) }
         if (-not [string]::IsNullOrWhiteSpace($MergeMethod)) { $arguments += @("-MergeMethod", $MergeMethod) }
         if ($ConfirmMerge) { $arguments += "-ConfirmMerge" }
         if ($DryRun) { $arguments += "-DryRun" }

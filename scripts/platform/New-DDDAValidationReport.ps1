@@ -8,14 +8,18 @@ param(
     [int]$Pr,
     [string]$Branch,
     [string]$PackagePath,
+    [string]$PackageArtifactName,
+    [string]$WorkflowRunId,
     [string]$Workspace,
     [string]$MiroBoardId,
     [string]$MiroEvidencePath,
+    [string[]]$RedactedRoots = @(),
     [Parameter(Mandatory = $true)][string]$SuitesJsonPath,
     [Parameter(Mandatory = $true)][string]$OutputRoot,
     [string[]]$Diagnostics = @(),
     [datetime]$StartedAt = (Get-Date).ToUniversalTime(),
     [datetime]$CompletedAt = (Get-Date).ToUniversalTime(),
+    [switch]$PortablePaths,
     [switch]$Json
 )
 
@@ -28,16 +32,45 @@ if ($Commit -notmatch '^[0-9a-f]{40}$') {
     throw "Validation report vyžaduje plný Git commit SHA."
 }
 
+$workspaceFull = if ([string]::IsNullOrWhiteSpace($Workspace)) { $null } else { [System.IO.Path]::GetFullPath($Workspace) }
 $packageFull = $null
 $packageRecord = $null
 if (-not [string]::IsNullOrWhiteSpace($PackagePath)) {
     $packageFull = (Resolve-Path -LiteralPath $PackagePath).Path
     $packageRecord = [ordered]@{
-        path = $packageFull
+        path = if ($PortablePaths) { Split-Path -Leaf $packageFull } else { $packageFull }
         sha256 = Get-DDDAPlatformFileHash -Path $packageFull
+        artifact_name = if ([string]::IsNullOrWhiteSpace($PackageArtifactName)) { $null } else { $PackageArtifactName }
+        workflow_run_id = if ([string]::IsNullOrWhiteSpace($WorkflowRunId)) { $null } else { $WorkflowRunId }
     }
 }
-elseif ($Status -eq "PASS") {
+
+function ConvertTo-DDDAPortableEvidenceText {
+    param([AllowNull()][string]$Value)
+
+    if ($null -eq $Value -or -not $PortablePaths) { return $Value }
+    $portable = $Value
+    if (-not [string]::IsNullOrWhiteSpace($workspaceFull)) {
+        $portable = $portable.Replace($workspaceFull, ("validation/" + $ValidationId))
+        $portable = $portable.Replace($workspaceFull.Replace('\', '\\'), ("validation/" + $ValidationId))
+        $portable = $portable.Replace($workspaceFull.Replace('\', '/'), ("validation/" + $ValidationId))
+    }
+    if (-not [string]::IsNullOrWhiteSpace($packageFull)) {
+        $portable = $portable.Replace($packageFull, (Split-Path -Leaf $packageFull))
+        $portable = $portable.Replace($packageFull.Replace('\', '\\'), (Split-Path -Leaf $packageFull))
+        $portable = $portable.Replace($packageFull.Replace('\', '/'), (Split-Path -Leaf $packageFull))
+    }
+    foreach ($root in @($RedactedRoots)) {
+        if (-not [string]::IsNullOrWhiteSpace([string]$root)) {
+            $rootFull = [System.IO.Path]::GetFullPath([string]$root)
+            $portable = $portable.Replace($rootFull, '[redacted-root]')
+            $portable = $portable.Replace($rootFull.Replace('\', '\\'), '[redacted-root]')
+            $portable = $portable.Replace($rootFull.Replace('\', '/'), '[redacted-root]')
+        }
+    }
+    return $portable
+}
+if ([string]::IsNullOrWhiteSpace($PackagePath) -and $Status -eq "PASS") {
     throw "PASS validation report vyžaduje existující package."
 }
 
@@ -48,7 +81,12 @@ if (-not [string]::IsNullOrWhiteSpace($suitesText)) {
     $parsedSuites = $suitesText | ConvertFrom-Json
     foreach ($suite in @($parsedSuites)) {
         if ($null -ne $suite) {
-            $suiteList.Add($suite)
+            $suiteList.Add([pscustomobject][ordered]@{
+                name = [string]$suite.name
+                status = [string]$suite.status
+                duration_ms = [int64]$suite.duration_ms
+                details = ConvertTo-DDDAPortableEvidenceText -Value ([string]$suite.details)
+            })
         }
     }
 }
@@ -67,6 +105,8 @@ elseif (-not [string]::IsNullOrWhiteSpace($MiroBoardId)) {
 else {
     $miroEvidence = New-DDDANotRunMiroEvidence -Workspace $Workspace
 }
+$miroEvidenceJson = $miroEvidence | ConvertTo-Json -Depth 50 -Compress
+$miroEvidence = (ConvertTo-DDDAPortableEvidenceText -Value $miroEvidenceJson) | ConvertFrom-Json
 $null = Assert-DDDAMiroEvidenceContract -Evidence $miroEvidence
 if ($Status -eq "PASS" -and [string]$miroEvidence.status -eq "FAIL") {
     throw "PASS validation report nesmí obsahovat FAIL Miro evidence."
@@ -76,6 +116,7 @@ $outputFull = [System.IO.Path]::GetFullPath($OutputRoot)
 New-Item -ItemType Directory -Path $outputFull -Force | Out-Null
 $jsonPath = Join-Path $outputFull "result.json"
 $markdownPath = Join-Path $outputFull "result.md"
+$workspaceReference = if ([string]::IsNullOrWhiteSpace($Workspace)) { $null } elseif ($PortablePaths) { "validation/$ValidationId" } else { $workspaceFull }
 
 $source = [ordered]@{
     kind = $SourceKind
@@ -93,11 +134,11 @@ $report = [pscustomobject][ordered]@{
     completed_at = $CompletedAt.ToUniversalTime().ToString("o")
     source = $source
     package = $packageRecord
-    workspace = if ([string]::IsNullOrWhiteSpace($Workspace)) { $null } else { [System.IO.Path]::GetFullPath($Workspace) }
+    workspace = $workspaceReference
     miro_board_id = $miroEvidence.board_id
     miro = $miroEvidence
     suites = $suites
-    diagnostics = [string[]]@($Diagnostics)
+    diagnostics = [string[]]@($Diagnostics | ForEach-Object { ConvertTo-DDDAPortableEvidenceText -Value ([string]$_) })
 }
 Write-DDDAPlatformJson -Value $report -Path $jsonPath
 
@@ -117,14 +158,20 @@ if ($Pr -gt 0) { $markdown.Add("- PR: ``$Pr``") }
 if (-not [string]::IsNullOrWhiteSpace($Branch)) { $markdown.Add("- Branch: ``$Branch``") }
 $markdown.Add("- Commit: ``$Commit``")
 if ($null -ne $packageRecord) {
-    $markdown.Add("- Package: ``$packageFull``")
+    $markdown.Add("- Package: ``$($packageRecord.path)``")
     $markdown.Add("- Package SHA-256: ``$($packageRecord.sha256)``")
+    if (-not [string]::IsNullOrWhiteSpace([string]$packageRecord.artifact_name)) {
+        $markdown.Add("- Package artifact: ``$($packageRecord.artifact_name)``")
+    }
+    if (-not [string]::IsNullOrWhiteSpace([string]$packageRecord.workflow_run_id)) {
+        $markdown.Add("- Workflow run: ``$($packageRecord.workflow_run_id)``")
+    }
 }
 else {
     $markdown.Add("- Package: not created")
 }
 if (-not [string]::IsNullOrWhiteSpace($Workspace)) {
-    $markdown.Add("- Workspace: ``$Workspace``")
+    $markdown.Add("- Workspace: ``$workspaceReference``")
 }
 
 $markdown.Add("")
@@ -171,11 +218,11 @@ else {
     }
 }
 
-if (@($Diagnostics).Count -gt 0) {
+if (@($report.diagnostics).Count -gt 0) {
     $markdown.Add("")
     $markdown.Add("## Diagnostics")
     $markdown.Add("")
-    foreach ($diagnostic in $Diagnostics) {
+    foreach ($diagnostic in @($report.diagnostics)) {
         $markdown.Add("- ``$diagnostic``")
     }
 }

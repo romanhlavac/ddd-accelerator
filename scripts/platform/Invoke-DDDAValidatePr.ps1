@@ -2,6 +2,9 @@
 param(
     [string]$PlatformPath = (Resolve-Path (Join-Path $PSScriptRoot "../..")).Path,
     [Parameter(Mandatory = $true)][ValidateRange(1, 2147483647)][int]$Pr,
+    [string]$PackagePath,
+    [string]$PackageArtifactName,
+    [string]$PackageWorkflowRunId,
     [switch]$WithMiro,
     [switch]$Full,
     [switch]$CleanupOnFailure,
@@ -31,6 +34,23 @@ if ([string]::IsNullOrWhiteSpace($remoteText) -or $remoteText -notmatch '^(?<sha
 $headSha = $Matches["sha"]
 $shortSha = $headSha.Substring(0, 12)
 $branch = "pull/$Pr/head"
+
+if (-not [string]::IsNullOrWhiteSpace($PackageArtifactName)) {
+    if ([string]::IsNullOrWhiteSpace($PackagePath)) {
+        throw "PackageArtifactName vyžaduje explicitní PackagePath."
+    }
+    if ($PackageArtifactName -ne "ddda-candidate-$headSha") {
+        throw "PackageArtifactName neodpovídá canonical exact-SHA artifact identity."
+    }
+}
+if (-not [string]::IsNullOrWhiteSpace($PackageWorkflowRunId)) {
+    if ([string]::IsNullOrWhiteSpace($PackageArtifactName)) {
+        throw "PackageWorkflowRunId vyžaduje PackageArtifactName."
+    }
+    if ($PackageWorkflowRunId -notmatch '^\d+$') {
+        throw "PackageWorkflowRunId musí být numerické GitHub Actions run ID."
+    }
+}
 
 if (Get-Command "gh" -ErrorAction SilentlyContinue) {
     $ghMetadataAvailable = $false
@@ -64,7 +84,12 @@ $packageRoot = Join-Path $validationRoot "package"
 $logRoot = Join-Path $validationRoot "logs"
 $reportRoot = Join-Path $stateRoot ("validation-reports/pr-$Pr-$headSha/$timestamp")
 $packageStore = Join-Path $stateRoot "packages"
-$packagePath = Join-Path $packageStore ("ddda-candidate-pr-$Pr-$shortSha-$timestamp.zip")
+$candidatePackagePath = if ([string]::IsNullOrWhiteSpace($PackagePath)) {
+    Join-Path $packageStore ("ddda-candidate-pr-$Pr-$shortSha-$timestamp.zip")
+}
+else {
+    [System.IO.Path]::GetFullPath($PackagePath)
+}
 $suitesPath = Join-Path $validationRoot "suites.json"
 $miroEvidencePath = Join-Path $validationRoot "miro-acceptance-evidence.json"
 
@@ -171,24 +196,29 @@ try {
     }
     Assert-DDDAPlatformCleanGit -Repository $sourceRoot -Label "Izolovaný PR"
 
-    $candidateVersion = "pr.$Pr.$shortSha.$timestamp"
-    $packageText = & (Join-Path $sourceRoot "scripts/platform/New-DDDAPlatformPackage.ps1") -PlatformPath $sourceRoot -Kind candidate -Version $candidateVersion -SourceRef $headSha -OutputPath $packagePath -Json | Out-String
-    if ([string]::IsNullOrWhiteSpace($packageText)) {
-        throw "Vytvoření candidate package nevrátilo JSON."
+    if ([string]::IsNullOrWhiteSpace($PackagePath)) {
+        $candidateVersion = "pr.$Pr.$shortSha.$timestamp"
+        $packageText = & (Join-Path $sourceRoot "scripts/platform/New-DDDAPlatformPackage.ps1") -PlatformPath $sourceRoot -Kind candidate -Version $candidateVersion -SourceRef $headSha -OutputPath $candidatePackagePath -Json | Out-String
+        if ([string]::IsNullOrWhiteSpace($packageText)) {
+            throw "Vytvoření candidate package nevrátilo JSON."
+        }
+        $package = $packageText.Trim() | ConvertFrom-Json
+        if ($package.source_commit -ne $headSha) {
+            throw "Candidate package není svázán s aktuálním PR head SHA."
+        }
     }
-    $package = $packageText.Trim() | ConvertFrom-Json
-    if ($package.source_commit -ne $headSha) {
-        throw "Candidate package není svázán s aktuálním PR head SHA."
+    elseif (-not (Test-Path -LiteralPath $candidatePackagePath -PathType Leaf)) {
+        throw "Předaný canonical candidate package neexistuje: $candidatePackagePath"
     }
 
     Invoke-DDDAPlatformChildPowerShell -ScriptPath (Join-Path $sourceRoot "scripts/platform/Test-DDDAPlatformPackage.ps1") -Arguments @(
-        "-PackagePath", $packagePath,
+        "-PackagePath", $candidatePackagePath,
         "-ExpectedCommit", $headSha,
         "-ExpectedKind", "candidate"
     ) -SuppressOutput
 
     New-Item -ItemType Directory -Path $packageRoot -Force | Out-Null
-    Expand-Archive -LiteralPath $packagePath -DestinationPath $packageRoot -Force
+    Expand-Archive -LiteralPath $candidatePackagePath -DestinationPath $packageRoot -Force
 
     $null = Invoke-DDDAPlatformNative -Command "git" -Arguments @("-C", $packageRoot, "init", "-b", "main")
     $null = Invoke-DDDAPlatformGit -Repository $packageRoot -Arguments @("config", "user.name", "DDDA Package Validation")
@@ -198,7 +228,7 @@ try {
     $null = Invoke-DDDAPlatformGit -Repository $packageRoot -Arguments @("commit", "-m", "chore: candidate package baseline")
     Assert-DDDAPlatformCleanGit -Repository $packageRoot -Label "Rozbalený candidate package"
 
-    $commonArguments = @("-PackagePath", $packagePath)
+    $commonArguments = @("-PackagePath", $candidatePackagePath)
     Invoke-ValidationSuite -Name "lint" -Arguments @("lint")
     Invoke-ValidationSuite -Name "schema" -Arguments @("schema")
     Invoke-ValidationSuite -Name "unit" -Arguments @("unit")
@@ -273,8 +303,14 @@ finally {
         StartedAt = $startedAt
         CompletedAt = $completedAt
     }
-    if (Test-Path -LiteralPath $packagePath -PathType Leaf) {
-        $reportArguments["PackagePath"] = $packagePath
+    if (Test-Path -LiteralPath $candidatePackagePath -PathType Leaf) {
+        $reportArguments["PackagePath"] = $candidatePackagePath
+    }
+    if (-not [string]::IsNullOrWhiteSpace($PackageArtifactName)) {
+        $reportArguments["PackageArtifactName"] = $PackageArtifactName
+        $reportArguments["WorkflowRunId"] = if ([string]::IsNullOrWhiteSpace($PackageWorkflowRunId)) { [string]$env:GITHUB_RUN_ID } else { $PackageWorkflowRunId }
+        $reportArguments["PortablePaths"] = $true
+        $reportArguments["RedactedRoots"] = @($platformRoot, $sourceRoot, $stateRoot)
     }
     if (Test-Path -LiteralPath $miroEvidencePath -PathType Leaf) {
         $reportArguments["MiroEvidencePath"] = $miroEvidencePath
@@ -319,7 +355,7 @@ Write-Host "DDDA PR validation: PASS"
 Write-Host "PR:       $Pr"
 Write-Host "Branch:   $branch"
 Write-Host "Commit:   $headSha"
-Write-Host "Package:  $packagePath"
+Write-Host "Package:  $candidatePackagePath"
 Write-Host "Report:   $reportRoot"
 if ($KeepReviewBoard -and -not [string]::IsNullOrWhiteSpace($miroBoardId)) {
     Write-Host "Review board ID:  $miroBoardId"
