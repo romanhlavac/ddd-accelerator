@@ -1,4 +1,6 @@
 import json
+
+import pytest
 import runpy
 from pathlib import Path
 
@@ -29,6 +31,12 @@ def test_bootstrap_has_two_canonical_projections_and_delivery_contract():
     assert delivery["primary_change_request_relation"] == "Implements_or_Closes"
     assert delivery["work_package_source"] == "primary_change_request"
     assert delivery["project_item_type_field"] is None
+    assert (
+        delivery["blocked_source"]
+        == "primary_change_request_unresolved_dependency_projection"
+    )
+    assert delivery["project_blocked_field_is_projection_only"] is True
+    assert delivery["fresh_authority_readback_required"] is True
 
     pull_groups = [g for g in data["item_groups"] if g.get("kind") == "pull"]
     assert pull_groups, "bootstrap must include current legacy/control-plane pull projections"
@@ -48,6 +56,12 @@ def test_policy_keeps_planned_prs_out_of_backlog_but_requires_active_delivery_me
     assert "draft_status: In progress" in text
     assert "ready_status: In review" in text
     assert "blocked_override: Blocked" in text
+    assert (
+        "blocked_source: primary_change_request_unresolved_dependency_projection"
+        in text
+    )
+    assert "project_blocked_field_is_projection_only: true" in text
+    assert "fresh_authority_readback_required: true" in text
 
 
 def test_reconciler_enforces_delivery_membership_mapping_and_readback():
@@ -65,8 +79,13 @@ def test_reconciler_enforces_delivery_membership_mapping_and_readback():
         '"is:pr is:open"',
         "MISSING_DELIVERY_PROJECT_ITEM",
         "DELIVERY_WORK_PACKAGE_MISMATCH",
+        "DELIVERY_BLOCKED_FLAG_MISMATCH",
         "DELIVERY_STATUS_MISMATCH",
+        "DELIVERY_AUTHORITY_CHANGED_DURING_RECONCILIATION",
+        "SET_DELIVERY_BLOCKED",
         "DELIVERY_HAS_PLANNING_ITEM_TYPE",
+        "DELIVERY_BLOCKED_FLAG_MISMATCH",
+        "DELIVERY_AUTHORITY_CHANGED_DURING_RECONCILIATION",
         "PRESENTATION_WP_MISMATCH",
         '"remaining_count": 0',
         'REPORT_DIR = Path(".reports/cr-delivery-audit-v6")',
@@ -75,6 +94,8 @@ def test_reconciler_enforces_delivery_membership_mapping_and_readback():
         "CLOSED_ITEM_BLOCKED_FLAG",
         "TERMINAL_STATUS_MISMATCH",
         "PLANNING_STALE_BLOCKED_STATUS",
+        "core.reconcile_delivery = reconcile_delivery",
+        "core.verify_delivery = verify_delivery",
     ]
     for fragment in required_fragments:
         assert fragment in text, fragment
@@ -293,3 +314,171 @@ def test_reconciler_supports_non_cr_planning_items_and_target_correction():
     assert 'MILESTONE_MEMBERSHIP_MISMATCH' in release
     assert 'Reconcile-DDDAReleasePlanning.py --mode reconcile' in workflow
     assert 'release_planning[\'remaining_count\'] == 0' in workflow
+
+def _delivery_contract():
+    ns = runpy.run_path(
+        str(RECONCILER),
+        run_name="ddda_delivery_projection_contract_test",
+    )
+    return (
+        ns["derive_delivery_projection"],
+        ns["delivery_projection_repairs"],
+        ns["delivery_projection_mismatches"],
+        ns["delivery_authority_signature"],
+        ns["core"],
+    )
+
+
+def test_delivery_reconcile_clears_historical_stale_blocked_for_draft_pr():
+    derive, repairs, mismatches, _, _ = _delivery_contract()
+    authority = {
+        101: {
+            "primary_cr": 16,
+            "wp": "Other",
+            "pr": {"number": 101, "draft": True, "head": {"sha": "a" * 40}},
+        }
+    }
+    wanted = derive(authority, {16: set()})[101]
+    stale = {"Blocked": "Yes", "Status": "Blocked"}
+
+    assert wanted == {
+        "Blocked": "No",
+        "Status": "In progress",
+        "authoritative_blockers": [],
+    }
+    assert repairs(stale, wanted) == [
+        ("Blocked", "SET_DELIVERY_BLOCKED", "No"),
+        ("Status", "SET_DELIVERY_STATUS", "In progress"),
+    ]
+    assert mismatches(stale, wanted) == [
+        "DELIVERY_BLOCKED_FLAG_MISMATCH",
+        "DELIVERY_STATUS_MISMATCH",
+    ]
+
+
+def test_delivery_projection_uses_in_review_for_ready_unblocked_pr():
+    derive, _, _, _, _ = _delivery_contract()
+    authority = {
+        102: {
+            "primary_cr": 16,
+            "wp": "Other",
+            "pr": {"number": 102, "draft": False},
+        }
+    }
+    assert derive(authority, {16: set()})[102]["Blocked"] == "No"
+    assert derive(authority, {16: set()})[102]["Status"] == "In review"
+
+
+def test_delivery_projection_uses_primary_cr_unresolved_blockers():
+    derive, _, _, _, _ = _delivery_contract()
+    authority = {
+        103: {
+            "primary_cr": 16,
+            "wp": "Other",
+            "pr": {"number": 103, "draft": True},
+        }
+    }
+    wanted = derive(authority, {16: {44}})[103]
+    assert wanted["Blocked"] == "Yes"
+    assert wanted["Status"] == "Blocked"
+    assert wanted["authoritative_blockers"] == [44]
+
+
+def test_delivery_projection_unblocks_when_last_authoritative_blocker_closes():
+    derive, _, _, _, _ = _delivery_contract()
+    authority = {
+        104: {
+            "primary_cr": 16,
+            "wp": "Other",
+            "pr": {"number": 104, "draft": False},
+        }
+    }
+    assert derive(authority, {16: {44}})[104]["Status"] == "Blocked"
+    after_close = derive(authority, {16: set()})[104]
+    assert after_close["Blocked"] == "No"
+    assert after_close["Status"] == "In review"
+
+
+def test_stale_project_blocked_pair_cannot_pass_verification():
+    derive, _, mismatches, _, _ = _delivery_contract()
+    authority = {
+        105: {
+            "primary_cr": 16,
+            "wp": "Other",
+            "pr": {"number": 105, "draft": True},
+        }
+    }
+    wanted = derive(authority, {16: set()})[105]
+    assert mismatches(
+        {"Blocked": "Yes", "Status": "Blocked"}, wanted
+    ) == [
+        "DELIVERY_BLOCKED_FLAG_MISMATCH",
+        "DELIVERY_STATUS_MISMATCH",
+    ]
+
+
+def test_delivery_projection_second_reconcile_is_semantically_idempotent():
+    derive, repairs, _, _, _ = _delivery_contract()
+    authority = {
+        106: {
+            "primary_cr": 16,
+            "wp": "Other",
+            "pr": {"number": 106, "draft": True},
+        }
+    }
+    wanted = derive(authority, {16: set()})[106]
+    assert repairs(wanted, wanted) == []
+
+
+def test_delivery_authority_fails_closed_for_missing_or_ambiguous_primary_cr():
+    _, _, _, _, core_module = _delivery_contract()
+    expected = {16: "Other"}
+
+    with pytest.raises(RuntimeError, match="exactly one primary"):
+        core_module.delivery_authority(
+            [{"number": 107, "title": "fix", "body": "", "draft": True}],
+            expected,
+        )
+
+    with pytest.raises(RuntimeError, match="exactly one primary"):
+        core_module.delivery_authority(
+            [
+                {
+                    "number": 108,
+                    "title": "fix",
+                    "body": "Implements #16\nCloses #88",
+                    "draft": True,
+                }
+            ],
+            expected,
+        )
+
+
+def test_delivery_authority_signature_detects_draft_or_head_staleness():
+    _, _, _, signature, _ = _delivery_contract()
+    initial = {
+        109: {
+            "primary_cr": 16,
+            "wp": "Other",
+            "pr": {"number": 109, "draft": True, "head": {"sha": "a" * 40}},
+        }
+    }
+    changed = {
+        109: {
+            "primary_cr": 16,
+            "wp": "Other",
+            "pr": {"number": 109, "draft": False, "head": {"sha": "b" * 40}},
+        }
+    }
+    assert signature(initial) != signature(changed)
+
+
+def test_delivery_runtime_does_not_treat_project_blocked_as_authority():
+    wrapper = RECONCILER.read_text(encoding="utf-8-sig")
+    core_text = RECONCILER_CORE.read_text(encoding="utf-8-sig")
+
+    assert 'blocked = current.get("Blocked") == "Yes"' not in wrapper
+    assert 'blocked = current.get("Blocked") == "Yes"' not in core_text
+    assert "derive_delivery_projection" in wrapper
+    assert "active_dependency_projection" in wrapper
+

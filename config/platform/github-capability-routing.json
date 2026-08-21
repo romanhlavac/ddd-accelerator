@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "kind": "ddda-github-capability-authorization-routing",
   "authority": {
     "change_issue": 88,
@@ -65,6 +65,39 @@
       "manual_github_gui_allowed": false,
       "fresh_live_read_back_required": true
     },
+    "project_v2_reconciliation": {
+      "provider": "CANONICAL_BROKER_OR_DEDICATED_CREDENTIAL",
+      "command": "/ddda reconcile-project --expected-sha <40-char-pr-head-sha>",
+      "exact_sha_binding_required": true,
+      "canonical_workflow": ".github/workflows/reconcile-ddda-project-backlog.yml",
+      "canonical_source_ref": "main",
+      "workflow_identity_user_controlled": false,
+      "arbitrary_workflow_dispatch_allowed": false,
+      "secret_bearing_execution_plane": "github-actions-environment:ddda-backlog-governance",
+      "persistent_project_credential_available_to_chat_work": false,
+      "persistent_project_credential_available_to_broker": false,
+      "broker_permission": "actions:write-on-reconcile-job-only",
+      "active_reconciliation_serialization_required": true,
+      "workflow_success_required": true,
+      "source_sha_match_required": true,
+      "audit_artifact_prefix": "ddda-project-backlog-delivery-audit-v6-",
+      "zero_remaining_mismatches_required": true,
+      "fresh_live_read_back_required": true,
+      "evidence_identity_required": [
+        "repository",
+        "pr",
+        "requested_actor",
+        "authorized_pr_head_sha",
+        "expected_sha",
+        "canonical_workflow",
+        "reconciliation_source_sha",
+        "workflow_run_id",
+        "workflow_conclusion",
+        "audit_artifact_id",
+        "audit_artifact_name",
+        "remaining_mismatches"
+      ]
+    },
     "workflow_operation": {
       "scope_derivation": "derive-from-live-required-capability",
       "manual_github_gui_allowed": false,
@@ -72,6 +105,8 @@
     }
   },
   "browser_device_authorization": {
+    "purpose": "one-time-bootstrap-only",
+    "repeat_for_each_reconciliation": false,
     "scope_policy": "derive-required-scopes-from-requested-capability",
     "existing_login_command": "gh auth refresh -s <required-scope>",
     "fresh_login_command": "gh auth login --hostname github.com --git-protocol https --web --scopes <required-scopes>",

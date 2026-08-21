@@ -162,6 +162,30 @@ After the mechanical mutation, perform a fresh live read-back from GitHub. A suc
 
 For Project V2 this means reading the Project item and the relevant field value after the mutation. Repository-wide governance reconciliation retains its stricter `remaining_mismatches = 0` requirement where applicable.
 
+## Permanent Project reconciliation route
+
+For DDDA repository-wide Project V2 reconciliation the selected canonical provider is `CANONICAL_BROKER_OR_DEDICATED_CREDENTIAL`, not a repeated local OAuth session.
+
+```text
+connector PR comment
+→ /ddda reconcile-project --expected-sha <current-pr-head-sha>
+→ trusted default-branch broker
+→ fixed canonical workflow dispatch
+→ GitHub Actions environment ddda-backlog-governance
+→ persistent approved Project credential
+→ Project reconcile + fresh read-back
+→ zero remaining mismatches
+→ audit evidence
+```
+
+The broker command is exact-SHA-bound and accepts no user-controlled workflow name. It can dispatch only `.github/workflows/reconcile-ddda-project-backlog.yml` from canonical `main`. The broker's elevated repository permission is limited to `actions: write` on the dedicated reconcile job; the Project credential itself is not present in that job.
+
+The persistent Project credential remains only in the approved GitHub environment secret store consumed by the canonical workflow. Chat/Work never receives it, and broker logs/artifacts/comments do not contain it. The broker therefore has authority to request one allowlisted workflow execution, not authority to perform arbitrary Project GraphQL operations.
+
+If that persistent credential works, no browser/device bootstrap is needed for normal reconciliation. If the canonical workflow reports it missing, expired or insufficient, first diagnose the existing credential contract. Only when the approved programmatic path exists and the sole missing prerequisite is human consent or credential provisioning is the state `HUMAN_BOOTSTRAP_ONLY`. The human action is then one-time authorization/provisioning; it is not repeated for each reconcile or workflow run.
+
+A local CLI OAuth credential is not a substitute for the environment credential unless an approved session/credential bridge explicitly provisions it into the approved GitHub secret store without exposing the secret to Chat/Work.
+
 ## Security contract
 
 Mandatory rules:
@@ -191,6 +215,8 @@ tag authorization
 
 Those remain separate human governance boundaries defined by the platform lifecycle.
 
+The Project reconciliation broker follows the same rule. A successful canonical run with zero mismatches is technical governance evidence only; it cannot create Human Review, merge, release/promotion or tag authorization.
+
 ## Project V2 regression case
 
 Known failure class:
@@ -210,6 +236,8 @@ connector capability missing
 → perform Project V2 mutation programmatically
 → fresh Project V2 read-back
 ```
+
+For repository-wide DDDA reconciliation, the preferred specialization is the permanent broker route above, which reuses the existing `DDDA_GITHUB_PROJECT_TOKEN` only inside the canonical secret-bearing workflow and returns run/artifact identity plus zero-mismatch read-back.
 
 Forbidden behavior:
 
@@ -234,6 +262,8 @@ Use `UNAVAILABLE` only after the approved route set has been exhausted. Diagnost
 - the precise non-secret reason execution cannot continue.
 
 Do not collapse a connector limitation, missing OAuth scope, broker defect, GitHub permission failure and network failure into one generic "GitHub unavailable" status.
+
+For canonical reconciliation specifically, a child workflow failure is not broker PASS. Missing/expired Project credential is reported as credential capability failure; stale PR SHA fails before dispatch; stale source `main` SHA is retried with a new explicit source identity; non-zero read-back mismatches fail closed.
 
 ## Completion checklist
 

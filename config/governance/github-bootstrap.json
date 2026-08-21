@@ -1286,7 +1286,10 @@
     "open_implementation_pr_membership_required": true,
     "primary_change_request_relation": "Implements_or_Closes",
     "work_package_source": "primary_change_request",
-    "project_item_type_field": null
+    "project_item_type_field": null,
+    "blocked_source": "primary_change_request_unresolved_dependency_projection",
+    "project_blocked_field_is_projection_only": true,
+    "fresh_authority_readback_required": true
   },
   "milestones": [
     {
