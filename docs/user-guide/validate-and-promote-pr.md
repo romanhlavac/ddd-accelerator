@@ -63,7 +63,7 @@ Dry-run fail-closed ověří:
 
 Dry-run neprovede merge, release, promotion ani tag.
 
-Standardní CI job `Governed merge dry-run` čeká na Human Review. Potom na novém čistém runneru stáhne candidate a validation report ze stejného workflow runu, přepočítá hash a ověří shodu s reportem i Human Review. Dočasná cesta z validačního runneru se nepoužívá.
+Standardní CI používá samostatný job `Human Review readiness`. Před Human Review je vlastní `Governed merge dry-run` job `skipped` a jeho stav je `NOT_RUN`; zelený readiness coordinator není důkaz provedeného dry-runu. Po publikaci exact-SHA Human Review se znovu spustí readiness job a jeho dependent dry-run, nikoli candidate build. Dry-run na novém čistém runneru stáhne již existující candidate a validation report ze stejného workflow runu, přepočítá hash a ověří shodu s reportem i Human Review. Dočasná cesta z validačního runneru se nepoužívá.
 
 ### Merge strategy a exact-SHA ancestry
 

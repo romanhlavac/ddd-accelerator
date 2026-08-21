@@ -750,12 +750,48 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  human-review-readiness:
+    name: Human Review readiness
+    needs:
+      - validate-platform
+      - validate-pr-command
+    if: github.event_name == 'pull_request'
+    runs-on: windows-latest
+    timeout-minutes: 10
+    outputs:
+      ready: ${{ steps.human-review.outputs.ready }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+
+    steps:
+      - name: Detect authoritative Human Review
+        id: human-review
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $comments = gh api "repos/${{ github.repository }}/issues/$env:PR_NUMBER/comments?per_page=100" | ConvertFrom-Json
+          $marker = '<!-- ddda:human-pr-review:v1 -->'
+          $matches = @($comments | Where-Object { [string]$_.body -like "*$marker*" })
+          if ($matches.Count -gt 1) {
+            throw "Nalezeno více authoritativních Human Review markerů: $($matches.Count)."
+          }
+          $ready = if ($matches.Count -eq 1) { 'true' } else { 'false' }
+          "ready=$ready" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          if ($ready -eq 'false') {
+            Write-Host 'Human Review readiness: PENDING. Governed merge dry-run je pro tuto fázi NOT_RUN.'
+          }
+          else {
+            Write-Host 'Human Review readiness: READY. Dependent governed merge dry-run musí provést skutečný preflight.'
+          }
+
   governed-merge-dry-run:
     name: Governed merge dry-run
     needs:
       - validate-platform
       - validate-pr-command
-    if: github.event_name == 'pull_request'
+      - human-review-readiness
+    if: github.event_name == 'pull_request' && needs.human-review-readiness.outputs.ready == 'true'
     runs-on: windows-latest
     timeout-minutes: 20
     env:
@@ -771,39 +807,19 @@ jobs:
           fetch-depth: 0
           ref: ${{ env.SOURCE_SHA }}
 
-      - name: Detect authoritative Human Review
-        id: human-review
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $comments = gh api "repos/${{ github.repository }}/issues/$env:PR_NUMBER/comments?per_page=100" | ConvertFrom-Json
-          $marker = '<!-- ddda:human-pr-review:v1 -->'
-          $matches = @($comments | Where-Object { [string]$_.body -like "*$marker*" })
-          if ($matches.Count -gt 1) {
-            throw "Nalezeno více authoritativních Human Review markerů: $($matches.Count)."
-          }
-          $ready = if ($matches.Count -eq 1) { 'true' } else { 'false' }
-          "ready=$ready" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          if ($ready -eq 'false') {
-            Write-Host 'Governed merge dry-run čeká na Human Review; nebyl proveden žádný merge ani jiný side effect.'
-          }
-
       - name: Download exact-run canonical candidate
-        if: steps.human-review.outputs.ready == 'true'
         uses: actions/download-artifact@v4
         with:
           name: ddda-candidate-${{ env.SOURCE_SHA }}
           path: ${{ runner.temp }}/canonical-candidate
 
       - name: Download exact-run validation evidence
-        if: steps.human-review.outputs.ready == 'true'
         uses: actions/download-artifact@v4
         with:
           name: validate-pr-${{ env.PR_NUMBER }}-${{ env.SOURCE_SHA }}
           path: ${{ runner.temp }}/validation-evidence
 
       - name: Run isolated governed merge preflight
-        if: steps.human-review.outputs.ready == 'true'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'

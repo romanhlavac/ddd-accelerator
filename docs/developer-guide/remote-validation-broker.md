@@ -79,7 +79,7 @@ Broker:
 9. zachová review board podle zvoleného scénáře;
 10. publikuje evidence artifact a PR komentář včetně source workflow run/artifact identity.
 
-Standardní PR workflow analogicky předává stejný candidate do offline `validate-pr-command`. Po Human Review job `Governed merge dry-run` stáhne candidate artifact a validate-pr report ze stejného runu, vyžaduje právě jeden ZIP a právě jeden `result.json`, přepočítá hash a spustí governed preflight na čistém runneru. Chybějící, expirovaný nebo víceznačný artifact, jiný package kind/source SHA či neshoda report/Human Review skončí fail-closed.
+Standardní PR workflow analogicky předává stejný candidate do offline `validate-pr-command`. Samostatný `Human Review readiness` coordinator pouze detekuje authoritativní marker a publikuje `ready=true|false`; jeho úspěch není merge-preflight PASS. Dokud marker chybí, dependent `Governed merge dry-run` je `skipped` a evidovaný stav je `NOT_RUN`. Po Human Review se znovu spustí readiness job a jeho dependent dry-run bez nového candidate buildu. Dry-run stáhne candidate artifact a validate-pr report ze stejného runu, vyžaduje právě jeden ZIP a právě jeden `result.json`, přepočítá hash a spustí governed preflight na čistém runneru. Chybějící, expirovaný nebo víceznačný artifact, jiný package kind/source SHA či neshoda report/Human Review skončí fail-closed.
 
 Obecný acceptance může vytvářet izolovaný board, pokud testuje board-lifecycle. PR #8 HVR FAST-LOOP používá persistentní Platform Lab binding a nemá zakládat nový review board pro každý corrective run.
 

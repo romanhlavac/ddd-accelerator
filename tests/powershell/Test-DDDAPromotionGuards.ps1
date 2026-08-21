@@ -121,8 +121,23 @@ $workflowCandidateBuilders = @(
         Select-String -Pattern 'New-DDDAPlatformPackage\.ps1'
 )
 Assert-True -Condition ($workflowCandidateBuilders.Count -eq 1 -and $workflowCandidateBuilders[0].Path -eq $platformCiPath) -Message "Repository musí mít právě jeden CI candidate builder v canonical platform workflow."
-Assert-True -Condition ($platformCi -match 'Governed merge dry-run' -and $platformCi -match '-ValidationReportPath \$reports\[0\]\.FullName') -Message "Standard CI nemá isolated merge-pr dry-run nad staženou evidencí."
-Assert-True -Condition ($platformCi -match 'packages\.Count -ne 1' -and $platformCi -match 'reports\.Count -ne 1') -Message "Artifact resolution není fail-closed pro chybějící/víceznačnou evidence."
+$humanReadinessJob = [regex]::Match($platformCi, '(?ms)^  human-review-readiness:\r?\n(?<body>.*?)(?=^  governed-merge-dry-run:)')
+$mergeDryRunJob = [regex]::Match($platformCi, '(?ms)^  governed-merge-dry-run:\r?\n(?<body>.*)\z')
+Assert-True -Condition $humanReadinessJob.Success -Message "Standard CI nemá samostatný Human Review readiness coordinator."
+Assert-True -Condition $mergeDryRunJob.Success -Message "Standard CI nemá samostatný governed merge dry-run job."
+$humanReadinessBody = $humanReadinessJob.Groups['body'].Value
+$mergeDryRunBody = $mergeDryRunJob.Groups['body'].Value
+Assert-True -Condition ($humanReadinessBody -match 'name: Human Review readiness') -Message "Readiness coordinator není jednoznačně pojmenovaný."
+Assert-True -Condition ($humanReadinessBody -match 'ready:\s+\$\{\{\s*steps\.human-review\.outputs\.ready\s*\}\}') -Message "Readiness coordinator nepublikuje machine-readable ready output."
+Assert-True -Condition ($humanReadinessBody -match 'PENDING.+Governed merge dry-run.+NOT_RUN') -Message "Pre-HR stav není explicitně reportován jako PENDING / NOT_RUN."
+Assert-True -Condition ($humanReadinessBody -notmatch 'ddda\.ps1 merge-pr') -Message "Readiness coordinator nesmí být současně merge preflight."
+Assert-True -Condition ($mergeDryRunBody -match '(?s)needs:.+?- human-review-readiness') -Message "Governed merge dry-run nezávisí na readiness coordinatoru."
+Assert-True -Condition ($mergeDryRunBody -match "if: github\.event_name == 'pull_request' && needs\.human-review-readiness\.outputs\.ready == 'true'") -Message "Governed merge dry-run není na job-level blokovaný Human Review readiness."
+Assert-True -Condition ($mergeDryRunBody -notmatch 'steps\.human-review\.outputs\.ready') -Message "Governed merge dry-run stále používá step-level skip, který může vytvořit false PASS."
+Assert-True -Condition ($mergeDryRunBody -match 'Download exact-run canonical candidate' -and $mergeDryRunBody -match 'Download exact-run validation evidence') -Message "Governed merge dry-run nestahuje exact-run candidate a report."
+Assert-True -Condition ($mergeDryRunBody -match '\.\\ddda\.ps1 merge-pr' -and $mergeDryRunBody -match '-ValidationReportPath \$reports\[0\]\.FullName' -and $mergeDryRunBody -match '-DryRun') -Message "Governed merge dry-run neprovádí skutečný isolated merge-pr -DryRun."
+Assert-True -Condition ($mergeDryRunBody -notmatch 'New-DDDAPlatformPackage\.ps1') -Message "Post-HR merge dry-run nesmí znovu sestavit candidate package."
+Assert-True -Condition ($mergeDryRunBody -match 'packages\.Count -ne 1' -and $mergeDryRunBody -match 'reports\.Count -ne 1') -Message "Artifact resolution není fail-closed pro chybějící/víceznačnou evidence."
 Assert-True -Condition ($remoteBroker -match 'actions: read') -Message "Remote broker nemá read-only přístup k canonical Actions artifactu."
 Assert-True -Condition ($remoteBroker -match 'Download exact-SHA canonical candidate' -and $remoteBroker -match '-PackageWorkflowRunId') -Message "Remote broker stále vytváří nezávislou candidate identity."
 

@@ -235,7 +235,7 @@ Skutečný merge:
 .\ddda.ps1 merge-pr -Pr 74 -ConfirmMerge
 ```
 
-`merge-pr` fail-closed ověřuje live PR state, exact head SHA, required CI, exact-SHA `validate-pr`, candidate package hash, Human Review PASS stejného SHA/package, required governance docs a repository merge policy. Standardní `Governed merge dry-run` běží na čistém runneru, stáhne candidate i report ze stejného workflow runu a předá jejich nové lokální cesty přes `-PackagePath` a `-ValidationReportPath`; nikdy nepoužívá cestu uloženou na předchozím runneru.
+`merge-pr` fail-closed ověřuje live PR state, exact head SHA, required CI, exact-SHA `validate-pr`, candidate package hash, Human Review PASS stejného SHA/package, required governance docs a repository merge policy. Standardní CI nejprve spustí samostatný `Human Review readiness` coordinator. Dokud chybí Human Review marker, vlastní `Governed merge dry-run` job je `skipped` a merge preflight má stav `NOT_RUN`; úspěch coordinatoru není merge-preflight PASS. Po publikaci exact-SHA Human Review se znovu spustí readiness job a jeho dependent dry-run bez nového candidate buildu. Dry-run na čistém runneru stáhne candidate i report ze stejného workflow runu a předá jejich nové lokální cesty přes `-PackagePath` a `-ValidationReportPath`; nikdy nepoužívá cestu uloženou na předchozím runneru.
 
 Po aktivaci ADR 0009 je merge strategy risk-based:
 
