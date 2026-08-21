@@ -64,7 +64,7 @@ The connected ChatGPT GitHub surface and GitHub itself are different capability 
 Examples:
 
 - connector can expose repository Issues/PR/Git operations directly;
-- connector may not expose a Project V2 mutation even though `gh project` or GitHub GraphQL can perform it;
+- connector may not expose a Project V2 mutation even though `gh project` or `gh api graphql` can perform it;
 - a workflow operation may be available through the canonical broker while not being exposed as a connector action;
 - a dedicated governance credential can have a privileged capability that the regular connector or repository `GITHUB_TOKEN` intentionally lacks.
 
