@@ -1,0 +1,135 @@
+{
+  "schema_version": 1,
+  "kind": "ddda-github-capability-authorization-routing",
+  "authority": {
+    "change_issue": 88,
+    "decision_record": "docs/adr/0010-github-capability-authorization-routing.md",
+    "runbook": "docs/developer-guide/github-capability-authorization.md"
+  },
+  "invariants": [
+    "NO_MANUAL_GITHUB_GUI_FOR_MECHANICAL_OPERATIONS",
+    "CAPABILITY_BEFORE_SCOPE",
+    "LEAST_PRIVILEGE",
+    "FRESH_LIVE_READ_BACK",
+    "AUTHORIZATION_DOES_NOT_APPROVE_GOVERNANCE_DECISIONS"
+  ],
+  "provider_order": [
+    "CONNECTOR",
+    "CANONICAL_BROKER_OR_DEDICATED_CREDENTIAL",
+    "HUMAN_BOOTSTRAP_ONLY",
+    "UNAVAILABLE"
+  ],
+  "providers": {
+    "CONNECTOR": {
+      "browser_authorization_required": false,
+      "description": "Use the approved connected GitHub capability when the required operation is exposed and permitted."
+    },
+    "CANONICAL_BROKER_OR_DEDICATED_CREDENTIAL": {
+      "browser_authorization_required": false,
+      "description": "Use the canonical DDDA broker or an approved dedicated credential route when the connector surface lacks the required operation."
+    },
+    "HUMAN_BOOTSTRAP_ONLY": {
+      "browser_authorization_required": true,
+      "is_hard_blocker": false,
+      "human_action": "AUTHORIZE_IN_LOCAL_BROWSER_ONLY",
+      "description": "The programmatic route exists, but user OAuth consent or an additional scope is the only missing prerequisite."
+    },
+    "UNAVAILABLE": {
+      "browser_authorization_required": false,
+      "is_hard_blocker": true,
+      "requires_capability_diagnosis": true,
+      "description": "No approved connector, broker/dedicated-credential, or authorizable CLI/API route can satisfy the required capability."
+    }
+  },
+  "selection_rules": {
+    "connector_supported": "CONNECTOR",
+    "connector_missing_broker_supported": "CANONICAL_BROKER_OR_DEDICATED_CREDENTIAL",
+    "only_user_oauth_consent_missing": "HUMAN_BOOTSTRAP_ONLY",
+    "no_approved_programmatic_route": "UNAVAILABLE"
+  },
+  "capabilities": {
+    "repository_mechanical_operation": {
+      "scope_derivation": "derive-from-live-required-capability",
+      "manual_github_gui_allowed": false,
+      "fresh_live_read_back_required": true
+    },
+    "project_v2_mutation": {
+      "connector_surface_may_be_missing": true,
+      "approved_programmatic_alternates": [
+        "CANONICAL_BROKER_OR_DEDICATED_CREDENTIAL",
+        "gh project",
+        "gh api graphql"
+      ],
+      "typical_user_scope": "project",
+      "typical_scope_is_conditional": true,
+      "manual_github_gui_allowed": false,
+      "fresh_live_read_back_required": true
+    },
+    "workflow_operation": {
+      "scope_derivation": "derive-from-live-required-capability",
+      "manual_github_gui_allowed": false,
+      "fresh_live_read_back_required": true
+    }
+  },
+  "browser_device_authorization": {
+    "scope_policy": "derive-required-scopes-from-requested-capability",
+    "existing_login_command": "gh auth refresh -s <required-scope>",
+    "fresh_login_command": "gh auth login --hostname github.com --git-protocol https --web --scopes <required-scopes>",
+    "allowed_human_actions": [
+      "open-verification-url",
+      "enter-device-code-if-requested-by-github",
+      "approve-github-oauth-consent",
+      "confirm-authorization-complete"
+    ],
+    "forbidden_human_actions": [
+      "edit-issue-through-github-gui",
+      "edit-pull-request-through-github-gui",
+      "edit-project-fields-through-github-gui",
+      "run-workflow-through-github-gui",
+      "perform-other-programmatically-available-mechanical-github-mutation"
+    ],
+    "post_authorization_verification": [
+      "authenticated-actor",
+      "required-capability-or-scope"
+    ],
+    "runtime_session_boundary": {
+      "direct_flow_preferred_when_supported": true,
+      "local_bootstrap_command_limit": 1,
+      "local_credential_must_not_be_assumed_available_to_cloud_runner": true,
+      "session_bridge_gap_requires_explicit_diagnosis": true
+    },
+    "credential_lifetime": {
+      "ephemeral_preferred": true,
+      "persistent_only_in_explicitly_approved_secret_store": true,
+      "cleanup_or_lifetime_must_be_explicit": true
+    }
+  },
+  "security": {
+    "pat_or_token_in_chat_allowed": false,
+    "oauth_token_output_allowed": false,
+    "gh_auth_token_as_evidence_allowed": false,
+    "verification_url_and_device_code_are_authorization_challenge_only": true,
+    "generic_remote_shell_allowed": false,
+    "forbidden_credential_evidence_channels": [
+      "chat",
+      "prompt",
+      "git-history",
+      "log",
+      "artifact",
+      "result-json",
+      "pull-request-comment"
+    ]
+  },
+  "completion": {
+    "actor_verification_required_after_authorization": true,
+    "capability_verification_required_after_authorization": true,
+    "fresh_live_read_back_required_after_mutation": true,
+    "mutation_response_without_read_back_is_complete": false
+  },
+  "decision_boundaries": {
+    "authorization_success_implies_human_review_pass": false,
+    "authorization_success_implies_merge_authorization": false,
+    "authorization_success_implies_release_authorization": false,
+    "authorization_success_implies_tag_authorization": false
+  }
+}

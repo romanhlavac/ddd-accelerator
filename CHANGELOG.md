@@ -8,6 +8,7 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 ### Added
 
+- versioned GitHub capability/authorization routing contract, browser/device authorization runbook a ADR 0010 pro connector → canonical broker/dedicated credential → `HUMAN_BOOTSTRAP_ONLY` → `UNAVAILABLE` fallback;
 - machine-readable `human-release-decision.schema.json`, `review-pr` scaffold a fail-closed Release Scope Gate pro exact release-candidate SHA / candidate package / release-version identity;
 - governed implementation command `merge-pr` a machine-readable Human Review marker `ddda:human-pr-review:v1`, vázané na exact PR SHA a candidate package hash;
 - ADR 0008 a developer runbook oddělující Human Review/implementation merge, Human Release Decision a mechanickou release-scope completeness;
@@ -15,6 +16,7 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 ### Changed
 
+- GitHub mechanical operations nyní používají invariant `NO_MANUAL_GITHUB_GUI_FOR_MECHANICAL_OPERATIONS`: chybějící connector mutation surface nejprve přechází na canonical broker/dedicated credential a teprve při skutečně chybějícím user OAuth consent do `HUMAN_BOOTSTRAP_ONLY`; člověk autorizuje pouze browser/device challenge, po kterém následuje actor/capability verification a fresh live read-back.
 - GitHub-native backlog governance nyní považuje Issue/PR mutation, Project planning/delivery projection a release Milestone projection za jednu fail-closed transakci; DDDA 0.1.0/0.1.1 scope je versioned a canonical reconciler opravuje Project/Milestone drift před Ready/merge/release doporučením.
 - platform lifecycle nyní explicitně odděluje governed merge implementačních PR od skutečného release/promotion; implementation merge nevyžaduje HRDR ani Release Scope Gate a nesmí vytvořit release package, release validation nebo tag;
 - public `promote-pr` zůstává strict release-candidate command: před interním release executorem vyžaduje validní human HRDR a read-only Release Scope Gate PASS nad Milestone, native blockers a GitHub Project V2 projekcí;

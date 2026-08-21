@@ -52,9 +52,26 @@ Work musí:
 2. zapisovat jen do deklarované platformní PR branche a allowed paths;
 3. nikdy nepoužít `main` jako write target;
 4. nepřenášet secrets do chatu, commitů, logů nebo argumentů;
-5. při nedostupném konektoru nebo boardu zastavit a omezení explicitně oznámit;
-6. po změně vyžadovat standardní CI nad výsledným SHA;
-7. nerozšiřovat autorizaci na merge, release, tag, promotion nebo force-push.
+5. u chybějící GitHub connector capability nejprve použít canonical capability route `CONNECTOR → CANONICAL_BROKER_OR_DEDICATED_CREDENTIAL → HUMAN_BOOTSTRAP_ONLY → UNAVAILABLE`; samotná chybějící connector mutation surface není hard blocker ani důvod k ruční GitHub GUI práci;
+6. pokud externí zdroj nelze načíst nebo změnit žádným schváleným kanálem, zastavit až na konkrétním `UNAVAILABLE`/access blockeru a omezení explicitně oznámit;
+7. po změně vyžadovat standardní CI nad výsledným SHA;
+8. nerozšiřovat autorizaci na merge, release, tag, promotion nebo force-push.
+
+### GitHub mechanical operations a authorization bootstrap
+
+Pro GitHub operace platí machine-readable contract `config/platform/github-capability-routing.json` a runbook `docs/developer-guide/github-capability-authorization.md`.
+
+```text
+NO_MANUAL_GITHUB_GUI_FOR_MECHANICAL_OPERATIONS
+```
+
+Pokud je operace deterministická a programově dostupná po schválené autorizaci, Chat/Work ji provede programově. Člověk nesmí být používán jako náhradní mechanický executor jen proto, že aktuální connector nevystavuje konkrétní mutation.
+
+Pokud jedinou chybějící podmínkou programového GitHub CLI/API transportu je user OAuth consent nebo scope, stav je `HUMAN_BOOTSTRAP_ONLY`. Chat/Work iniciuje browser/device flow, pokud jej daný execution runtime umí. Člověk provede pouze lokální GitHub consent challenge; potom orchestrace ověří authenticated actor + required capability a pokračuje programově.
+
+Pokud runtime neumí flow iniciovat, může člověku dát právě jeden přesný lokální bootstrap příkaz. Lokální `gh` credential se nikdy nepovažuje za automaticky dostupný oddělenému cloud runneru nebo connectoru; chybějící session bridge se diagnostikuje explicitně a preferuje se canonical broker/dedicated credential route.
+
+Authorization success není Human Review PASS, merge authorization, release/promotion authorization ani tag authorization.
 
 ### Chat atomic guardrails
 
