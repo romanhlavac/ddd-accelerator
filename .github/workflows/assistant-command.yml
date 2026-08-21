@@ -499,6 +499,22 @@ jobs:
               throw "Canonical reconciliation evidence contains remaining mismatches: $remaining."
             }
 
+            # Final identity fence: evidence is accepted only while both the target PR
+            # and canonical reconciliation source still match the identities authorized
+            # for this attempt. This closes the artifact-download/read-back drift window.
+            $finalPr = Invoke-RestMethod -Method Get -Uri "https://api.github.com/repos/$env:REPOSITORY/pulls/$env:PR_NUMBER" -Headers $headers
+            if ([string]$finalPr.head.sha -ne $env:EXPECTED_SHA) {
+              throw "PR head drifted before evidence acceptance. Expected $env:EXPECTED_SHA, live $($finalPr.head.sha)."
+            }
+            $finalBranch = Invoke-RestMethod -Method Get -Uri "https://api.github.com/repos/$env:REPOSITORY/branches/$env:SOURCE_REF" -Headers $headers
+            $finalSourceSha = [string]$finalBranch.commit.sha
+            if ($finalSourceSha -ne $sourceSha) {
+              if ($attempt -eq $maxAttempts) {
+                throw "Canonical source moved from $sourceSha to $finalSourceSha during final evidence acceptance."
+              }
+              continue
+            }
+
             $selectedRun = $run
             $selectedSourceSha = $sourceSha
             $selectedArtifact = $artifact
