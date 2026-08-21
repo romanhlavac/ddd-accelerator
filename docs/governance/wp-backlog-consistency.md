@@ -72,7 +72,10 @@ Další analytické view mohou existovat pouze jako odvozené pohledy; nesmějí
 - Každý otevřený implementační PR je Project delivery item.
 - Project `Work Package` PR odpovídá odvozenému WP primary CR.
 - Project `Item Type` PR je prázdný; delivery PR se nesmí klasifikovat jako planning artefakt.
-- Project `Status` PR je `Blocked`, pokud je `Blocked = Yes`; jinak Draft PR je `In progress` a non-draft open PR je `In review`.
+- Delivery `Blocked` se odvozuje výhradně z unresolved blocker state primárního Change Requestu podle verzovaného dependency kontraktu a fresh live Issue read-backu.
+- Project `Blocked` u PR je pouze mechanická projekce (`Yes`/`No`), nikdy vstupní autorita pro rozhodnutí, zda je delivery skutečně blokovaná.
+- Project `Status` PR je `Blocked`, pokud je authoritative derived blocked state pravdivý; jinak Draft PR je `In progress` a non-draft open PR je `In review`.
+- Před technical PASS se znovu načte množina otevřených PR, primary CR, exact PR head, Draft/Ready state a blocker state; změna během reconciliation invaliduje předchozí výsledek.
 - Pokud Issue/PR title obsahuje explicitní prefix `[WP-XX]`, prefix musí odpovídat autoritativnímu Work Package. Absence WP prefixu je povolená; zavádějící nebo historický prefix je `PRESENTATION_WP_MISMATCH` a blokuje technical governance PASS.
 - Display/read-back názvu vychází z kanonického Issue/PR title, nikoli z náhodného nebo duplicitního Project text field se jménem `Title`.
 
@@ -111,7 +114,9 @@ Za governance failure se považuje zejména:
 - PR deklaruje jiné WP než jeho primary CR;
 - otevřený implementační PR chybí v delivery projekci (`MISSING_DELIVERY_PROJECT_ITEM`);
 - PR Project Work Package odporuje odvozenému WP (`DELIVERY_WORK_PACKAGE_MISMATCH`);
+- PR Project `Blocked` odporuje authoritative blocker state primárního CR (`DELIVERY_BLOCKED_FLAG_MISMATCH`);
 - PR Project Status odporuje delivery state (`DELIVERY_STATUS_MISMATCH`);
+- PR/primary-CR/head/Draft-Ready authority se změnila během reconciliation (`DELIVERY_AUTHORITY_CHANGED_DURING_RECONCILIATION`);
 - PR má nastaven planning `Item Type` (`DELIVERY_HAS_PLANNING_ITEM_TYPE`);
 - uzavřený Change Request má stále aktivní native blocker (`CLOSED_ITEM_ACTIVE_BLOCKER`);
 - uzavřený Change Request má `Blocked != No` (`CLOSED_ITEM_BLOCKED_FLAG`);
@@ -154,7 +159,8 @@ Governance/backlog/delivery změna uchovává minimálně:
 - terminal status + `Blocked` consistency pro uzavřené CR a blocked/status consistency pro otevřené CR;
 - kontrolu explicitních WP prefixů v Issue/PR titles proti autoritativnímu WP;
 - PR → primary CR mapping a odvozené WP;
-- PR Project membership + `Work Package` + `Status` + absence `Item Type`;
+- PR authoritative blocker derivation z primary CR + unresolved dependency projection;
+- PR Project membership + `Work Package` + `Blocked` + `Status` + absence `Item Type`;
 - Project title a obě canonical view/filter hodnoty;
 - workflow run a audit artifact při privileged live reconciliation.
 

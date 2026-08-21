@@ -390,33 +390,10 @@ def delivery_authority(open_prs, expected):
 
 
 def reconcile_delivery(authority, project_number, project_id, fields, repairs):
-    items = content_item_map(project_number, "PullRequest")
-    for n, rel in sorted(authority.items()):
-        pr = rel["pr"]
-        item = items.get(n)
-        current = {}
-        if item is None:
-            item_id = add_project_item(project_id, pr)
-            repairs.append({"pr": n, "action": "ADD_DELIVERY_PROJECT_ITEM"})
-        else:
-            item_id = item["id"]
-            current = values(item)
-
-        wp = rel["wp"]
-        if current.get("Work Package") != wp:
-            set_select(project_id, fields, item_id, "Work Package", wp)
-            repairs.append({"pr": n, "action": "SET_DELIVERY_WORK_PACKAGE", "value": wp})
-
-        blocked = current.get("Blocked") == "Yes"
-        wanted_status = "Blocked" if blocked else ("In progress" if pr.get("draft") else "In review")
-        if current.get("Status") != wanted_status:
-            set_select(project_id, fields, item_id, "Status", wanted_status)
-            repairs.append({"pr": n, "action": "SET_DELIVERY_STATUS", "value": wanted_status})
-
-        if current.get("Item Type") is not None:
-            clear_field(project_id, fields, item_id, "Item Type")
-            repairs.append({"pr": n, "action": "CLEAR_PLANNING_ITEM_TYPE"})
-
+    raise RuntimeError(
+        "Authoritative delivery projection overlay is not installed; "
+        "run Reconcile-DDDAProjectBacklog.py"
+    )
 
 def verify_planning(wp_parent, expected, dependencies, project_number):
     items = content_item_map(project_number, "Issue")
@@ -459,36 +436,10 @@ def verify_planning(wp_parent, expected, dependencies, project_number):
 
 
 def verify_delivery(authority, project_number):
-    items = content_item_map(project_number, "PullRequest")
-    rows, problems = [], []
-    for n, rel in sorted(authority.items()):
-        item = items.get(n)
-        rowprobs = []
-        if not item:
-            rowprobs.append("MISSING_DELIVERY_PROJECT_ITEM")
-            v = {}
-        else:
-            v = values(item)
-            if v.get("Work Package") != rel["wp"]:
-                rowprobs.append("DELIVERY_WORK_PACKAGE_MISMATCH")
-            blocked = v.get("Blocked") == "Yes"
-            wanted_status = "Blocked" if blocked else ("In progress" if rel["pr"].get("draft") else "In review")
-            if v.get("Status") != wanted_status:
-                rowprobs.append("DELIVERY_STATUS_MISMATCH")
-            if v.get("Item Type") is not None:
-                rowprobs.append("DELIVERY_HAS_PLANNING_ITEM_TYPE")
-        row = {
-            "pr": n,
-            "primary_cr": rel["primary_cr"],
-            "wp": rel["wp"],
-            "fields": v,
-            "result": "PASS" if not rowprobs else "+".join(rowprobs),
-        }
-        rows.append(row)
-        if rowprobs:
-            problems.append(row)
-    return rows, problems
-
+    raise RuntimeError(
+        "Authoritative delivery verification overlay is not installed; "
+        "run Reconcile-DDDAProjectBacklog.py"
+    )
 
 def verify_project_contract(project_number):
     p = gql(Q_PROJECT, {"login": OWNER, "number": project_number})["data"]["user"]["projectV2"]

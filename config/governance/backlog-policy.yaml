@@ -139,6 +139,9 @@ project:
     draft_status: In progress
     ready_status: In review
     blocked_override: Blocked
+    blocked_source: primary_change_request_unresolved_dependency_projection
+    project_blocked_field_is_projection_only: true
+    fresh_authority_readback_required: true
 
 native_sub_issue_mapping:
   WP-08:
