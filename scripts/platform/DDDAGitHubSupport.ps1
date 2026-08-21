@@ -158,7 +158,8 @@ function Assert-DDDAGitHubChecksPassed {
     param(
         [Parameter(Mandatory = $true)][string]$RepositorySlug,
         [Parameter(Mandatory = $true)][string]$Commit,
-        [Parameter(Mandatory = $true)][string]$Token
+        [Parameter(Mandatory = $true)][string]$Token,
+        [string[]]$IgnoredCheckRunNames = @()
     )
 
     $checkRuns = [System.Collections.Generic.List[object]]::new()
@@ -180,8 +181,10 @@ function Assert-DDDAGitHubChecksPassed {
     $notPassed = @(
         $checkRuns |
             Where-Object {
+                [string]$_.name -notin $IgnoredCheckRunNames -and (
                 [string]$_.status -ne "completed" -or
                 [string]$_.conclusion -notin $allowedConclusions
+                )
             }
     )
     if ($notPassed.Count -gt 0) {

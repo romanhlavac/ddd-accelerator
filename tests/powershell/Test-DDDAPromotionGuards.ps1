@@ -11,12 +11,32 @@ function Assert-True {
     if (-not $Condition) { throw $Message }
 }
 
+function Assert-Throws {
+    param(
+        [Parameter(Mandatory = $true)][scriptblock]$Action,
+        [Parameter(Mandatory = $true)][string]$Message
+    )
+    $threw = $false
+    try {
+        & $Action
+    }
+    catch {
+        $threw = $true
+    }
+    Assert-True -Condition $threw -Message $Message
+}
+
 $platformRoot = [System.IO.Path]::GetFullPath($PlatformPath).TrimEnd('\', '/')
 $entryPath = Join-Path $platformRoot "ddda.ps1"
 $governedMergePath = Join-Path $platformRoot "scripts/platform/Invoke-DDDAGovernedMergePr.ps1"
 $governedPromotionPath = Join-Path $platformRoot "scripts/platform/Invoke-DDDAGovernedPromotePr.ps1"
 $promotionPath = Join-Path $platformRoot "scripts/platform/Invoke-DDDAPromotePr.ps1"
 $releaseGovernanceSupportPath = Join-Path $platformRoot "scripts/platform/DDDAReleaseGovernanceSupport.ps1"
+$validatePrPath = Join-Path $platformRoot "scripts/platform/Invoke-DDDAValidatePr.ps1"
+$validationReportPath = Join-Path $platformRoot "scripts/platform/New-DDDAValidationReport.ps1"
+$platformCiPath = Join-Path $platformRoot ".github/workflows/platform-ci.yml"
+$secondaryCiPath = Join-Path $platformRoot ".github/workflows/validate-ddda.yml"
+$remoteBrokerPath = Join-Path $platformRoot ".github/workflows/assistant-command.yml"
 $releaseScopeCollectorPath = Join-Path $platformRoot "scripts/platform/Test-DDDAReleaseScope.py"
 $hrdrSchemaPath = Join-Path $platformRoot "schemas/human-release-decision.schema.json"
 $githubSupportPath = Join-Path $platformRoot "scripts/platform/DDDAGitHubSupport.ps1"
@@ -28,7 +48,7 @@ $gateCommandPath = Join-Path $platformRoot "scripts/Complete-DDDALifecycleStep.p
 $enginePath = Join-Path $platformRoot "runtime/steering/ddda_steering/engine.py"
 $gateSchemaPath = Join-Path $platformRoot "schemas/gate-status.schema.json"
 
-foreach ($path in @($entryPath, $governedMergePath, $governedPromotionPath, $promotionPath, $releaseGovernanceSupportPath, $releaseScopeCollectorPath, $hrdrSchemaPath, $githubSupportPath, $platformSupportPath, $changelogPath, $policyPath, $acceptancePath, $gateCommandPath, $enginePath, $gateSchemaPath)) {
+foreach ($path in @($entryPath, $governedMergePath, $governedPromotionPath, $promotionPath, $releaseGovernanceSupportPath, $validatePrPath, $validationReportPath, $platformCiPath, $secondaryCiPath, $remoteBrokerPath, $releaseScopeCollectorPath, $hrdrSchemaPath, $githubSupportPath, $platformSupportPath, $changelogPath, $policyPath, $acceptancePath, $gateCommandPath, $enginePath, $gateSchemaPath)) {
     Assert-True -Condition (Test-Path -LiteralPath $path -PathType Leaf) -Message "Chybí merge/promotion nebo gate kontrakt: $path"
 }
 
@@ -37,6 +57,11 @@ $governedMerge = Get-Content -LiteralPath $governedMergePath -Raw -Encoding UTF8
 $governedPromotion = Get-Content -LiteralPath $governedPromotionPath -Raw -Encoding UTF8
 $promotion = Get-Content -LiteralPath $promotionPath -Raw -Encoding UTF8
 $releaseGovernanceSupport = Get-Content -LiteralPath $releaseGovernanceSupportPath -Raw -Encoding UTF8
+$validatePr = Get-Content -LiteralPath $validatePrPath -Raw -Encoding UTF8
+$validationReport = Get-Content -LiteralPath $validationReportPath -Raw -Encoding UTF8
+$platformCi = Get-Content -LiteralPath $platformCiPath -Raw -Encoding UTF8
+$secondaryCi = Get-Content -LiteralPath $secondaryCiPath -Raw -Encoding UTF8
+$remoteBroker = Get-Content -LiteralPath $remoteBrokerPath -Raw -Encoding UTF8
 $releaseScopeCollector = Get-Content -LiteralPath $releaseScopeCollectorPath -Raw -Encoding UTF8
 $hrdrSchema = Get-Content -LiteralPath $hrdrSchemaPath -Raw -Encoding UTF8
 $githubSupport = Get-Content -LiteralPath $githubSupportPath -Raw -Encoding UTF8
@@ -50,6 +75,7 @@ $gateSchema = Get-Content -LiteralPath $gateSchemaPath -Raw -Encoding UTF8
 
 . $platformSupportPath
 . $githubSupportPath
+. $releaseGovernanceSupportPath
 
 # Issue #9: root CLI must expose separate implementation merge and release promotion boundaries.
 Assert-True -Condition ($entry -match 'ValidateSet\("doctor",\s*"test",\s*"validate-pr",\s*"merge-pr",\s*"review-pr",\s*"promote-pr"\)') -Message "Root CLI nepublikuje oddělený merge-pr + review-pr + promote-pr contract."
@@ -57,6 +83,8 @@ Assert-True -Condition ($entry -match 'Invoke-DDDAGovernedMergePr\.ps1') -Messag
 Assert-True -Condition ($entry -match 'Invoke-DDDAGovernedPromotePr\.ps1') -Message "Root CLI obchází governed release promotion wrapper."
 Assert-True -Condition ($entry -match '\[switch\]\$ConfirmMerge') -Message "Root CLI nemá explicitní ConfirmMerge."
 Assert-True -Condition ($entry -match '\[switch\]\$DryRun') -Message "Root CLI nemá DryRun."
+Assert-True -Condition ($entry -match 'PackageArtifactName') -Message "Root CLI nepředává canonical artifact identity do validate-pr."
+Assert-True -Condition ($entry -match 'ValidationReportPath') -Message "Root CLI nepředává přenositelnou validation evidence do merge-pr."
 Assert-True -Condition ([bool]$policy.require_explicit_confirmation) -Message "Development policy nevyžaduje explicitní confirmation."
 Assert-True -Condition ($policy.merge_method -in @("squash", "merge", "rebase")) -Message "Development policy má nepodporovaný merge method."
 Assert-True -Condition (@($policy.required_documents).Count -ge 3) -Message "Development policy nemá povinné governance dokumenty."
@@ -76,6 +104,8 @@ Assert-True -Condition ($governedMerge -match 'Get-DDDAHumanPrReviewComments') -
 Assert-True -Condition ($governedMerge -match 'candidate_package_sha256') -Message "merge-pr neváže Human Review na candidate package hash."
 Assert-True -Condition ($governedMerge -match 'reviewed_sha') -Message "merge-pr neváže Human Review na exact PR SHA."
 Assert-True -Condition ($governedMerge -match 'verdict[^\r\n]+pass') -Message "merge-pr nevyžaduje Human Review PASS."
+Assert-True -Condition ($governedMerge -match '"repos/\{0\}/contents/\{1\}\?ref=\{2\}"\s+-f\s+\$repositorySlug,\s*\$relative,\s*\$headSha') -Message "merge-pr musí sestavit contents API URL bez PowerShell variable-name ambiguity."
+Assert-True -Condition ($governedMerge -notmatch '\$relative\?ref') -Message "merge-pr nesmí interpretovat query delimiter jako součást názvu proměnné."
 Assert-True -Condition ($governedMerge -match '-HeadSha\s+\$headSha') -Message "merge-pr nechrání GitHub merge exact head SHA."
 Assert-True -Condition ($governedMerge -match 'Release Scope Gate:\s+NOT APPLICABLE') -Message "merge-pr nedeklaruje Release Scope Gate jako N/A na implementation boundary."
 Assert-True -Condition ($governedMerge -notmatch 'Get-DDDAHrdrComments') -Message "merge-pr nesmí vyžadovat HRDR."
@@ -87,6 +117,109 @@ Assert-True -Condition ($governedMerge -notmatch '@\("tag"') -Message "merge-pr 
 Assert-True -Condition ($releaseGovernanceSupport -match 'ddda:human-pr-review:v1') -Message "Governance support nemá stabilní Human Review marker."
 Assert-True -Condition ($releaseGovernanceSupport -match 'Get-DDDAHumanPrReviewComments') -Message "Governance support neumí načíst Human Review evidence."
 Assert-True -Condition ($releaseGovernanceSupport -notmatch 'Set-DDDAHumanPrReview') -Message "Automation support nesmí publikovat Human Review PASS setter."
+
+# Issue #88 regression: REST JSON arrays must be materialized before marker and
+# author extraction; only user.login is canonical and display name is ignored.
+$humanComment = [pscustomobject]@{
+    body = '<!-- ddda:human-pr-review:v1 -->'
+    user = [pscustomobject]@{
+        login = 'romanhlavac'
+        name = 'romanhlavac'
+        type = 'User'
+    }
+}
+$humanReview = [pscustomobject]@{ reviewer = 'romanhlavac' }
+$canonicalLogin = Assert-DDDAHumanPrReviewCommentProvenance -Comment $humanComment -Review $humanReview
+Assert-True -Condition ($canonicalLogin -eq 'romanhlavac') -Message "Canonical Human Review author musí být pouze GitHub user.login."
+Assert-True -Condition ($canonicalLogin -notmatch '\s') -Message "Display name nesmí být concatenován do canonical GitHub loginu."
+
+$missingLoginComment = [pscustomobject]@{ user = [pscustomobject]@{ name = 'romanhlavac'; type = 'User' } }
+Assert-Throws -Action {
+    Assert-DDDAHumanPrReviewCommentProvenance -Comment $missingLoginComment -Review $humanReview
+} -Message "Chybějící Human Review user.login musí failnout closed."
+
+$ambiguousLoginComment = [pscustomobject]@{
+    user = [pscustomobject]@{ login = @('romanhlavac', 'other-user'); name = 'romanhlavac'; type = 'User' }
+}
+Assert-Throws -Action {
+    Assert-DDDAHumanPrReviewCommentProvenance -Comment $ambiguousLoginComment -Review $humanReview
+} -Message "Víceznačný Human Review user.login musí failnout closed."
+
+$botComment = [pscustomobject]@{ user = [pscustomobject]@{ login = 'reviewer[bot]'; name = 'Reviewer'; type = 'Bot' } }
+Assert-Throws -Action {
+    Assert-DDDAHumanPrReviewCommentProvenance -Comment $botComment -Review ([pscustomobject]@{ reviewer = 'reviewer[bot]' })
+} -Message "Bot Human Review author musí failnout closed."
+
+Assert-Throws -Action {
+    Assert-DDDAHumanPrReviewCommentProvenance -Comment $humanComment -Review ([pscustomobject]@{ reviewer = 'other-user' })
+} -Message "Human Review reviewer/user.login mismatch musí failnout closed."
+
+$reviewMarker = '<!-- ddda:human-pr-review:v1 -->'
+$script:humanReviewCommentApiResponse = @(
+    $humanComment,
+    [pscustomobject]@{
+        body = '<!-- ddda:human-pr-review-duplicate:v1 --> non-authoritative ddda:human-pr-review:v1'
+        user = [pscustomobject]@{ login = 'romanhlavac'; name = 'romanhlavac'; type = 'User' }
+    },
+    [pscustomobject]@{
+        body = '<!-- ddda:human-pr-review-superseded:v1 --> historical record'
+        user = [pscustomobject]@{ login = 'romanhlavac'; name = 'romanhlavac'; type = 'User' }
+    }
+)
+$originalGitHubApi = (Get-Command Invoke-DDDAGitHubApi).ScriptBlock
+try {
+    Set-Item -Path Function:Invoke-DDDAGitHubApi -Value {
+        param($Method, $Path, $Token, $Body)
+        Write-Output -NoEnumerate $script:humanReviewCommentApiResponse
+    }
+    $selectedHumanComments = @(Get-DDDAHumanPrReviewComments -RepositorySlug 'romanhlavac/ddd-accelerator' -Pr 92 -Token 'test-only')
+}
+finally {
+    Set-Item -Path Function:Invoke-DDDAGitHubApi -Value $originalGitHubApi
+}
+Assert-True -Condition ($selectedHumanComments.Count -eq 1) -Message "Právě jeden authoritative Human Review marker musí projít selection."
+Assert-True -Condition ($selectedHumanComments[0].body -eq $reviewMarker) -Message "Duplicate/superseded Human Review marker musí být ignorován."
+Assert-True -Condition ($releaseGovernanceSupport -match '\$response\s*=\s*Invoke-DDDAGitHubApi[\s\S]+?\$batch\s*=\s*@\(\$response\)') -Message "GitHub Issues Comments REST array musí být materializován před iterací."
+
+# Issue #88: one exact-SHA validation decision must preserve one canonical candidate identity.
+Assert-True -Condition ($validatePr -match '\[string\]\$PackagePath') -Message "validate-pr nemá řízený PackagePath input."
+Assert-True -Condition (([regex]::Matches($validatePr, 'New-DDDAPlatformPackage\.ps1')).Count -eq 1) -Message "validate-pr obsahuje více než jednu package build cestu."
+Assert-True -Condition ($validatePr -match 'if\s*\(\[string\]::IsNullOrWhiteSpace\(\$PackagePath\)\)') -Message "validate-pr neomezuje package build pouze na chybějící PackagePath."
+Assert-True -Condition ($validatePr -match 'ExpectedCommit[^\r\n]+\$headSha') -Message "validate-pr neověřuje source_commit předaného package."
+Assert-True -Condition ($validatePr -match 'ExpectedKind[^\r\n]+candidate') -Message "validate-pr neověřuje kind=candidate."
+Assert-True -Condition ($validationReport -match 'PackageArtifactName' -and $validationReport -match 'WorkflowRunId') -Message "Validation report neuchovává canonical artifact/run identity."
+Assert-True -Condition ($validationReport -match 'PortablePaths') -Message "Validation report neumí odstranit runner-local cesty z publikované evidence."
+Assert-True -Condition ($releaseGovernanceSupport -match '\[string\]\$ValidationReportPath' -and $releaseGovernanceSupport -match '\[string\]\$PackagePath') -Message "Merge evidence resolver neumí explicitní artifact/report z čistého runneru."
+Assert-True -Condition ($governedMerge -match 'ExpectedCommit[^\r\n]+\$headSha' -and $governedMerge -match 'ExpectedKind[^\r\n]+candidate') -Message "merge-pr znovu neověřuje candidate kind/source_commit."
+Assert-True -Condition ($platformCi -match '(?s)validate-pr-command:\s+name: One-command PR validation\s+needs: validate-platform') -Message "validate-pr-command nezávisí na canonical package jobu."
+Assert-True -Condition ($platformCi -match 'Download canonical candidate package') -Message "validate-pr-command nestahuje canonical candidate artifact."
+Assert-True -Condition ($platformCi -match '-PackagePath \$packages\[0\]\.FullName') -Message "CI nepředává stažený canonical package do validate-pr."
+Assert-True -Condition ($platformCi -match '\$version = ''candidate\.''' -and $platformCi -notmatch '\$version = ''ci\.''' ) -Message "Candidate metadata není stabilně odvozeno pouze z exact SHA."
+Assert-True -Condition ($secondaryCi -notmatch 'New-DDDAPlatformPackage\.ps1') -Message "Sekundární CI workflow nesmí vytvářet nezávislý candidate package."
+$workflowCandidateBuilders = @(
+    Get-ChildItem -LiteralPath (Join-Path $platformRoot '.github/workflows') -Filter '*.yml' -File |
+        Select-String -Pattern 'New-DDDAPlatformPackage\.ps1'
+)
+Assert-True -Condition ($workflowCandidateBuilders.Count -eq 1 -and $workflowCandidateBuilders[0].Path -eq $platformCiPath) -Message "Repository musí mít právě jeden CI candidate builder v canonical platform workflow."
+$humanReadinessJob = [regex]::Match($platformCi, '(?ms)^  human-review-readiness:\r?\n(?<body>.*?)(?=^  governed-merge-dry-run:)')
+$mergeDryRunJob = [regex]::Match($platformCi, '(?ms)^  governed-merge-dry-run:\r?\n(?<body>.*)\z')
+Assert-True -Condition $humanReadinessJob.Success -Message "Standard CI nemá samostatný Human Review readiness coordinator."
+Assert-True -Condition $mergeDryRunJob.Success -Message "Standard CI nemá samostatný governed merge dry-run job."
+$humanReadinessBody = $humanReadinessJob.Groups['body'].Value
+$mergeDryRunBody = $mergeDryRunJob.Groups['body'].Value
+Assert-True -Condition ($humanReadinessBody -match 'name: Human Review readiness') -Message "Readiness coordinator není jednoznačně pojmenovaný."
+Assert-True -Condition ($humanReadinessBody -match 'ready:\s+\$\{\{\s*steps\.human-review\.outputs\.ready\s*\}\}') -Message "Readiness coordinator nepublikuje machine-readable ready output."
+Assert-True -Condition ($humanReadinessBody -match 'PENDING.+Governed merge dry-run.+NOT_RUN') -Message "Pre-HR stav není explicitně reportován jako PENDING / NOT_RUN."
+Assert-True -Condition ($humanReadinessBody -notmatch 'ddda\.ps1 merge-pr') -Message "Readiness coordinator nesmí být současně merge preflight."
+Assert-True -Condition ($mergeDryRunBody -match '(?s)needs:.+?- human-review-readiness') -Message "Governed merge dry-run nezávisí na readiness coordinatoru."
+Assert-True -Condition ($mergeDryRunBody -match "if: github\.event_name == 'pull_request' && needs\.human-review-readiness\.outputs\.ready == 'true'") -Message "Governed merge dry-run není na job-level blokovaný Human Review readiness."
+Assert-True -Condition ($mergeDryRunBody -notmatch 'steps\.human-review\.outputs\.ready') -Message "Governed merge dry-run stále používá step-level skip, který může vytvořit false PASS."
+Assert-True -Condition ($mergeDryRunBody -match 'Download exact-run canonical candidate' -and $mergeDryRunBody -match 'Download exact-run validation evidence') -Message "Governed merge dry-run nestahuje exact-run candidate a report."
+Assert-True -Condition ($mergeDryRunBody -match '\.\\ddda\.ps1 merge-pr' -and $mergeDryRunBody -match '-ValidationReportPath \$reports\[0\]\.FullName' -and $mergeDryRunBody -match '-DryRun') -Message "Governed merge dry-run neprovádí skutečný isolated merge-pr -DryRun."
+Assert-True -Condition ($mergeDryRunBody -notmatch 'New-DDDAPlatformPackage\.ps1') -Message "Post-HR merge dry-run nesmí znovu sestavit candidate package."
+Assert-True -Condition ($mergeDryRunBody -match 'packages\.Count -ne 1' -and $mergeDryRunBody -match 'reports\.Count -ne 1') -Message "Artifact resolution není fail-closed pro chybějící/víceznačnou evidence."
+Assert-True -Condition ($remoteBroker -match 'actions: read') -Message "Remote broker nemá read-only přístup k canonical Actions artifactu."
+Assert-True -Condition ($remoteBroker -match 'Download exact-SHA canonical candidate' -and $remoteBroker -match '-PackageWorkflowRunId') -Message "Remote broker stále vytváří nezávislou candidate identity."
 
 # Public release promotion must stay strictly gated before the release executor is reachable.
 $scopeGateMatch = [regex]::Match($governedPromotion, 'release_scope_gate_status[^\r\n]+PASS', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
@@ -170,6 +303,48 @@ Assert-True -Condition ($gateSchema -match 'test_simulation') -Message "Gate sch
 $credential = ConvertFrom-DDDAGitCredential -Text "protocol=https`nhost=github.com`nusername=test-user`npassword=test-token`n"
 Assert-True -Condition ($credential.Username -eq "test-user") -Message "Git credential parser nevrátil username."
 Assert-True -Condition ($credential.Password -eq "test-token") -Message "Git credential parser nevrátil token."
+
+$evidenceRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("ddda-candidate-evidence-" + [guid]::NewGuid().ToString("N"))
+New-Item -ItemType Directory -Path $evidenceRoot -Force | Out-Null
+try {
+    $evidencePr = 88
+    $evidenceSha = "1111111111111111111111111111111111111111"
+    $evidencePackage = Join-Path $evidenceRoot "canonical-candidate.zip"
+    $evidenceReport = Join-Path $evidenceRoot "result.json"
+    Write-DDDAPlatformText -Value "canonical candidate fixture" -Path $evidencePackage
+    $evidenceHash = Get-DDDAPlatformFileHash -Path $evidencePackage
+    Write-DDDAPlatformJson -Path $evidenceReport -Value ([ordered]@{
+        schema_version = 1
+        status = "PASS"
+        source = [ordered]@{ repository = "romanhlavac/ddd-accelerator"; pr = $evidencePr; commit = $evidenceSha }
+        package = [ordered]@{ path = "canonical-candidate.zip"; sha256 = $evidenceHash; artifact_name = "ddda-candidate-$evidenceSha"; workflow_run_id = "123456" }
+    })
+
+    $isolatedEvidence = Get-DDDACandidateValidationEvidence -Pr $evidencePr -HeadSha $evidenceSha -ValidationReportPath $evidenceReport -PackagePath $evidencePackage
+    Assert-True -Condition ($isolatedEvidence.PackageSha256 -eq $evidenceHash) -Message "Isolated evidence resolver neověřil exact candidate hash."
+
+    $mismatchReport = Join-Path $evidenceRoot "mismatch.json"
+    Write-DDDAPlatformJson -Path $mismatchReport -Value ([ordered]@{
+        schema_version = 1
+        status = "PASS"
+        source = [ordered]@{ repository = "romanhlavac/ddd-accelerator"; pr = $evidencePr; commit = $evidenceSha }
+        package = [ordered]@{ path = "canonical-candidate.zip"; sha256 = (("0" * 64) -join "") }
+    })
+    $mismatchRejected = $false
+    try { $null = Get-DDDACandidateValidationEvidence -Pr $evidencePr -HeadSha $evidenceSha -ValidationReportPath $mismatchReport -PackagePath $evidencePackage } catch { $mismatchRejected = $true }
+    Assert-True -Condition $mismatchRejected -Message "Artifact/report hash mismatch nebyl fail-closed."
+
+    $missingRejected = $false
+    try { $null = Get-DDDACandidateValidationEvidence -Pr $evidencePr -HeadSha $evidenceSha -ValidationReportPath $evidenceReport -PackagePath (Join-Path $evidenceRoot "missing.zip") } catch { $missingRejected = $true }
+    Assert-True -Condition $missingRejected -Message "Chybějící canonical artifact nebyl fail-closed."
+
+    $partialInputRejected = $false
+    try { $null = Get-DDDACandidateValidationEvidence -Pr $evidencePr -HeadSha $evidenceSha -ValidationReportPath $evidenceReport } catch { $partialInputRejected = $true }
+    Assert-True -Condition $partialInputRejected -Message "Neúplná isolated evidence nebyla fail-closed."
+}
+finally {
+    Remove-Item -LiteralPath $evidenceRoot -Recurse -Force -ErrorAction SilentlyContinue
+}
 
 $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("ddda-changelog-contract-" + [guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null

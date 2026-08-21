@@ -73,10 +73,13 @@ Broker:
 3. ověří Chat/Work-only execution policy;
 4. ověří actor, same-repository PR a exact head SHA;
 5. vyžaduje úspěšné checky `Platform validation` a `One-command PR validation`;
-6. checkoutne exact SHA;
-7. spustí `ddda.ps1 validate-pr` s REST Miro tokenem pouze v secret-bearing kroku;
-8. zachová review board podle zvoleného scénáře;
-9. publikuje evidence artifact a PR komentář.
+6. fail-closed vybere successful standardní CI run pro exact SHA a právě jeden neexpirovaný `ddda-candidate-<SHA>` artifact;
+7. checkoutne exact SHA a stáhne canonical package do nového runneru;
+8. spustí `ddda.ps1 validate-pr -PackagePath ...` s REST Miro tokenem pouze v secret-bearing kroku; package znovu nesestavuje;
+9. zachová review board podle zvoleného scénáře;
+10. publikuje evidence artifact a PR komentář včetně source workflow run/artifact identity.
+
+Standardní PR workflow analogicky předává stejný candidate do offline `validate-pr-command`. Samostatný `Human Review readiness` coordinator pouze detekuje authoritativní marker a publikuje `ready=true|false`; jeho úspěch není merge-preflight PASS. Dokud marker chybí, dependent `Governed merge dry-run` je `skipped` a evidovaný stav je `NOT_RUN`. Po Human Review se znovu spustí readiness job a jeho dependent dry-run bez nového candidate buildu. Dry-run stáhne candidate artifact a validate-pr report ze stejného runu, vyžaduje právě jeden ZIP a právě jeden `result.json`, přepočítá hash a spustí governed preflight na čistém runneru. Chybějící, expirovaný nebo víceznačný artifact, jiný package kind/source SHA či neshoda report/Human Review skončí fail-closed.
 
 Obecný acceptance může vytvářet izolovaný board, pokud testuje board-lifecycle. PR #8 HVR FAST-LOOP používá persistentní Platform Lab binding a nemá zakládat nový review board pro každý corrective run.
 

@@ -7,17 +7,37 @@ $script:DDDAHumanPrReviewMarker = "<!-- ddda:human-pr-review:v1 -->"
 function Get-DDDACandidateValidationEvidence {
     param(
         [Parameter(Mandatory = $true)][int]$Pr,
-        [Parameter(Mandatory = $true)][string]$HeadSha
+        [Parameter(Mandatory = $true)][string]$HeadSha,
+        [string]$ValidationReportPath,
+        [string]$PackagePath
     )
 
-    $validationRoot = Join-Path (Get-DDDAPlatformStateRoot) ("validation-reports/pr-$Pr-$HeadSha")
-    $validationReports = @()
-    if (Test-Path -LiteralPath $validationRoot) {
-        $validationReports = @(
-            Get-ChildItem -LiteralPath $validationRoot -Filter "result.json" -File -Recurse -ErrorAction SilentlyContinue |
-                Sort-Object LastWriteTimeUtc -Descending
-        )
+    $hasReportPath = -not [string]::IsNullOrWhiteSpace($ValidationReportPath)
+    $hasPackagePath = -not [string]::IsNullOrWhiteSpace($PackagePath)
+    if ($hasReportPath -ne $hasPackagePath) {
+        throw "Isolated candidate evidence vyžaduje současně -ValidationReportPath i -PackagePath."
     }
+
+    $validationReports = @()
+    if ($hasReportPath) {
+        if (-not (Test-Path -LiteralPath $ValidationReportPath -PathType Leaf)) {
+            throw "Validation report neexistuje: $ValidationReportPath"
+        }
+        if (-not (Test-Path -LiteralPath $PackagePath -PathType Leaf)) {
+            throw "Canonical candidate package neexistuje: $PackagePath"
+        }
+        $validationReports = @((Get-Item -LiteralPath $ValidationReportPath))
+    }
+    else {
+        $validationRoot = Join-Path (Get-DDDAPlatformStateRoot) ("validation-reports/pr-$Pr-$HeadSha")
+        if (Test-Path -LiteralPath $validationRoot) {
+            $validationReports = @(
+                Get-ChildItem -LiteralPath $validationRoot -Filter "result.json" -File -Recurse -ErrorAction SilentlyContinue |
+                    Sort-Object LastWriteTimeUtc -Descending
+            )
+        }
+    }
+
     if ($validationReports.Count -eq 0) {
         throw "Nenalezen PASS validate-pr report pro PR #$Pr a SHA $HeadSha."
     }
@@ -32,19 +52,32 @@ function Get-DDDACandidateValidationEvidence {
         ) {
             continue
         }
-        $packagePath = [string]$candidateReport.package.path
-        if (-not (Test-Path -LiteralPath $packagePath -PathType Leaf)) {
+        $candidatePackagePath = if ($hasPackagePath) {
+            (Resolve-Path -LiteralPath $PackagePath).Path
+        }
+        else {
+            $reportedPath = [string]$candidateReport.package.path
+            if ([System.IO.Path]::IsPathRooted($reportedPath)) {
+                $reportedPath
+            }
+            else {
+                Join-Path $candidate.Directory.FullName $reportedPath
+            }
+        }
+        if (-not (Test-Path -LiteralPath $candidatePackagePath -PathType Leaf)) {
             continue
         }
-        $actualHash = Get-DDDAPlatformFileHash -Path $packagePath
+        $actualHash = Get-DDDAPlatformFileHash -Path $candidatePackagePath
         if ($actualHash -ne [string]$candidateReport.package.sha256) {
-            throw "Candidate package hash neodpovídá validation reportu: $packagePath"
+            throw "Canonical candidate package hash neodpovídá validation reportu: $candidatePackagePath"
         }
         return [pscustomobject]@{
             ReportPath = $candidate.FullName
             Report = $candidateReport
-            PackagePath = $packagePath
+            PackagePath = $candidatePackagePath
             PackageSha256 = $actualHash
+            ArtifactName = if ($candidateReport.package.PSObject.Properties.Name -contains "artifact_name") { [string]$candidateReport.package.artifact_name } else { "" }
+            WorkflowRunId = if ($candidateReport.package.PSObject.Properties.Name -contains "workflow_run_id") { [string]$candidateReport.package.workflow_run_id } else { "" }
         }
     }
     throw "Žádný validation report nemá PASS pro aktuální PR head SHA $HeadSha a validní candidate package."
@@ -97,7 +130,8 @@ function Get-DDDAHrdrComments {
 
     $matches = [System.Collections.Generic.List[object]]::new()
     for ($page = 1; ; $page++) {
-        $batch = @(Invoke-DDDAGitHubApi -Method GET -Path "repos/$RepositorySlug/issues/$Pr/comments?per_page=100&page=$page" -Token $Token)
+        $response = Invoke-DDDAGitHubApi -Method GET -Path "repos/$RepositorySlug/issues/$Pr/comments?per_page=100&page=$page" -Token $Token
+        $batch = @($response)
         foreach ($comment in $batch) {
             if ([string]$comment.body -like "*$script:DDDAHrdrMarker*") {
                 $matches.Add($comment)
@@ -117,7 +151,12 @@ function Get-DDDAHumanPrReviewComments {
 
     $matches = [System.Collections.Generic.List[object]]::new()
     for ($page = 1; ; $page++) {
-        $batch = @(Invoke-DDDAGitHubApi -Method GET -Path "repos/$RepositorySlug/issues/$Pr/comments?per_page=100&page=$page" -Token $Token)
+        # Invoke-RestMethod intentionally returns a JSON array as one pipeline
+        # object. Assign it first and only then materialize its items; wrapping
+        # the command directly in @() preserves a nested Object[] and causes
+        # PowerShell member enumeration to concatenate all comment authors.
+        $response = Invoke-DDDAGitHubApi -Method GET -Path "repos/$RepositorySlug/issues/$Pr/comments?per_page=100&page=$page" -Token $Token
+        $batch = @($response)
         foreach ($comment in $batch) {
             if ([string]$comment.body -like "*$script:DDDAHumanPrReviewMarker*") {
                 $matches.Add($comment)
@@ -126,6 +165,44 @@ function Get-DDDAHumanPrReviewComments {
         if ($batch.Count -lt 100) { break }
     }
     return @($matches)
+}
+
+function Assert-DDDAHumanPrReviewCommentProvenance {
+    param(
+        [Parameter(Mandatory = $true)][object]$Comment,
+        [Parameter(Mandatory = $true)][object]$Review
+    )
+
+    $users = @($Comment.user)
+    if ($users.Count -ne 1) {
+        throw "Human Review comment nemá právě jednu GitHub user identity."
+    }
+
+    $logins = @($users[0].login)
+    if ($logins.Count -ne 1 -or [string]::IsNullOrWhiteSpace([string]$logins[0])) {
+        throw "Human Review comment nemá právě jeden neprázdný canonical GitHub user.login."
+    }
+    $commentAuthor = [string]$logins[0]
+
+    $authorTypes = @($users[0].type)
+    if (
+        $authorTypes.Count -ne 1 -or
+        [string]::IsNullOrWhiteSpace([string]$authorTypes[0]) -or
+        [string]$authorTypes[0] -eq "Bot" -or
+        $commentAuthor -match '\[bot\]$'
+    ) {
+        throw "Human Review musí mít lidskou GitHub provenance."
+    }
+
+    $reviewers = @($Review.reviewer)
+    if ($reviewers.Count -ne 1 -or [string]::IsNullOrWhiteSpace([string]$reviewers[0])) {
+        throw "Human Review nemá právě jednoho neprázdného reviewer login."
+    }
+    if ([string]$reviewers[0] -ne $commentAuthor) {
+        throw "Human Review reviewer '$([string]$reviewers[0])' neodpovídá human comment authorovi '$commentAuthor'."
+    }
+
+    return $commentAuthor
 }
 
 function ConvertFrom-DDDAHrdrComment {

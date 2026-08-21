@@ -6,6 +6,7 @@ on:
       - created
 
 permissions:
+  actions: read
   contents: write
   issues: write
   pull-requests: read
@@ -103,6 +104,52 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Download exact-SHA canonical candidate
+        if: steps.authorization.outputs.action == 'validate-pr'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $headers = @{
+            Authorization = "Bearer $env:GH_TOKEN"
+            Accept = 'application/vnd.github+json'
+            'X-GitHub-Api-Version' = '2022-11-28'
+          }
+          $runsUri = "https://api.github.com/repos/$env:REPOSITORY/actions/workflows/platform-ci.yml/runs?event=pull_request&status=success&head_sha=$env:HEAD_SHA&per_page=100"
+          $runs = Invoke-RestMethod -Method Get -Uri $runsUri -Headers $headers
+          $selected = $null
+          foreach ($run in @($runs.workflow_runs | Sort-Object created_at -Descending)) {
+            $artifactsUri = "https://api.github.com/repos/$env:REPOSITORY/actions/runs/$($run.id)/artifacts?per_page=100"
+            $artifacts = Invoke-RestMethod -Method Get -Uri $artifactsUri -Headers $headers
+            $name = 'ddda-candidate-' + $env:HEAD_SHA
+            $matches = @($artifacts.artifacts | Where-Object { $_.name -eq $name -and -not $_.expired })
+            if ($matches.Count -gt 1) {
+              throw "Workflow run $($run.id) obsahuje více canonical candidate artifacts pro exact SHA."
+            }
+            if ($matches.Count -eq 1) {
+              $selected = [pscustomobject]@{ Run = $run; Artifact = $matches[0] }
+              break
+            }
+          }
+          if ($null -eq $selected) {
+            throw "Nenalezen dostupný canonical candidate artifact ze successful platform CI pro exact SHA $env:HEAD_SHA."
+          }
+          $downloadRoot = Join-Path $env:RUNNER_TEMP 'canonical-candidate'
+          $outerZip = Join-Path $env:RUNNER_TEMP 'canonical-candidate-artifact.zip'
+          New-Item -ItemType Directory -Path $downloadRoot -Force | Out-Null
+          Invoke-WebRequest -Method Get -Uri ([string]$selected.Artifact.archive_download_url) -Headers $headers -OutFile $outerZip
+          Expand-Archive -LiteralPath $outerZip -DestinationPath $downloadRoot -Force
+          $packages = @(Get-ChildItem -LiteralPath $downloadRoot -Filter '*.zip' -File -Recurse)
+          if ($packages.Count -ne 1) {
+            throw "Canonical candidate artifact musí obsahovat právě jeden package; nalezeno: $($packages.Count)."
+          }
+          "CANONICAL_PACKAGE_PATH=$($packages[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "CANONICAL_PACKAGE_ARTIFACT=$([string]$selected.Artifact.name)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "CANONICAL_PACKAGE_ARTIFACT_ID=$([string]$selected.Artifact.id)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "CANONICAL_PACKAGE_RUN_ID=$([string]$selected.Run.id)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
       - name: Run remote validate-pr and online acceptance
         id: validate
         if: steps.authorization.outputs.action == 'validate-pr'
@@ -117,6 +164,9 @@ jobs:
           }
           .\ddda.ps1 validate-pr `
             -Pr ([int]$env:PR_NUMBER) `
+            -PackagePath $env:CANONICAL_PACKAGE_PATH `
+            -PackageArtifactName $env:CANONICAL_PACKAGE_ARTIFACT `
+            -PackageWorkflowRunId $env:CANONICAL_PACKAGE_RUN_ID `
             -WithMiro `
             -Full `
             -KeepReviewBoard `
@@ -208,6 +258,8 @@ jobs:
             authorized_sha = '${{ steps.pr.outputs.head_sha }}'
             action = '${{ steps.authorization.outputs.action }}'
             run_id = $env:GITHUB_RUN_ID
+            canonical_candidate_workflow_run_id = $env:CANONICAL_PACKAGE_RUN_ID
+            canonical_candidate_artifact_id = $env:CANONICAL_PACKAGE_ARTIFACT_ID
           } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $target 'request.json') -Encoding UTF8
 
       - name: Upload execution evidence

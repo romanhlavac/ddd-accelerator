@@ -2,6 +2,8 @@
 param(
     [string]$PlatformPath = (Resolve-Path (Join-Path $PSScriptRoot "../..")).Path,
     [Parameter(Mandatory = $true)][ValidateRange(1, 2147483647)][int]$Pr,
+    [string]$PackagePath,
+    [string]$ValidationReportPath,
     [ValidateSet("merge", "squash")][string]$MergeMethod,
     [switch]$ConfirmMerge,
     [switch]$DryRun
@@ -57,7 +59,13 @@ if ($headSha -notmatch '^[0-9a-f]{40}$') {
 }
 
 try {
-    $checkSummary = Assert-DDDAGitHubChecksPassed -RepositorySlug $repositorySlug -Commit $headSha -Token $githubAuth.Token
+    $ignoredCheckRunNames = if ($DryRun -and -not [string]::IsNullOrWhiteSpace([string]$env:DDDA_CURRENT_CHECK_NAME)) {
+        @([string]$env:DDDA_CURRENT_CHECK_NAME)
+    }
+    else {
+        @()
+    }
+    $checkSummary = Assert-DDDAGitHubChecksPassed -RepositorySlug $repositorySlug -Commit $headSha -Token $githubAuth.Token -IgnoredCheckRunNames $ignoredCheckRunNames
 }
 catch {
     throw "CI kontroly PR #$Pr nejsou všechny PASS:`n$($_.Exception.Message)"
@@ -72,22 +80,24 @@ if ($minimumApprovals -gt 0) {
     }
 }
 
-$validation = Get-DDDACandidateValidationEvidence -Pr $Pr -HeadSha $headSha
+$validationArguments = @{
+    Pr = $Pr
+    HeadSha = $headSha
+}
+if (-not [string]::IsNullOrWhiteSpace($PackagePath)) { $validationArguments["PackagePath"] = $PackagePath }
+if (-not [string]::IsNullOrWhiteSpace($ValidationReportPath)) { $validationArguments["ValidationReportPath"] = $ValidationReportPath }
+$validation = Get-DDDACandidateValidationEvidence @validationArguments
+Invoke-DDDAPlatformChildPowerShell -ScriptPath (Join-Path $platformRoot "scripts/platform/Test-DDDAPlatformPackage.ps1") -Arguments @(
+    "-PackagePath", [string]$validation.PackagePath,
+    "-ExpectedCommit", $headSha,
+    "-ExpectedKind", "candidate"
+) -SuppressOutput
 
 $reviewComments = @(Get-DDDAHumanPrReviewComments -RepositorySlug $repositorySlug -Pr $Pr -Token $githubAuth.Token)
 if ($reviewComments.Count -ne 1) {
     throw "Governed implementation merge vyžaduje právě jeden authoritativní Human Review marker. Nalezeno: $($reviewComments.Count)."
 }
 $reviewComment = $reviewComments[0]
-$commentAuthor = [string]$reviewComment.user.login
-$commentAuthorType = [string]$reviewComment.user.type
-if (
-    [string]::IsNullOrWhiteSpace($commentAuthor) -or
-    $commentAuthorType -eq "Bot" -or
-    $commentAuthor -match '\[bot\]$'
-) {
-    throw "Human Review musí mít lidskou GitHub provenance."
-}
 $review = ConvertFrom-DDDAHumanPrReviewComment -Comment $reviewComment
 if ([int]$review.schema_version -ne 1 -or [string]$review.kind -ne "implementation_pr_review") {
     throw "Human Review má nepodporovaný contract."
@@ -101,9 +111,7 @@ if ([string]$review.reviewed_sha -ne $headSha) {
 if ([string]$review.candidate_package_sha256 -ne [string]$validation.PackageSha256) {
     throw "Human Review candidate package hash neodpovídá exact-SHA validate-pr evidence."
 }
-if ([string]$review.reviewer -ne $commentAuthor) {
-    throw "Human Review reviewer '$([string]$review.reviewer)' neodpovídá human comment authorovi '$commentAuthor'."
-}
+$commentAuthor = Assert-DDDAHumanPrReviewCommentProvenance -Comment $reviewComment -Review $review
 if ([string]$review.verdict -ne "pass") {
     throw "Human Review není PASS. verdict=$([string]$review.verdict)"
 }
@@ -116,7 +124,7 @@ if (-not [DateTimeOffset]::TryParse([string]$review.reviewed_at, [ref]$reviewedA
 }
 
 foreach ($relative in @($policy.required_documents)) {
-    $contentsPath = "repos/$repositorySlug/contents/$relative?ref=$headSha"
+    $contentsPath = "repos/{0}/contents/{1}?ref={2}" -f $repositorySlug, $relative, $headSha
     try {
         $null = Invoke-DDDAGitHubApi -Method GET -Path $contentsPath -Token $githubAuth.Token
     }

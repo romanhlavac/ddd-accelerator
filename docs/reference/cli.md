@@ -40,6 +40,9 @@ all
 
 Volitelné parametry:
 
+- `-PackagePath` — použije předem sestavený canonical candidate; nový package se nevytvoří;
+- `-PackageArtifactName` — uloží přenositelnou GitHub Actions artifact identity do reportu;
+- `-PackageWorkflowRunId` — sváže report se source workflow runem candidate artifactu;
 - `-WithMiro` — přidá online Miro acceptance;
 - `-Full` — plný Miro smoke rozsah;
 - `-CleanupOnFailure` — uklidí failed test resource podle ownership policy;
@@ -47,6 +50,8 @@ Volitelné parametry:
 - `-NonInteractive` — nepovolí prompt pro chybějící secret.
 
 Příkaz testuje exact PR head SHA, candidate package a generovaný example workspace. Aktivní větev a working tree nemění.
+
+Při `-PackagePath` musí ZIP mít `kind=candidate` a `source_commit` shodný s current PR HEAD. Report obsahuje nově přepočítaný hash tohoto souboru a nesmí obsahovat runner-local absolutní cestu.
 
 ### Merge PR
 
@@ -76,6 +81,8 @@ Skutečný merge:
 - explicitní `-ConfirmMerge` pro actual merge.
 
 `merge-pr` je **merge-only**. Nečte HRDR, nevyhodnocuje Release Scope Gate a nevytváří release package, release validation ani tag.
+
+Na čistém runneru lze evidence předat explicitně pomocí `-PackagePath <downloaded.zip> -ValidationReportPath <result.json>`. Oba vstupy jsou povinný pár; reportovaná stará cesta se v tomto režimu nepoužívá.
 
 ### Review PR / HRDR scaffold
 
