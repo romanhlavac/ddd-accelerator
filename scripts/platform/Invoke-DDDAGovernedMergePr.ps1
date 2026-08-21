@@ -124,7 +124,7 @@ if (-not [DateTimeOffset]::TryParse([string]$review.reviewed_at, [ref]$reviewedA
 }
 
 foreach ($relative in @($policy.required_documents)) {
-    $contentsPath = "repos/$repositorySlug/contents/$relative?ref=$headSha"
+    $contentsPath = "repos/{0}/contents/{1}?ref={2}" -f $repositorySlug, $relative, $headSha
     try {
         $null = Invoke-DDDAGitHubApi -Method GET -Path $contentsPath -Token $githubAuth.Token
     }

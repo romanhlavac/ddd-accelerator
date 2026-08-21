@@ -22,6 +22,7 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 ### Fixed
 
+- governed `merge-pr` nyní sestavuje GitHub Contents API URL bez PowerShell variable-name ambiguity mezi cestou dokumentu a `?ref` query, takže isolated post-Human-Review dry-run ověří povinné dokumenty na exact PR SHA;
 - Human Review provenance nyní materializuje GitHub Issues Comments REST pole před marker selection a porovnává reviewer výhradně s jediným canonical `user.login`; display name se neconcatenatuje a chybějící, víceznačný nebo botí autor failuje closed;
 - exact-SHA PR governance nyní používá jeden canonical candidate artifact napříč platform CI, `validate-pr`, remote brokerem, validation reportem, Human Review a isolated `merge-pr -DryRun`; paralelní rebuildy, runner-local evidence paths a chybějící či víceznačné artifact identity failují closed;
 - pre-HR merge orchestrace nyní odděluje `Human Review readiness` od skutečného `Governed merge dry-run`; bez Human Review je dry-run `skipped`/`NOT_RUN` a `success` může vzniknout pouze po provedeném `merge-pr -DryRun` nad existujícím exact-run candidate/reportem;

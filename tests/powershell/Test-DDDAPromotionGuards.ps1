@@ -104,6 +104,8 @@ Assert-True -Condition ($governedMerge -match 'Get-DDDAHumanPrReviewComments') -
 Assert-True -Condition ($governedMerge -match 'candidate_package_sha256') -Message "merge-pr neváže Human Review na candidate package hash."
 Assert-True -Condition ($governedMerge -match 'reviewed_sha') -Message "merge-pr neváže Human Review na exact PR SHA."
 Assert-True -Condition ($governedMerge -match 'verdict[^\r\n]+pass') -Message "merge-pr nevyžaduje Human Review PASS."
+Assert-True -Condition ($governedMerge -match '"repos/\{0\}/contents/\{1\}\?ref=\{2\}"\s+-f\s+\$repositorySlug,\s*\$relative,\s*\$headSha') -Message "merge-pr musí sestavit contents API URL bez PowerShell variable-name ambiguity."
+Assert-True -Condition ($governedMerge -notmatch '\$relative\?ref') -Message "merge-pr nesmí interpretovat query delimiter jako součást názvu proměnné."
 Assert-True -Condition ($governedMerge -match '-HeadSha\s+\$headSha') -Message "merge-pr nechrání GitHub merge exact head SHA."
 Assert-True -Condition ($governedMerge -match 'Release Scope Gate:\s+NOT APPLICABLE') -Message "merge-pr nedeklaruje Release Scope Gate jako N/A na implementation boundary."
 Assert-True -Condition ($governedMerge -notmatch 'Get-DDDAHrdrComments') -Message "merge-pr nesmí vyžadovat HRDR."
