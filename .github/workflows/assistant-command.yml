@@ -5,29 +5,36 @@ on:
     types:
       - created
 
-permissions:
-  actions: read
-  contents: write
-  issues: write
-  pull-requests: read
-  checks: read
-
 concurrency:
   group: ddda-remote-${{ github.event.issue.number }}
   cancel-in-progress: false
 
 jobs:
-  execute:
+  authorize:
     if: >-
       github.event.issue.pull_request &&
       startsWith(github.event.comment.body, '/ddda ')
     runs-on: windows-latest
-    timeout-minutes: 150
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: read
     env:
       REPOSITORY: ${{ github.repository }}
       PR_NUMBER: ${{ github.event.issue.number }}
       REQUEST_ACTOR: ${{ github.actor }}
       COMMAND_TEXT: ${{ github.event.comment.body }}
+    outputs:
+      action: ${{ steps.authorization.outputs.action }}
+      expected_sha: ${{ steps.authorization.outputs.expected_sha }}
+      canonical_workflow: ${{ steps.authorization.outputs.canonical_workflow }}
+      reconciliation_source_ref: ${{ steps.authorization.outputs.reconciliation_source_ref }}
+      reconciliation_artifact_prefix: ${{ steps.authorization.outputs.reconciliation_artifact_prefix }}
+      remediation_script: ${{ steps.authorization.outputs.remediation_script }}
+      miro_team_id: ${{ steps.authorization.outputs.miro_team_id }}
+      head_sha: ${{ steps.pr.outputs.head_sha }}
+      head_ref: ${{ steps.pr.outputs.head_ref }}
+      head_repository: ${{ steps.pr.outputs.head_repository }}
 
     steps:
       - name: Checkout trusted broker from default branch
@@ -64,15 +71,39 @@ jobs:
             -Json | Out-String
           $authorization = $json.Trim() | ConvertFrom-Json
           "action=$($authorization.action)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "expected_sha=$($authorization.expected_sha)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "canonical_workflow=$($authorization.canonical_workflow)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "reconciliation_source_ref=$($authorization.reconciliation_source_ref)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "reconciliation_artifact_prefix=$($authorization.reconciliation_artifact_prefix)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           "remediation_script=$($authorization.remediation_script)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           "miro_team_id=$($authorization.miro_team_id)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
+  execute:
+    needs: authorize
+    if: >-
+      needs.authorize.result == 'success' &&
+      (needs.authorize.outputs.action == 'validate-pr' || needs.authorize.outputs.action == 'remediate')
+    runs-on: windows-latest
+    timeout-minutes: 150
+    permissions:
+      actions: read
+      contents: write
+      issues: write
+      pull-requests: read
+      checks: read
+    env:
+      REPOSITORY: ${{ github.repository }}
+      PR_NUMBER: ${{ github.event.issue.number }}
+      REQUEST_ACTOR: ${{ github.actor }}
+      COMMAND_TEXT: ${{ github.event.comment.body }}
+
+    steps:
       - name: Require successful exact-SHA checks before secret-bearing validation
-        if: steps.authorization.outputs.action == 'validate-pr'
+        if: needs.authorize.outputs.action == 'validate-pr'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-          HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
+          HEAD_SHA: ${{ needs.authorize.outputs.head_sha }}
         run: |
           $ErrorActionPreference = 'Stop'
           $checks = gh api -H 'Accept: application/vnd.github+json' "repos/$env:REPOSITORY/commits/$env:HEAD_SHA/check-runs?per_page=100" | ConvertFrom-Json
@@ -88,15 +119,15 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ steps.pr.outputs.head_ref }}
+          ref: ${{ needs.authorize.outputs.head_ref }}
           persist-credentials: false
 
       - name: Verify exact checkout
         shell: pwsh
         run: |
           $actual = (git rev-parse HEAD).Trim()
-          if ($actual -ne '${{ steps.pr.outputs.head_sha }}') {
-            throw "Checkout SHA '$actual' does not match authorized SHA '${{ steps.pr.outputs.head_sha }}'."
+          if ($actual -ne '${{ needs.authorize.outputs.head_sha }}') {
+            throw "Checkout SHA '$actual' does not match authorized SHA '${{ needs.authorize.outputs.head_sha }}'."
           }
 
       - name: Set up Python 3.11
@@ -105,11 +136,11 @@ jobs:
           python-version: "3.11"
 
       - name: Download exact-SHA canonical candidate
-        if: steps.authorization.outputs.action == 'validate-pr'
+        if: needs.authorize.outputs.action == 'validate-pr'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-          HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
+          HEAD_SHA: ${{ needs.authorize.outputs.head_sha }}
         run: |
           $ErrorActionPreference = 'Stop'
           $headers = @{
@@ -152,7 +183,7 @@ jobs:
 
       - name: Run remote validate-pr and online acceptance
         id: validate
-        if: steps.authorization.outputs.action == 'validate-pr'
+        if: needs.authorize.outputs.action == 'validate-pr'
         shell: pwsh
         env:
           MIRO_ACCESS_TOKEN: ${{ secrets.MIRO_ACCESS_TOKEN }}
@@ -170,16 +201,16 @@ jobs:
             -WithMiro `
             -Full `
             -KeepReviewBoard `
-            -MiroTeamId '${{ steps.authorization.outputs.miro_team_id }}' `
+            -MiroTeamId '${{ needs.authorize.outputs.miro_team_id }}' `
             -NonInteractive
 
       - name: Run guarded remediation without push
         id: remediate
-        if: steps.authorization.outputs.action == 'remediate'
+        if: needs.authorize.outputs.action == 'remediate'
         shell: pwsh
         env:
-          AUTHORIZED_HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
-          REMEDIATION_SCRIPT: ${{ steps.authorization.outputs.remediation_script }}
+          AUTHORIZED_HEAD_SHA: ${{ needs.authorize.outputs.head_sha }}
+          REMEDIATION_SCRIPT: ${{ needs.authorize.outputs.remediation_script }}
         run: |
           $ErrorActionPreference = 'Stop'
           git config user.name 'DDDA Remote Remediation'
@@ -212,7 +243,7 @@ jobs:
           "after_sha=$after" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
       - name: Push validated remediation commit
-        if: steps.authorization.outputs.action == 'remediate'
+        if: needs.authorize.outputs.action == 'remediate'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -224,7 +255,7 @@ jobs:
           if ($actual -ne $env:VALIDATED_AFTER_SHA) {
             throw "Validated remediation SHA drifted before push."
           }
-          $targetRef = '${{ steps.pr.outputs.head_ref }}'
+          $targetRef = '${{ needs.authorize.outputs.head_ref }}'
           if ([string]::IsNullOrWhiteSpace($targetRef)) {
             throw 'Resolved PR head ref is empty before remediation push.'
           }
@@ -255,8 +286,8 @@ jobs:
             pr = [int]$env:PR_NUMBER
             actor = $env:REQUEST_ACTOR
             command = $env:COMMAND_TEXT
-            authorized_sha = '${{ steps.pr.outputs.head_sha }}'
-            action = '${{ steps.authorization.outputs.action }}'
+            authorized_sha = '${{ needs.authorize.outputs.head_sha }}'
+            action = '${{ needs.authorize.outputs.action }}'
             run_id = $env:GITHUB_RUN_ID
             canonical_candidate_workflow_run_id = $env:CANONICAL_PACKAGE_RUN_ID
             canonical_candidate_artifact_id = $env:CANONICAL_PACKAGE_ARTIFACT_ID
@@ -282,10 +313,287 @@ jobs:
           $body = @"
           DDDA remote execution: **$env:JOB_STATUS**
 
-          - action: `${{ steps.authorization.outputs.action }}`
-          - authorized SHA: `${{ steps.pr.outputs.head_sha }}`
+          - action: `${{ needs.authorize.outputs.action }}`
+          - authorized SHA: `${{ needs.authorize.outputs.head_sha }}`
           - workflow run: `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`
 
           No merge, tag, release or promotion was performed.
+          "@
+          gh api --method POST "repos/$env:REPOSITORY/issues/$env:PR_NUMBER/comments" -f body="$body" | Out-Null
+
+  reconcile-project:
+    needs: authorize
+    if: >-
+      needs.authorize.result == 'success' &&
+      needs.authorize.outputs.action == 'reconcile-project'
+    runs-on: windows-latest
+    timeout-minutes: 75
+    permissions:
+      actions: write
+      contents: read
+      issues: write
+      pull-requests: read
+    concurrency:
+      group: ddda-project-backlog-reconciliation
+      cancel-in-progress: false
+    env:
+      REPOSITORY: ${{ github.repository }}
+      PR_NUMBER: ${{ github.event.issue.number }}
+      REQUEST_ACTOR: ${{ github.actor }}
+      COMMAND_TEXT: ${{ github.event.comment.body }}
+      AUTHORIZED_PR_SHA: ${{ needs.authorize.outputs.head_sha }}
+      EXPECTED_SHA: ${{ needs.authorize.outputs.expected_sha }}
+      CANONICAL_WORKFLOW: ${{ needs.authorize.outputs.canonical_workflow }}
+      SOURCE_REF: ${{ needs.authorize.outputs.reconciliation_source_ref }}
+      AUDIT_ARTIFACT_PREFIX: ${{ needs.authorize.outputs.reconciliation_artifact_prefix }}
+
+    steps:
+      - name: Dispatch canonical Project reconciliation and verify evidence
+        id: reconcile
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:AUTHORIZED_PR_SHA -ne $env:EXPECTED_SHA) {
+            throw 'Authorized PR SHA no longer matches explicit expected SHA before dispatch.'
+          }
+          if ($env:CANONICAL_WORKFLOW -ne '.github/workflows/reconcile-ddda-project-backlog.yml') {
+            throw 'Only the canonical DDDA Project reconciliation workflow may be dispatched.'
+          }
+          if ($env:SOURCE_REF -ne 'main') {
+            throw 'Project reconciliation source ref must be canonical main.'
+          }
+          $workflowEndpoint = 'reconcile-ddda-project-backlog.yml'
+          $headers = @{
+            Authorization = "Bearer $env:GH_TOKEN"
+            Accept = 'application/vnd.github+json'
+            'X-GitHub-Api-Version' = '2022-11-28'
+          }
+          $maxAttempts = 3
+          $selectedRun = $null
+          $selectedSourceSha = $null
+          $selectedArtifact = $null
+          $auditRemaining = $null
+          $presentationRemaining = $null
+          $releaseRemaining = $null
+
+          function Get-WorkflowRuns {
+            $uri = "https://api.github.com/repos/$env:REPOSITORY/actions/workflows/$workflowEndpoint/runs?event=workflow_dispatch&per_page=100"
+            return Invoke-RestMethod -Method Get -Uri $uri -Headers $headers
+          }
+
+          function Wait-NoActiveReconciliation {
+            for ($i = 0; $i -lt 180; $i++) {
+              $runs = Get-WorkflowRuns
+              $active = @($runs.workflow_runs | Where-Object { $_.status -in @('queued', 'in_progress') })
+              if ($active.Count -eq 0) { return }
+              Start-Sleep -Seconds 10
+            }
+            throw 'Timed out waiting for an existing privileged Project reconciliation to finish.'
+          }
+
+          for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+            Wait-NoActiveReconciliation
+
+            $pr = Invoke-RestMethod -Method Get -Uri "https://api.github.com/repos/$env:REPOSITORY/pulls/$env:PR_NUMBER" -Headers $headers
+            if ([string]$pr.head.sha -ne $env:EXPECTED_SHA) {
+              throw "PR head drifted before dispatch. Expected $env:EXPECTED_SHA, live $($pr.head.sha)."
+            }
+
+            $branch = Invoke-RestMethod -Method Get -Uri "https://api.github.com/repos/$env:REPOSITORY/branches/$env:SOURCE_REF" -Headers $headers
+            $sourceSha = [string]$branch.commit.sha
+            if ($sourceSha -notmatch '^[0-9a-f]{40}$') {
+              throw 'Could not resolve a canonical reconciliation source SHA.'
+            }
+
+            $before = Get-WorkflowRuns
+            $baseline = @{}
+            foreach ($run in @($before.workflow_runs)) { $baseline[[string]$run.id] = $true }
+
+            $dispatchUri = "https://api.github.com/repos/$env:REPOSITORY/actions/workflows/$workflowEndpoint/dispatches"
+            Invoke-RestMethod -Method Post -Uri $dispatchUri -Headers $headers -ContentType 'application/json' -Body (@{ ref = $env:SOURCE_REF } | ConvertTo-Json -Compress) | Out-Null
+
+            $run = $null
+            for ($poll = 0; $poll -lt 90; $poll++) {
+              Start-Sleep -Seconds 4
+              $after = Get-WorkflowRuns
+              $newRuns = @($after.workflow_runs | Where-Object { -not $baseline.ContainsKey([string]$_.id) } | Sort-Object created_at -Descending)
+              if ($newRuns.Count -gt 1) {
+                throw 'More than one new canonical reconciliation run appeared after one dispatch; evidence identity is ambiguous.'
+              }
+              if ($newRuns.Count -eq 1) {
+                $run = $newRuns[0]
+                break
+              }
+            }
+            if ($null -eq $run) {
+              throw 'Canonical Project reconciliation dispatch did not produce a discoverable workflow run.'
+            }
+
+            if ([string]$run.head_sha -ne $sourceSha) {
+              Wait-NoActiveReconciliation
+              if ($attempt -eq $maxAttempts) {
+                throw "Dispatched reconciliation source SHA '$($run.head_sha)' does not match resolved source '$sourceSha'."
+              }
+              continue
+            }
+
+            $runId = [string]$run.id
+            for ($poll = 0; $poll -lt 450; $poll++) {
+              $runState = Invoke-RestMethod -Method Get -Uri "https://api.github.com/repos/$env:REPOSITORY/actions/runs/$runId" -Headers $headers
+              if ([string]$runState.status -eq 'completed') {
+                $run = $runState
+                break
+              }
+              Start-Sleep -Seconds 8
+            }
+            if ([string]$run.status -ne 'completed') {
+              throw "Canonical reconciliation run $runId did not complete within the bounded wait."
+            }
+            if ([string]$run.conclusion -ne 'success') {
+              throw "Canonical reconciliation run $runId concluded '$($run.conclusion)'; broker cannot issue PASS."
+            }
+
+            $currentBranch = Invoke-RestMethod -Method Get -Uri "https://api.github.com/repos/$env:REPOSITORY/branches/$env:SOURCE_REF" -Headers $headers
+            $currentSourceSha = [string]$currentBranch.commit.sha
+            if ($currentSourceSha -ne $sourceSha) {
+              if ($attempt -eq $maxAttempts) {
+                throw "Canonical source moved from $sourceSha to $currentSourceSha before evidence acceptance."
+              }
+              continue
+            }
+
+            $artifactResponse = Invoke-RestMethod -Method Get -Uri "https://api.github.com/repos/$env:REPOSITORY/actions/runs/$runId/artifacts?per_page=100" -Headers $headers
+            $expectedArtifactName = $env:AUDIT_ARTIFACT_PREFIX + $sourceSha
+            $matches = @($artifactResponse.artifacts | Where-Object { $_.name -eq $expectedArtifactName -and -not $_.expired })
+            if ($matches.Count -ne 1) {
+              throw "Canonical reconciliation run $runId must expose exactly one non-expired audit artifact '$expectedArtifactName'; found $($matches.Count)."
+            }
+            $artifact = $matches[0]
+            $outerZip = Join-Path $env:RUNNER_TEMP "reconcile-audit-$runId.zip"
+            $extractRoot = Join-Path $env:RUNNER_TEMP "reconcile-audit-$runId"
+            Invoke-WebRequest -Method Get -Uri ([string]$artifact.archive_download_url) -Headers $headers -OutFile $outerZip
+            New-Item -ItemType Directory -Path $extractRoot -Force | Out-Null
+            Expand-Archive -LiteralPath $outerZip -DestinationPath $extractRoot -Force
+
+            $auditFiles = @(Get-ChildItem -LiteralPath $extractRoot -Filter 'audit.json' -File -Recurse)
+            $presentationFiles = @(Get-ChildItem -LiteralPath $extractRoot -Filter 'presentation.json' -File -Recurse)
+            $releaseFiles = @(Get-ChildItem -LiteralPath $extractRoot -Filter 'release-planning.json' -File -Recurse)
+            if ($auditFiles.Count -ne 1 -or $presentationFiles.Count -ne 1 -or $releaseFiles.Count -ne 1) {
+              throw 'Canonical reconciliation audit artifact has missing or ambiguous read-back evidence files.'
+            }
+            $audit = Get-Content -LiteralPath $auditFiles[0].FullName -Raw -Encoding UTF8 | ConvertFrom-Json
+            $presentation = Get-Content -LiteralPath $presentationFiles[0].FullName -Raw -Encoding UTF8 | ConvertFrom-Json
+            $release = Get-Content -LiteralPath $releaseFiles[0].FullName -Raw -Encoding UTF8 | ConvertFrom-Json
+            foreach ($evidence in @($audit, $presentation, $release)) {
+              if ([string]$evidence.source_sha -ne $sourceSha) {
+                throw "Reconciliation evidence source SHA does not match canonical source $sourceSha."
+              }
+            }
+            $auditRemaining = [int]$audit.remaining_count
+            $presentationRemaining = [int]$presentation.remaining_count
+            $releaseRemaining = [int]$release.remaining_count
+            $remaining = $auditRemaining + $presentationRemaining + $releaseRemaining
+            if ($remaining -ne 0) {
+              throw "Canonical reconciliation evidence contains remaining mismatches: $remaining."
+            }
+
+            # Final identity fence: evidence is accepted only while both the target PR
+            # and canonical reconciliation source still match the identities authorized
+            # for this attempt. This closes the artifact-download/read-back drift window.
+            $finalPr = Invoke-RestMethod -Method Get -Uri "https://api.github.com/repos/$env:REPOSITORY/pulls/$env:PR_NUMBER" -Headers $headers
+            if ([string]$finalPr.head.sha -ne $env:EXPECTED_SHA) {
+              throw "PR head drifted before evidence acceptance. Expected $env:EXPECTED_SHA, live $($finalPr.head.sha)."
+            }
+            $finalBranch = Invoke-RestMethod -Method Get -Uri "https://api.github.com/repos/$env:REPOSITORY/branches/$env:SOURCE_REF" -Headers $headers
+            $finalSourceSha = [string]$finalBranch.commit.sha
+            if ($finalSourceSha -ne $sourceSha) {
+              if ($attempt -eq $maxAttempts) {
+                throw "Canonical source moved from $sourceSha to $finalSourceSha during final evidence acceptance."
+              }
+              continue
+            }
+
+            $selectedRun = $run
+            $selectedSourceSha = $sourceSha
+            $selectedArtifact = $artifact
+            break
+          }
+
+          if ($null -eq $selectedRun -or $null -eq $selectedArtifact) {
+            throw 'No current canonical reconciliation evidence was accepted after bounded source-drift retries.'
+          }
+
+          "source_sha=$selectedSourceSha" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "workflow_run_id=$($selectedRun.id)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "workflow_conclusion=$($selectedRun.conclusion)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "audit_artifact_id=$($selectedArtifact.id)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "audit_artifact_name=$($selectedArtifact.name)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "remaining_mismatches=0" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          @"
+          Canonical Project reconciliation PASS
+          source SHA: $selectedSourceSha
+          workflow run: $($selectedRun.id)
+          audit artifact: $($selectedArtifact.id) / $($selectedArtifact.name)
+          remaining mismatches: 0
+          "@ | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Encoding UTF8
+
+      - name: Stage reconciliation broker evidence
+        if: always()
+        shell: pwsh
+        run: |
+          $target = Join-Path $env:RUNNER_TEMP 'ddda-project-reconcile-broker-evidence'
+          New-Item -ItemType Directory -Path $target -Force | Out-Null
+          @{
+            repository = $env:REPOSITORY
+            pr = [int]$env:PR_NUMBER
+            requested_actor = $env:REQUEST_ACTOR
+            command = $env:COMMAND_TEXT
+            authorized_pr_head_sha = $env:AUTHORIZED_PR_SHA
+            expected_sha = $env:EXPECTED_SHA
+            canonical_workflow = $env:CANONICAL_WORKFLOW
+            reconciliation_source_sha = '${{ steps.reconcile.outputs.source_sha }}'
+            workflow_run_id = '${{ steps.reconcile.outputs.workflow_run_id }}'
+            workflow_conclusion = '${{ steps.reconcile.outputs.workflow_conclusion }}'
+            audit_artifact_id = '${{ steps.reconcile.outputs.audit_artifact_id }}'
+            audit_artifact_name = '${{ steps.reconcile.outputs.audit_artifact_name }}'
+            remaining_mismatches = '${{ steps.reconcile.outputs.remaining_mismatches }}'
+            human_review_status = 'PENDING'
+            merge_authorized = $false
+            release_authorized = $false
+            tag_authorized = $false
+          } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $target 'request.json') -Encoding UTF8
+
+      - name: Upload reconciliation broker evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ddda-project-reconcile-broker-${{ env.PR_NUMBER }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/ddda-project-reconcile-broker-evidence/**
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Comment reconciliation result
+        if: always()
+        continue-on-error: true
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          $body = @"
+          DDDA Project reconciliation broker: **$env:JOB_STATUS**
+
+          - authorized PR SHA: `$env:AUTHORIZED_PR_SHA`
+          - expected SHA: `$env:EXPECTED_SHA`
+          - canonical workflow: `$env:CANONICAL_WORKFLOW`
+          - reconciliation source SHA: `${{ steps.reconcile.outputs.source_sha }}`
+          - canonical workflow run: `${{ steps.reconcile.outputs.workflow_run_id }}`
+          - audit artifact: `${{ steps.reconcile.outputs.audit_artifact_id }}` / `${{ steps.reconcile.outputs.audit_artifact_name }}`
+          - remaining mismatches: `${{ steps.reconcile.outputs.remaining_mismatches }}`
+          - broker workflow run: `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`
+
+          No Project credential was exposed to Chat/Work or broker evidence. No Human Review, merge, tag, release or promotion was performed.
           "@
           gh api --method POST "repos/$env:REPOSITORY/issues/$env:PR_NUMBER/comments" -f body="$body" | Out-Null

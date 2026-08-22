@@ -156,7 +156,7 @@
     "docs/migration/pr8-non-breaking-steering-extension.md"
   ],
   "remote_execution": {
-    "schema_version": 3,
+    "schema_version": 4,
     "enabled": true,
     "allowed_actors": [
       "romanhlavac"
@@ -184,6 +184,22 @@
     "allowed_validate_commands": [
       "/ddda validate-pr --with-miro --keep-review-board"
     ],
+    "project_reconciliation": {
+      "enabled": true,
+      "command": "/ddda reconcile-project --expected-sha <40-char-pr-head-sha>",
+      "canonical_workflow": ".github/workflows/reconcile-ddda-project-backlog.yml",
+      "source_ref": "main",
+      "audit_artifact_prefix": "ddda-project-backlog-delivery-audit-v6-",
+      "credential_location": "ddda-backlog-governance-environment-only",
+      "broker_credential_access": false,
+      "chat_work_credential_access": false,
+      "allow_arbitrary_workflow": false,
+      "require_workflow_success": true,
+      "require_source_sha_match": true,
+      "require_zero_mismatches": true,
+      "maximum_source_drift_attempts": 3,
+      "active_run_serialization_required": true
+    },
     "remediation": {
       "enabled": true,
       "allowed_path_prefix": "scripts/remediation/",

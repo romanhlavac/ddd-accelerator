@@ -110,6 +110,62 @@ Broker spustí skript bez GitHub API tokenu, ověří jeden commit a teprve poto
 
 Jednorázový bootstrap workflow není standardní mechanismus. Pokud chybí potřebná schopnost, rozšíří se reviewovatelně standardní broker nebo platformní workflow; nesmí se opakovaně zavádět ad hoc execution cesta bez dlouhodobého kontraktu a testů.
 
+## Canonical GitHub Project reconciliation broker
+
+Permanentní control-plane cesta pro GitHub Project V2 governance je:
+
+```text
+Chat / Work
+→ GitHub connector PR comment
+→ trusted issue_comment broker z default branch
+→ exact PR SHA authorization
+→ fixed canonical workflow dispatch
+→ .github/workflows/reconcile-ddda-project-backlog.yml
+→ environment ddda-backlog-governance
+→ persistent Project credential v GitHub secret store
+→ reconciliation + fresh read-back
+→ zero remaining mismatches
+→ audit artifact + broker evidence
+```
+
+Oprávněný actor používá jediný přesný příkaz:
+
+```text
+/ddda reconcile-project --expected-sha <40-char-current-pr-head-sha>
+```
+
+Příkaz nepřijímá workflow name, ref, shell fragment ani další volné argumenty. `--expected-sha` musí přesně odpovídat live head stejného PR; neshoda končí ještě před dispatch. Broker používá pouze allowlisted workflow `.github/workflows/reconcile-ddda-project-backlog.yml` a canonical source `main`.
+
+### Credential boundary
+
+Project credential zůstává výhradně v existujícím GitHub Actions environmentu `ddda-backlog-governance`, kde jej spotřebovává canonical reconciliation workflow. Chat, Work ani broker job Project credential nečte, nedostává a nezapisuje do evidence. Broker potřebuje jen úzké repository Actions oprávnění pro dispatch a read-back workflow evidence; zvýšené `actions: write` je izolované na `reconcile-project` job.
+
+Nezavádí se druhý Project credential a broker nereplikuje Project GraphQL/reconciliation logiku. Pokud persistentní Project credential chybí, expiroval nebo nemá potřebnou capability, canonical workflow failne při credential checku a broker nesmí vydat PASS. Náprava se klasifikuje podle `github-capability-authorization.md`; pokud je programová cesta připravena a chybí jen consent/provisioning, jde o `HUMAN_BOOTSTRAP_ONLY`, nikoli o opakovaný operating step.
+
+### Serialization a source identity
+
+Před dispatch broker počká, dokud canonical reconciliation workflow nemá žádný `queued` ani `in_progress` run. Broker reconciliation joby mají navíc společný non-cancelling concurrency group. Tím se privileged Project mutation nespouští souběžně s již běžícím canonical reconciliation runem.
+
+Každý pokus explicitně resolve `main` SHA. Přijatelný child run musí mít právě tento `head_sha`. Pokud se source před přijetím evidence posune, broker po dokončení běžícího runu provede bounded retry s novou explicitní source identity. Starý run se nesmí vydávat za aktuální evidence.
+
+### PASS evidence
+
+Broker vydá technical PASS pouze pokud:
+
+- live PR head stále odpovídá `--expected-sha`;
+- child run je právě canonical workflow a má accepted source `main` SHA;
+- workflow conclusion je `success`;
+- existuje právě jeden neexpirovaný audit artifact pro source SHA;
+- `audit.json`, `presentation.json` a `release-planning.json` mají stejný `source_sha`;
+- všechny jejich `remaining_count` jsou `0`;
+- evidence nese repository, PR, requested actor, authorized/expected PR SHA, canonical workflow, source SHA, workflow run ID/conclusion a audit artifact ID/name.
+
+Technical authorization ani reconciliation PASS nikdy nevytváří Human Review, merge authorization, Human Release Decision, release/promotion authorization nebo tag authorization.
+
+### Default-branch activation boundary
+
+GitHub `issue_comment` workflow je aktivní podle workflow definice na default branchi. Nová broker capability, která existuje pouze v dosud nemergovaném PR, proto nemůže sama sobě před merge vytvořit produkční `issue_comment` end-to-end důkaz. Statická/exact-SHA CI validace PR capability je možná, ale live connector-comment E2E je možné až po aktivaci reviewované broker definice na default branchi nebo přes samostatný explicitně autorizovaný bootstrap mechanismus podle platform-development skillu. Tento fakt se nesmí maskovat náhradním workflow nebo ruční Project GUI operací.
+
 ## Runtime isolation
 
 Candidate validation odstraňuje z child procesu:

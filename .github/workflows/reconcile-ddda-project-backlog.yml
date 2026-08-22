@@ -91,6 +91,7 @@ jobs:
           presentation = json.loads(Path('.reports/cr-delivery-audit-v6/presentation.json').read_text(encoding='utf-8'))
           release_planning = json.loads(Path('.reports/cr-delivery-audit-v6/release-planning.json').read_text(encoding='utf-8'))
           assert audit['source_sha'] == os.environ['GITHUB_SHA']
+          assert presentation['source_sha'] == os.environ['GITHUB_SHA']
           assert release_planning['source_sha'] == os.environ['GITHUB_SHA']
           assert audit['remaining_count'] == 0
           assert presentation['remaining_count'] == 0

@@ -40,12 +40,17 @@ $result = [ordered]@{
     head_sha = $HeadSha
     head_repository = $HeadRepository
     action = $null
+    expected_sha = $null
+    canonical_workflow = $null
+    reconciliation_source_ref = $null
+    reconciliation_artifact_prefix = $null
     remediation_script = $null
     miro_team_id = $miroTeamId
     keep_review_board = $true
     merge_allowed = $false
     promotion_allowed = $false
     release_allowed = $false
+    tag_allowed = $false
 }
 
 if ($normalized -in @($remote.allowed_validate_commands | ForEach-Object { [string]$_ })) {
@@ -71,7 +76,38 @@ elseif ($normalized -match '^/ddda remediate\s+(?<path>scripts/remediation/[A-Za
     # Existence is intentionally not checked on the trusted default-branch checkout.
     # The workflow checks the path after checkout of the authorized exact PR head.
     $result.action = "remediate"
+    $result.expected_sha = [string]$Matches["sha"]
     $result.remediation_script = $scriptPath
+}
+elseif ($normalized -match '^/ddda reconcile-project\s+--expected-sha\s+(?<sha>[0-9a-f]{40})$') {
+    if (-not ($remote.PSObject.Properties.Name -contains "project_reconciliation")) {
+        throw "Project reconciliation is not configured by platform policy."
+    }
+    $reconcile = $remote.project_reconciliation
+    if (-not [bool]$reconcile.enabled) {
+        throw "Project reconciliation is disabled by platform policy."
+    }
+    $expectedSha = [string]$Matches["sha"]
+    if ($expectedSha -ne $HeadSha) {
+        throw "Project reconciliation expected SHA does not match the current PR head."
+    }
+    $workflow = [string]$reconcile.canonical_workflow
+    if ($workflow -ne '.github/workflows/reconcile-ddda-project-backlog.yml') {
+        throw "Configured Project reconciliation workflow is not the canonical allowlisted workflow."
+    }
+    $sourceRef = [string]$reconcile.source_ref
+    if ($sourceRef -ne 'main') {
+        throw "Configured Project reconciliation source ref is not canonical main."
+    }
+    $artifactPrefix = [string]$reconcile.audit_artifact_prefix
+    if ([string]::IsNullOrWhiteSpace($artifactPrefix)) {
+        throw "Project reconciliation audit artifact prefix is missing."
+    }
+    $result.action = "reconcile-project"
+    $result.expected_sha = $expectedSha
+    $result.canonical_workflow = $workflow
+    $result.reconciliation_source_ref = $sourceRef
+    $result.reconciliation_artifact_prefix = $artifactPrefix
 }
 else {
     throw "Unsupported remote DDDA command."

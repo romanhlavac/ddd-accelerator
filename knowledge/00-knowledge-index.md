@@ -4,7 +4,7 @@ Knowledge soubory se načítají podle typu práce, nikoli všechny současně. 
 
 | Úloha | Runtime | Načíst |
 |---|---|---|
-| **vývoj DDDA platformy** | **Chat / Work** | **`ddda-platform-development-skill.md`, `../docs/developer-guide/chat-work-operating-model.md` a `../docs/governance/wp-backlog-consistency.md`** |
+| **vývoj DDDA platformy** | **Chat / Work** | **`ddda-platform-development-skill.md`, `../docs/developer-guide/chat-work-operating-model.md`, `../docs/developer-guide/github-capability-authorization.md` a `../docs/governance/wp-backlog-consistency.md`** |
 | **Miro identity, REST/MCP, Platform Lab, HVR a credential governance** | **Chat / Work nebo Cursor podle scope** | **`13-miro-integration-operating-model.md` a `../docs/developer-guide/miro-execution-profiles.md`** |
 | **používání DDDA v konkrétním projektu** | **Cursor** | **projektový status, tailoring, relevantní knowledge/cookbook soubory a `.cursor` runtime assets** |
 | operating model a způsob práce | Cursor project runtime | `01-operating-model.md` |
@@ -13,7 +13,7 @@ Knowledge soubory se načítají podle typu práce, nikoli všechny současně. 
 | ADR a rozhodování | Cursor project runtime | `04-architecture-decision-making.md` |
 | quality attributes | Cursor project runtime | `05-quality-attributes.md` |
 | architektonický styl | Cursor project runtime | `06-architecture-styles-and-tradeoffs.md` |
-| integrace a data ownership | Cursor project runtime | `07-integration-and-data-ownership.md` |
+| integrace | Cursor project runtime | `07-integration-and-data-ownership.md` |
 | legacy a migrace | Cursor project runtime | `08-modernization-and-migration.md` |
 | bezpečnost, resilience, observabilita | Cursor project runtime | `09-security-resilience-observability.md` |
 | Team Topologies a governance | Cursor project runtime | `10-team-topologies-and-governance.md` |
@@ -23,6 +23,8 @@ Knowledge soubory se načítají podle typu práce, nikoli všechny současně. 
 ## Rovina A — vývoj DDDA platformy
 
 Při vývoji platformy musí Chat nebo Work načíst `ddda-platform-development-skill.md` ještě před klasifikací, návrhem nebo aplikací změny. Pro jakoukoli změnu backlogu, Work Package, Change Request, implementačního PR nebo GitHub Project governance musí současně načíst `../docs/governance/wp-backlog-consistency.md` a uplatnit jeho pre/post fail-closed read-back.
+
+Pro jakoukoli GitHub operaci, kde dostupnost connectoru, brokeru, CLI/API nebo OAuth scope ovlivňuje proveditelnost mechanického kroku, musí Chat/Work načíst také `../docs/developer-guide/github-capability-authorization.md` a machine-readable contract `../config/platform/github-capability-routing.json`. Chybějící connector mutation surface není sama o sobě hard blocker; nejprve se vyhodnotí canonical alternate route a případný `HUMAN_BOOTSTRAP_ONLY` authorization step.
 
 ```text
 Chat / Work

@@ -14,9 +14,29 @@ The authoritative administration/evidence Issue is #42.
 
 ## Automation-first rule
 
-Do not perform setup item-by-item in the GitHub UI unless automation reports one specific unsupported/failed operation.
+```text
+NO_MANUAL_GITHUB_GUI_FOR_MECHANICAL_OPERATIONS
+```
 
-Authoritative artifacts:
+Do not perform setup item-by-item in the GitHub UI merely because one connector does not expose the required mutation. Determine the required capability and use the canonical provider order:
+
+```text
+CONNECTOR
+→ CANONICAL_BROKER_OR_DEDICATED_CREDENTIAL
+→ HUMAN_BOOTSTRAP_ONLY
+→ UNAVAILABLE
+```
+
+`HUMAN_BOOTSTRAP_ONLY` means the programmatic route exists and user OAuth consent/scope is the only missing prerequisite. The human authorizes only; automation performs the mutation and fresh read-back. `UNAVAILABLE` is used only after the approved programmatic routes are exhausted with a concrete capability diagnosis.
+
+Canonical authorization contract:
+
+```text
+config/platform/github-capability-routing.json
+docs/developer-guide/github-capability-authorization.md
+```
+
+Authoritative governance artifacts:
 
 ```text
 scripts/platform/Bootstrap-DDDAGitHubGovernance.ps1
@@ -28,27 +48,48 @@ config/governance/backlog-policy.yaml
 
 The automation is intended to be idempotent: it reads current GitHub state, adds missing relationships/items/fields/views and reconciles configured metadata. It never merges, rebases, promotes, releases or issues Human Review/GO decisions.
 
-## Prerequisites
+## Prerequisites by selected execution route
+
+Do not require GitHub CLI merely because this runbook mentions it.
+
+1. If the connected GitHub capability supports the required operation, use `CONNECTOR`.
+2. Otherwise prefer the canonical DDDA broker or approved dedicated governance credential.
+3. Only if the remaining gap is user OAuth consent/scope for an available CLI/API route, enter `HUMAN_BOOTSTRAP_ONLY`.
+4. Use `UNAVAILABLE` only when no approved programmatic route can satisfy the capability.
+
+For a selected local/CLI route, prerequisites are:
 
 - current GitHub CLI `gh`;
 - authenticated repository-owner access;
-- Project scope authorization;
+- the least-privilege scope required by the requested capability;
 - PowerShell supported by the scripts.
 
-Verify:
+Verify without exposing a token:
 
 ```powershell
 gh --version
 gh auth status
 ```
 
-Authorize Projects once where required:
+For a user-owned Project V2 mutation, `project` is a typical required scope when live GitHub semantics require it. Existing login:
 
 ```powershell
 gh auth refresh -s project
 ```
 
+Fresh browser/device login:
+
+```powershell
+gh auth login --hostname github.com --git-protocol https --web --scopes project
+```
+
+The human performs only the local GitHub authorization challenge. Do not ask for a PAT/token in Chat/Work and do not ask the human to edit Project fields or other deterministic GitHub state manually after consent.
+
+A local `gh` credential is not automatically available to a separate ChatGPT connector or cloud runner. If the execution plane cannot reuse the authorized local session, diagnose that session-boundary gap and use the canonical broker/dedicated-credential route instead of pretending the credential was transferred.
+
 ## Recommended execution — no repository switch required
+
+The canonical connector/broker route is preferred when it can perform the requested governance operation. The following local bootstrap is a supported CLI execution path when that route has been selected; it is not a reason to bypass capability routing.
 
 Do **not** switch the active PR #8 checkout or run the governance automation from a OneDrive-synchronized Git working tree. The safe bootstrap downloads the required governance files through the GitHub API into a new sibling workspace and leaves the current checkout untouched.
 
@@ -67,7 +108,7 @@ if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
 
 & gh auth status
 if ($LASTEXITCODE -ne 0) {
-    throw "GitHub CLI není autentizované. Spusť nejprve: gh auth login"
+    throw "GitHub CLI není autentizované. Použij canonical authorization route; pokud je zvolen HUMAN_BOOTSTRAP_ONLY, spusť jeden přesný gh auth login/refresh příkaz pro požadovanou capability."
 }
 
 $currentPath = (Get-Location).Path
@@ -101,7 +142,7 @@ The bootstrap:
 - avoids `git switch`, `git clone`, reset and cleanup of the current repository;
 - runs the Apply wrapper;
 - preserves the generated work directory/report for diagnostics;
-- opens the Project by default unless disabled by script parameters.
+- may open the Project as a convenience unless disabled by script parameters; opening the Project is not a substitute for programmatic mutation/read-back.
 
 ## Direct execution from a clean governance checkout
 
@@ -323,6 +364,13 @@ Confirm:
 - no dates, priority, release or human approval were invented;
 - no merge/rebase/promotion occurred.
 
+The selected execution route must also prove:
+
+- authenticated actor/capability after any browser/device authorization;
+- fresh Project/native GitHub read-back after mutation;
+- no PAT/OAuth token in report, artifact, PR comment, Chat-facing evidence or Git history;
+- authorization did not create Human Review/merge/release/tag approval.
+
 ## Evidence
 
 The automation writes a setup report. Publish/attach the reviewed result to #42 with:
@@ -331,7 +379,9 @@ The automation writes a setup report. Publish/attach the reviewed result to #42 
 - Project URL;
 - hierarchy/dependency results;
 - Milestone membership;
+- selected GitHub capability provider and non-secret authorization state;
+- actor/capability verification when `HUMAN_BOOTSTRAP_ONLY` was used;
 - warnings/unsupported operations;
 - any deliberate deviation from versioned configuration.
 
-Do not commit local reports automatically and do not interpret technical PASS as Human Review PASS.
+Do not commit local reports automatically and do not interpret technical PASS or authorization success as Human Review PASS.
