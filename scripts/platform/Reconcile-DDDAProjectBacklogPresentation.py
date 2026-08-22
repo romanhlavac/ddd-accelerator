@@ -138,8 +138,10 @@ def run(mode):
 
     final_rows, remaining = inspect(authority)
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    source_sha = cmd("git", "rev-parse", "HEAD")
     report = {
         "schema_version": 1,
+        "source_sha": source_sha,
         "mode": mode,
         "authority_count": len(authority),
         "before_count": len(before),
@@ -160,6 +162,7 @@ def run(mode):
     print(
         json.dumps(
             {
+                "source_sha": source_sha,
                 "mode": mode,
                 "authority": len(authority),
                 "before": len(before),

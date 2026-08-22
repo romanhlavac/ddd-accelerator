@@ -3,6 +3,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 SCRIPT = ROOT / "scripts/platform/Reconcile-DDDAProjectBacklogPresentation.py"
+WORKFLOW = ROOT / ".github/workflows/reconcile-ddda-project-backlog.yml"
 
 
 def _ns():
@@ -59,3 +60,12 @@ def test_script_records_and_rechecks_presentation_mismatch():
     assert "ALIGN_ISSUE_WP_TITLE_PREFIX" in text
     assert '"remaining_count": len(remaining)' in text
     assert "final_rows, remaining = inspect(authority)" in text
+
+
+def test_presentation_evidence_is_bound_to_exact_source_sha():
+    script = SCRIPT.read_text(encoding="utf-8")
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+
+    assert 'source_sha = cmd("git", "rev-parse", "HEAD")' in script
+    assert '"source_sha": source_sha' in script
+    assert "assert presentation['source_sha'] == os.environ['GITHUB_SHA']" in workflow
