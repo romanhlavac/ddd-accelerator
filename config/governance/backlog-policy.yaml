@@ -1,0 +1,416 @@
+schema_version: 1
+policy_id: ddda-platform-backlog-governance
+status: proposed
+
+scope:
+  product: DDDA platform
+  excludes:
+    - client workspace delivery backlog
+    - client project gates G1-G8
+
+principles:
+  git_is_source_of_truth: true
+  pr_is_unit_of_change: true
+  main_direct_changes_forbidden: true
+  planned_prs_as_backlog_forbidden: true
+  active_implementation_prs_project_membership_required: true
+  pr_project_item_is_delivery_projection_not_backlog_authority: true
+  automated_human_approval_forbidden: true
+  milestone_membership_is_not_release_approval: true
+  parent_membership_is_not_release_scope: true
+  dependency_priority_and_business_value_are_distinct: true
+  governance_projection_is_same_transaction: true
+  project_readback_zero_required_before_ready_done_or_merge_recommendation: true
+
+dependency_semantics:
+  direct_blocked_by: native issue dependency; work cannot complete before blocker
+  transitive_prerequisite: inherited through direct dependency graph; do not duplicate natively
+  consumed_contract: another capability contract is reused but does not necessarily block start
+  related_work: informational relationship without scheduling semantics
+  no_automatic_priority_dates_release_or_human_review: true
+
+work_item_hierarchy:
+  - level: gap
+    authority: github_issue
+    id_pattern: null
+  - level: work_package
+    authority: github_parent_issue
+    id_pattern: '^WP-[0-9]{2}$'
+  - level: change_request
+    authority: github_child_issue
+    id_pattern: null
+  - level: implementation
+    authority: branch_and_draft_pr
+    starts_when: implementation_begins
+
+artifact_authority:
+  idea_or_gap: github_issue
+  roadmap_block: github_parent_issue_work_package
+  implementation_requirement: github_child_issue
+  priority_and_order: github_project
+  target_version: github_milestone
+  current_implementation: branch_and_draft_pr
+  architecture_decision: repository_adr
+  implemented_change: pr_and_changelog
+  breaking_impact: migration_note
+  test_evidence: ci_and_validation_report
+  human_release_decision: hrdr_and_review_evidence
+  long_term_product_vision: versioned_roadmap_document
+
+project:
+  name: DDDA Platform Backlog & Delivery
+  fields:
+    status:
+      type: single_select
+      values: [Backlog, Discovery, Triaged, Ready, In progress, In review, Blocked, Done, Cancelled]
+    priority:
+      type: single_select
+      values: [P0, P1, P2, P3]
+    work_package:
+      type: single_select
+      values: [WP-08, WP-09, WP-10, WP-11, WP-12, WP-13, Other]
+    item_type:
+      type: single_select
+      values: [GAP, Work Package, Change Request, Defect, Risk, Enabler]
+    platform_area:
+      type: single_select
+      values: [DOC, METHODOLOGY, TEMPLATE, SCHEMA, ORCHESTRATION, INGESTION, CLI, WORKSPACE-GENERATOR, EXAMPLE, TESTING, RELEASE, SECURITY-GOVERNANCE]
+    impact:
+      type: single_select
+      values: [LOW, MEDIUM, HIGH, BREAKING]
+    target_release:
+      type: text_or_iteration
+      default: TBD
+    start_date:
+      type: date
+      default: null
+    target_date:
+      type: date
+      default: null
+    outcome_summary:
+      type: text
+    owner:
+      type: native_assignees
+    blocked:
+      type: single_select
+      values: [No, Yes]
+      default: No
+    human_review:
+      type: single_select
+      values: [Not required, Pending, PASS, FAIL, Accepted risks]
+    dependency:
+      type: text
+  system_fields:
+    - Parent issue
+    - Sub-issue progress
+    - Milestone
+    - Linked pull requests
+    - Assignees
+  hierarchy:
+    use_native_sub_issues_when_available: true
+    parent_issue_is_authoritative: true
+    text_prefix_is_navigation_only: true
+  dependencies:
+    use_native_blocked_by_when_available: true
+    dependency_field_is_projection: true
+    exact_dates_must_not_be_invented: true
+  status_projection:
+    closed_or_merged: Done
+    reopened: Triaged
+    configured_values_are_bootstrap_defaults: true
+    closed_item_blocked_value: No
+  views:
+    - Plánování a Backlog
+    - Implementace a Delivery
+  view_contract:
+    planning:
+      name: Plánování a Backlog
+      layout: table
+      filter: is:issue
+    delivery:
+      name: Implementace a Delivery
+      layout: table
+      filter: is:pr is:open
+  delivery_projection:
+    open_implementation_pr_membership_required: true
+    primary_change_request_relation: Implements_or_Closes
+    work_package_source: primary_change_request
+    project_item_type_field: unset
+    draft_status: In progress
+    ready_status: In review
+    blocked_override: Blocked
+    blocked_source: primary_change_request_unresolved_dependency_projection
+    project_blocked_field_is_projection_only: true
+    fresh_authority_readback_required: true
+
+native_sub_issue_mapping:
+  WP-08:
+    parent_issue: 17
+    children: [9, 10, 11, 12, 13, 14, 15]
+    release_0_1_0_children: [9, 10, 11, 12, 13, 14, 15]
+    future_children: []
+  WP-09:
+    parent_issue: 18
+    children: [21, 22, 23, 24, 25, 50, 26, 51]
+  WP-10:
+    parent_issue: 19
+    children: [27, 28, 29, 30, 31, 32, 33]
+  WP-11:
+    parent_issue: 20
+    children: [34, 52, 35, 47, 48, 46, 62]
+  WP-12:
+    parent_issue: 60
+    children: [53, 54, 55, 56, 57]
+  WP-13:
+    parent_issue: 61
+    children: [36, 37, 38, 39, 40, 41]
+  Other:
+    unparented_items: [16, 42, 44, 45, 49, 65, 66, 67, 68, 69, 70, 73, 75, 85, 88, 96, 98]
+
+dependency_edges:
+  WP-08:
+    - blocking: 13
+      blocked: 14
+      rationale: human-only gate semantics precede final steering-board acceptance
+    - blocking: 14
+      blocked: 12
+      rationale: board redesign precedes final online Miro evidence acceptance
+    - blocking: 12
+      blocked: 11
+    - blocking: 11
+      blocked: 10
+    - blocking: 10
+      blocked: 9
+  WP-09:
+    - blocking: 21
+      blocked: 23
+    - blocking: 22
+      blocked: 23
+    - blocking: 22
+      blocked: 24
+    - blocking: 23
+      blocked: 24
+    - blocking: 21
+      blocked: 25
+    - blocking: 24
+      blocked: 25
+    - blocking: 25
+      blocked: 50
+    - blocking: 50
+      blocked: 26
+    - blocking: 26
+      blocked: 51
+  WP-10:
+    - blocking: 27
+      blocked: 31
+    - blocking: 27
+      blocked: 28
+    - blocking: 31
+      blocked: 28
+    - blocking: 27
+      blocked: 29
+    - blocking: 31
+      blocked: 29
+    - blocking: 27
+      blocked: 30
+    - blocking: 31
+      blocked: 30
+    - blocking: 27
+      blocked: 32
+    - blocking: 31
+      blocked: 32
+    - blocking: 28
+      blocked: 33
+    - blocking: 29
+      blocked: 33
+    - blocking: 30
+      blocked: 33
+    - blocking: 31
+      blocked: 33
+    - blocking: 32
+      blocked: 33
+  WP-11:
+    - blocking: 34
+      blocked: 35
+    - blocking: 52
+      blocked: 35
+    - blocking: 27
+      blocked: 47
+    - blocking: 31
+      blocked: 47
+    - blocking: 32
+      blocked: 47
+    - blocking: 34
+      blocked: 47
+    - blocking: 35
+      blocked: 47
+    - blocking: 34
+      blocked: 62
+    - blocking: 35
+      blocked: 62
+    - blocking: 47
+      blocked: 62
+    - blocking: 48
+      blocked: 62
+    - blocking: 52
+      blocked: 62
+    - blocking: 47
+      blocked: 46
+    - blocking: 62
+      blocked: 46
+    - blocking: 48
+      blocked: 46
+    - blocking: 52
+      blocked: 46
+  WP-12:
+    - blocking: 53
+      blocked: 57
+    - blocking: 54
+      blocked: 57
+    - blocking: 55
+      blocked: 57
+  WP-13:
+    - blocking: 36
+      blocked: 37
+    - blocking: 37
+      blocked: 38
+    - blocking: 36
+      blocked: 39
+    - blocking: 37
+      blocked: 39
+    - blocking: 38
+      blocked: 39
+    - blocking: 37
+      blocked: 40
+    - blocking: 38
+      blocked: 40
+    - blocking: 39
+      blocked: 40
+    - blocking: 36
+      blocked: 41
+    - blocking: 37
+      blocked: 41
+    - blocking: 38
+      blocked: 41
+    - blocking: 39
+      blocked: 41
+    - blocking: 40
+      blocked: 41
+  Other:
+    - blocking: 16
+      blocked: 49
+    - blocking: 46
+      blocked: 49
+    - blocking: 48
+      blocked: 49
+    - blocking: 53
+      blocked: 49
+
+baseline_compatibility:
+  PR8:
+    ingestion:
+      owner: WP-10-27
+      rule: extend_or_version_with_migration
+    agent_contract:
+      owner: WP-13-36
+      rule: extend_or_version_with_migration
+    generic_miro_runtime:
+      owner: WP-08
+      platform_environment_owner: WP-12
+      eventstorming_extension_owner: WP-11-35
+      duplicate_generic_runtime_forbidden: true
+    methodology:
+      owner: WP-08
+      gap_remediation_owner: WP-11-48
+      duplicate_starter_process_forbidden: true
+
+milestones:
+  naming: 'DDDA <semver>'
+  initial:
+    - name: DDDA 0.1.0
+      state: closed
+      issues: [10, 11, 13, 14]
+      pulls: [8]
+      excluded_future_items: [9, 12, 45, 53, 54, 55, 56, 57, 65, 66, 67, 68, 69, 70, 73, 75, 85, 88]
+    - name: DDDA 0.1.1
+      state: open
+      issues: [9, 12, 67, 68, 70, 96, 98]
+      pulls: []
+      pre_release_prerequisites: [44]
+      explicitly_deferred_items: [65, 66, 69, 73, 85, 88]
+  parent_work_packages_counted_in_release_progress: false
+  unplanned_work_packages_target_release: TBD
+  membership_is_release_scope_not_approval: true
+
+priority_semantics:
+  P0: release_safety_or_data_integrity_blocker
+  P1: highest_active_product_priority
+  P2: important_planned_increment
+  P3: long_term_or_opportunistic
+
+implementation_order:
+  - {rank: 1, work_package: WP-08, issue: 17, priority: P0}
+  - {rank: 2, work_package: WP-11, issue: 20, priority: P1}
+  - {rank: 3, work_package: WP-12, issue: 60, priority: P2, note: may_overlap_WP11_after_stable_miro_baseline}
+  - {rank: 4, work_package: WP-13, issue: 61, priority: P3}
+
+ready_entry_criteria:
+  - goal_defined
+  - problem_defined
+  - in_scope_defined
+  - out_of_scope_defined
+  - acceptance_criteria_testable
+  - classification_defined
+  - impact_defined
+  - migration_impact_defined
+  - direct_dependencies_known
+  - consumed_contracts_identified
+  - owner_or_ownership_plan_known
+
+in_progress_entry_criteria:
+  - issue_ready_or_exception_documented
+  - branch_exists
+  - draft_pr_created_after_first_coherent_commit
+  - no_direct_main_work
+
+done_exit_criteria:
+  - acceptance_evidence_complete
+  - implementation_pr_merged
+  - required_ci_pass
+  - required_validation_report_pass
+  - docs_adr_changelog_migration_updated_as_required
+  - human_review_completed_if_required
+  - parent_work_package_updated
+  - roadmap_updated
+
+work_packages:
+  WP-08:
+    title: DDDA 0.1.0 platform foundation and PR8 closure
+    state: released_with_stabilization_tail
+    target_release: 0.1.0
+    outcome_summary: Preserve released DDDA 0.1.0 foundation truth and hand off only the finite approved 0.1.1 stabilization tail through #75.
+  WP-09:
+    title: Strategy, portfolio and program lifecycle
+    state: backlog
+    target_release: TBD
+    outcome_summary: Strategy, Wardley, portfolio, traceability, roadmap, benefits and P0-P10 governance.
+  WP-10:
+    title: Enterprise ingestion
+    state: backlog
+    target_release: TBD
+    outcome_summary: Secure auditable ingestion with normalized evidence, Markdown materialization, YAML registration and provenance.
+  WP-11:
+    title: EventStorming methodology and workshop runtime
+    state: backlog
+    target_release: TBD
+    outcome_summary: EventStorming facilitation, executable sessions, Miro round-trip, evidence integration and package-first acceptance.
+  WP-12:
+    title: Miro platform environments and lifecycle
+    state: backlog
+    target_release: TBD
+    outcome_summary: Platform Lab, CI/HVR/Example/Project board lifecycle, environment rebinding and profile credential isolation.
+  WP-13:
+    title: Multi-agent orchestration and evidence synthesis
+    state: backlog
+    target_release: TBD
+    outcome_summary: Bounded capabilities, fan-out/fan-in, human checkpoints, recovery and package-first multi-agent acceptance.
