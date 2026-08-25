@@ -28,6 +28,7 @@
 - [Vývojový lifecycle DDDA platformy](developer-guide/platform-development-lifecycle.md)
 - [Testovací strategie DDDA platformy](developer-guide/testing-strategy.md)
 - [Remote validation a remediation broker](developer-guide/remote-validation-broker.md)
+- [Controlled release-source recovery](developer-guide/controlled-release-source-recovery.md)
 
 ## Architektonická rozhodnutí a migrace
 

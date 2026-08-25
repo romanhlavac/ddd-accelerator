@@ -36,6 +36,14 @@ machine-readable inventory a `RECOVERY_DECISION_REQUIRED`. Automation nikdy
 nevolí human scope expansion, controlled source recovery ani novou
 release-source strategii.
 
+Pokud člověk explicitně zvolí controlled release-source recovery, může být
+reconstructed candidate odvozen od předchozího canonical tagu. Protože takový
+candidate dostává nové commit SHA, obsahuje versioned recovery ledger. Ledger
+svazuje každý reconstructed commit s původním merged PR, jeho jediným primary
+CR, původním merge SHA a fresh-ověřenými changed-path result hashes. Právě jeden
+metadata-only ledger commit je povolen. Ledger je evidence, nikoli mechanismus
+pro změnu release scope nebo human rozhodnutí.
+
 Dokud existuje právě jeden otevřený Milestone `DDDA X.Y.Z`, governed
 implementation merge smí do `main` pouze PR s jediným primary CR v tomto
 Milestone. Tím se nová kontaminace zastaví před merge. Guard je read-only a

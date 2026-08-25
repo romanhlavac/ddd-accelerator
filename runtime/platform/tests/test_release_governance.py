@@ -267,3 +267,96 @@ def test_merge_eligibility_allows_only_active_train_authority():
         "MERGE_ELIGIBILITY_OUTSIDE_ACTIVE_RELEASE:#96",
         "MERGE_ELIGIBILITY_TARGET_RELEASE_MISMATCH:#96",
     ]
+
+
+def test_recovery_ledger_accepts_only_complete_read_back_provenance():
+    live = snapshot()
+    recovered = "d" * 40
+    metadata = "e" * 40
+    live["physical_scope"] = {
+        "previous_release_tag": "v0.1.0",
+        "previous_release_sha": "c" * 40,
+        "release_source_sha": SHA,
+        "compare_status": "ahead",
+        "commit_shas": [recovered, metadata],
+        "unmapped_commit_shas": [],
+        "shipping_prs": [
+            {
+                "number": 71,
+                "merged": True,
+                "primary_crs": [9],
+                "milestone": "DDDA 0.1.1",
+                "target_release": "0.1.1",
+            },
+            {
+                "number": 72,
+                "merged": True,
+                "primary_crs": [12],
+                "milestone": "DDDA 0.1.1",
+                "target_release": "0.1.1",
+            },
+            {
+                "number": 73,
+                "merged": True,
+                "primary_crs": [67],
+                "milestone": "DDDA 0.1.1",
+                "target_release": "0.1.1",
+            },
+            {
+                "number": 74,
+                "merged": True,
+                "primary_crs": [68],
+                "milestone": "DDDA 0.1.1",
+                "target_release": "0.1.1",
+            },
+        ],
+        "recovery_ledger": {
+            "schema_version": 1,
+            "version": VERSION,
+            "previous_release_tag": "v0.1.0",
+            "metadata_commit_shas": [metadata],
+            "entries": [
+                {
+                    "recovered_commit_sha": recovered,
+                    "source_pr": 71,
+                    "primary_cr": 9,
+                    "source_pr_merged": True,
+                    "source_primary_crs": [9],
+                    "source_merge_commit_sha": "f" * 40,
+                    "observed_source_merge_commit_sha": "f" * 40,
+                    "changed_path_hashes_match": True,
+                }
+            ],
+        },
+    }
+    result = evaluate(live=live)
+    assert result.status == "PASS"
+
+
+def test_recovery_ledger_rejects_uncovered_or_tampered_recovery_commit():
+    live = snapshot()
+    recovered = "d" * 40
+    metadata = "e" * 40
+    live["physical_scope"]["commit_shas"] = [recovered, metadata]
+    live["physical_scope"]["recovery_ledger"] = {
+        "schema_version": 1,
+        "version": VERSION,
+        "previous_release_tag": "v0.1.0",
+        "metadata_commit_shas": [metadata],
+        "entries": [
+            {
+                "recovered_commit_sha": recovered,
+                "source_pr": 71,
+                "primary_cr": 9,
+                "source_pr_merged": True,
+                "source_primary_crs": [9],
+                "source_merge_commit_sha": "f" * 40,
+                "observed_source_merge_commit_sha": "0" * 40,
+                "changed_path_hashes_match": False,
+            }
+        ],
+    }
+    result = evaluate(live=live)
+    assert result.status == "FAIL"
+    assert "RECOVERY_LEDGER_SOURCE_MERGE_SHA_MISMATCH:PR#71" in result.failures
+    assert "RECOVERY_LEDGER_PATH_HASH_MISMATCH:PR#71" in result.failures
