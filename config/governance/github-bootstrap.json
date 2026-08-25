@@ -286,7 +286,8 @@
     {
       "blocked": 75,
       "blocked_by": [
-        96
+        96,
+        98
       ]
     }
   ],
@@ -1240,7 +1241,7 @@
         "Target Release": "0.1.1",
         "Blocked": "No",
         "Human Review": "Pending",
-        "Outcome summary": "Publish the validated canonical DDDA package and portable release evidence as immutable GitHub Release assets bound to the canonical annotated tag."
+        "Outcome summary": "Canonical GitHub Release package and evidence published."
       }
     },
     {

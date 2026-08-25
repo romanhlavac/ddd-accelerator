@@ -289,6 +289,11 @@ def test_0_1_1_governance_normalization_contract():
     assert meta[98]["Item Type"] == "Defect"
     assert meta[98]["Work Package"] == "Other"
     assert meta[98]["Target Release"] == "0.1.1"
+    assert meta[98]["Priority"] == "P0"
+    assert meta[98]["Platform Area"] == "RELEASE"
+    assert meta[98]["Impact"] == "HIGH"
+    dependencies = {entry["blocked"]: entry["blocked_by"] for entry in cfg["dependencies"]}
+    assert dependencies[75] == [96, 98]
     assert "unparented_items: [16, 42, 44, 45, 49, 65, 66, 67, 68, 69, 70, 73, 75, 85, 88, 96, 98]" in POLICY.read_text(encoding="utf-8")
     assert meta[75]["Item Type"] == "Enabler"
     assert meta[85]["Work Package"] == "Other"
