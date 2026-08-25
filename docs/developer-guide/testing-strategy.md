@@ -14,6 +14,7 @@ DDDA netestuje pouze kód. Testuje také:
 - example workspaces;
 - Miro mapping a idempotenci;
 - release lifecycle.
+- identity GitHub Release publication a fyzické SHA-256 canonical release assets.
 
 Automatizace řeší mechanické kontroly. Manuální review zůstává pro judgment.
 

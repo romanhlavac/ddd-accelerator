@@ -18,6 +18,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "DDDAPlatformSupport.ps1")
 . (Join-Path $PSScriptRoot "DDDAGitHubSupport.ps1")
+. (Join-Path $PSScriptRoot "DDDAReleasePublicationSupport.ps1")
 
 Assert-DDDAPlatformSemanticVersion -Version $Version
 $platformRoot = Get-DDDAPlatformGitRoot -Path $PlatformPath
@@ -382,6 +383,8 @@ finally {
         Diagnostics = @($releaseDiagnostics)
         StartedAt = $releaseStartedAt
         CompletedAt = (Get-Date).ToUniversalTime()
+        PortablePaths = $true
+        RedactedRoots = @($stateRoot, $promotionRoot)
     }
     if (Test-Path -LiteralPath $releasePackagePath -PathType Leaf) {
         $releaseReportArguments["PackagePath"] = $releasePackagePath
@@ -420,6 +423,18 @@ if (-not [string]::IsNullOrWhiteSpace($existingTagAfterValidation)) {
 }
 $null = Invoke-DDDAPlatformGit -Repository $releaseSource -Arguments @("tag", "-a", $tag, $mergeCommit, "-m", "DDDA $Version")
 $null = Invoke-DDDAPlatformGit -Repository $releaseSource -Arguments @("push", "origin", $tag)
+$publicationEvidencePath = Join-Path $releaseReports "publication.json"
+$publication = Publish-DDDACanonicalGitHubRelease `
+    -RepositorySlug $repositorySlug `
+    -OriginUrl $originUrl `
+    -Version $Version `
+    -Tag $tag `
+    -ReleaseSourceSha $mergeCommit `
+    -PackagePath $releasePackagePath `
+    -ReportJsonPath $releaseReportJson `
+    -ReportMarkdownPath $releaseReportMarkdown `
+    -Token $githubAuth.Token `
+    -PublicationEvidencePath $publicationEvidencePath
 
 if (-not $KeepArtifacts -and -not $KeepReviewBoard -and (Test-Path -LiteralPath $promotionRoot)) {
     Remove-Item -LiteralPath $promotionRoot -Recurse -Force -ErrorAction SilentlyContinue
@@ -434,4 +449,6 @@ Write-Host "Release version: $Version"
 Write-Host "Release package: $releasePackagePath"
 Write-Host "Release report:  $releaseReports"
 Write-Host "Tag:             $tag"
+Write-Host "GitHub Release:  $($publication.github_release.url)"
+Write-Host "Publication:     $publicationEvidencePath"
 Write-Host "========================================"

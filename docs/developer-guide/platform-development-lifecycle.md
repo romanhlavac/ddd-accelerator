@@ -118,6 +118,7 @@ release candidate (typicky release/<version> PR nebo ekvivalentní governed cand
 → release validation
 → release report
 → tag
+→ GitHub Release s canonical package a release-evidence assets
 ```
 
 Release Scope Gate zůstává striktní. Neaplikuje se ale jako podmínka integrace jednotlivých implementačních PR, jejichž merge je předpokladem pro uzavření release scope.

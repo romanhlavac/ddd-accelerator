@@ -15,6 +15,7 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 ### Changed
 
+- canonical promotion po validated tagu publikuje canonical DDDA ZIP a portable release reports jako ověřené GitHub Release assets;
 - GitHub-native backlog governance nyní považuje Issue/PR mutation, Project planning/delivery projection a release Milestone projection za jednu fail-closed transakci; DDDA 0.1.0/0.1.1 scope je versioned a canonical reconciler opravuje Project/Milestone drift před Ready/merge/release doporučením.
 - platform lifecycle nyní explicitně odděluje governed merge implementačních PR od skutečného release/promotion; implementation merge nevyžaduje HRDR ani Release Scope Gate a nesmí vytvořit release package, release validation nebo tag;
 - public `promote-pr` zůstává strict release-candidate command: před interním release executorem vyžaduje validní human HRDR a read-only Release Scope Gate PASS nad Milestone, native blockers a GitHub Project V2 projekcí;
