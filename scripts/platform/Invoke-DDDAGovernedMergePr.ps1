@@ -93,6 +93,42 @@ Invoke-DDDAPlatformChildPowerShell -ScriptPath (Join-Path $platformRoot "scripts
     "-ExpectedKind", "candidate"
 ) -SuppressOutput
 
+# CR #96: implementation merge remains distinct from the Release Scope Gate,
+# but must not introduce a later/TBD Change Request into an already open train.
+# The collector is read-only and fails closed; it cannot alter scope authority.
+$eligibilityRoot = Join-Path (Get-DDDAPlatformStateRoot) ("merge-eligibility/pr-$Pr-$headSha")
+New-Item -ItemType Directory -Path $eligibilityRoot -Force | Out-Null
+$eligibilityPath = Join-Path $eligibilityRoot "release-eligibility.json"
+$eligibilityCollector = Join-Path $platformRoot "scripts/platform/Test-DDDAMergeReleaseEligibility.py"
+if (-not (Test-Path -LiteralPath $eligibilityCollector -PathType Leaf)) {
+    throw "Releasable-main merge eligibility collector neexistuje: $eligibilityCollector"
+}
+$python = Get-DDDAPlatformPythonCommand
+$previousGhToken = $env:GH_TOKEN
+$previousGithubToken = $env:GITHUB_TOKEN
+try {
+    $env:GH_TOKEN = $githubAuth.Token
+    Invoke-DDDAPlatformNative -Command $python -Arguments @(
+        $eligibilityCollector,
+        "--repository", $repositorySlug,
+        "--pr", [string]$Pr,
+        "--expected-sha", $headSha,
+        "--output", $eligibilityPath
+    ) -WorkingDirectory $platformRoot | Out-Null
+}
+finally {
+    $env:GH_TOKEN = $previousGhToken
+    $env:GITHUB_TOKEN = $previousGithubToken
+}
+if (-not (Test-Path -LiteralPath $eligibilityPath -PathType Leaf)) {
+    throw "Releasable-main merge eligibility nevytvořil evidence report."
+}
+$mergeEligibility = Get-Content -LiteralPath $eligibilityPath -Raw -Encoding UTF8 | ConvertFrom-Json
+if ([string]$mergeEligibility.status -ne "PASS" -or -not [bool]$mergeEligibility.side_effects_allowed) {
+    $failures = @($mergeEligibility.failing_invariants | ForEach-Object { [string]$_ })
+    throw "Releasable-main merge eligibility FAIL:`n$($failures -join "`n")"
+}
+
 $reviewComments = @(Get-DDDAHumanPrReviewComments -RepositorySlug $repositorySlug -Pr $Pr -Token $githubAuth.Token)
 if ($reviewComments.Count -ne 1) {
     throw "Governed implementation merge vyžaduje právě jeden authoritativní Human Review marker. Nalezeno: $($reviewComments.Count)."
@@ -182,6 +218,7 @@ Write-Host "CI checks:         PASS ($($checkSummary.CheckRunCount) check runs)"
 Write-Host "Human Review:      PASS ($commentAuthor)"
 Write-Host "Impact:            $impact"
 Write-Host "Merge method:      $effectiveMergeMethod"
+Write-Host "Releasable-main:  PASS"
 Write-Host "Bootstrap transition: $([bool]$strategyDecision.bootstrap_transition)"
 Write-Host "Release Scope Gate: NOT APPLICABLE (implementation merge)"
 Write-Host "Release/tag side effects: DISABLED"
@@ -267,6 +304,12 @@ Write-DDDAPlatformJson -Path $evidencePath -Depth 30 -Value ([ordered]@{
     impact = $impact
     validated_source_head_sha = $headSha
     candidate_package_sha256 = [string]$validation.PackageSha256
+    releasable_main = [ordered]@{
+        status = [string]$mergeEligibility.status
+        active_release = $mergeEligibility.active_release
+        primary_crs = @($mergeEligibility.primary_crs)
+        evidence_path = $eligibilityPath
+    }
     human_review = [ordered]@{
         reviewer = $commentAuthor
         reviewed_at = [string]$review.reviewed_at

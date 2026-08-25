@@ -38,6 +38,8 @@ $platformCiPath = Join-Path $platformRoot ".github/workflows/platform-ci.yml"
 $secondaryCiPath = Join-Path $platformRoot ".github/workflows/validate-ddda.yml"
 $remoteBrokerPath = Join-Path $platformRoot ".github/workflows/assistant-command.yml"
 $releaseScopeCollectorPath = Join-Path $platformRoot "scripts/platform/Test-DDDAReleaseScope.py"
+$mergeEligibilityCollectorPath = Join-Path $platformRoot "scripts/platform/Test-DDDAMergeReleaseEligibility.py"
+$releaseGovernanceRuntimePath = Join-Path $platformRoot "runtime/platform/release_governance.py"
 $hrdrSchemaPath = Join-Path $platformRoot "schemas/human-release-decision.schema.json"
 $githubSupportPath = Join-Path $platformRoot "scripts/platform/DDDAGitHubSupport.ps1"
 $platformSupportPath = Join-Path $platformRoot "scripts/platform/DDDAPlatformSupport.ps1"
@@ -48,7 +50,7 @@ $gateCommandPath = Join-Path $platformRoot "scripts/Complete-DDDALifecycleStep.p
 $enginePath = Join-Path $platformRoot "runtime/steering/ddda_steering/engine.py"
 $gateSchemaPath = Join-Path $platformRoot "schemas/gate-status.schema.json"
 
-foreach ($path in @($entryPath, $governedMergePath, $governedPromotionPath, $promotionPath, $releaseGovernanceSupportPath, $validatePrPath, $validationReportPath, $platformCiPath, $secondaryCiPath, $remoteBrokerPath, $releaseScopeCollectorPath, $hrdrSchemaPath, $githubSupportPath, $platformSupportPath, $changelogPath, $policyPath, $acceptancePath, $gateCommandPath, $enginePath, $gateSchemaPath)) {
+foreach ($path in @($entryPath, $governedMergePath, $governedPromotionPath, $promotionPath, $releaseGovernanceSupportPath, $validatePrPath, $validationReportPath, $platformCiPath, $secondaryCiPath, $remoteBrokerPath, $releaseScopeCollectorPath, $mergeEligibilityCollectorPath, $releaseGovernanceRuntimePath, $hrdrSchemaPath, $githubSupportPath, $platformSupportPath, $changelogPath, $policyPath, $acceptancePath, $gateCommandPath, $enginePath, $gateSchemaPath)) {
     Assert-True -Condition (Test-Path -LiteralPath $path -PathType Leaf) -Message "Chybí merge/promotion nebo gate kontrakt: $path"
 }
 
@@ -63,6 +65,8 @@ $platformCi = Get-Content -LiteralPath $platformCiPath -Raw -Encoding UTF8
 $secondaryCi = Get-Content -LiteralPath $secondaryCiPath -Raw -Encoding UTF8
 $remoteBroker = Get-Content -LiteralPath $remoteBrokerPath -Raw -Encoding UTF8
 $releaseScopeCollector = Get-Content -LiteralPath $releaseScopeCollectorPath -Raw -Encoding UTF8
+$mergeEligibilityCollector = Get-Content -LiteralPath $mergeEligibilityCollectorPath -Raw -Encoding UTF8
+$releaseGovernanceRuntime = Get-Content -LiteralPath $releaseGovernanceRuntimePath -Raw -Encoding UTF8
 $hrdrSchema = Get-Content -LiteralPath $hrdrSchemaPath -Raw -Encoding UTF8
 $githubSupport = Get-Content -LiteralPath $githubSupportPath -Raw -Encoding UTF8
 $platformSupport = Get-Content -LiteralPath $platformSupportPath -Raw -Encoding UTF8
@@ -236,6 +240,11 @@ Assert-True -Condition ($releaseGovernanceSupport -match 'ddda:human-release-dec
 Assert-True -Condition ($releaseGovernanceSupport -match 'decision\s*=\s*"pending"' -or $hrdrSchema -match '"pending"') -Message "HRDR contract neobsahuje pending human state."
 Assert-True -Condition ($releaseScopeCollector -match 'dependencies/blocked_by') -Message "Release Scope collector nečte native blockers."
 Assert-True -Condition ($releaseScopeCollector -match 'Project V2') -Message "Release Scope collector neobsahuje Project V2 read-back."
+Assert-True -Condition ($releaseScopeCollector -match 'previous_release_tag' -and $releaseScopeCollector -match 'compare/') -Message "Release Scope collector neodvozuje physical source od předchozího release tagu."
+Assert-True -Condition ($releaseScopeCollector -match 'commits/.+/pulls' -and $releaseScopeCollector -match 'primary_change_requests') -Message "Release Scope collector nemapuje shipping commity na primary CR."
+Assert-True -Condition ($releaseGovernanceRuntime -match 'RECOVERY_DECISION_REQUIRED') -Message "Physical scope mismatch nemá explicitní human recovery boundary."
+Assert-True -Condition ($governedMerge -match 'Test-DDDAMergeReleaseEligibility\.py') -Message "Governed merge nevolá releasable-main eligibility guard."
+Assert-True -Condition ($mergeEligibilityCollector -match 'MERGE_ELIGIBILITY_OUTSIDE_ACTIVE_RELEASE') -Message "Merge eligibility guard neblokuje PR mimo aktivní release train."
 
 $dryRunMatch = [regex]::Match($promotion, 'if\s*\(\$DryRun\)', [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)
 $confirmationMatch = [regex]::Match($promotion, 'if\s*\(\[bool\]\$policy\.require_explicit_confirmation\s*-and\s*-not\s*\$ConfirmMerge\)', [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)
