@@ -282,6 +282,12 @@
         48,
         52
       ]
+    },
+    {
+      "blocked": 75,
+      "blocked_by": [
+        96
+      ]
     }
   ],
   "fields": [
@@ -1204,6 +1210,42 @@
     {
       "kind": "issue",
       "numbers": [
+        96
+      ],
+      "metadata": {
+        "Status": "Ready",
+        "Priority": "P0",
+        "Work Package": "Other",
+        "Item Type": "Defect",
+        "Platform Area": "RELEASE",
+        "Impact": "HIGH",
+        "Target Release": "0.1.1",
+        "Blocked": "No",
+        "Human Review": "Pending",
+        "Outcome summary": "Enforce declared release scope equals physical release-source scope and block DDDA 0.1.1 release readiness until current-source recovery is explicitly decided."
+      }
+    },
+    {
+      "kind": "issue",
+      "numbers": [
+        98
+      ],
+      "metadata": {
+        "Status": "In progress",
+        "Priority": "P0",
+        "Work Package": "Other",
+        "Item Type": "Defect",
+        "Platform Area": "RELEASE",
+        "Impact": "HIGH",
+        "Target Release": "0.1.1",
+        "Blocked": "No",
+        "Human Review": "Pending",
+        "Outcome summary": "Publish the validated canonical DDDA package and portable release evidence as immutable GitHub Release assets bound to the canonical annotated tag."
+      }
+    },
+    {
+      "kind": "issue",
+      "numbers": [
         88
       ],
       "metadata": {
@@ -1309,13 +1351,15 @@
     {
       "title": "DDDA 0.1.1",
       "state": "open",
-      "description": "Approved stabilization release scope from #75. Milestone membership is release scope, not release approval.",
+      "description": "Approved stabilization release scope from #75 plus P0 release-readiness blockers #96 and #98. Milestone membership is release scope, not release approval.",
       "issues": [
         9,
         12,
         67,
         68,
-        70
+        70,
+        96,
+        98
       ],
       "pulls": []
     }

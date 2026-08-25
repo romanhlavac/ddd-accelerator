@@ -35,6 +35,10 @@ DELIVERY_VIEW = "Implementace a Delivery"
 TARGET_RELEASE_RE = re.compile(
     r"(?im)^\s*(?:[-*]\s*)?(?:\*\*)?Target\s+(?:Release|resolution|horizon)(?:\*\*)?\s*:\s*`?([^`\r\n]+)"
 )
+SEMVER_TAG_RE = re.compile(r"^v(?P<version>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)$")
+PRIMARY_CHANGE_RE = re.compile(
+    r"(?im)^\s*(?:[-*]\s*)?(?:Implements|Closes)\s+#(\d+)\s*$"
+)
 
 
 class GitHubReadError(RuntimeError):
@@ -248,6 +252,117 @@ def risk_horizon(body: str) -> str:
     return match.group(1).strip() if match else ""
 
 
+def _tag_version(name: str) -> tuple[int, int, int] | None:
+    match = SEMVER_TAG_RE.fullmatch(name)
+    if not match:
+        return None
+    return (int(match.group("version")), int(match.group("minor")), int(match.group("patch")))
+
+
+def _dereference_tag(repository: str, sha: str, object_type: str, token: str) -> str:
+    """Resolve annotated tags without accepting an ambiguous non-commit object."""
+    current_sha, current_type = sha, object_type
+    for _ in range(4):
+        if current_type == "commit":
+            return current_sha
+        if current_type != "tag":
+            break
+        tag = rest_get(f"repos/{repository}/git/tags/{current_sha}", token)
+        obj = (tag or {}).get("object") or {}
+        current_sha, current_type = str(obj.get("sha") or ""), str(obj.get("type") or "")
+    raise GitHubReadError("Release tag does not resolve to a commit")
+
+
+def previous_release_tag(repository: str, version: str, token: str) -> dict[str, str]:
+    current = _tag_version(f"v{version}")
+    if current is None:
+        raise GitHubReadError(f"Release version is not stable SemVer: {version}")
+    refs = rest_get(f"repos/{repository}/git/matching-refs/tags/", token)
+    candidates: list[tuple[tuple[int, int, int], str, str, str]] = []
+    for ref in refs or []:
+        name = str(ref.get("ref") or "").removeprefix("refs/tags/")
+        parsed = _tag_version(name)
+        obj = ref.get("object") or {}
+        if parsed is not None and parsed < current:
+            candidates.append((parsed, name, str(obj.get("sha") or ""), str(obj.get("type") or "")))
+    if not candidates:
+        raise GitHubReadError(f"No canonical previous SemVer tag exists before v{version}")
+    _, name, sha, object_type = max(candidates)
+    return {"tag": name, "sha": _dereference_tag(repository, sha, object_type, token)}
+
+
+def compare_commits(repository: str, base: str, head: str, token: str) -> tuple[str, list[dict[str, Any]]]:
+    first = rest_get(f"repos/{repository}/compare/{base}...{head}?per_page=100&page=1", token)
+    status = str((first or {}).get("status") or "")
+    total = int((first or {}).get("total_commits") or 0)
+    commits = list((first or {}).get("commits") or [])
+    page = 2
+    while len(commits) < total:
+        more = rest_get(f"repos/{repository}/compare/{base}...{head}?per_page=100&page={page}", token)
+        batch = list((more or {}).get("commits") or [])
+        if not batch:
+            raise GitHubReadError("Compare pagination ended before all physical source commits were read")
+        commits.extend(batch)
+        page += 1
+    if len(commits) != total:
+        raise GitHubReadError("Compare returned an ambiguous physical source commit count")
+    return status, commits
+
+
+def primary_change_requests(body: str) -> list[int]:
+    return sorted({int(value) for value in PRIMARY_CHANGE_RE.findall(body or "")})
+
+
+def physical_scope_snapshot(
+    repository: str,
+    version: str,
+    source_sha: str,
+    token: str,
+    project_rows: dict[int, dict[str, Any]],
+) -> dict[str, Any]:
+    previous = previous_release_tag(repository, version, token)
+    compare_status, commits = compare_commits(repository, previous["tag"], source_sha, token)
+    pr_numbers: set[int] = set()
+    unmapped: set[str] = set()
+    for commit in commits:
+        sha = str(commit.get("sha") or "")
+        linked = rest_pages(f"repos/{repository}/commits/{sha}/pulls", token)
+        numbers = {int(row["number"]) for row in linked if row.get("number") is not None}
+        if not numbers:
+            unmapped.add(sha)
+        pr_numbers.update(numbers)
+
+    shipping: list[dict[str, Any]] = []
+    for number in sorted(pr_numbers):
+        pr = rest_get(f"repos/{repository}/pulls/{number}", token)
+        primary = primary_change_requests(str((pr or {}).get("body") or ""))
+        authority: dict[str, Any] = {}
+        if len(primary) == 1:
+            authority = rest_get(f"repos/{repository}/issues/{primary[0]}", token) or {}
+        milestone = (authority.get("milestone") or {}).get("title")
+        project = project_rows.get(primary[0], {}) if len(primary) == 1 else {}
+        shipping.append(
+            {
+                "number": number,
+                "merged": bool((pr or {}).get("merged_at")),
+                "merge_commit_sha": (pr or {}).get("merge_commit_sha"),
+                "primary_crs": primary,
+                "milestone": milestone,
+                "target_release": project.get("Target Release"),
+            }
+        )
+
+    return {
+        "previous_release_tag": previous["tag"],
+        "previous_release_sha": previous["sha"],
+        "release_source_sha": source_sha,
+        "compare_status": compare_status,
+        "commit_count": len(commits),
+        "unmapped_commit_shas": sorted(unmapped),
+        "shipping_prs": shipping,
+    }
+
+
 def collect_snapshot(
     record: dict[str, Any],
     *,
@@ -296,6 +411,13 @@ def collect_snapshot(
     owner = repository.split("/", 1)[0]
     proj_number = project_number(owner, project_token)
     project_meta, project_rows = project_snapshot(owner, proj_number, project_token)
+    physical_scope = physical_scope_snapshot(
+        repository,
+        version,
+        current_head,
+        api_token,
+        project_rows,
+    )
 
     return {
         "current_pr_head": current_head,
@@ -310,6 +432,7 @@ def collect_snapshot(
         "risk_issue_states": risk_states,
         "risk_issue_assignees": risk_assignees,
         "risk_issue_horizons": risk_horizons,
+        "physical_scope": physical_scope,
     }
 
 
@@ -378,6 +501,7 @@ def main() -> int:
             ],
             "residual_risks": record.get("accepted_risks", []),
             "hrdr_risk_set": result.as_dict()["accepted_risk_issues"],
+            "physical_scope": snapshot.get("physical_scope"),
             **result.as_dict(),
             "snapshot": snapshot,
         }

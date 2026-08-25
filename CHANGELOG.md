@@ -8,6 +8,9 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 ### Added
 
+- CR #96 physical release-scope contract: release preflight now derives the shipping commit/PR/primary-CR set from the previous canonical SemVer tag to the exact candidate source SHA and fails closed on an unmapped, ambiguous or out-of-scope change;
+- read-only releasable-main eligibility guard for `merge-pr`: while one DDDA release Milestone is open, a PR whose primary CR is outside that train cannot be merged into `main`;
+- machine-readable physical-source inventory and explicit `RECOVERY_DECISION_REQUIRED` result; automation neither expands release scope nor removes/deferes already integrated source.
 - machine-readable `human-release-decision.schema.json`, `review-pr` scaffold a fail-closed Release Scope Gate pro exact release-candidate SHA / candidate package / release-version identity;
 - governed implementation command `merge-pr` a machine-readable Human Review marker `ddda:human-pr-review:v1`, vázané na exact PR SHA a candidate package hash;
 - ADR 0008 a developer runbook oddělující Human Review/implementation merge, Human Release Decision a mechanickou release-scope completeness;
