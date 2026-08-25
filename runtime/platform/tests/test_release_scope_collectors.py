@@ -84,7 +84,7 @@ def test_physical_scope_inventory_keeps_unmapped_commit_and_exact_primary_relati
 def test_merge_collector_recognizes_one_open_release_train_and_tbd_target():
     spec = importlib.util.spec_from_file_location("ddda_merge_eligibility_collector_test", MERGE_COLLECTOR)
     assert spec and spec.loader
-    ns = importlib.util.spec_from_spec(spec)
+    ns = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(ns)
     assert ns.active_release([{"title": "DDDA 0.1.1", "state": "open"}]) == {
         "version": "0.1.1"
