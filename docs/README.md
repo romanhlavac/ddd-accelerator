@@ -36,6 +36,7 @@
 - [ADR 0003 — Control Center, Artifact Registry a kanonický workshop shell](adr/0003-miro-control-center-and-workshop-shell.md)
 - [ADR 0004 — Redline traceability a navigovatelný frame 01](adr/0004-miro-redline-traceability-and-frame-01.md)
 - [ADR 0005 — Chat/Work platform development a Cursor project runtime](adr/0005-chat-work-only-development-operating-model.md)
+- [ADR 0011 — Fyzický release scope a releasable main](adr/0011-physical-release-scope-and-releasable-main.md)
 - [PR #8 migration note](migration/pr8-non-breaking-steering-extension.md)
 - [Miro scaffold migration 2.4 → 2.5](migration/miro-scaffold-2.4-to-2.5.md)
 - [Forenzní review REM-PR8-HVA-CC-001](reviews/REM-PR8-HVA-CC-001-forensic-review.md)

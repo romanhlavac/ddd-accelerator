@@ -122,6 +122,8 @@ release candidate (typicky release/<version> PR nebo ekvivalentní governed cand
 
 Release Scope Gate zůstává striktní. Neaplikuje se ale jako podmínka integrace jednotlivých implementačních PR, jejichž merge je předpokladem pro uzavření release scope.
 
+Dokud je otevřený právě jeden release train `DDDA X.Y.Z`, `merge-pr` navíc fail-closed odmítne PR, jehož jediný primary CR není v jeho Milestone. To je prevence nové kontaminace `main`; není to Release Scope Gate ani release authorization.
+
 Git je source of truth. PR je jednotka změny. Package je jednotka distribuce a reprodukovatelné validace.
 
 ## 1. Příprava změny

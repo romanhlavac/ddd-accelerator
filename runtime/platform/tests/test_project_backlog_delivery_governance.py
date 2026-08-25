@@ -269,7 +269,7 @@ def test_0_1_1_governance_normalization_contract():
     assert specs["DDDA 0.1.0"]["issues"] == [10, 11, 13, 14]
     assert specs["DDDA 0.1.0"]["pulls"] == [8]
     assert specs["DDDA 0.1.1"]["state"] == "open"
-    assert specs["DDDA 0.1.1"]["issues"] == [9, 12, 67, 68, 70]
+    assert specs["DDDA 0.1.1"]["issues"] == [9, 12, 67, 68, 70, 96]
     assert specs["DDDA 0.1.1"]["pulls"] == []
 
     meta = {}
@@ -283,6 +283,10 @@ def test_0_1_1_governance_normalization_contract():
     assert meta[67]["Item Type"] == "Defect" and meta[67]["Target Release"] == "0.1.1"
     assert meta[68]["Item Type"] == "Defect" and meta[68]["Target Release"] == "0.1.1"
     assert meta[70]["Item Type"] == "Change Request" and meta[70]["Target Release"] == "0.1.1"
+    assert meta[96]["Item Type"] == "Defect"
+    assert meta[96]["Work Package"] == "Other"
+    assert meta[96]["Target Release"] == "0.1.1"
+    assert "unparented_items: [16, 42, 44, 45, 49, 65, 66, 67, 68, 69, 70, 73, 75, 85, 88, 96]" in POLICY.read_text(encoding="utf-8")
     assert meta[75]["Item Type"] == "Enabler"
     assert meta[85]["Work Package"] == "Other"
     assert meta[85]["Target Release"] == "TBD"
