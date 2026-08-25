@@ -286,7 +286,8 @@
     {
       "blocked": 75,
       "blocked_by": [
-        96
+        96,
+        98
       ]
     }
   ],
@@ -1228,6 +1229,24 @@
     {
       "kind": "issue",
       "numbers": [
+        98
+      ],
+      "metadata": {
+        "Status": "In progress",
+        "Priority": "P0",
+        "Work Package": "Other",
+        "Item Type": "Defect",
+        "Platform Area": "RELEASE",
+        "Impact": "HIGH",
+        "Target Release": "0.1.1",
+        "Blocked": "No",
+        "Human Review": "Pending",
+        "Outcome summary": "Canonical GitHub Release package and evidence published."
+      }
+    },
+    {
+      "kind": "issue",
+      "numbers": [
         88
       ],
       "metadata": {
@@ -1333,14 +1352,15 @@
     {
       "title": "DDDA 0.1.1",
       "state": "open",
-      "description": "Approved stabilization release scope from #75 plus P0 release-readiness blocker #96. Milestone membership is release scope, not release approval.",
+      "description": "Approved stabilization release scope from #75 plus P0 release-readiness blockers #96 and #98. Milestone membership is release scope, not release approval.",
       "issues": [
         9,
         12,
         67,
         68,
         70,
-        96
+        96,
+        98
       ],
       "pulls": []
     }

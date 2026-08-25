@@ -165,7 +165,7 @@ native_sub_issue_mapping:
     parent_issue: 61
     children: [36, 37, 38, 39, 40, 41]
   Other:
-    unparented_items: [16, 42, 44, 45, 49, 65, 66, 67, 68, 69, 70, 73, 75, 85, 88, 96]
+    unparented_items: [16, 42, 44, 45, 49, 65, 66, 67, 68, 69, 70, 73, 75, 85, 88, 96, 98]
 
 dependency_edges:
   WP-08:
@@ -334,7 +334,7 @@ milestones:
       excluded_future_items: [9, 12, 45, 53, 54, 55, 56, 57, 65, 66, 67, 68, 69, 70, 73, 75, 85, 88]
     - name: DDDA 0.1.1
       state: open
-      issues: [9, 12, 67, 68, 70, 96]
+      issues: [9, 12, 67, 68, 70, 96, 98]
       pulls: []
       pre_release_prerequisites: [44]
       explicitly_deferred_items: [65, 66, 69, 73, 85, 88]
