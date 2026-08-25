@@ -217,6 +217,7 @@ release candidate preparation (typically release/<version> PR or equivalent gove
 → smoke + acceptance
 → release report
 → tag
+→ GitHub Release publication of the validated canonical package and portable release evidence
 ```
 
 Release Scope Gate stays strict: incomplete current-release scope is a release failure. It is not evaluated as a prerequisite for merging the individual implementation PRs whose integration is required to make that scope terminal.

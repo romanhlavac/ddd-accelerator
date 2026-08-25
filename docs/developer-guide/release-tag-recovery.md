@@ -73,3 +73,7 @@ result
 ```
 
 `result=PASS` je možné pouze tehdy, když fresh remote read-back prokáže canonical tag na exact validated release SHA. Technický recovery PASS nenahrazuje žádné další Human Release Decision nebo release governance rozhodnutí, které je podle aktuálního lifecycle stále vyžadováno.
+
+## Navazující GitHub Release publication
+
+Canonical tag sám o sobě není published DDDA distribution. Po vytvoření tagu musí promotion vytvořit nebo fresh read-backem ověřit GitHub Release a jeho canonical package/report assets. Pokud tag existuje, ale Release nebo některý asset chybí, tag se nepřepisuje; postupuje se podle `github-release-publication.md` se samostatnou recovery authorization.
