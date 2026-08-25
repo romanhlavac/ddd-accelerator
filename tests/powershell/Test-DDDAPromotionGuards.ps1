@@ -244,7 +244,7 @@ Assert-True -Condition ($releaseScopeCollector -match 'previous_release_tag' -an
 Assert-True -Condition ($releaseScopeCollector -match 'commits/.+/pulls' -and $releaseScopeCollector -match 'primary_change_requests') -Message "Release Scope collector nemapuje shipping commity na primary CR."
 Assert-True -Condition ($releaseGovernanceRuntime -match 'RECOVERY_DECISION_REQUIRED') -Message "Physical scope mismatch nemá explicitní human recovery boundary."
 Assert-True -Condition ($governedMerge -match 'Test-DDDAMergeReleaseEligibility\.py') -Message "Governed merge nevolá releasable-main eligibility guard."
-Assert-True -Condition ($mergeEligibilityCollector -match 'MERGE_ELIGIBILITY_OUTSIDE_ACTIVE_RELEASE') -Message "Merge eligibility guard neblokuje PR mimo aktivní release train."
+Assert-True -Condition ($releaseGovernanceRuntime -match 'MERGE_ELIGIBILITY_OUTSIDE_ACTIVE_RELEASE') -Message "Merge eligibility guard neblokuje PR mimo aktivní release train."
 
 $dryRunMatch = [regex]::Match($promotion, 'if\s*\(\$DryRun\)', [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)
 $confirmationMatch = [regex]::Match($promotion, 'if\s*\(\[bool\]\$policy\.require_explicit_confirmation\s*-and\s*-not\s*\$ConfirmMerge\)', [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)
