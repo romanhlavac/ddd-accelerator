@@ -94,7 +94,10 @@ def evaluate_recovery_ledger(
     if not physical_commits:
         failures.append("RECOVERY_LEDGER_PHYSICAL_COMMIT_EVIDENCE_MISSING")
 
-    metadata = _sha_values(ledger.get("metadata_commit_shas"))
+    # The metadata commit is derived from the physical inventory, rather than
+    # declared inside the ledger it creates. Requiring a commit to contain its
+    # own SHA would make a valid ledger impossible to construct.
+    metadata = _sha_values(physical.get("metadata_commit_shas"))
     if len(metadata) != 1 or not metadata.issubset(physical_commits):
         failures.append("RECOVERY_LEDGER_METADATA_COMMIT_INVALID")
 

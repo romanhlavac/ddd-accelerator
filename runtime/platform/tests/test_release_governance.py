@@ -279,6 +279,7 @@ def test_recovery_ledger_accepts_only_complete_read_back_provenance():
         "release_source_sha": SHA,
         "compare_status": "ahead",
         "commit_shas": [recovered, metadata],
+        "metadata_commit_shas": [metadata],
         "unmapped_commit_shas": [],
         "shipping_prs": [
             {
@@ -314,7 +315,6 @@ def test_recovery_ledger_accepts_only_complete_read_back_provenance():
             "schema_version": 1,
             "version": VERSION,
             "previous_release_tag": "v0.1.0",
-            "metadata_commit_shas": [metadata],
             "entries": [
                 {
                     "recovered_commit_sha": recovered,
@@ -338,11 +338,11 @@ def test_recovery_ledger_rejects_uncovered_or_tampered_recovery_commit():
     recovered = "d" * 40
     metadata = "e" * 40
     live["physical_scope"]["commit_shas"] = [recovered, metadata]
+    live["physical_scope"]["metadata_commit_shas"] = [metadata]
     live["physical_scope"]["recovery_ledger"] = {
         "schema_version": 1,
         "version": VERSION,
         "previous_release_tag": "v0.1.0",
-        "metadata_commit_shas": [metadata],
         "entries": [
             {
                 "recovered_commit_sha": recovered,
