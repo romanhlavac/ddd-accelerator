@@ -261,16 +261,28 @@ def test_release_planning_readback_retries_boundedly_until_consistent():
 
 
 
-def test_0_1_1_governance_normalization_contract():
+def test_release_train_milestone_and_project_target_contract():
     cfg = json.loads((ROOT / "config/governance/github-bootstrap.json").read_text(encoding="utf-8-sig"))
     specs = {x["title"]: x for x in cfg["milestones"]}
-    assert set(specs) == {"DDDA 0.1.0", "DDDA 0.1.1"}
+    expected = {
+        "DDDA 0.1.0": [10, 11, 13, 14],
+        "DDDA 0.1.1": [9, 12, 67, 68, 70, 96, 98],
+        "DDDA 0.1.2": [16, 65, 69, 73, 85, 94],
+        "DDDA 0.2.0": [34, 35, 48, 52, 66],
+        "DDDA 0.3.0": [27, 28, 29, 30, 31, 32, 33, 47, 62, 46],
+        "DDDA 0.3.1": [53, 54, 55, 56, 57],
+        "DDDA 0.4.0": [21, 22, 23, 24, 25, 50, 26, 51],
+        "DDDA 0.5.0": [36, 37, 38, 39, 40, 41],
+    }
+    assert set(specs) == set(expected)
     assert specs["DDDA 0.1.0"]["state"] == "closed"
     assert specs["DDDA 0.1.0"]["issues"] == [10, 11, 13, 14]
     assert specs["DDDA 0.1.0"]["pulls"] == [8]
-    assert specs["DDDA 0.1.1"]["state"] == "open"
-    assert specs["DDDA 0.1.1"]["issues"] == [9, 12, 67, 68, 70, 96, 98]
-    assert specs["DDDA 0.1.1"]["pulls"] == []
+    for title, issues in expected.items():
+        assert specs[title]["issues"] == issues
+        if title != "DDDA 0.1.0":
+            assert specs[title]["state"] == "open"
+            assert specs[title]["pulls"] == []
 
     meta = {}
     for group in cfg["item_groups"]:
@@ -288,6 +300,14 @@ def test_0_1_1_governance_normalization_contract():
     assert meta[96]["Target Release"] == "0.1.1"
     assert meta[98]["Item Type"] == "Defect"
     assert meta[98]["Work Package"] == "Other"
+    for title, issues in expected.items():
+        if title == "DDDA 0.1.0":
+            continue
+        version = title.removeprefix("DDDA ")
+        for issue in issues:
+            assert meta[issue]["Target Release"] == version
+    assert meta[44]["Target Release"] == "TBD"
+    assert meta[88]["Target Release"] == "TBD"
     assert meta[98]["Target Release"] == "0.1.1"
     assert meta[98]["Priority"] == "P0"
     assert meta[98]["Platform Area"] == "RELEASE"
