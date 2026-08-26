@@ -9,6 +9,7 @@ that Milestone.  The script never changes a Milestone, Project field or PR.
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import os
 from pathlib import Path
@@ -32,6 +33,33 @@ PRIMARY_RE = re.compile(r"(?im)^\s*(?:[-*]\s*)?(?:Implements|Closes)\s+#(\d+)\s*
 TARGET_RE = re.compile(
     r"(?im)^\s*(?:[-*]\s*)?(?:\*\*)?Target\s+Release(?:\*\*)?\s*:\s*`?([^`\r\n]+)"
 )
+TRANSITION_RE = re.compile(
+    r"(?is)<!--\s*ddda:merge-eligibility-transition:v1\s*-->\s*```json\s*(\{.*?\})\s*```"
+)
+
+FUTURE_RELEASE_METADATA_PATHS = frozenset(
+    {
+        "config/governance/github-bootstrap.json",
+        "config/governance/backlog-policy.yaml",
+        "docs/roadmap/backlog-index.md",
+        "runtime/platform/tests/test_project_backlog_delivery_governance.py",
+    }
+)
+TRANSITION_PATHS = frozenset(
+    {
+        "runtime/platform/release_governance.py",
+        "runtime/platform/tests/test_release_governance.py",
+        "runtime/platform/tests/test_merge_release_eligibility_collector.py",
+        "scripts/platform/Test-DDDAMergeReleaseEligibility.py",
+        "docs/adr/0012-future-release-metadata-merge-eligibility.md",
+        "docs/developer-guide/platform-development-lifecycle.md",
+    }
+)
+
+# The value is deliberately the exact main SHA before this remediation.  The
+# transition is therefore impossible once any other main change is integrated.
+TRANSITION_BASE_SHA = "b61392ace66a95c808f321f3bd4b046cc5f564e5"
+TRANSITION_PRIMARY_CR = 16
 
 
 class GitHubReadError(RuntimeError):
@@ -93,6 +121,138 @@ def target_release(body: str) -> str | None:
     return match.group(1).strip() if match else None
 
 
+def content_text(repository: str, path: str, ref: str, token: str) -> str:
+    payload = request_json(f"repos/{repository}/contents/{path}?ref={ref}", token)
+    if not isinstance(payload, dict) or payload.get("encoding") != "base64":
+        raise GitHubReadError(f"Expected base64 file content for {path} at {ref}")
+    try:
+        return base64.b64decode(str(payload.get("content") or "")).decode("utf-8-sig")
+    except (ValueError, UnicodeDecodeError) as exc:
+        raise GitHubReadError(f"Invalid UTF-8 JSON content for {path} at {ref}") from exc
+
+
+def pr_files(repository: str, pr_number: int, token: str) -> list[dict[str, Any]]:
+    rows = pages(f"repos/{repository}/pulls/{pr_number}/files", token)
+    if not all(isinstance(row, dict) for row in rows):
+        raise GitHubReadError("PR files response contains an invalid row")
+    return rows
+
+
+def milestone_spec(config: dict[str, Any], version: str) -> dict[str, Any] | None:
+    wanted = f"DDDA {version}"
+    matches = [row for row in config.get("milestones", []) if isinstance(row, dict) and row.get("title") == wanted]
+    if len(matches) != 1:
+        return None
+    return matches[0]
+
+
+def issue_metadata(config: dict[str, Any], issue_numbers: set[int]) -> dict[str, Any] | None:
+    result: dict[str, Any] = {}
+    for group in config.get("item_groups", []):
+        if not isinstance(group, dict) or group.get("kind") != "issue":
+            continue
+        metadata = group.get("metadata")
+        numbers = group.get("numbers")
+        if not isinstance(metadata, dict) or not isinstance(numbers, list):
+            return None
+        for value in numbers:
+            try:
+                number = int(value)
+            except (TypeError, ValueError):
+                return None
+            if number in issue_numbers:
+                if str(number) in result:
+                    return None
+                result[str(number)] = metadata
+    return result if set(result) == {str(n) for n in issue_numbers} else None
+
+
+def future_release_metadata_evidence(
+    *,
+    repository: str,
+    pr: dict[str, Any],
+    active: dict[str, str] | None,
+    active_issue_numbers: set[int],
+    token: str,
+) -> dict[str, Any] | None:
+    """Prove that a PR changes only future planning and preserves active scope."""
+    if active is None:
+        return None
+    version = active["version"]
+    base_sha = str(((pr.get("base") or {}).get("sha")) or "")
+    head_sha = str(((pr.get("head") or {}).get("sha")) or "")
+    failures: list[str] = []
+    try:
+        rows = pr_files(repository, int(pr["number"]), token)
+        paths = {str(row.get("filename") or "") for row in rows}
+        if paths != FUTURE_RELEASE_METADATA_PATHS:
+            failures.append("MERGE_ELIGIBILITY_FUTURE_RELEASE_PATHS_INVALID")
+        if any(str(row.get("status") or "") != "modified" for row in rows):
+            failures.append("MERGE_ELIGIBILITY_FUTURE_RELEASE_FILE_STATUS_INVALID")
+
+        base = json.loads(content_text(repository, "config/governance/github-bootstrap.json", base_sha, token))
+        head = json.loads(content_text(repository, "config/governance/github-bootstrap.json", head_sha, token))
+        if not isinstance(base, dict) or not isinstance(head, dict):
+            raise ValueError("bootstrap root is not an object")
+        base_spec = milestone_spec(base, version)
+        head_spec = milestone_spec(head, version)
+        if base_spec is None or head_spec is None or base_spec != head_spec:
+            failures.append("MERGE_ELIGIBILITY_FUTURE_RELEASE_ACTIVE_SCOPE_CHANGED")
+        if base_spec is None or set(base_spec.get("issues") or []) != active_issue_numbers:
+            failures.append("MERGE_ELIGIBILITY_FUTURE_RELEASE_ACTIVE_SCOPE_EVIDENCE_INVALID")
+        base_meta = issue_metadata(base, active_issue_numbers)
+        head_meta = issue_metadata(head, active_issue_numbers)
+        if base_meta is None or head_meta is None or base_meta != head_meta:
+            failures.append("MERGE_ELIGIBILITY_FUTURE_RELEASE_ACTIVE_METADATA_CHANGED")
+        future_specs_changed = base.get("milestones") != head.get("milestones")
+        if not future_specs_changed:
+            failures.append("MERGE_ELIGIBILITY_FUTURE_RELEASE_NO_FUTURE_PLAN_CHANGE")
+    except (GitHubReadError, KeyError, TypeError, ValueError, json.JSONDecodeError):
+        failures.append("MERGE_ELIGIBILITY_FUTURE_RELEASE_EVIDENCE_INVALID")
+        paths = set()
+    return {
+        "status": "PASS" if not failures else "FAIL",
+        "exception": "FUTURE_RELEASE_METADATA_ONLY",
+        "changed_paths": sorted(paths),
+        "active_scope_unchanged": not failures,
+        "failures": sorted(set(failures)),
+    }
+
+
+def transition_evidence(pr: dict[str, Any], repository: str, primary: list[int], token: str) -> dict[str, Any] | None:
+    """Validate the one-time exact-base transition for this guard remediation."""
+    base_sha = str(((pr.get("base") or {}).get("sha")) or "")
+    failures: list[str] = []
+    if base_sha != TRANSITION_BASE_SHA:
+        failures.append("MERGE_ELIGIBILITY_TRANSITION_BASE_MISMATCH")
+    if primary != [TRANSITION_PRIMARY_CR]:
+        failures.append("MERGE_ELIGIBILITY_TRANSITION_PRIMARY_CR_MISMATCH")
+    try:
+        record_match = TRANSITION_RE.search(str(pr.get("body") or ""))
+        record = json.loads(record_match.group(1)) if record_match else None
+        if not isinstance(record, dict) or record != {
+            "schema_version": 1,
+            "kind": "future_release_metadata_merge_eligibility_transition",
+            "base_sha": TRANSITION_BASE_SHA,
+        }:
+            failures.append("MERGE_ELIGIBILITY_TRANSITION_RECORD_INVALID")
+        rows = pr_files(repository, int(pr["number"]), token)
+        paths = {str(row.get("filename") or "") for row in rows}
+        if paths != TRANSITION_PATHS:
+            failures.append("MERGE_ELIGIBILITY_TRANSITION_PATHS_INVALID")
+        if any(str(row.get("status") or "") != "modified" for row in rows):
+            failures.append("MERGE_ELIGIBILITY_TRANSITION_FILE_STATUS_INVALID")
+    except (GitHubReadError, KeyError, TypeError, ValueError, json.JSONDecodeError):
+        failures.append("MERGE_ELIGIBILITY_TRANSITION_EVIDENCE_INVALID")
+        paths = set()
+    return {
+        "status": "PASS" if not failures else "FAIL",
+        "exception": "FUTURE_RELEASE_METADATA_GUARD_TRANSITION_V1",
+        "changed_paths": sorted(paths),
+        "failures": sorted(set(failures)),
+    }
+
+
 def collect(repository: str, pr_number: int, expected_sha: str, token: str) -> dict[str, Any]:
     pr = request_json(f"repos/{repository}/pulls/{pr_number}", token)
     head = str(((pr or {}).get("head") or {}).get("sha") or "")
@@ -102,17 +262,38 @@ def collect(repository: str, pr_number: int, expected_sha: str, token: str) -> d
     issue: dict[str, Any] = {}
     if len(primary) == 1:
         issue = request_json(f"repos/{repository}/issues/{primary[0]}", token) or {}
-    return {
+    active = active_release(pages(f"repos/{repository}/milestones?state=all", token))
+    active_issue_numbers: set[int] = set()
+    if active is not None:
+        milestones = pages(f"repos/{repository}/milestones?state=all", token)
+        matches = [row for row in milestones if row.get("title") == f"DDDA {active['version']}" and row.get("state") == "open"]
+        if len(matches) != 1:
+            raise GitHubReadError("Active release milestone evidence is ambiguous")
+        active_issue_numbers = {
+            int(row["number"])
+            for row in pages(f"repos/{repository}/issues?state=all&milestone={int(matches[0]['number'])}", token)
+            if isinstance(row, dict) and "number" in row
+        }
+    snapshot = {
         "repository": repository,
         "pr": pr_number,
         "source_sha": head,
-        "active_release": active_release(pages(f"repos/{repository}/milestones?state=all", token)),
+        "active_release": active,
         "primary_crs": primary,
         "primary_cr": {
             "milestone": ((issue.get("milestone") or {}).get("title")),
             "target_release": target_release(str(issue.get("body") or "")),
         },
     }
+    snapshot["future_release_metadata"] = future_release_metadata_evidence(
+        repository=repository,
+        pr=pr,
+        active=active,
+        active_issue_numbers=active_issue_numbers,
+        token=token,
+    )
+    snapshot["merge_eligibility_transition"] = transition_evidence(pr, repository, primary, token)
+    return snapshot
 
 
 def main() -> int:

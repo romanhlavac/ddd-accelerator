@@ -269,6 +269,63 @@ def test_merge_eligibility_allows_only_active_train_authority():
     ]
 
 
+def test_merge_eligibility_allows_proven_future_release_metadata_only():
+    future_plan = {
+        "active_release": {"version": "0.1.1"},
+        "primary_crs": [16],
+        "primary_cr": {"milestone": None, "target_release": None},
+        "future_release_metadata": {
+            "status": "PASS",
+            "exception": "FUTURE_RELEASE_METADATA_ONLY",
+            "active_scope_unchanged": True,
+        },
+    }
+    assert evaluate_merge_release_eligibility(future_plan) == []
+
+
+def test_merge_eligibility_keeps_future_release_pr_blocked_without_complete_metadata_proof():
+    incomplete = {
+        "active_release": {"version": "0.1.1"},
+        "primary_crs": [16],
+        "primary_cr": {"milestone": None, "target_release": None},
+        "future_release_metadata": {
+            "status": "FAIL",
+            "failures": ["MERGE_ELIGIBILITY_FUTURE_RELEASE_PATHS_INVALID"],
+        },
+    }
+    assert evaluate_merge_release_eligibility(incomplete) == [
+        "MERGE_ELIGIBILITY_OUTSIDE_ACTIVE_RELEASE:#16"
+    ]
+
+
+def test_merge_eligibility_allows_only_exact_base_guard_transition():
+    transition = {
+        "active_release": {"version": "0.1.1"},
+        "primary_crs": [16],
+        "primary_cr": {"milestone": None, "target_release": None},
+        "merge_eligibility_transition": {
+            "status": "PASS",
+            "exception": "FUTURE_RELEASE_METADATA_GUARD_TRANSITION_V1",
+        },
+    }
+    assert evaluate_merge_release_eligibility(transition) == []
+
+
+def test_merge_eligibility_rejects_incomplete_guard_transition():
+    incomplete = {
+        "active_release": {"version": "0.1.1"},
+        "primary_crs": [16],
+        "primary_cr": {"milestone": None, "target_release": None},
+        "merge_eligibility_transition": {
+            "status": "FAIL",
+            "failures": ["MERGE_ELIGIBILITY_TRANSITION_BASE_MISMATCH"],
+        },
+    }
+    assert evaluate_merge_release_eligibility(incomplete) == [
+        "MERGE_ELIGIBILITY_OUTSIDE_ACTIVE_RELEASE:#16"
+    ]
+
+
 def test_recovery_ledger_accepts_only_complete_read_back_provenance():
     live = snapshot()
     recovered = "d" * 40
