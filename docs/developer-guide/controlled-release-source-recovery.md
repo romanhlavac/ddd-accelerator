@@ -35,10 +35,12 @@ binds one reconstructed commit to the immutable original authority:
 }
 ```
 
-The ledger has exactly one metadata-only commit. That commit may change only
-the ledger file; every other physical commit since the previous tag must have
-one and only one ledger entry. The Release Scope Gate freshly reads back the
-original PR, its single primary CR, merged SHA and changed-path result hashes.
+The Release Scope Gate derives exactly one metadata-only commit from the
+physical inventory. That commit may change only the ledger file and is not
+listed inside that file: a ledger cannot safely contain the SHA of the commit
+that creates it. Every other physical commit since the previous tag must have
+one and only one ledger entry. The Gate freshly reads back the original PR,
+its single primary CR, merged SHA and changed-path result hashes.
 Any stale SHA, non-merged source PR, altered path result, incomplete coverage,
 duplicate mapping or out-of-scope CR is a failure.
 
