@@ -191,6 +191,7 @@ Gate je fail-closed.
 - každý commit mezi předchozím canonical SemVer tagem a release source je dohledatelný k právě jednomu merged shipping PR a jeho právě jednomu primary CR;
 - každý shipping primary CR je v aktuálním Milestone a jeho Project `Target Release` je stejná verze;
 - physical scope se přesně rovná declared Milestone scope: ani extra shipping CR, ani declared CR bez shipping změny. Při rozdílu gate vydá inventory a `RECOVERY_DECISION_REQUIRED`; nevolí scope expansion ani source recovery.
+- controlled reconstructed source je přípustný pouze po explicitním human recovery decision a s validním versioned recovery ledgerem; ledger musí pokrýt každý reconstructed commit, kromě jediného metadata-only ledger commitu, a fresh read-backem prokázat původní merged PR/CR/SHA i changed-path result hashes.
 
 Chybějící Project credential, nedostupný Project nebo API ambiguity jsou FAIL.
 

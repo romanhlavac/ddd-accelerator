@@ -9,6 +9,7 @@ business invariants are evaluated by runtime/platform/release_governance.py.
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import os
 from pathlib import Path
@@ -30,6 +31,7 @@ from release_governance import evaluate_release_scope  # noqa: E402
 API_ROOT = "https://api.github.com"
 GRAPHQL_URL = "https://api.github.com/graphql"
 PROJECT_TITLE = "DDDA Platform Backlog & Delivery"
+RECOVERY_LEDGER_PATH = "config/governance/release-source-recovery-ledger.json"
 PLANNING_VIEW = "Plánování a Backlog"
 DELIVERY_VIEW = "Implementace a Delivery"
 TARGET_RELEASE_RE = re.compile(
@@ -313,6 +315,63 @@ def primary_change_requests(body: str) -> list[int]:
     return sorted({int(value) for value in PRIMARY_CHANGE_RE.findall(body or "")})
 
 
+def recovery_ledger_at_source(repository: str, source_sha: str, token: str) -> dict[str, Any] | None:
+    """Read an optional ledger from the exact candidate source, never default main."""
+    try:
+        payload = rest_get(
+            f"repos/{repository}/contents/{RECOVERY_LEDGER_PATH}?ref={source_sha}", token
+        )
+    except GitHubReadError as exc:
+        if "HTTP 404" in str(exc):
+            return None
+        raise
+    if not isinstance(payload, dict) or payload.get("encoding") != "base64":
+        return {"invalid": "CONTENT_SHAPE"}
+    try:
+        raw = base64.b64decode(str(payload.get("content") or ""), validate=False)
+        decoded = json.loads(raw.decode("utf-8"))
+    except (ValueError, UnicodeDecodeError) as exc:
+        return {"invalid": f"JSON:{exc.__class__.__name__}"}
+    return decoded if isinstance(decoded, dict) else {"invalid": "ROOT_SHAPE"}
+
+
+def commit_path_hashes(repository: str, sha: str, token: str) -> dict[str, str | None] | None:
+    """Return the exact file-result hashes reported for one commit, fail closed on ambiguity."""
+    data = rest_get(f"repos/{repository}/commits/{sha}", token)
+    files = (data or {}).get("files") if isinstance(data, dict) else None
+    if not isinstance(files, list):
+        return None
+    result: dict[str, str | None] = {}
+    for row in files:
+        if not isinstance(row, dict) or not isinstance(row.get("filename"), str):
+            return None
+        path = row["filename"]
+        if path in result:
+            return None
+        result[path] = None if row.get("status") == "removed" else str(row.get("sha") or "")
+        if result[path] == "":
+            return None
+    return result
+
+
+def shipping_row(repository: str, number: int, token: str, project_rows: dict[int, dict[str, Any]]) -> dict[str, Any]:
+    pr = rest_get(f"repos/{repository}/pulls/{number}", token) or {}
+    primary = primary_change_requests(str(pr.get("body") or ""))
+    authority: dict[str, Any] = {}
+    if len(primary) == 1:
+        authority = rest_get(f"repos/{repository}/issues/{primary[0]}", token) or {}
+    milestone = (authority.get("milestone") or {}).get("title")
+    project = project_rows.get(primary[0], {}) if len(primary) == 1 else {}
+    return {
+        "number": number,
+        "merged": bool(pr.get("merged_at")),
+        "merge_commit_sha": pr.get("merge_commit_sha"),
+        "primary_crs": primary,
+        "milestone": milestone,
+        "target_release": project.get("Target Release"),
+    }
+
+
 def physical_scope_snapshot(
     repository: str,
     version: str,
@@ -322,10 +381,50 @@ def physical_scope_snapshot(
 ) -> dict[str, Any]:
     previous = previous_release_tag(repository, version, token)
     compare_status, commits = compare_commits(repository, previous["tag"], source_sha, token)
+    ledger = recovery_ledger_at_source(repository, source_sha, token)
+    ledger_entries = (ledger or {}).get("entries") if isinstance(ledger, dict) else None
+    entries_by_commit: dict[str, dict[str, Any]] = {}
+    ordered_entries: list[tuple[str, dict[str, Any]]] = []
+    metadata_commits: set[str] = set()
+    ledger_evidence: dict[str, Any] | None = None
+    if ledger is not None:
+        if not isinstance(ledger_entries, list):
+            ledger_evidence = {"invalid": "ENTRIES"}
+        else:
+            for row in ledger_entries:
+                if isinstance(row, dict) and isinstance(row.get("recovered_commit_sha"), str):
+                    entries_by_commit[row["recovered_commit_sha"]] = row
+                    ordered_entries.append((row["recovered_commit_sha"], row))
+            raw_metadata = ledger.get("metadata_commit_shas") if isinstance(ledger, dict) else []
+            if isinstance(raw_metadata, list):
+                metadata_commits = {str(value) for value in raw_metadata}
+            ledger_evidence = {
+                "schema_version": ledger.get("schema_version"),
+                "version": ledger.get("version"),
+                "previous_release_tag": ledger.get("previous_release_tag"),
+                "metadata_commit_shas": sorted(metadata_commits),
+                "entries": [],
+            }
+
     pr_numbers: set[int] = set()
     unmapped: set[str] = set()
+    metadata_only: set[str] = set()
     for commit in commits:
         sha = str(commit.get("sha") or "")
+        if sha in metadata_commits:
+            paths = commit_path_hashes(repository, sha, token)
+            if paths is not None and set(paths) == {RECOVERY_LEDGER_PATH}:
+                metadata_only.add(sha)
+                continue
+        entry = entries_by_commit.get(sha)
+        if entry is not None:
+            try:
+                number = int(entry.get("source_pr", 0))
+            except (TypeError, ValueError):
+                number = 0
+            if number > 0:
+                pr_numbers.add(number)
+            continue
         linked = rest_pages(f"repos/{repository}/commits/{sha}/pulls", token)
         numbers = {int(row["number"]) for row in linked if row.get("number") is not None}
         if not numbers:
@@ -334,23 +433,32 @@ def physical_scope_snapshot(
 
     shipping: list[dict[str, Any]] = []
     for number in sorted(pr_numbers):
-        pr = rest_get(f"repos/{repository}/pulls/{number}", token)
-        primary = primary_change_requests(str((pr or {}).get("body") or ""))
-        authority: dict[str, Any] = {}
-        if len(primary) == 1:
-            authority = rest_get(f"repos/{repository}/issues/{primary[0]}", token) or {}
-        milestone = (authority.get("milestone") or {}).get("title")
-        project = project_rows.get(primary[0], {}) if len(primary) == 1 else {}
-        shipping.append(
-            {
-                "number": number,
-                "merged": bool((pr or {}).get("merged_at")),
-                "merge_commit_sha": (pr or {}).get("merge_commit_sha"),
-                "primary_crs": primary,
-                "milestone": milestone,
-                "target_release": project.get("Target Release"),
-            }
-        )
+        shipping.append(shipping_row(repository, number, token, project_rows))
+
+    if ledger_evidence is not None and "entries" in ledger_evidence:
+        for sha, entry in sorted(ordered_entries):
+            try:
+                number = int(entry.get("source_pr", 0))
+                primary = int(entry.get("primary_cr", 0))
+            except (TypeError, ValueError):
+                number = primary = 0
+            source = shipping_row(repository, number, token, project_rows) if number > 0 else {}
+            source_sha = str(entry.get("source_merge_commit_sha") or "")
+            source_paths = commit_path_hashes(repository, source_sha, token) if source_sha else None
+            recovered_paths = commit_path_hashes(repository, sha, token)
+            ledger_evidence["entries"].append(
+                {
+                    "recovered_commit_sha": sha,
+                    "source_pr": number,
+                    "primary_cr": primary,
+                    "source_pr_merged": source.get("merged"),
+                    "source_primary_crs": source.get("primary_crs"),
+                    "source_merge_commit_sha": source_sha,
+                    "observed_source_merge_commit_sha": source.get("merge_commit_sha"),
+                    "changed_path_hashes_match": source_paths is not None and source_paths == recovered_paths,
+                }
+            )
+        ledger_evidence["metadata_commit_shas"] = sorted(metadata_only)
 
     return {
         "previous_release_tag": previous["tag"],
@@ -358,8 +466,10 @@ def physical_scope_snapshot(
         "release_source_sha": source_sha,
         "compare_status": compare_status,
         "commit_count": len(commits),
+        "commit_shas": [str(commit.get("sha") or "") for commit in commits],
         "unmapped_commit_shas": sorted(unmapped),
         "shipping_prs": shipping,
+        "recovery_ledger": ledger_evidence,
     }
 
 

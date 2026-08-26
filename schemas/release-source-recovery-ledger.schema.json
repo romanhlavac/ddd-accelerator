@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ddda.example.invalid/schemas/release-source-recovery-ledger.schema.json",
+  "title": "DDDA controlled release-source recovery ledger",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "version", "previous_release_tag", "metadata_commit_shas", "entries"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "version": {"type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"},
+    "previous_release_tag": {"type": "string", "pattern": "^v(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"},
+    "metadata_commit_shas": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1,
+      "items": {"type": "string", "pattern": "^[0-9a-f]{40}$"}
+    },
+    "entries": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["recovered_commit_sha", "source_pr", "source_merge_commit_sha", "primary_cr"],
+        "properties": {
+          "recovered_commit_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+          "source_pr": {"type": "integer", "minimum": 1},
+          "source_merge_commit_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+          "primary_cr": {"type": "integer", "minimum": 1}
+        }
+      }
+    }
+  }
+}
