@@ -32,7 +32,7 @@ merge authorization gates pass.
 
 The guard remediation that introduces this decision has one exact-base-bound
 transition: base `b61392ace66a95c808f321f3bd4b046cc5f564e5`, primary CR #16,
-an exact JSON marker and an exact five-file path set. It expires automatically
+an exact JSON marker and an exact six-file path/status set. It expires automatically
 when `main` advances and is not a general governance exception.
 
 ## Consequences

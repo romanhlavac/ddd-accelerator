@@ -55,6 +55,14 @@ TRANSITION_PATHS = frozenset(
         "docs/developer-guide/platform-development-lifecycle.md",
     }
 )
+TRANSITION_FILE_STATUSES = {
+    "docs/adr/0012-future-release-metadata-merge-eligibility.md": "added",
+    "runtime/platform/tests/test_merge_release_eligibility_collector.py": "added",
+    "docs/developer-guide/platform-development-lifecycle.md": "modified",
+    "runtime/platform/release_governance.py": "modified",
+    "runtime/platform/tests/test_release_governance.py": "modified",
+    "scripts/platform/Test-DDDAMergeReleaseEligibility.py": "modified",
+}
 
 # The value is deliberately the exact main SHA before this remediation.  The
 # transition is therefore impossible once any other main change is integrated.
@@ -240,7 +248,8 @@ def transition_evidence(pr: dict[str, Any], repository: str, primary: list[int],
         paths = {str(row.get("filename") or "") for row in rows}
         if paths != TRANSITION_PATHS:
             failures.append("MERGE_ELIGIBILITY_TRANSITION_PATHS_INVALID")
-        if any(str(row.get("status") or "") != "modified" for row in rows):
+        observed_statuses = {str(row.get("filename") or ""): str(row.get("status") or "") for row in rows}
+        if observed_statuses != TRANSITION_FILE_STATUSES:
             failures.append("MERGE_ELIGIBILITY_TRANSITION_FILE_STATUS_INVALID")
     except (GitHubReadError, KeyError, TypeError, ValueError, json.JSONDecodeError):
         failures.append("MERGE_ELIGIBILITY_TRANSITION_EVIDENCE_INVALID")

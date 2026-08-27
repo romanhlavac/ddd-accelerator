@@ -105,9 +105,32 @@ def test_transition_requires_exact_marker_and_file_set(monkeypatch):
     monkeypatch.setattr(
         COLLECTOR,
         "pr_files",
-        lambda *_args: [{"filename": path, "status": "modified"} for path in COLLECTOR.TRANSITION_PATHS],
+        lambda *_args: [
+            {"filename": path, "status": status}
+            for path, status in COLLECTOR.TRANSITION_FILE_STATUSES.items()
+        ],
     )
 
     result = COLLECTOR.transition_evidence(pr, "romanhlavac/ddd-accelerator", [16], "not-used")
 
     assert result["status"] == "PASS"
+
+
+def test_transition_rejects_wrong_status_for_an_exact_path(monkeypatch):
+    pr = {
+        "number": 105,
+        "body": "",
+        "base": {"sha": COLLECTOR.TRANSITION_BASE_SHA},
+    }
+    statuses = dict(COLLECTOR.TRANSITION_FILE_STATUSES)
+    statuses["docs/adr/0012-future-release-metadata-merge-eligibility.md"] = "modified"
+    monkeypatch.setattr(
+        COLLECTOR,
+        "pr_files",
+        lambda *_args: [{"filename": path, "status": status} for path, status in statuses.items()],
+    )
+
+    result = COLLECTOR.transition_evidence(pr, "romanhlavac/ddd-accelerator", [16], "not-used")
+
+    assert result["status"] == "FAIL"
+    assert "MERGE_ELIGIBILITY_TRANSITION_FILE_STATUS_INVALID" in result["failures"]
