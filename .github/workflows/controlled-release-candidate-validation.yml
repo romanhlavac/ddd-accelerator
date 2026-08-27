@@ -1,0 +1,236 @@
+name: Controlled release-candidate validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Exact candidate operation; never publishes a release.
+        required: true
+        default: technical_validation
+        type: choice
+        options:
+          - technical_validation
+          - publish_hrdr_scaffold
+          - release_scope_dry_run
+      candidate_pr:
+        description: Open Draft controlled release-candidate PR number.
+        required: true
+        default: "103"
+        type: string
+      source_sha:
+        description: Exact 40-character controlled candidate SHA.
+        required: true
+        type: string
+      version:
+        description: Release version without v prefix.
+        required: true
+        default: "0.1.1"
+        type: string
+      reviewer:
+        description: GitHub login, required only to publish a pending HRDR scaffold.
+        required: false
+        type: string
+      decision_owner:
+        description: GitHub login, required only to publish a pending HRDR scaffold.
+        required: false
+        type: string
+
+permissions:
+  actions: read
+  checks: read
+  contents: read
+  issues: write
+  pull-requests: read
+
+concurrency:
+  group: controlled-release-candidate-${{ inputs.candidate_pr }}-${{ inputs.source_sha }}-${{ inputs.operation }}
+  cancel-in-progress: false
+
+env:
+  REPOSITORY: ${{ github.repository }}
+  CANDIDATE_PR: ${{ inputs.candidate_pr }}
+  SOURCE_SHA: ${{ inputs.source_sha }}
+  VERSION: ${{ inputs.version }}
+  OPERATION: ${{ inputs.operation }}
+
+jobs:
+  select:
+    name: Select exact controlled candidate
+    runs-on: windows-latest
+    outputs:
+      source_sha: ${{ steps.selection.outputs.source_sha }}
+    steps:
+      - name: Checkout trusted control plane
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.sha }}
+
+      - name: Read live candidate identity
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          gh api "repos/$env:REPOSITORY/pulls/$env:CANDIDATE_PR" > candidate-pr.json
+          python .\scripts\platform\Test-DDDAControlledReleaseCandidate.py `
+            --repository $env:REPOSITORY `
+            --pr ([int]$env:CANDIDATE_PR) `
+            --source-sha $env:SOURCE_SHA `
+            --version $env:VERSION `
+            --operation $env:OPERATION `
+            --pr-json candidate-pr.json `
+            --output selection.json
+          "source_sha=$env:SOURCE_SHA" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Upload selection evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: controlled-candidate-selection-${{ env.CANDIDATE_PR }}-${{ env.SOURCE_SHA }}
+          path: |
+            candidate-pr.json
+            selection.json
+          if-no-files-found: error
+          retention-days: 14
+
+  technical-validation:
+    name: Exact controlled candidate validation
+    needs: select
+    if: inputs.operation == 'technical_validation'
+    runs-on: windows-latest
+    timeout-minutes: 120
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout exact controlled candidate
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.select.outputs.source_sha }}
+
+      - name: Verify exact candidate checkout
+        shell: pwsh
+        run: |
+          $actual = (git rev-parse HEAD).Trim()
+          if ($actual -ne $env:SOURCE_SHA) {
+            throw "Candidate checkout SHA '$actual' does not match requested SHA '$env:SOURCE_SHA'."
+          }
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run source-level validation
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          .\ddda.ps1 doctor
+          .\ddda.ps1 test -Suite lint -NonInteractive
+          .\ddda.ps1 test -Suite schema -NonInteractive
+          .\ddda.ps1 test -Suite unit -NonInteractive
+          .\ddda.ps1 test -Suite component -NonInteractive
+          .\ddda.ps1 test -Suite regression -NonInteractive
+          .\ddda.ps1 test -Suite security -NonInteractive
+
+      - name: Build one canonical candidate package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $output = Join-Path $env:RUNNER_TEMP ('ddda-candidate-' + $env:SOURCE_SHA.Substring(0, 12) + '.zip')
+          $json = .\scripts\platform\New-DDDAPlatformPackage.ps1 -PlatformPath $PWD.Path -Kind candidate -Version ('candidate.' + $env:SOURCE_SHA) -SourceRef $env:SOURCE_SHA -OutputPath $output -Json | Out-String
+          $package = $json.Trim() | ConvertFrom-Json
+          if ($package.source_commit -ne $env:SOURCE_SHA) { throw 'Package source SHA mismatch.' }
+          "CANONICAL_PACKAGE_PATH=$([string]$package.path)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "CANONICAL_PACKAGE_SHA256=$([string]$package.sha256)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Run exact validate-pr against canonical package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          .\ddda.ps1 validate-pr `
+            -Pr ([int]$env:CANDIDATE_PR) `
+            -PackagePath $env:CANONICAL_PACKAGE_PATH `
+            -PackageArtifactName ('controlled-candidate-' + $env:SOURCE_SHA) `
+            -CleanupOnFailure `
+            -NonInteractive
+
+      - name: Upload canonical candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: controlled-candidate-${{ env.SOURCE_SHA }}
+          path: ${{ env.CANONICAL_PACKAGE_PATH }}
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: controlled-candidate-validation-${{ env.CANDIDATE_PR }}-${{ env.SOURCE_SHA }}
+          path: ${{ env.LOCALAPPDATA }}/DDDA/validation-reports/pr-${{ env.CANDIDATE_PR }}-${{ env.SOURCE_SHA }}/**
+          if-no-files-found: warn
+          retention-days: 14
+
+  publish-hrdr-scaffold:
+    name: Publish pending HRDR scaffold
+    needs: select
+    if: inputs.operation == 'publish_hrdr_scaffold'
+    runs-on: windows-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REVIEWER: ${{ inputs.reviewer }}
+      DECISION_OWNER: ${{ inputs.decision_owner }}
+    steps:
+      - name: Require explicit owner inputs
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:REVIEWER) -or [string]::IsNullOrWhiteSpace($env:DECISION_OWNER)) {
+            throw 'reviewer and decision_owner are required for a pending HRDR scaffold.'
+          }
+
+      - name: Checkout exact controlled candidate
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.select.outputs.source_sha }}
+
+      - name: Publish pending scaffold only
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          .\ddda.ps1 review-pr `
+            -Pr ([int]$env:CANDIDATE_PR) `
+            -Version $env:VERSION `
+            -Reviewer $env:REVIEWER `
+            -DecisionOwner $env:DECISION_OWNER `
+            -PublishScaffold
+
+  release-scope-dry-run:
+    name: Physical Release Scope Gate dry-run
+    needs: select
+    if: inputs.operation == 'release_scope_dry_run'
+    runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ github.token }}
+      DDDA_GITHUB_PROJECT_TOKEN: ${{ secrets.DDDA_GITHUB_PROJECT_TOKEN }}
+    steps:
+      - name: Require Project read credential
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:DDDA_GITHUB_PROJECT_TOKEN)) {
+            throw 'DDDA_GITHUB_PROJECT_TOKEN is required for the authoritative read-only Release Scope Gate.'
+          }
+
+      - name: Checkout exact controlled candidate
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.select.outputs.source_sha }}
+
+      - name: Run promotion preflight only
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          .\ddda.ps1 promote-pr -Pr ([int]$env:CANDIDATE_PR) -Version $env:VERSION -DryRun
