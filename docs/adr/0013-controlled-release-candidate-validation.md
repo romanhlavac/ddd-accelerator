@@ -21,8 +21,9 @@ Before every operation it reads the live candidate PR and requires all of:
 
 The workflow has three isolated operations:
 
-1. `technical_validation` checks out the exact candidate, builds one
-   canonical package, and runs `validate-pr` against that physical package.
+1. `technical_validation` checks out the exact candidate and invokes
+   `validate-pr`, which remains the sole canonical package builder and records
+   evidence for that physical package.
 2. `publish_hrdr_scaffold` publishes only a pending HRDR after explicit
    reviewer and decision-owner inputs.
 3. `release_scope_dry_run` invokes `promote-pr -DryRun`; it cannot merge,

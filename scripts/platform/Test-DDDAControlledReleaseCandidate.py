@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 SHA_RE = re.compile(r"^[0-9a-f]{40}$")
-VERSION_RE = re.compile(r"^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$")
+VERSION_RE = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
 OPERATIONS = frozenset({"technical_validation", "publish_hrdr_scaffold", "release_scope_dry_run"})
 
 

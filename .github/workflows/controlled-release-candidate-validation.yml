@@ -133,35 +133,14 @@ jobs:
           .\ddda.ps1 test -Suite regression -NonInteractive
           .\ddda.ps1 test -Suite security -NonInteractive
 
-      - name: Build one canonical candidate package
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $output = Join-Path $env:RUNNER_TEMP ('ddda-candidate-' + $env:SOURCE_SHA.Substring(0, 12) + '.zip')
-          $json = .\scripts\platform\New-DDDAPlatformPackage.ps1 -PlatformPath $PWD.Path -Kind candidate -Version ('candidate.' + $env:SOURCE_SHA) -SourceRef $env:SOURCE_SHA -OutputPath $output -Json | Out-String
-          $package = $json.Trim() | ConvertFrom-Json
-          if ($package.source_commit -ne $env:SOURCE_SHA) { throw 'Package source SHA mismatch.' }
-          "CANONICAL_PACKAGE_PATH=$([string]$package.path)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          "CANONICAL_PACKAGE_SHA256=$([string]$package.sha256)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
-      - name: Run exact validate-pr against canonical package
+      - name: Run exact validate-pr through the canonical package path
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           .\ddda.ps1 validate-pr `
             -Pr ([int]$env:CANDIDATE_PR) `
-            -PackagePath $env:CANONICAL_PACKAGE_PATH `
-            -PackageArtifactName ('controlled-candidate-' + $env:SOURCE_SHA) `
             -CleanupOnFailure `
             -NonInteractive
-
-      - name: Upload canonical candidate
-        uses: actions/upload-artifact@v4
-        with:
-          name: controlled-candidate-${{ env.SOURCE_SHA }}
-          path: ${{ env.CANONICAL_PACKAGE_PATH }}
-          if-no-files-found: error
-          retention-days: 14
 
       - name: Upload validation evidence
         if: always()
