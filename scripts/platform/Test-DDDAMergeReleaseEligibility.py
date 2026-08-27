@@ -168,6 +168,35 @@ def pr_files(repository: str, pr_number: int, token: str) -> list[dict[str, Any]
     return rows
 
 
+
+def integration_merge_files(
+    repository: str, pr: dict[str, Any], token: str
+) -> tuple[str, list[dict[str, Any]]] | None:
+    """Return the branch-only diff for one freshly merged main update.
+
+    GitHub's PR-files endpoint reports both parents after merging main.
+    Accept this normalization only for a conventional two-parent merge whose
+    second parent is the current main head; all other ancestry fails closed.
+    """
+    head_sha = str(((pr.get("head") or {}).get("sha")) or "")
+    base_sha = str(((pr.get("base") or {}).get("sha")) or "")
+    commit = request_json(f"repos/{repository}/commits/{head_sha}", token)
+    main = request_json(f"repos/{repository}/commits/main", token)
+    parents = commit.get("parents") if isinstance(commit, dict) else None
+    main_sha = str(main.get("sha") or "") if isinstance(main, dict) else ""
+    if not isinstance(parents, list) or len(parents) != 2 or not base_sha:
+        return None
+    first_parent = str((parents[0] or {}).get("sha") or "")
+    second_parent = str((parents[1] or {}).get("sha") or "")
+    if not first_parent or second_parent != main_sha:
+        return None
+    comparison = request_json(f"repos/{repository}/compare/{base_sha}...{first_parent}", token)
+    rows = comparison.get("files") if isinstance(comparison, dict) else None
+    if not isinstance(rows, list) or not all(isinstance(row, dict) for row in rows):
+        return None
+    return first_parent, rows
+
+
 def milestone_spec(config: dict[str, Any], version: str) -> dict[str, Any] | None:
     wanted = f"DDDA {version}"
     matches = [row for row in config.get("milestones", []) if isinstance(row, dict) and row.get("title") == wanted]

@@ -187,6 +187,31 @@ def test_governance_repair_rejects_a_governance_change(monkeypatch):
     assert "MERGE_ELIGIBILITY_GOVERNANCE_REPAIR_GOVERNANCE_CHANGED" in result["failures"]
 
 
+
+def test_integration_merge_files_uses_only_verified_branch_diff(monkeypatch):
+    base_sha = "a" * 40
+    branch_sha = "b" * 40
+    current_main = "c" * 40
+    first_parent = "d" * 40
+    rows = [{"filename": path, "status": "modified"} for path in COLLECTOR.GOVERNANCE_REPAIR_PATHS]
+    responses = {
+        f"repos/romanhlavac/ddd-accelerator/commits/{branch_sha}": {
+            "parents": [{"sha": first_parent}, {"sha": current_main}]
+        },
+        "repos/romanhlavac/ddd-accelerator/commits/main": {"sha": current_main},
+        f"repos/romanhlavac/ddd-accelerator/compare/{base_sha}...{first_parent}": {"files": rows},
+    }
+    monkeypatch.setattr(COLLECTOR, "request_json", lambda path, _token: responses[path])
+
+    result = COLLECTOR.integration_merge_files(
+        "romanhlavac/ddd-accelerator",
+        {"base": {"sha": base_sha}, "head": {"sha": branch_sha}},
+        "not-used",
+    )
+
+    assert result == (first_parent, rows)
+
+
 def test_governance_repair_transition_requires_exact_base_marker_and_paths(monkeypatch):
     body = """Implements #16
 
