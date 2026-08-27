@@ -35,6 +35,23 @@ transition: base `b61392ace66a95c808f321f3bd4b046cc5f564e5`, primary CR #16,
 an exact JSON marker and an exact six-file path/status set. It expires automatically
 when `main` advances and is not a general governance exception.
 
+The first implementation of the integration-merge normalization exposed a
+second bootstrap condition: a correction to that guard is neither a future
+release plan nor active-release content. A second exact-base-bound transition
+may therefore introduce a **governance-repair-only** allowance. Its base is
+`fdcc2b323eff4bcc9cef71207e280f3ffa950dd8`, its primary CR is #16, and its
+PR must carry one exact transition record and change exactly the collector,
+its collector tests, the eligibility evaluator and this ADR. The transition
+expires when `main` advances.
+
+After that transition, a guard repair is allowed only if it changes exactly
+the collector, its collector tests and this ADR; all are modifications; its
+sole primary CR is #16; and the complete versioned governance bootstrap is
+identical between base and branch-only head. A conventional current-`main`
+integration merge may be normalized only under the existing two-parent proof.
+Thus neither the active 0.1.1 scope nor any release-plan metadata can enter
+through this allowance.
+
 ## Consequences
 
 - a runtime, release or active-scope change remains blocked outside the active
