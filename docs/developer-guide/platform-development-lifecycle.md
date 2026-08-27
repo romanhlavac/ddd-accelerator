@@ -260,6 +260,16 @@ Wrong merge method musí failnout před irreversible merge. Pro canonical merge 
 - **nevytváří tag**;
 - bez explicitního `-ConfirmMerge` nemerguje.
 
+### 6.1.1 Future-release metadata while an active train is open
+
+Aktivní release train nadále blokuje běžný PR pro pozdější/TBD Change Request.
+Výjimka existuje pouze pro versioned plán budoucích releasů a collector ji
+vypočítá fail-closed z exact base/head a live milestone evidence: měnit smí
+pouze čtyři planning paths, active milestone i metadata jeho položek musí
+zůstat identické a live active scope musí odpovídat base contractu. Výjimka
+neprovádí žádný Project/milestone write ani neobchází Human Review, CI,
+candidate hash nebo explicitní merge authorization.
+
 To umožňuje bezpečně integrovat více implementačních PR před sestavením release candidate bez kruhové závislosti na release-scope completeness.
 
 ### 6.2 Prospective transition #70
