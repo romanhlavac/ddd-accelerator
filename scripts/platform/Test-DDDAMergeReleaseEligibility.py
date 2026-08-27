@@ -36,6 +36,9 @@ TARGET_RE = re.compile(
 TRANSITION_RE = re.compile(
     r"(?is)<!--\s*ddda:merge-eligibility-transition:v1\s*-->\s*```json\s*(\{.*?\})\s*```"
 )
+GOVERNANCE_REPAIR_RE = re.compile(
+    r"(?is)<!--\s*ddda:merge-eligibility-governance-repair:v1\s*-->\s*```json\s*(\{.*?\})\s*```"
+)
 
 FUTURE_RELEASE_METADATA_PATHS = frozenset(
     {
@@ -68,6 +71,25 @@ TRANSITION_FILE_STATUSES = {
 # transition is therefore impossible once any other main change is integrated.
 TRANSITION_BASE_SHA = "b61392ace66a95c808f321f3bd4b046cc5f564e5"
 TRANSITION_PRIMARY_CR = 16
+
+# This is a second, one-time bootstrap transition.  It permits the narrowly
+# scoped repair that makes a previously integrated guard able to assess its
+# own follow-up repair.  It is intentionally exact-base-bound and expires as
+# soon as main advances.
+GOVERNANCE_REPAIR_TRANSITION_BASE_SHA = "fdcc2b323eff4bcc9cef71207e280f3ffa950dd8"
+GOVERNANCE_REPAIR_PATHS = frozenset(
+    {
+        "docs/adr/0012-future-release-metadata-merge-eligibility.md",
+        "runtime/platform/tests/test_merge_release_eligibility_collector.py",
+        "scripts/platform/Test-DDDAMergeReleaseEligibility.py",
+    }
+)
+GOVERNANCE_REPAIR_TRANSITION_PATHS = GOVERNANCE_REPAIR_PATHS | {
+    "runtime/platform/release_governance.py",
+}
+GOVERNANCE_REPAIR_TRANSITION_FILE_STATUSES = {
+    path: "modified" for path in GOVERNANCE_REPAIR_TRANSITION_PATHS
+}
 
 
 class GitHubReadError(RuntimeError):
@@ -144,6 +166,35 @@ def pr_files(repository: str, pr_number: int, token: str) -> list[dict[str, Any]
     if not all(isinstance(row, dict) for row in rows):
         raise GitHubReadError("PR files response contains an invalid row")
     return rows
+
+
+
+def integration_merge_files(
+    repository: str, pr: dict[str, Any], token: str
+) -> tuple[str, list[dict[str, Any]]] | None:
+    """Return the branch-only diff for one freshly merged main update.
+
+    GitHub's PR-files endpoint reports both parents after merging main.
+    Accept this normalization only for a conventional two-parent merge whose
+    second parent is the current main head; all other ancestry fails closed.
+    """
+    head_sha = str(((pr.get("head") or {}).get("sha")) or "")
+    base_sha = str(((pr.get("base") or {}).get("sha")) or "")
+    commit = request_json(f"repos/{repository}/commits/{head_sha}", token)
+    main = request_json(f"repos/{repository}/commits/main", token)
+    parents = commit.get("parents") if isinstance(commit, dict) else None
+    main_sha = str(main.get("sha") or "") if isinstance(main, dict) else ""
+    if not isinstance(parents, list) or len(parents) != 2 or not base_sha:
+        return None
+    first_parent = str((parents[0] or {}).get("sha") or "")
+    second_parent = str((parents[1] or {}).get("sha") or "")
+    if not first_parent or second_parent != main_sha:
+        return None
+    comparison = request_json(f"repos/{repository}/compare/{base_sha}...{first_parent}", token)
+    rows = comparison.get("files") if isinstance(comparison, dict) else None
+    if not isinstance(rows, list) or not all(isinstance(row, dict) for row in rows):
+        return None
+    return first_parent, rows
 
 
 def milestone_spec(config: dict[str, Any], version: str) -> dict[str, Any] | None:
@@ -227,6 +278,58 @@ def future_release_metadata_evidence(
     }
 
 
+def governance_repair_evidence(
+    *,
+    repository: str,
+    pr: dict[str, Any],
+    active: dict[str, str] | None,
+    active_issue_numbers: set[int],
+    primary: list[int],
+    token: str,
+) -> dict[str, Any] | None:
+    """Prove a guard-only repair cannot change the active release contract."""
+    if active is None:
+        return None
+    base_sha = str(((pr.get("base") or {}).get("sha")) or "")
+    head_sha = str(((pr.get("head") or {}).get("sha")) or "")
+    failures: list[str] = []
+    try:
+        rows = pr_files(repository, int(pr["number"]), token)
+        paths = {str(row.get("filename") or "") for row in rows}
+        integration_merge = False
+        if paths != GOVERNANCE_REPAIR_PATHS:
+            normalized = integration_merge_files(repository, pr, token)
+            if normalized is not None:
+                head_sha, rows = normalized
+                paths = {str(row.get("filename") or "") for row in rows}
+                integration_merge = True
+        if primary != [TRANSITION_PRIMARY_CR]:
+            failures.append("MERGE_ELIGIBILITY_GOVERNANCE_REPAIR_PRIMARY_CR_INVALID")
+        if paths != GOVERNANCE_REPAIR_PATHS:
+            failures.append("MERGE_ELIGIBILITY_GOVERNANCE_REPAIR_PATHS_INVALID")
+        if any(str(row.get("status") or "") != "modified" for row in rows):
+            failures.append("MERGE_ELIGIBILITY_GOVERNANCE_REPAIR_FILE_STATUS_INVALID")
+
+        base = json.loads(content_text(repository, "config/governance/github-bootstrap.json", base_sha, token))
+        head = json.loads(content_text(repository, "config/governance/github-bootstrap.json", head_sha, token))
+        if not isinstance(base, dict) or not isinstance(head, dict) or base != head:
+            failures.append("MERGE_ELIGIBILITY_GOVERNANCE_REPAIR_GOVERNANCE_CHANGED")
+        spec = milestone_spec(base, active["version"]) if isinstance(base, dict) else None
+        if spec is None or set(spec.get("issues") or []) != active_issue_numbers:
+            failures.append("MERGE_ELIGIBILITY_GOVERNANCE_REPAIR_ACTIVE_SCOPE_EVIDENCE_INVALID")
+    except (GitHubReadError, KeyError, TypeError, ValueError, json.JSONDecodeError):
+        failures.append("MERGE_ELIGIBILITY_GOVERNANCE_REPAIR_EVIDENCE_INVALID")
+        paths = set()
+    return {
+        "status": "PASS" if not failures else "FAIL",
+        "exception": "MERGE_ELIGIBILITY_GOVERNANCE_REPAIR_ONLY",
+        "changed_paths": sorted(paths),
+        "integration_merge_normalized": integration_merge if "integration_merge" in locals() else False,
+        "active_scope_unchanged": not failures,
+        "failures": sorted(set(failures)),
+    }
+
+
 def transition_evidence(pr: dict[str, Any], repository: str, primary: list[int], token: str) -> dict[str, Any] | None:
     """Validate the one-time exact-base transition for this guard remediation."""
     base_sha = str(((pr.get("base") or {}).get("sha")) or "")
@@ -257,6 +360,43 @@ def transition_evidence(pr: dict[str, Any], repository: str, primary: list[int],
     return {
         "status": "PASS" if not failures else "FAIL",
         "exception": "FUTURE_RELEASE_METADATA_GUARD_TRANSITION_V1",
+        "changed_paths": sorted(paths),
+        "failures": sorted(set(failures)),
+    }
+
+
+def governance_repair_transition_evidence(
+    pr: dict[str, Any], repository: str, primary: list[int], token: str
+) -> dict[str, Any] | None:
+    """Validate the exact-base bootstrap for the guard-repair allowance."""
+    base_sha = str(((pr.get("base") or {}).get("sha")) or "")
+    failures: list[str] = []
+    if base_sha != GOVERNANCE_REPAIR_TRANSITION_BASE_SHA:
+        failures.append("MERGE_ELIGIBILITY_GOVERNANCE_REPAIR_TRANSITION_BASE_MISMATCH")
+    if primary != [TRANSITION_PRIMARY_CR]:
+        failures.append("MERGE_ELIGIBILITY_GOVERNANCE_REPAIR_TRANSITION_PRIMARY_CR_MISMATCH")
+    try:
+        record_match = GOVERNANCE_REPAIR_RE.search(str(pr.get("body") or ""))
+        record = json.loads(record_match.group(1)) if record_match else None
+        if not isinstance(record, dict) or record != {
+            "schema_version": 1,
+            "kind": "merge_eligibility_governance_repair_transition",
+            "base_sha": GOVERNANCE_REPAIR_TRANSITION_BASE_SHA,
+        }:
+            failures.append("MERGE_ELIGIBILITY_GOVERNANCE_REPAIR_TRANSITION_RECORD_INVALID")
+        rows = pr_files(repository, int(pr["number"]), token)
+        paths = {str(row.get("filename") or "") for row in rows}
+        if paths != GOVERNANCE_REPAIR_TRANSITION_PATHS:
+            failures.append("MERGE_ELIGIBILITY_GOVERNANCE_REPAIR_TRANSITION_PATHS_INVALID")
+        statuses = {str(row.get("filename") or ""): str(row.get("status") or "") for row in rows}
+        if statuses != GOVERNANCE_REPAIR_TRANSITION_FILE_STATUSES:
+            failures.append("MERGE_ELIGIBILITY_GOVERNANCE_REPAIR_TRANSITION_FILE_STATUS_INVALID")
+    except (GitHubReadError, KeyError, TypeError, ValueError, json.JSONDecodeError):
+        failures.append("MERGE_ELIGIBILITY_GOVERNANCE_REPAIR_TRANSITION_EVIDENCE_INVALID")
+        paths = set()
+    return {
+        "status": "PASS" if not failures else "FAIL",
+        "exception": "MERGE_ELIGIBILITY_GOVERNANCE_REPAIR_TRANSITION_V1",
         "changed_paths": sorted(paths),
         "failures": sorted(set(failures)),
     }
@@ -301,7 +441,18 @@ def collect(repository: str, pr_number: int, expected_sha: str, token: str) -> d
         active_issue_numbers=active_issue_numbers,
         token=token,
     )
+    snapshot["governance_repair"] = governance_repair_evidence(
+        repository=repository,
+        pr=pr,
+        active=active,
+        active_issue_numbers=active_issue_numbers,
+        primary=primary,
+        token=token,
+    )
     snapshot["merge_eligibility_transition"] = transition_evidence(pr, repository, primary, token)
+    snapshot["governance_repair_transition"] = governance_repair_transition_evidence(
+        pr, repository, primary, token
+    )
     return snapshot
 
 

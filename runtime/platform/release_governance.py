@@ -267,6 +267,16 @@ def evaluate_merge_release_eligibility(snapshot: dict[str, Any]) -> list[str]:
     if isinstance(transition, dict) and transition.get("status") == "PASS":
         return []
 
+    # Guard-only repairs are bounded to three implementation-evidence paths
+    # and prove the complete versioned governance contract is unchanged.  The
+    # bootstrap that introduces this allowance is itself exact-base-bound.
+    governance_repair = snapshot.get("governance_repair")
+    if isinstance(governance_repair, dict) and governance_repair.get("status") == "PASS":
+        return []
+    governance_repair_transition = snapshot.get("governance_repair_transition")
+    if isinstance(governance_repair_transition, dict) and governance_repair_transition.get("status") == "PASS":
+        return []
+
     failures: list[str] = []
     if authority.get("milestone") != f"DDDA {version}":
         failures.append(f"MERGE_ELIGIBILITY_OUTSIDE_ACTIVE_RELEASE:#{cr}")

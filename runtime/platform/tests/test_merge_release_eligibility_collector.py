@@ -134,3 +134,104 @@ def test_transition_rejects_wrong_status_for_an_exact_path(monkeypatch):
 
     assert result["status"] == "FAIL"
     assert "MERGE_ELIGIBILITY_TRANSITION_FILE_STATUS_INVALID" in result["failures"]
+
+
+def test_governance_repair_requires_unchanged_governance_and_exact_paths(monkeypatch):
+    base = bootstrap([9, 12])
+    pr = future_plan_pr()
+    monkeypatch.setattr(
+        COLLECTOR,
+        "pr_files",
+        lambda *_args: [{"filename": path, "status": "modified"} for path in COLLECTOR.GOVERNANCE_REPAIR_PATHS],
+    )
+    monkeypatch.setattr(COLLECTOR, "content_text", lambda *_args: json.dumps(base))
+
+    result = COLLECTOR.governance_repair_evidence(
+        repository="romanhlavac/ddd-accelerator",
+        pr=pr,
+        active={"version": "0.1.1"},
+        active_issue_numbers={9, 12},
+        primary=[16],
+        token="not-used",
+    )
+
+    assert result["status"] == "PASS"
+    assert result["active_scope_unchanged"] is True
+
+
+def test_governance_repair_rejects_a_governance_change(monkeypatch):
+    base = bootstrap([9, 12])
+    changed = bootstrap([9])
+    pr = future_plan_pr()
+    monkeypatch.setattr(
+        COLLECTOR,
+        "pr_files",
+        lambda *_args: [{"filename": path, "status": "modified"} for path in COLLECTOR.GOVERNANCE_REPAIR_PATHS],
+    )
+    monkeypatch.setattr(
+        COLLECTOR,
+        "content_text",
+        lambda _repo, _path, ref, _token: json.dumps(base if ref == "a" * 40 else changed),
+    )
+
+    result = COLLECTOR.governance_repair_evidence(
+        repository="romanhlavac/ddd-accelerator",
+        pr=pr,
+        active={"version": "0.1.1"},
+        active_issue_numbers={9, 12},
+        primary=[16],
+        token="not-used",
+    )
+
+    assert result["status"] == "FAIL"
+    assert "MERGE_ELIGIBILITY_GOVERNANCE_REPAIR_GOVERNANCE_CHANGED" in result["failures"]
+
+
+
+def test_integration_merge_files_uses_only_verified_branch_diff(monkeypatch):
+    base_sha = "a" * 40
+    branch_sha = "b" * 40
+    current_main = "c" * 40
+    first_parent = "d" * 40
+    rows = [{"filename": path, "status": "modified"} for path in COLLECTOR.GOVERNANCE_REPAIR_PATHS]
+    responses = {
+        f"repos/romanhlavac/ddd-accelerator/commits/{branch_sha}": {
+            "parents": [{"sha": first_parent}, {"sha": current_main}]
+        },
+        "repos/romanhlavac/ddd-accelerator/commits/main": {"sha": current_main},
+        f"repos/romanhlavac/ddd-accelerator/compare/{base_sha}...{first_parent}": {"files": rows},
+    }
+    monkeypatch.setattr(COLLECTOR, "request_json", lambda path, _token: responses[path])
+
+    result = COLLECTOR.integration_merge_files(
+        "romanhlavac/ddd-accelerator",
+        {"base": {"sha": base_sha}, "head": {"sha": branch_sha}},
+        "not-used",
+    )
+
+    assert result == (first_parent, rows)
+
+
+def test_governance_repair_transition_requires_exact_base_marker_and_paths(monkeypatch):
+    body = """Implements #16
+
+<!-- ddda:merge-eligibility-governance-repair:v1 -->
+```json
+{"schema_version":1,"kind":"merge_eligibility_governance_repair_transition","base_sha":"fdcc2b323eff4bcc9cef71207e280f3ffa950dd8"}
+```
+"""
+    pr = {"number": 107, "body": body, "base": {"sha": COLLECTOR.GOVERNANCE_REPAIR_TRANSITION_BASE_SHA}}
+    monkeypatch.setattr(
+        COLLECTOR,
+        "pr_files",
+        lambda *_args: [
+            {"filename": path, "status": status}
+            for path, status in COLLECTOR.GOVERNANCE_REPAIR_TRANSITION_FILE_STATUSES.items()
+        ],
+    )
+
+    result = COLLECTOR.governance_repair_transition_evidence(
+        pr, "romanhlavac/ddd-accelerator", [16], "not-used"
+    )
+
+    assert result["status"] == "PASS"
