@@ -25,6 +25,12 @@ base/head Git trees:
 - the active live milestone issue set equals the base specification; and
 - metadata for every active-release issue is unchanged between base and head.
 
+If a metadata PR is technically updated by a conventional `merge main` commit,
+the collector may normalize its file evidence to the first-parent branch diff.
+It does so only when the head has exactly two parents and its second parent is
+the current `main` SHA. A stale, reordered, squashed or otherwise ambiguous
+merge remains a failure; this mechanism never permits an active-release change.
+
 The exception does not create a milestone, change a Project, merge a PR,
 promote, release or tag. It only permits a separately governed implementation
 merge after the ordinary exact-SHA CI, candidate, Human Review and explicit

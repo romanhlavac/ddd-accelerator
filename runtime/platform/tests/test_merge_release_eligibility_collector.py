@@ -93,6 +93,69 @@ def test_future_release_metadata_fails_when_active_scope_would_change(monkeypatc
     assert "MERGE_ELIGIBILITY_FUTURE_RELEASE_ACTIVE_SCOPE_CHANGED" in result["failures"]
 
 
+def test_future_release_metadata_normalizes_only_a_current_main_merge(monkeypatch):
+    base = bootstrap([9, 12])
+    head = bootstrap([9, 12])
+    head["milestones"].append({"title": "DDDA 0.1.2", "state": "open", "issues": [16], "pulls": []})
+    pr = future_plan_pr()
+    pr["head"]["sha"] = "m" * 40
+    monkeypatch.setattr(
+        COLLECTOR,
+        "pr_files",
+        lambda *_args: [{"filename": "runtime/platform/release_governance.py", "status": "modified"}],
+    )
+    monkeypatch.setattr(
+        COLLECTOR,
+        "content_text",
+        lambda _repo, _path, ref, _token: json.dumps(base if ref == "a" * 40 else head),
+    )
+    first_parent = "b" * 40
+    monkeypatch.setattr(
+        COLLECTOR,
+        "request_json",
+        lambda path, _token: (
+            {"parents": [{"sha": first_parent}, {"sha": "c" * 40}]}
+            if path.endswith("/commits/" + "m" * 40)
+            else {"sha": "c" * 40}
+            if path.endswith("/commits/main")
+            else {"files": [{"filename": item, "status": "modified"} for item in COLLECTOR.FUTURE_RELEASE_METADATA_PATHS]}
+        ),
+    )
+
+    result = COLLECTOR.future_release_metadata_evidence(
+        repository="romanhlavac/ddd-accelerator", pr=pr, active={"version": "0.1.1"}, active_issue_numbers={9, 12}, token="not-used"
+    )
+
+    assert result["status"] == "PASS"
+    assert result["integration_merge_normalized"] is True
+
+
+def test_future_release_metadata_rejects_merge_with_stale_main_parent(monkeypatch):
+    pr = future_plan_pr()
+    pr["head"]["sha"] = "m" * 40
+    monkeypatch.setattr(
+        COLLECTOR,
+        "pr_files",
+        lambda *_args: [{"filename": "runtime/platform/release_governance.py", "status": "modified"}],
+    )
+    monkeypatch.setattr(
+        COLLECTOR,
+        "request_json",
+        lambda path, _token: (
+            {"parents": [{"sha": "b" * 40}, {"sha": "d" * 40}]}
+            if path.endswith("/commits/" + "m" * 40)
+            else {"sha": "c" * 40}
+        ),
+    )
+
+    result = COLLECTOR.future_release_metadata_evidence(
+        repository="romanhlavac/ddd-accelerator", pr=pr, active={"version": "0.1.1"}, active_issue_numbers={9, 12}, token="not-used"
+    )
+
+    assert result["status"] == "FAIL"
+    assert "MERGE_ELIGIBILITY_FUTURE_RELEASE_PATHS_INVALID" in result["failures"]
+
+
 def test_transition_requires_exact_marker_and_file_set(monkeypatch):
     body = """Implements #16
 

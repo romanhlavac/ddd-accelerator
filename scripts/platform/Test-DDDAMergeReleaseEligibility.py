@@ -146,6 +146,37 @@ def pr_files(repository: str, pr_number: int, token: str) -> list[dict[str, Any]
     return rows
 
 
+def integration_merge_files(
+    repository: str, pr: dict[str, Any], token: str
+) -> tuple[str, list[dict[str, Any]]] | None:
+    """Return the branch-only diff for one freshly merged main update.
+
+    GitHub's PR-files endpoint reports both parents after ``git merge main``.
+    That is correct for a complete PR diff, but would make a metadata-only PR
+    appear to own files newly introduced by main.  Accept this narrow
+    normalization only when the head is the conventional two-parent merge and
+    its second parent is *the current* main head.  Any stale or malformed
+    ancestry remains ordinary fail-closed evidence.
+    """
+    head_sha = str(((pr.get("head") or {}).get("sha")) or "")
+    base_sha = str(((pr.get("base") or {}).get("sha")) or "")
+    commit = request_json(f"repos/{repository}/commits/{head_sha}", token)
+    main = request_json(f"repos/{repository}/commits/main", token)
+    parents = commit.get("parents") if isinstance(commit, dict) else None
+    main_sha = str(main.get("sha") or "") if isinstance(main, dict) else ""
+    if not isinstance(parents, list) or len(parents) != 2 or not base_sha:
+        return None
+    first_parent = str((parents[0] or {}).get("sha") or "")
+    second_parent = str((parents[1] or {}).get("sha") or "")
+    if not first_parent or second_parent != main_sha:
+        return None
+    comparison = request_json(f"repos/{repository}/compare/{base_sha}...{first_parent}", token)
+    rows = comparison.get("files") if isinstance(comparison, dict) else None
+    if not isinstance(rows, list) or not all(isinstance(row, dict) for row in rows):
+        return None
+    return first_parent, rows
+
+
 def milestone_spec(config: dict[str, Any], version: str) -> dict[str, Any] | None:
     wanted = f"DDDA {version}"
     matches = [row for row in config.get("milestones", []) if isinstance(row, dict) and row.get("title") == wanted]
@@ -193,6 +224,13 @@ def future_release_metadata_evidence(
     try:
         rows = pr_files(repository, int(pr["number"]), token)
         paths = {str(row.get("filename") or "") for row in rows}
+        integration_merge = False
+        if paths != FUTURE_RELEASE_METADATA_PATHS:
+            normalized = integration_merge_files(repository, pr, token)
+            if normalized is not None:
+                head_sha, rows = normalized
+                paths = {str(row.get("filename") or "") for row in rows}
+                integration_merge = True
         if paths != FUTURE_RELEASE_METADATA_PATHS:
             failures.append("MERGE_ELIGIBILITY_FUTURE_RELEASE_PATHS_INVALID")
         if any(str(row.get("status") or "") != "modified" for row in rows):
@@ -222,6 +260,7 @@ def future_release_metadata_evidence(
         "status": "PASS" if not failures else "FAIL",
         "exception": "FUTURE_RELEASE_METADATA_ONLY",
         "changed_paths": sorted(paths),
+        "integration_merge_normalized": integration_merge if "integration_merge" in locals() else False,
         "active_scope_unchanged": not failures,
         "failures": sorted(set(failures)),
     }
