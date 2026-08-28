@@ -55,6 +55,90 @@ def _release_value(value: Any) -> str:
     return str(value or "").strip().removeprefix("DDDA ")
 
 
+def _sha_values(values: Any) -> set[str]:
+    if not isinstance(values, list):
+        return set()
+    return {str(value) for value in values if SHA40.fullmatch(str(value))}
+
+
+def evaluate_recovery_ledger(
+    physical: dict[str, Any],
+    *,
+    expected_version: str,
+    declared_scope: set[int],
+) -> list[str]:
+    """Validate an explicit controlled-release-source provenance ledger.
+
+    A reconstructed source has new commit identities.  It therefore cannot
+    inherit GitHub's original commit-to-PR association implicitly.  The ledger
+    is an explicit, versioned replacement provenance record.  It is accepted
+    only when it covers every reconstructed physical commit (except one
+    metadata-only ledger commit) and the collector has freshly read back the
+    original merged PR/CR authority and exact changed-path hashes.
+    """
+    ledger = physical.get("recovery_ledger")
+    if ledger is None:
+        return []
+    if not isinstance(ledger, dict):
+        return ["RECOVERY_LEDGER_EVIDENCE_INVALID"]
+
+    failures: list[str] = []
+    if ledger.get("schema_version") != 1:
+        failures.append("RECOVERY_LEDGER_SCHEMA_VERSION")
+    if ledger.get("version") != expected_version:
+        failures.append("RECOVERY_LEDGER_VERSION_MISMATCH")
+    if ledger.get("previous_release_tag") != physical.get("previous_release_tag"):
+        failures.append("RECOVERY_LEDGER_PREVIOUS_TAG_MISMATCH")
+
+    physical_commits = _sha_values(physical.get("commit_shas"))
+    if not physical_commits:
+        failures.append("RECOVERY_LEDGER_PHYSICAL_COMMIT_EVIDENCE_MISSING")
+
+    metadata = _sha_values(ledger.get("metadata_commit_shas"))
+    if len(metadata) != 1 or not metadata.issubset(physical_commits):
+        failures.append("RECOVERY_LEDGER_METADATA_COMMIT_INVALID")
+
+    entries = ledger.get("entries")
+    if not isinstance(entries, list) or not entries:
+        return sorted(set(failures + ["RECOVERY_LEDGER_ENTRIES_INVALID"]))
+
+    recovered: set[str] = set()
+    source_prs: set[int] = set()
+    for entry in entries:
+        if not isinstance(entry, dict):
+            failures.append("RECOVERY_LEDGER_ENTRY_SHAPE")
+            continue
+        recovered_sha = str(entry.get("recovered_commit_sha") or "")
+        if not SHA40.fullmatch(recovered_sha) or recovered_sha in recovered:
+            failures.append("RECOVERY_LEDGER_RECOVERED_COMMIT_INVALID")
+            continue
+        recovered.add(recovered_sha)
+        try:
+            source_pr = int(entry.get("source_pr", 0))
+            primary_cr = int(entry.get("primary_cr", 0))
+        except (TypeError, ValueError):
+            source_pr = primary_cr = 0
+        if source_pr <= 0 or source_pr in source_prs:
+            failures.append("RECOVERY_LEDGER_SOURCE_PR_INVALID")
+        source_prs.add(source_pr)
+        if primary_cr <= 0:
+            failures.append("RECOVERY_LEDGER_PRIMARY_CR_INVALID")
+        if entry.get("source_pr_merged") is not True:
+            failures.append(f"RECOVERY_LEDGER_SOURCE_PR_NOT_MERGED:PR#{source_pr}")
+        if entry.get("source_primary_crs") != [primary_cr]:
+            failures.append(f"RECOVERY_LEDGER_SOURCE_PRIMARY_CR_MISMATCH:PR#{source_pr}")
+        if entry.get("source_merge_commit_sha") != entry.get("observed_source_merge_commit_sha"):
+            failures.append(f"RECOVERY_LEDGER_SOURCE_MERGE_SHA_MISMATCH:PR#{source_pr}")
+        if entry.get("changed_path_hashes_match") is not True:
+            failures.append(f"RECOVERY_LEDGER_PATH_HASH_MISMATCH:PR#{source_pr}")
+        if primary_cr not in declared_scope:
+            failures.append(f"RECOVERY_LEDGER_OUT_OF_SCOPE_PRIMARY_CR:PR#{source_pr}:#{primary_cr}")
+
+    if recovered | metadata != physical_commits:
+        failures.append("RECOVERY_LEDGER_COMMIT_COVERAGE_MISMATCH")
+    return sorted(set(failures))
+
+
 def evaluate_physical_release_scope(
     snapshot: dict[str, Any],
     *,
@@ -82,10 +166,18 @@ def evaluate_physical_release_scope(
     if physical.get("compare_status") not in {"ahead", "identical"}:
         failures.append("PHYSICAL_SCOPE_ANCESTRY_INVALID")
 
+    scope = _ints(declared_scope)
+    failures.extend(
+        evaluate_recovery_ledger(
+            physical,
+            expected_version=expected_version,
+            declared_scope=scope,
+        )
+    )
+
     for sha in sorted({str(x) for x in physical.get("unmapped_commit_shas", []) if str(x)}):
         failures.append(f"PHYSICAL_SCOPE_UNMAPPED_COMMIT:{sha}")
 
-    scope = _ints(declared_scope)
     shipping = physical.get("shipping_prs")
     if not isinstance(shipping, list):
         return sorted(set(failures + ["PHYSICAL_SCOPE_SHIPPING_PR_EVIDENCE_MISSING"]))

@@ -64,6 +64,7 @@ def test_physical_scope_inventory_keeps_unmapped_commit_and_exact_primary_relati
 
     ns.rest_pages = fake_pages
     ns.rest_get = fake_get
+    ns.recovery_ledger_at_source = lambda *_: None
     actual = ns.physical_scope_snapshot(
         "owner/repo", "0.1.1", "d" * 40, "token", {96: {"Target Release": "0.1.1"}}
     )
