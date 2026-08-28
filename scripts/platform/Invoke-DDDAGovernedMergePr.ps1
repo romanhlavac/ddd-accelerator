@@ -2,6 +2,8 @@
 param(
     [string]$PlatformPath = (Resolve-Path (Join-Path $PSScriptRoot "../..")).Path,
     [Parameter(Mandatory = $true)][ValidateRange(1, 2147483647)][int]$Pr,
+    [string]$PackagePath,
+    [string]$ValidationReportPath,
     [ValidateSet("merge", "squash")][string]$MergeMethod,
     [switch]$ConfirmMerge,
     [switch]$DryRun
@@ -57,7 +59,13 @@ if ($headSha -notmatch '^[0-9a-f]{40}$') {
 }
 
 try {
-    $checkSummary = Assert-DDDAGitHubChecksPassed -RepositorySlug $repositorySlug -Commit $headSha -Token $githubAuth.Token
+    $ignoredCheckRunNames = if ($DryRun -and -not [string]::IsNullOrWhiteSpace([string]$env:DDDA_CURRENT_CHECK_NAME)) {
+        @([string]$env:DDDA_CURRENT_CHECK_NAME)
+    }
+    else {
+        @()
+    }
+    $checkSummary = Assert-DDDAGitHubChecksPassed -RepositorySlug $repositorySlug -Commit $headSha -Token $githubAuth.Token -IgnoredCheckRunNames $ignoredCheckRunNames
 }
 catch {
     throw "CI kontroly PR #$Pr nejsou všechny PASS:`n$($_.Exception.Message)"
@@ -72,22 +80,60 @@ if ($minimumApprovals -gt 0) {
     }
 }
 
-$validation = Get-DDDACandidateValidationEvidence -Pr $Pr -HeadSha $headSha
+$validationArguments = @{
+    Pr = $Pr
+    HeadSha = $headSha
+}
+if (-not [string]::IsNullOrWhiteSpace($PackagePath)) { $validationArguments["PackagePath"] = $PackagePath }
+if (-not [string]::IsNullOrWhiteSpace($ValidationReportPath)) { $validationArguments["ValidationReportPath"] = $ValidationReportPath }
+$validation = Get-DDDACandidateValidationEvidence @validationArguments
+Invoke-DDDAPlatformChildPowerShell -ScriptPath (Join-Path $platformRoot "scripts/platform/Test-DDDAPlatformPackage.ps1") -Arguments @(
+    "-PackagePath", [string]$validation.PackagePath,
+    "-ExpectedCommit", $headSha,
+    "-ExpectedKind", "candidate"
+) -SuppressOutput
+
+# CR #96: implementation merge remains distinct from the Release Scope Gate,
+# but must not introduce a later/TBD Change Request into an already open train.
+# The collector is read-only and fails closed; it cannot alter scope authority.
+$eligibilityRoot = Join-Path (Get-DDDAPlatformStateRoot) ("merge-eligibility/pr-$Pr-$headSha")
+New-Item -ItemType Directory -Path $eligibilityRoot -Force | Out-Null
+$eligibilityPath = Join-Path $eligibilityRoot "release-eligibility.json"
+$eligibilityCollector = Join-Path $platformRoot "scripts/platform/Test-DDDAMergeReleaseEligibility.py"
+if (-not (Test-Path -LiteralPath $eligibilityCollector -PathType Leaf)) {
+    throw "Releasable-main merge eligibility collector neexistuje: $eligibilityCollector"
+}
+$python = Get-DDDAPlatformPythonCommand
+$previousGhToken = $env:GH_TOKEN
+$previousGithubToken = $env:GITHUB_TOKEN
+try {
+    $env:GH_TOKEN = $githubAuth.Token
+    Invoke-DDDAPlatformNative -Command $python -Arguments @(
+        $eligibilityCollector,
+        "--repository", $repositorySlug,
+        "--pr", [string]$Pr,
+        "--expected-sha", $headSha,
+        "--output", $eligibilityPath
+    ) -WorkingDirectory $platformRoot | Out-Null
+}
+finally {
+    $env:GH_TOKEN = $previousGhToken
+    $env:GITHUB_TOKEN = $previousGithubToken
+}
+if (-not (Test-Path -LiteralPath $eligibilityPath -PathType Leaf)) {
+    throw "Releasable-main merge eligibility nevytvořil evidence report."
+}
+$mergeEligibility = Get-Content -LiteralPath $eligibilityPath -Raw -Encoding UTF8 | ConvertFrom-Json
+if ([string]$mergeEligibility.status -ne "PASS" -or -not [bool]$mergeEligibility.side_effects_allowed) {
+    $failures = @($mergeEligibility.failing_invariants | ForEach-Object { [string]$_ })
+    throw "Releasable-main merge eligibility FAIL:`n$($failures -join "`n")"
+}
 
 $reviewComments = @(Get-DDDAHumanPrReviewComments -RepositorySlug $repositorySlug -Pr $Pr -Token $githubAuth.Token)
 if ($reviewComments.Count -ne 1) {
     throw "Governed implementation merge vyžaduje právě jeden authoritativní Human Review marker. Nalezeno: $($reviewComments.Count)."
 }
 $reviewComment = $reviewComments[0]
-$commentAuthor = [string]$reviewComment.user.login
-$commentAuthorType = [string]$reviewComment.user.type
-if (
-    [string]::IsNullOrWhiteSpace($commentAuthor) -or
-    $commentAuthorType -eq "Bot" -or
-    $commentAuthor -match '\[bot\]$'
-) {
-    throw "Human Review musí mít lidskou GitHub provenance."
-}
 $review = ConvertFrom-DDDAHumanPrReviewComment -Comment $reviewComment
 if ([int]$review.schema_version -ne 1 -or [string]$review.kind -ne "implementation_pr_review") {
     throw "Human Review má nepodporovaný contract."
@@ -101,9 +147,7 @@ if ([string]$review.reviewed_sha -ne $headSha) {
 if ([string]$review.candidate_package_sha256 -ne [string]$validation.PackageSha256) {
     throw "Human Review candidate package hash neodpovídá exact-SHA validate-pr evidence."
 }
-if ([string]$review.reviewer -ne $commentAuthor) {
-    throw "Human Review reviewer '$([string]$review.reviewer)' neodpovídá human comment authorovi '$commentAuthor'."
-}
+$commentAuthor = Assert-DDDAHumanPrReviewCommentProvenance -Comment $reviewComment -Review $review
 if ([string]$review.verdict -ne "pass") {
     throw "Human Review není PASS. verdict=$([string]$review.verdict)"
 }
@@ -116,7 +160,7 @@ if (-not [DateTimeOffset]::TryParse([string]$review.reviewed_at, [ref]$reviewedA
 }
 
 foreach ($relative in @($policy.required_documents)) {
-    $contentsPath = "repos/$repositorySlug/contents/$relative?ref=$headSha"
+    $contentsPath = "repos/{0}/contents/{1}?ref={2}" -f $repositorySlug, $relative, $headSha
     try {
         $null = Invoke-DDDAGitHubApi -Method GET -Path $contentsPath -Token $githubAuth.Token
     }
@@ -174,6 +218,7 @@ Write-Host "CI checks:         PASS ($($checkSummary.CheckRunCount) check runs)"
 Write-Host "Human Review:      PASS ($commentAuthor)"
 Write-Host "Impact:            $impact"
 Write-Host "Merge method:      $effectiveMergeMethod"
+Write-Host "Releasable-main:  PASS"
 Write-Host "Bootstrap transition: $([bool]$strategyDecision.bootstrap_transition)"
 Write-Host "Release Scope Gate: NOT APPLICABLE (implementation merge)"
 Write-Host "Release/tag side effects: DISABLED"
@@ -259,6 +304,12 @@ Write-DDDAPlatformJson -Path $evidencePath -Depth 30 -Value ([ordered]@{
     impact = $impact
     validated_source_head_sha = $headSha
     candidate_package_sha256 = [string]$validation.PackageSha256
+    releasable_main = [ordered]@{
+        status = [string]$mergeEligibility.status
+        active_release = $mergeEligibility.active_release
+        primary_crs = @($mergeEligibility.primary_crs)
+        evidence_path = $eligibilityPath
+    }
     human_review = [ordered]@{
         reviewer = $commentAuthor
         reviewed_at = [string]$review.reviewed_at

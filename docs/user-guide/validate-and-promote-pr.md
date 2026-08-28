@@ -37,7 +37,7 @@ Včetně Miro, pokud je relevantní:
 .\ddda.ps1 validate-pr -Pr 74 -WithMiro -Full -CleanupOnFailure
 ```
 
-Příkaz nemění aktivní větev ani working tree. PR načte přes exact head SHA, vytvoří izolovaný candidate package a package-first validation evidence.
+Příkaz nemění aktivní větev ani working tree. Lokálně načte exact head SHA a vytvoří izolovaný candidate package. Ve standardním CI se candidate sestaví pouze jednou v `Platform validation`; `One-command PR validation` stáhne tentýž artifact a zavolá `validate-pr -PackagePath`, takže reportovaný hash patří fyzicky nahranému ZIPu.
 
 ## Governed implementation merge
 
@@ -60,8 +60,11 @@ Dry-run fail-closed ověří:
 - Human Review má lidskou provenance, stejné PR/SHA/package a verdict `pass`;
 - required governance documents existují;
 - impact classification a merge method odpovídají repository merge-strategy policy.
+- pokud existuje právě jeden otevřený release train `DDDA X.Y.Z`, primary CR PR patří do jeho Milestone; PR s pozdějším/TBD scope se fail-closed nemůže dostat do `main`.
 
 Dry-run neprovede merge, release, promotion ani tag.
+
+Standardní CI používá samostatný job `Human Review readiness`. Před Human Review je vlastní `Governed merge dry-run` job `skipped` a jeho stav je `NOT_RUN`; zelený readiness coordinator není důkaz provedeného dry-runu. Po publikaci exact-SHA Human Review se znovu spustí readiness job a jeho dependent dry-run, nikoli candidate build. Dry-run na novém čistém runneru stáhne již existující candidate a validation report ze stejného workflow runu, přepočítá hash a ověří shodu s reportem i Human Review. Dočasná cesta z validačního runneru se nepoužívá.
 
 ### Merge strategy a exact-SHA ancestry
 
@@ -144,7 +147,9 @@ Po explicitním Human Release Decision pro release candidate:
 .\ddda.ps1 promote-pr -Pr <RELEASE_PR> -Version <X.Y.Z> -DryRun
 ```
 
-Public `promote-pr` nejdříve validuje právě jeden authoritativní HRDR a strict Release Scope Gate nad live Milestone, native blockers a GitHub Project V2 projection.
+Public `promote-pr` nejdříve validuje právě jeden authoritativní HRDR a strict Release Scope Gate nad live Milestone, native blockers, GitHub Project V2 projection a skutečným source diffem od posledního canonical SemVer tagu.
+
+Gate vytvoří inventory shipping commitů, PR a jejich právě jednoho primary CR. Každý shipping PR musí patřit do aktuálního Milestone i Project projection `Target Release=X.Y.Z`. Nezmapovaný commit, více primary CR nebo změna mimo scope znamená FAIL. U již integrované out-of-scope změny evidence obsahuje `RECOVERY_DECISION_REQUIRED`; automatizace sama nesmí scope rozšířit, historii přepsat ani změnu odstranit.
 
 Release Scope Gate vyžaduje, aby current release scope byl před skutečným release terminal nebo explicitně deferred mimo release. Toto pravidlo **neplatí jako precondition pro předchozí implementation merges**.
 

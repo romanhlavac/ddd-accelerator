@@ -8,6 +8,9 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 ### Added
 
+- CR #96 physical release-scope contract: release preflight now derives the shipping commit/PR/primary-CR set from the previous canonical SemVer tag to the exact candidate source SHA and fails closed on an unmapped, ambiguous or out-of-scope change;
+- read-only releasable-main eligibility guard for `merge-pr`: while one DDDA release Milestone is open, a PR whose primary CR is outside that train cannot be merged into `main`;
+- machine-readable physical-source inventory and explicit `RECOVERY_DECISION_REQUIRED` result; automation neither expands release scope nor removes/deferes already integrated source.
 - machine-readable `human-release-decision.schema.json`, `review-pr` scaffold a fail-closed Release Scope Gate pro exact release-candidate SHA / candidate package / release-version identity;
 - governed implementation command `merge-pr` a machine-readable Human Review marker `ddda:human-pr-review:v1`, vázané na exact PR SHA a candidate package hash;
 - ADR 0008 a developer runbook oddělující Human Review/implementation merge, Human Release Decision a mechanickou release-scope completeness;
@@ -15,12 +18,18 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 ### Changed
 
+- GitHub-native backlog governance nyní považuje Issue/PR mutation, Project planning/delivery projection a release Milestone projection za jednu fail-closed transakci; DDDA 0.1.0/0.1.1 scope je versioned a canonical reconciler opravuje Project/Milestone drift před Ready/merge/release doporučením.
 - platform lifecycle nyní explicitně odděluje governed merge implementačních PR od skutečného release/promotion; implementation merge nevyžaduje HRDR ani Release Scope Gate a nesmí vytvořit release package, release validation nebo tag;
 - public `promote-pr` zůstává strict release-candidate command: před interním release executorem vyžaduje validní human HRDR a read-only Release Scope Gate PASS nad Milestone, native blockers a GitHub Project V2 projekcí;
 - governed implementation merge používá po aktivaci #70 merge commit jako canonical default; HIGH/BREAKING a neklasifikované PR nesmějí squash/rebase, LOW/MEDIUM squash vyžaduje explicitní human exception a canonical merge ověřuje validated PR HEAD server-side jako parent/ancestor výsledného main state.
 
 ### Fixed
 
+- delivery governance nyní odvozuje PR `Blocked` a `Status` z unresolved blocker state primárního Change Requestu; stale Project dvojice `Blocked = Yes` / `Status = Blocked` proto nemůže projít fresh fail-closed read-backem a druhý reconcile je idempotentní;
+- governed `merge-pr` nyní sestavuje GitHub Contents API URL bez PowerShell variable-name ambiguity mezi cestou dokumentu a `?ref` query, takže isolated post-Human-Review dry-run ověří povinné dokumenty na exact PR SHA;
+- Human Review provenance nyní materializuje GitHub Issues Comments REST pole před marker selection a porovnává reviewer výhradně s jediným canonical `user.login`; display name se neconcatenatuje a chybějící, víceznačný nebo botí autor failuje closed;
+- exact-SHA PR governance nyní používá jeden canonical candidate artifact napříč platform CI, `validate-pr`, remote brokerem, validation reportem, Human Review a isolated `merge-pr -DryRun`; paralelní rebuildy, runner-local evidence paths a chybějící či víceznačné artifact identity failují closed;
+- pre-HR merge orchestrace nyní odděluje `Human Review readiness` od skutečného `Governed merge dry-run`; bez Human Review je dry-run `skipped`/`NOT_RUN` a `success` může vzniknout pouze po provedeném `merge-pr -DryRun` nad existujícím exact-run candidate/reportem;
 - promotion dry-run wrapper nyní používá operation-local výsledek a explicitní post-read-back side-effect assertions; očekávaná `404` absence tagu/GitHub Release je PASS assertion, zatímco auth/network/API chyby zůstávají FAIL, takže PR8-class `semantic PASS / wrapper FAIL` false-negative se nemůže opakovat přes stale `$LASTEXITCODE`;
 - annotated release tag nyní používá deterministic non-secret Git identity pouze v izolovaném release-source clone; clean runner proto nezávisí na ambientním `user.name`/`user.email` a bounded recovery po post-validation tag failure je explicitně zdokumentována;
 - Miro acceptance evidence zachová exact board ID/URL i při child failure po vytvoření boardu, ale před child reportem; konfliktní handoff identity nebo mismatch s reportem failují closed a cleanup může cílit na skutečně vytvořený board.

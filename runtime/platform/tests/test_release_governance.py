@@ -1,6 +1,10 @@
 from copy import deepcopy
 
-from runtime.platform.release_governance import evaluate_release_scope, validate_hrdr_shape
+from runtime.platform.release_governance import (
+    evaluate_merge_release_eligibility,
+    evaluate_release_scope,
+    validate_hrdr_shape,
+)
 
 REPO = "romanhlavac/ddd-accelerator"
 PR = 71
@@ -57,6 +61,23 @@ def snapshot():
             "title": "DDDA Platform Backlog & Delivery",
             "planning_view_filter": "is:issue",
             "delivery_view_filter": "is:pr is:open",
+        },
+        "physical_scope": {
+            "previous_release_tag": "v0.1.0",
+            "previous_release_sha": "c" * 40,
+            "release_source_sha": SHA,
+            "compare_status": "ahead",
+            "unmapped_commit_shas": [],
+            "shipping_prs": [
+                {
+                    "number": number,
+                    "merged": True,
+                    "primary_crs": [cr],
+                    "milestone": "DDDA 0.1.1",
+                    "target_release": "0.1.1",
+                }
+                for number, cr in [(71, 9), (72, 12), (73, 67), (74, 68)]
+            ],
         },
     }
 
@@ -185,3 +206,64 @@ def test_identity_contract_rejects_package_drift():
     )
     assert result.status == "FAIL"
     assert "IDENTITY_PACKAGE_SHA256_MISMATCH" in result.failures
+
+
+def test_physical_scope_rejects_later_release_shipping_pr_and_requires_human_recovery():
+    live = snapshot()
+    live["physical_scope"]["shipping_prs"].append(
+        {
+            "number": 92,
+            "merged": True,
+            "primary_crs": [88],
+            "milestone": None,
+            "target_release": "TBD",
+        }
+    )
+    result = evaluate(live=live)
+    assert result.status == "FAIL"
+    assert "PHYSICAL_SCOPE_OUT_OF_SCOPE_PRIMARY_CR:PR#92:#88" in result.failures
+    assert "RECOVERY_DECISION_REQUIRED" in result.failures
+    assert result.side_effects_allowed is False
+
+
+def test_physical_scope_rejects_unmapped_commit_and_ambiguous_primary_cr():
+    live = snapshot()
+    live["physical_scope"]["unmapped_commit_shas"] = ["d" * 40]
+    live["physical_scope"]["shipping_prs"][0]["primary_crs"] = [9, 12]
+    result = evaluate(live=live)
+    assert "PHYSICAL_SCOPE_UNMAPPED_COMMIT:" + "d" * 40 in result.failures
+    assert "PHYSICAL_SCOPE_PRIMARY_CR_AMBIGUOUS:PR#71" in result.failures
+
+
+def test_physical_scope_rejects_non_ancestor_or_wrong_source_evidence():
+    live = snapshot()
+    live["physical_scope"]["compare_status"] = "diverged"
+    live["physical_scope"]["release_source_sha"] = "e" * 40
+    result = evaluate(live=live)
+    assert "PHYSICAL_SCOPE_ANCESTRY_INVALID" in result.failures
+    assert "PHYSICAL_SCOPE_SOURCE_SHA_MISMATCH" in result.failures
+
+
+def test_physical_scope_rejects_declared_change_missing_from_source():
+    live = snapshot()
+    live["physical_scope"]["shipping_prs"] = [
+        row for row in live["physical_scope"]["shipping_prs"] if row["primary_crs"] != [68]
+    ]
+    result = evaluate(live=live)
+    assert "PHYSICAL_SCOPE_DECLARED_CR_NOT_SHIPPED:#68" in result.failures
+
+
+def test_merge_eligibility_allows_only_active_train_authority():
+    allowed = {
+        "active_release": {"version": "0.1.1"},
+        "primary_crs": [96],
+        "primary_cr": {"milestone": "DDDA 0.1.1", "target_release": "0.1.1"},
+    }
+    assert evaluate_merge_release_eligibility(allowed) == []
+
+    blocked = deepcopy(allowed)
+    blocked["primary_cr"] = {"milestone": None, "target_release": "TBD"}
+    assert evaluate_merge_release_eligibility(blocked) == [
+        "MERGE_ELIGIBILITY_OUTSIDE_ACTIVE_RELEASE:#96",
+        "MERGE_ELIGIBILITY_TARGET_RELEASE_MISMATCH:#96",
+    ]

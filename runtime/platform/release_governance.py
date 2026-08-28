@@ -50,6 +50,122 @@ def _keyed(mapping: dict[Any, Any], key: int, default: Any = None) -> Any:
     return default
 
 
+def _release_value(value: Any) -> str:
+    """Normalize Project's planning projection without making it authority."""
+    return str(value or "").strip().removeprefix("DDDA ")
+
+
+def evaluate_physical_release_scope(
+    snapshot: dict[str, Any],
+    *,
+    expected_source_sha: str,
+    expected_version: str,
+    declared_scope: Iterable[int],
+) -> list[str]:
+    """Return fail-closed defects between declared and physical shipping scope.
+
+    ``physical_scope`` is collected from the last canonical SemVer tag through
+    the exact candidate source.  This function intentionally does not select a
+    recovery path or enlarge a Milestone: those are human governance decisions.
+    """
+    failures: list[str] = []
+    physical = snapshot.get("physical_scope")
+    if not isinstance(physical, dict):
+        return ["PHYSICAL_SCOPE_EVIDENCE_MISSING"]
+
+    if physical.get("release_source_sha") != expected_source_sha:
+        failures.append("PHYSICAL_SCOPE_SOURCE_SHA_MISMATCH")
+    if not str(physical.get("previous_release_tag") or "").strip():
+        failures.append("PHYSICAL_SCOPE_PREVIOUS_TAG_MISSING")
+    if not SHA40.fullmatch(str(physical.get("previous_release_sha") or "")):
+        failures.append("PHYSICAL_SCOPE_PREVIOUS_TAG_SHA_INVALID")
+    if physical.get("compare_status") not in {"ahead", "identical"}:
+        failures.append("PHYSICAL_SCOPE_ANCESTRY_INVALID")
+
+    for sha in sorted({str(x) for x in physical.get("unmapped_commit_shas", []) if str(x)}):
+        failures.append(f"PHYSICAL_SCOPE_UNMAPPED_COMMIT:{sha}")
+
+    scope = _ints(declared_scope)
+    shipping = physical.get("shipping_prs")
+    if not isinstance(shipping, list):
+        return sorted(set(failures + ["PHYSICAL_SCOPE_SHIPPING_PR_EVIDENCE_MISSING"]))
+
+    seen_prs: set[int] = set()
+    shipping_crs: set[int] = set()
+    for row in shipping:
+        if not isinstance(row, dict):
+            failures.append("PHYSICAL_SCOPE_SHIPPING_PR_SHAPE")
+            continue
+        try:
+            number = int(row.get("number", 0))
+        except (TypeError, ValueError):
+            number = 0
+        if number <= 0 or number in seen_prs:
+            failures.append("PHYSICAL_SCOPE_SHIPPING_PR_IDENTITY")
+            continue
+        seen_prs.add(number)
+        if row.get("merged") is not True:
+            failures.append(f"PHYSICAL_SCOPE_PR_NOT_MERGED:PR#{number}")
+        primary = row.get("primary_crs")
+        if not isinstance(primary, list) or len(primary) != 1:
+            failures.append(f"PHYSICAL_SCOPE_PRIMARY_CR_AMBIGUOUS:PR#{number}")
+            continue
+        try:
+            cr = int(primary[0])
+        except (TypeError, ValueError):
+            failures.append(f"PHYSICAL_SCOPE_PRIMARY_CR_AMBIGUOUS:PR#{number}")
+            continue
+        shipping_crs.add(cr)
+        if cr not in scope:
+            failures.append(f"PHYSICAL_SCOPE_OUT_OF_SCOPE_PRIMARY_CR:PR#{number}:#{cr}")
+            # This marker makes the mandatory human recovery decision visible
+            # without allowing automation to choose scope expansion/recovery.
+            failures.append("RECOVERY_DECISION_REQUIRED")
+        if _release_value(row.get("target_release")) != expected_version:
+            failures.append(f"PHYSICAL_SCOPE_TARGET_RELEASE_MISMATCH:PR#{number}:#{cr}")
+        if row.get("milestone") != f"DDDA {expected_version}":
+            failures.append(f"PHYSICAL_SCOPE_MILESTONE_MISMATCH:PR#{number}:#{cr}")
+
+    for cr in sorted(scope - shipping_crs):
+        failures.append(f"PHYSICAL_SCOPE_DECLARED_CR_NOT_SHIPPED:#{cr}")
+
+    return sorted(set(failures))
+
+
+def evaluate_merge_release_eligibility(snapshot: dict[str, Any]) -> list[str]:
+    """Enforce releasable-main while an active release train is open.
+
+    The Milestone is the release authority.  Project Target Release is checked
+    as its planning projection, never used to permit an otherwise out-of-scope
+    merge.  Missing/ambiguous evidence is deliberately blocking.
+    """
+    active = snapshot.get("active_release")
+    if active is None:
+        return []
+    if not isinstance(active, dict):
+        return ["MERGE_ELIGIBILITY_ACTIVE_RELEASE_EVIDENCE_INVALID"]
+    version = _release_value(active.get("version"))
+    if not SEMVER.fullmatch(version):
+        return ["MERGE_ELIGIBILITY_ACTIVE_RELEASE_EVIDENCE_INVALID"]
+    primary = snapshot.get("primary_crs")
+    if not isinstance(primary, list) or len(primary) != 1:
+        return ["MERGE_ELIGIBILITY_PRIMARY_CR_AMBIGUOUS"]
+    try:
+        cr = int(primary[0])
+    except (TypeError, ValueError):
+        return ["MERGE_ELIGIBILITY_PRIMARY_CR_AMBIGUOUS"]
+    authority = snapshot.get("primary_cr")
+    if not isinstance(authority, dict):
+        return ["MERGE_ELIGIBILITY_PRIMARY_CR_EVIDENCE_MISSING"]
+    failures: list[str] = []
+    if authority.get("milestone") != f"DDDA {version}":
+        failures.append(f"MERGE_ELIGIBILITY_OUTSIDE_ACTIVE_RELEASE:#{cr}")
+    target = _release_value(authority.get("target_release"))
+    if target and target != version:
+        failures.append(f"MERGE_ELIGIBILITY_TARGET_RELEASE_MISMATCH:#{cr}")
+    return sorted(set(failures))
+
+
 def validate_hrdr_shape(record: dict[str, Any]) -> list[str]:
     failures: list[str] = []
     if record.get("schema_version") != 1:
@@ -235,6 +351,15 @@ def evaluate_release_scope(
         failures.append("PROJECT_PLANNING_VIEW_MISMATCH")
     if project_meta.get("delivery_view_filter") != "is:pr is:open":
         failures.append("PROJECT_DELIVERY_VIEW_MISMATCH")
+
+    failures.extend(
+        evaluate_physical_release_scope(
+            snapshot,
+            expected_source_sha=expected_source_sha,
+            expected_version=expected_version,
+            declared_scope=scope_issues,
+        )
+    )
 
     failures = sorted(set(failures))
     return GovernanceResult(

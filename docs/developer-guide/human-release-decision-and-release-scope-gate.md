@@ -163,6 +163,7 @@ Automation nesmí decision ani risk set doplnit odhadem.
 ```text
 current release-candidate head
 + candidate hash
++ previous canonical SemVer tag → exact release-source SHA → shipping commit/PR/primary-CR inventory
 + Milestone DDDA <version>
 + milestone Issues
 + native unresolved blockers
@@ -187,6 +188,9 @@ Gate je fail-closed.
 - HRDR nemá RED.
 - Human Release Decision je pozitivní.
 - live release-candidate head, source SHA, candidate hash a version se shodují.
+- každý commit mezi předchozím canonical SemVer tagem a release source je dohledatelný k právě jednomu merged shipping PR a jeho právě jednomu primary CR;
+- každý shipping primary CR je v aktuálním Milestone a jeho Project `Target Release` je stejná verze;
+- physical scope se přesně rovná declared Milestone scope: ani extra shipping CR, ani declared CR bez shipping změny. Při rozdílu gate vydá inventory a `RECOVERY_DECISION_REQUIRED`; nevolí scope expansion ani source recovery.
 
 Chybějící Project credential, nedostupný Project nebo API ambiguity jsou FAIL.
 
