@@ -6,6 +6,17 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 ## [Unreleased]
 
+### Added
+
+- machine-readable `human-release-decision.schema.json`, `review-pr` scaffold a fail-closed Release Scope Gate pro exact release-candidate SHA / candidate package / release-version identity;
+- governed implementation command `merge-pr` a machine-readable Human Review marker `ddda:human-pr-review:v1`, vázané na exact PR SHA a candidate package hash;
+- ADR 0008 a developer runbook oddělující Human Review/implementation merge, Human Release Decision a mechanickou release-scope completeness.
+
+### Changed
+
+- platform lifecycle nyní explicitně odděluje governed merge implementačních PR od skutečného release/promotion; implementation merge nevyžaduje HRDR ani Release Scope Gate a nesmí vytvořit release package, release validation nebo tag;
+- public `promote-pr` zůstává strict release-candidate command: před interním release executorem vyžaduje validní human HRDR a read-only Release Scope Gate PASS nad Milestone, native blockers a GitHub Project V2 projekcí.
+
 Změny pro další verzi se během vývoje zapisují sem. Před promotion se všechny položky přesunou do jediné verze `X.Y.Z` s ISO datem a tato sekce zůstane bez release položek.
 
 ## [0.1.0] - 2026-07-28

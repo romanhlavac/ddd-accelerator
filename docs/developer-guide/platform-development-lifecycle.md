@@ -43,7 +43,7 @@ Před návrhem nebo aplikací změny platformy se musí ověřit:
 - případný rozpor mezi skillem a dokumentací je vyřešen v Gitu.
 ```
 
-Chybějící nebo zastaralá registrace je governance defect. U změn s dopadem `HIGH` nebo `BREAKING` se pokračování zastaví, dokud není routing opraven. Samotná existence skillu v repozitáři není důkazem, že jej runtime používá.
+Chybějící nebo zastaralá registrace je governance defect. U změn s dopadem `HIGH` nebo `BREAKING` se pokračování zastaví, dokud není routing opraven.
 
 ## Povolený Chat/Work operating model
 
@@ -62,30 +62,65 @@ Zakázáno:
 - legacy **`/agent`**;
 - jiný neschválený cloudový coding agent.
 
-GitHub Actions je autoritativní execution plane pro shell, build, testy, candidate package a package-first acceptance. Work nesmí tvrdit, že provedl lokální příkaz, pokud jej ve skutečnosti nespustil schválený execution plane.
+GitHub Actions je autoritativní execution plane pro shell, build, testy, candidate package a package-first acceptance.
 
-Kanonická pravidla jsou v:
+## GitHub authentication contract
+
+Governed merge/release commands používají stejný kanonický provider order:
+
+1. `GH_TOKEN`;
+2. `GITHUB_TOKEN`;
+3. `gh auth token`;
+4. `git credential helper`.
+
+GitHub CLI není povinná závislost. Token se nikdy nepředává jako CLI argument a nesmí se objevit v Chat/Work kontextu, logu, reportu ani shell history. Secret-bearing execution zůstává v GitHub Actions nebo schváleném secret store.
+
+## Kanonické toky
+
+DDDA explicitně odděluje **integraci implementačního PR** od **release/promotion**.
+
+### A. Governed implementation PR
 
 ```text
-docs/developer-guide/chat-work-operating-model.md
-docs/adr/0005-chat-work-only-development-operating-model.md
+change request
+→ branch
+→ implementation
+→ exact-SHA GitHub Actions
+→ validate-pr
+→ Human Review pro stejné SHA/package
+→ merge-pr -DryRun
+→ explicitní human merge authorization
+→ merge-pr -ConfirmMerge
+→ merge do main
+→ NO release package
+→ NO release validation
+→ NO tag
 ```
 
-## Kanonický tok
+`merge-pr` je merge-only command. Nevyžaduje HRDR ani Release Scope Gate a nesmí dosáhnout release/tag execution path.
+
+### B. Release candidate
+
+Až když je práce určená pro release integrována a release-scope Issues jsou terminal nebo explicitně deferred mimo release:
 
 ```text
-change request v Chat nebo Work
-→ branch
-→ Work implementation přes schválené Apps
-→ standardní GitHub Actions nad exact SHA
-→ validate-pr
-→ human review
-→ promote-pr
-→ merge
+release candidate (typicky release/<version> PR nebo ekvivalentní governed candidate)
+→ exact-SHA candidate validation
+→ release cut / changelog consistency
+→ HRDR pro exact release candidate
+→ Release Scope Gate
+→ promotion dry-run
+→ explicitní Human Release Decision
+→ samostatná explicitní release/promotion authorization
+→ canonical promotion
+→ release-candidate merge, pokud je součástí canonical workflow
 → release package
 → release validation
+→ release report
 → tag
 ```
+
+Release Scope Gate zůstává striktní. Neaplikuje se ale jako podmínka integrace jednotlivých implementačních PR, jejichž merge je předpokladem pro uzavření release scope.
 
 Git je source of truth. PR je jednotka změny. Package je jednotka distribuce a reprodukovatelné validace.
 
@@ -124,15 +159,7 @@ release/<version>
 
 Behaviorální změna bez testu je neúplná. Změna kontraktu bez dokumentace a compatibility rozhodnutí je neúplná.
 
-Work před prvním zápisem ověří:
-
-- aktuální PR head SHA;
-- deklarovanou target branch;
-- allowed paths;
-- že autorizace neobsahuje merge, promotion, release, tag ani force-push;
-- že požadovaný GitHub/Miro connector je skutečně dostupný.
-
-Pokud connector, board nebo oprávnění nejsou dostupné, Work zastaví a omezení oznámí. Nesmí je tiše nahradit předpokladem.
+Work před prvním zápisem ověří aktuální PR head SHA, target branch, allowed paths, side-effect authorization a dostupnost connectorů.
 
 ## 3. Test suites a execution plane
 
@@ -148,32 +175,15 @@ Stabilní platformní kontrakt:
 .\ddda.ps1 test -Suite security
 ```
 
-Na Chat/Work-only cestě tyto příkazy spouštějí standardní GitHub Actions workflows. Uživatel nemusí poskytovat Work lokální shell a nesmí být směrován do Codexu.
-
-Package-dependent suites dostávají `-PackagePath` a používají nově rozbalený balíček.
+Na Chat/Work-only cestě tyto příkazy spouštějí standardní GitHub Actions workflows.
 
 ## 4. Candidate package
 
 `validate-pr` načte exact PR head SHA, vytvoří izolovaný checkout a candidate package pomocí `git archive`. Package dostane `ddda-package.json` s původem, verzí a source commit SHA.
 
-Package nesmí obsahovat:
-
-```text
-.git/
-.ddda/
-.tmp/
-.reports/
-.releases/
-dist/
-Python caches
-credentials
-client data
-uživatelské absolutní cesty
-```
+Package nesmí obsahovat `.git/`, `.ddda/`, `.tmp/`, reports, releases, dist, caches, credentials, client data ani uživatelské absolutní cesty.
 
 ## 5. Validace PR
-
-Stabilní kontrakt:
 
 ```powershell
 .\ddda.ps1 validate-pr -Pr 8
@@ -185,144 +195,105 @@ S Miro:
 .\ddda.ps1 validate-pr -Pr 8 -WithMiro -Full -CleanupOnFailure
 ```
 
-V Chat/Work-only režimu jej spouští standardní PR workflow nebo remote validation broker.
+Příkaz ověřuje exact PR SHA, candidate package, package-first suites, example workspace, ingestion, acceptance a report.
 
-Příkaz:
+## 6. Human Review implementačního PR
 
-1. ověří čistý aktivní repozitář;
-2. načte `refs/pull/<PR>/head`;
-3. vytvoří izolovaný checkout exact SHA;
-4. vytvoří a validuje candidate package;
-5. rozbalí package do nového adresáře;
-6. inicializuje lokální baseline Git pouze pro testy, nikoli jako distribuovaný obsah;
-7. spustí test suites;
-8. vytvoří example workspace z package;
-9. provede manifest-driven ingestion;
-10. ověří G1 → G2;
-11. volitelně provede Miro acceptance;
-12. vytvoří JSON a Markdown report.
+Člověk posuzuje judgment-heavy oblasti, zejména metodiku, architekturu, semantics gatů, použitelnost a relevantní rizika. Syntax, schemas, packaging, idempotence a absence secrets kontroluje automatizace.
 
-PASS automaticky uklidí pracovní clone a workspaces, pokud není použito `-KeepArtifacts`. Report a candidate package zůstávají pro promotion.
+Human Review implementačního PR musí být auditovatelně vázán minimálně na:
 
-## 6. Lidské review
-
-Člověk posuzuje pouze oblasti vyžadující judgment:
-
-- metodickou správnost;
-- architektonické hranice;
-- semantics gatů;
-- srozumitelnost chat-first workflow;
-- vizuální kvalitu Miro boardu;
-- release readiness a přijetí rizik.
-
-Syntax, schémata, cesty, packaging, idempotence a absence secrets kontroluje automatizace.
-
-### Miro visual review
-
-Před tvrzením, že implementace odpovídá redline nebo referenčnímu boardu, musí Work skutečně načíst:
-
-- referenční board;
-- konkrétní source frames;
-- relevantní children, images a geometry;
-- cílové frames pro side-by-side porovnání.
-
-Vizuální acceptance hodnotí minimálně:
-
-- čitelnost při `Fit to frame`;
-- first-viewer srozumitelnost;
-- fonty a vizuální hierarchii;
-- překryvy frames/items;
-- využití plochy;
-- přítomnost požadovaných obrázků a examples;
-- věrnost schválenému template;
-- metodickou a doménovou koherenci.
-
-Item count, parent ownership, schema PASS a idempotence nejsou visual acceptance. Technický PASS ponechává `human_review_status=PENDING`, dokud člověk výsledek nepřijme.
-
-## 7. GitHub autentizace a release dokumentace
-
-`promote-pr` používá GitHub REST API. GitHub CLI není povinná závislost. Implementace i dokumentace používají stejné pořadí providerů:
-
-1. `GH_TOKEN`;
-2. `GITHUB_TOKEN`;
-3. `gh auth token`;
-4. Git credential helper.
-
-Token se nikdy nepředává jako CLI argument a nesmí se objevit v logu, reportu, Chat/Work kontextu ani shell history.
-
-Během vývoje se změny zapisují pod `## [Unreleased]`. Před promotion se všechny release položky přesunou pod právě jednu sekci `## [X.Y.Z] - YYYY-MM-DD`, `Unreleased` zůstane bez release položek a stejná verze se předá jako `-Version X.Y.Z`. Tag je deterministicky `vX.Y.Z`.
-
-Promotion preflight kontroluje syntaxi changelogu, platné ISO datum, neprázdnou release sekci, prázdnou `Unreleased` sekci a shodu verze s parametrem promotion.
-
-## 8. Promotion
-
-Nejdřív bezpečný preflight:
-
-```powershell
-.\ddda.ps1 promote-pr -Pr 8 -Version 0.8.0 -DryRun
+```text
+repository
+pr
+reviewed_sha
+candidate_package_sha256
+reviewer
+reviewed_at
+verdict
 ```
 
-Skutečný promotion vyžaduje explicitní potvrzení:
+`PASS` Human Review je oddělen od **merge authorization**. Změna reviewed SHA nebo candidate package hash Human Review pro merge invaliduje.
+
+### 6.1 Governed implementation merge
+
+Bezpečný preflight:
 
 ```powershell
-.\ddda.ps1 promote-pr -Pr 8 -Version 0.8.0 -ConfirmMerge
+.\ddda.ps1 merge-pr -Pr 74 -DryRun
 ```
 
-Promotion je fail-closed. Ověřuje:
+Skutečný merge:
 
-- PR je otevřený a není draft;
-- head SHA se nezměnil;
-- CI checks jsou PASS;
-- validation report je PASS pro stejný SHA;
-- candidate package hash odpovídá reportu;
-- approvals odpovídají repository policy;
-- povinné ADR, changelog a migration note existují;
-- changelog release verze odpovídá `-Version` a budoucímu tagu `vX.Y.Z`;
-- `Unreleased` neobsahuje nepřiřazené release položky;
-- `-ConfirmMerge` je explicitně zadáno.
+```powershell
+.\ddda.ps1 merge-pr -Pr 74 -ConfirmMerge
+```
 
-Po merge vznikne release package. Tag se vytvoří až po package validation, generated release workspace, ingestion, smoke a acceptance.
+`merge-pr` fail-closed ověřuje live PR state, exact head SHA, required CI, exact-SHA `validate-pr`, candidate package hash, Human Review PASS stejného SHA/package, required governance docs a repository merge policy.
+
+`merge-pr`:
+
+- **nevyhodnocuje HRDR**;
+- **nevyhodnocuje Release Scope Gate**;
+- **nevytváří release package**;
+- **nespouští release validation**;
+- **nevytváří tag**;
+- bez explicitního `-ConfirmMerge` nemerguje.
+
+To umožňuje bezpečně integrovat více implementačních PR před sestavením release candidate bez kruhové závislosti na release-scope completeness.
+
+## 7. Release candidate a HRDR
+
+Po integraci zahrnutých implementačních PR se připraví explicitní release candidate. Pro jeho exact SHA se provede standardní validation a vytvoří Human Release Decision Record.
+
+HRDR je **release decision evidence**, nikoli implementační merge evidence. Obsahuje exact release-candidate identity, findings, residual risks, reviewer/decision owner a explicitní lidské rozhodnutí.
+
+Během vývoje se změny zapisují pod `## [Unreleased]`. Před promotion se release položky přesunou pod právě jednu sekci `## [X.Y.Z] - YYYY-MM-DD`; stejná verze se předá jako `-Version X.Y.Z` a tag je `vX.Y.Z`.
+
+## 8. Release Scope Gate a promotion
+
+Release Scope Gate se vyhodnocuje **výhradně na release-candidate boundary**.
+
+```powershell
+.\ddda.ps1 promote-pr -Pr <RELEASE_PR> -Version <X.Y.Z> -DryRun
+```
+
+Gate fail-closed ověřuje zejména:
+
+- current release/version/milestone identity;
+- všechny release-scope Issues terminal nebo explicitně deferred mimo release;
+- žádné unresolved native blockers;
+- Project/Milestone consistency;
+- accepted-risk owner/follow-up/horizon;
+- přesnou shodu HRDR risk setu;
+- žádný RED/neakceptovaný blocker;
+- exact SHA/package/version identity.
+
+Skutečný promotion vyžaduje novou explicitní lidskou autorizaci:
+
+```powershell
+.\ddda.ps1 promote-pr -Pr <RELEASE_PR> -Version <X.Y.Z> -ConfirmMerge
+```
+
+Implementation merge authorization nikdy neimplikuje release/promotion/tag authorization.
+
+Po canonical release-candidate merge vznikne release package; tag se vytvoří až po package validation, generated release workspace, ingestion, smoke a acceptance PASS.
 
 ## 9. Selhání a diagnostika
 
-Lokální stav je pod uživatelským DDDA state rootem:
-
-```text
-validation/
-validation-reports/
-packages/
-promotion/
-release-reports/
-```
-
-Při FAIL zůstávají logy a diagnostický workspace. Miro board lze při testu odstranit přes `-CleanupOnFailure`.
-
-Work musí rozlišit:
-
-- connector/access failure;
-- implementation failure;
-- CI/test failure;
-- human review rejection.
-
-Nesmí je sloučit do neurčitého statusu ani prezentovat nedokončenou práci jako PASS.
+Work musí rozlišit connector/access failure, implementation failure, CI/test failure, Human Review rejection, implementation merge failure, release-scope failure a release validation failure. Nedokončená práce se nesmí prezentovat jako PASS.
 
 ## 10. Definition of Done
 
-PR je hotový, když:
+Implementační PR je připraven k merge pouze když:
 
 - implementace, testy a dokumentace tvoří jeden change package;
 - CI je PASS;
 - `validate-pr` je PASS pro aktuální head SHA;
 - candidate package je validní;
-- example workspace vznikl z package;
-- ingestion je manifest-driven;
-- acceptance je PASS;
-- změna kompatibility má migration note;
-- dlouhodobé rozhodnutí má ADR;
-- changelog je aktualizován;
-- povinný platform-development skill je verzovaný a runtime routing jej skutečně načítá;
-- Chat/Work-only policy je splněna;
-- connector a visual-access omezení byla transparentně uvedena;
-- secrets nevstoupily do Chat nebo Work kontextu;
-- Codex ani `/agent` nebyly použity;
-- merge nebyl proveden bez explicitního lidského rozhodnutí.
+- relevantní acceptance je PASS;
+- compatibility/ADR/changelog obligations jsou splněny;
+- mandatory Human Review je PASS pro stejné SHA/package;
+- merge nebyl proveden bez explicitní human merge authorization.
+
+Release je připraven pouze když navíc existuje validní release candidate, HRDR, Release Scope Gate PASS, explicitní Human Release Decision a samostatná release/promotion authorization. Technický PASS ani implementační merge sám o sobě release neautorizuje.

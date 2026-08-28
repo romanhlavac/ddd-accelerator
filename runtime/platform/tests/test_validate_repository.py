@@ -155,6 +155,7 @@ def test_failure_report_can_exist_before_package_creation() -> None:
 
     jsonschema.validate(report, schema)
 
+
 def test_validation_report_preserves_deleted_miro_board_evidence() -> None:
     schema = json.loads(
         (REPOSITORY_ROOT / "schemas" / "validation-report.schema.json").read_text(
@@ -351,18 +352,18 @@ def test_release_contracts_detect_auth_provider_order_drift(tmp_path: Path) -> N
     assert any("inconsistent GitHub auth provider order" in failure for failure in failures)
 
 
-def test_release_contracts_detect_unreleased_release_items(tmp_path: Path) -> None:
+def test_release_contracts_allow_unreleased_items_during_development(tmp_path: Path) -> None:
     write_release_contract_fixture(tmp_path)
     changelog = (tmp_path / "CHANGELOG.md").read_text(encoding="utf-8")
     changelog = changelog.replace(
         "Development notes belong here without release bullets.\n",
-        "- not assigned to a release.\n",
+        "### Added\n\n- not assigned to a release yet.\n",
     )
     (tmp_path / "CHANGELOG.md").write_text(changelog, encoding="utf-8")
 
     failures = MODULE.validate_release_contracts(tmp_path)
 
-    assert any("[Unreleased] contains release items" in failure for failure in failures)
+    assert failures == []
 
 
 def test_release_contracts_detect_invalid_release_date(tmp_path: Path) -> None:
