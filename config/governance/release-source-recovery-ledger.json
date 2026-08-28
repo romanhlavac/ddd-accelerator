@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "version": "0.1.1",
+  "previous_release_tag": "v0.1.0",
+  "entries": [
+    {
+      "recovered_commit_sha": "877bcc36d1bc6527ab88f169f4423d465270c3fc",
+      "source_pr": 74,
+      "source_merge_commit_sha": "43a62152b7fd8be383337c23ffb10d0fda9e7077",
+      "primary_cr": 9
+    },
+    {
+      "recovered_commit_sha": "80b896e6de6a363fec14603a46748a6398d52360",
+      "source_pr": 77,
+      "source_merge_commit_sha": "baad4684328262ef94b31f50cef7c51193cf8ad3",
+      "primary_cr": 67
+    },
+    {
+      "recovered_commit_sha": "efeb874afd6d5cd9cbd28c6737687ff754c81f76",
+      "source_pr": 78,
+      "source_merge_commit_sha": "2646bf28918dfbb98fb8980f2be07428dc1ebbb1",
+      "primary_cr": 68
+    },
+    {
+      "recovered_commit_sha": "bee39deb5290610ffdf2f82e377f94d84f2e850b",
+      "source_pr": 79,
+      "source_merge_commit_sha": "297f61f6012f180e70805999df2ac1abe9616a05",
+      "primary_cr": 12
+    },
+    {
+      "recovered_commit_sha": "ba979ab2fe134cd04533784d08ba5b2d07dc6664",
+      "source_pr": 84,
+      "source_merge_commit_sha": "1f66880c30b7bc1814d21200ef6fcc5b08cadfba",
+      "primary_cr": 70
+    },
+    {
+      "recovered_commit_sha": "9170ab04cdde7b82c494ee8888a7989fac9ee799",
+      "source_pr": 97,
+      "source_merge_commit_sha": "cdb9237391cafc9dbc1779debd834154828b644c",
+      "primary_cr": 96
+    },
+    {
+      "recovered_commit_sha": "5c85cfd029bd75ecf8aeeccfa146c1f33f3050cb",
+      "source_pr": 99,
+      "source_merge_commit_sha": "e5faf19a6377e72e25b69064f5a3ac3ed2543e6e",
+      "primary_cr": 98
+    },
+    {
+      "recovered_commit_sha": "9fb3545ef829d06161cba705cac1d2f2dd906458",
+      "source_pr": 101,
+      "source_merge_commit_sha": "5ebc3eb79c8cc7d5732afa077f7c0d072448c879",
+      "primary_cr": 96
+    },
+    {
+      "recovered_commit_sha": "74d7836c7efac306f91159da7c352aa1b99618da",
+      "source_pr": 102,
+      "source_merge_commit_sha": "b61392ace66a95c808f321f3bd4b046cc5f564e5",
+      "primary_cr": 96
+    },
+    {
+      "recovered_commit_sha": "825f156366eee52b7b9b3c573c51df36fe9bcc4d",
+      "source_pr": 111,
+      "source_merge_commit_sha": "036a686568f35ec0f9588d5a06cb2994b6c2d22b",
+      "primary_cr": 96
+    }
+  ]
+}
