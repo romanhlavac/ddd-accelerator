@@ -5,6 +5,8 @@ param(
     [Parameter(Mandatory = $true)][string]$Version,
     [string]$Reviewer,
     [string]$DecisionOwner,
+    [string]$ValidationReportPath,
+    [string]$CandidatePackagePath,
     [switch]$PublishScaffold,
     [switch]$Json
 )
@@ -31,7 +33,11 @@ if ($headSha -notmatch '^[0-9a-f]{40}$') {
     throw "GitHub nevrátil platný PR head SHA."
 }
 
-$validation = Get-DDDACandidateValidationEvidence -Pr $Pr -HeadSha $headSha
+$validation = Get-DDDACandidateValidationEvidence `
+    -Pr $Pr `
+    -HeadSha $headSha `
+    -ValidationReportPath $ValidationReportPath `
+    -PackagePath $CandidatePackagePath
 $scope = Get-DDDAReleaseMilestoneScope -RepositorySlug $repositorySlug -Version $Version -Token $githubAuth.Token
 
 $record = [ordered]@{
