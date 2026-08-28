@@ -41,7 +41,8 @@ reconstructed candidate odvozen od předchozího canonical tagu. Protože takov�
 candidate dostává nové commit SHA, obsahuje versioned recovery ledger. Ledger
 svazuje každý reconstructed commit s původním merged PR, jeho jediným primary
 CR, původním merge SHA a fresh-ověřenými changed-path result hashes. Právě jeden
-metadata-only ledger commit je povolen. Ledger je evidence, nikoli mechanismus
+metadata-only ledger commit je povolen; jeho identita se odvozuje z physical
+inventory, nikoli ze self-referential hodnoty uvnitř ledgeru. Ledger je evidence, nikoli mechanismus
 pro změnu release scope nebo human rozhodnutí.
 
 Dokud existuje právě jeden otevřený Milestone `DDDA X.Y.Z`, governed
