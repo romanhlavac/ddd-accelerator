@@ -59,9 +59,33 @@ Dry-run fail-closed ověří:
 - existuje právě jeden authoritativní Human Review marker `ddda:human-pr-review:v1`;
 - Human Review má lidskou provenance, stejné PR/SHA/package a verdict `pass`;
 - required governance documents existují;
-- merge method odpovídá repository policy.
+- impact classification a merge method odpovídají repository merge-strategy policy.
 
 Dry-run neprovede merge, release, promotion ani tag.
+
+### Merge strategy a exact-SHA ancestry
+
+Po aktivaci ADR 0009 je canonical default `merge`:
+
+```text
+HIGH / BREAKING → merge commit REQUIRED
+LOW / MEDIUM    → merge commit DEFAULT
+UNKNOWN impact  → merge commit only
+rebase           → forbidden
+```
+
+LOW/MEDIUM může použít `squash` pouze s explicitním lidským `ddda:squash-exception:v1` recordem pro stejné PR/SHA/package/impact. Automation tuto exception nesmí vytvořit ani inferovat.
+
+Explicitní dry-run varianty:
+
+```powershell
+.\ddda.ps1 merge-pr -Pr 74 -MergeMethod merge -DryRun
+.\ddda.ps1 merge-pr -Pr <LOW_OR_MEDIUM_PR> -MergeMethod squash -DryRun
+```
+
+Pro canonical merge se po skutečném merge server-side ověří, že validated PR HEAD je parent/ancestor výsledného main state. Evidence používá `source_to_result_relation=ancestor`. U schváleného LOW/MEDIUM squash se místo ancestry ukládá explicitní source→result mapping s human exception metadata.
+
+Detailní contract je v `docs/developer-guide/merge-strategy.md` a ADR 0009.
 
 Skutečný implementation merge:
 
@@ -189,5 +213,7 @@ release-reports/
 - běžné testy nikdy nemergují ani netagují;
 - Human Review PASS nevytváří automation;
 - merge authorization a release authorization jsou oddělené;
+- wrong merge method musí failnout před irreversible side effect;
+- LOW/MEDIUM squash exception musí mít lidskou provenance a exact candidate binding;
 - `merge-pr` nesmí být release bypass;
 - `promote-pr` nesmí být použit jako obecný mechanismus merge implementačních PR.
