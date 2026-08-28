@@ -141,28 +141,28 @@ if (-not $PrePromotionCandidate) {
     $canonicalLogin = Assert-DDDAHumanPrReviewCommentProvenance -Comment $humanComment -Review $humanReview
     Assert-True -Condition ($canonicalLogin -eq 'romanhlavac') -Message "Canonical Human Review author musí být pouze GitHub user.login."
     Assert-True -Condition ($canonicalLogin -notmatch '\s') -Message "Display name nesmí být concatenován do canonical GitHub loginu."
-    
+
     $missingLoginComment = [pscustomobject]@{ user = [pscustomobject]@{ name = 'romanhlavac'; type = 'User' } }
     Assert-Throws -Action {
         Assert-DDDAHumanPrReviewCommentProvenance -Comment $missingLoginComment -Review $humanReview
     } -Message "Chybějící Human Review user.login musí failnout closed."
-    
+
     $ambiguousLoginComment = [pscustomobject]@{
         user = [pscustomobject]@{ login = @('romanhlavac', 'other-user'); name = 'romanhlavac'; type = 'User' }
     }
     Assert-Throws -Action {
         Assert-DDDAHumanPrReviewCommentProvenance -Comment $ambiguousLoginComment -Review $humanReview
     } -Message "Víceznačný Human Review user.login musí failnout closed."
-    
+
     $botComment = [pscustomobject]@{ user = [pscustomobject]@{ login = 'reviewer[bot]'; name = 'Reviewer'; type = 'Bot' } }
     Assert-Throws -Action {
         Assert-DDDAHumanPrReviewCommentProvenance -Comment $botComment -Review ([pscustomobject]@{ reviewer = 'reviewer[bot]' })
     } -Message "Bot Human Review author musí failnout closed."
-    
+
     Assert-Throws -Action {
         Assert-DDDAHumanPrReviewCommentProvenance -Comment $humanComment -Review ([pscustomobject]@{ reviewer = 'other-user' })
     } -Message "Human Review reviewer/user.login mismatch musí failnout closed."
-    
+
     $reviewMarker = '<!-- ddda:human-pr-review:v1 -->'
     $script:humanReviewCommentApiResponse = @(
         $humanComment,
@@ -189,7 +189,7 @@ if (-not $PrePromotionCandidate) {
     Assert-True -Condition ($selectedHumanComments.Count -eq 1) -Message "Právě jeden authoritative Human Review marker musí projít selection."
     Assert-True -Condition ($selectedHumanComments[0].body -eq $reviewMarker) -Message "Duplicate/superseded Human Review marker musí být ignorován."
     Assert-True -Condition ($releaseGovernanceSupport -match '\$response\s*=\s*Invoke-DDDAGitHubApi[\s\S]+?\$batch\s*=\s*@\(\$response\)') -Message "GitHub Issues Comments REST array musí být materializován před iterací."
-    
+
     # Issue #88: one exact-SHA validation decision must preserve one canonical candidate identity.
     Assert-True -Condition ($validatePr -match '\[string\]\$PackagePath') -Message "validate-pr nemá řízený PackagePath input."
     Assert-True -Condition (([regex]::Matches($validatePr, 'New-DDDAPlatformPackage\.ps1')).Count -eq 1) -Message "validate-pr obsahuje více než jednu package build cestu."
@@ -229,8 +229,8 @@ if (-not $PrePromotionCandidate) {
     Assert-True -Condition ($mergeDryRunBody -match 'packages\.Count -ne 1' -and $mergeDryRunBody -match 'reports\.Count -ne 1') -Message "Artifact resolution není fail-closed pro chybějící/víceznačnou evidence."
     Assert-True -Condition ($remoteBroker -match 'actions: read') -Message "Remote broker nemá read-only přístup k canonical Actions artifactu."
     Assert-True -Condition ($remoteBroker -match 'Download exact-SHA canonical candidate' -and $remoteBroker -match '-PackageWorkflowRunId') -Message "Remote broker stále vytváří nezávislou candidate identity."
-    
-    
+
+
 }
 
 # Public release promotion must stay strictly gated before the release executor is reachable.
