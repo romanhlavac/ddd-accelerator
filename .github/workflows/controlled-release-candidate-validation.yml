@@ -131,7 +131,7 @@ jobs:
           .\candidate\ddda.ps1 test -Suite lint -NonInteractive
           .\candidate\ddda.ps1 test -Suite schema -NonInteractive
           .\candidate\ddda.ps1 test -Suite unit -NonInteractive
-          .\candidate\ddda.ps1 test -Suite component -NonInteractive
+          .\candidate\ddda.ps1 test -Suite component -PrePromotionCandidate -NonInteractive
           .\candidate\ddda.ps1 test -Suite regression -NonInteractive
           .\candidate\ddda.ps1 test -Suite security -NonInteractive
 
@@ -142,6 +142,7 @@ jobs:
           .\candidate\ddda.ps1 validate-pr `
             -Pr ([int]$env:CANDIDATE_PR) `
             -CleanupOnFailure `
+            -PrePromotionCandidate `
             -NonInteractive
 
       - name: Upload validation evidence
