@@ -26,6 +26,7 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 - governed implementation merge používá po aktivaci #70 merge commit jako canonical default; HIGH/BREAKING a neklasifikované PR nesmějí squash/rebase, LOW/MEDIUM squash vyžaduje explicitní human exception a canonical merge ověřuje validated PR HEAD server-side jako parent/ancestor výsledného main state.
 
 ### Fixed
+- Controlled release-candidate validation now binds the selected exact SHA through an identified cross-job output; it cannot silently validate `main` instead of the candidate.
 
 - delivery governance nyní odvozuje PR `Blocked` a `Status` z unresolved blocker state primárního Change Requestu; stale Project dvojice `Blocked = Yes` / `Status = Blocked` proto nemůže projít fresh fail-closed read-backem a druhý reconcile je idempotentní;
 - governed `merge-pr` nyní sestavuje GitHub Contents API URL bez PowerShell variable-name ambiguity mezi cestou dokumentu a `?ref` query, takže isolated post-Human-Review dry-run ověří povinné dokumenty na exact PR SHA;
