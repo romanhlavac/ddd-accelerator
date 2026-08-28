@@ -24,12 +24,16 @@ The workflow has three isolated operations:
 1. `technical_validation` checks out the exact candidate and invokes
    `validate-pr`, which remains the sole canonical package builder and records
    evidence for that physical package.
-2. `publish_hrdr_scaffold` publishes only a pending HRDR after explicit
-   reviewer and decision-owner inputs.
-3. `release_scope_dry_run` invokes `promote-pr -DryRun`; it cannot merge,
-   tag, publish or promote.
+2. `publish_hrdr_scaffold` restores the one exact validation artifact and
+   publishes only a pending HRDR after explicit reviewer and decision-owner
+   inputs.
+3. `release_scope_dry_run` restores that same physical package and report,
+   reads exactly one authoritative HRDR, and invokes the read-only Physical
+   Release Scope Gate directly. It does not call `promote-pr`, because that
+   command deliberately rejects Draft implementation/release PRs.
 
-Each operation fails closed on identity drift. The workflow never changes a
+Each operation fails closed on identity drift, missing/ambiguous validation
+artifacts, package-hash mismatch or HRDR ambiguity. The workflow never changes a
 milestone, Project field, scope, release, tag or promotion state.
 
 ## Consequences

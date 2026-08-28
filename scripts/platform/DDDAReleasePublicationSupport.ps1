@@ -27,6 +27,29 @@ function Get-DDDAReleasePublicationAssetDescriptors {
     }
 }
 
+function Get-DDDAReleaseNotes {
+    param(
+        [Parameter(Mandatory = $true)][string]$ChangelogPath,
+        [Parameter(Mandatory = $true)][string]$Version
+    )
+
+    if (-not (Test-Path -LiteralPath $ChangelogPath -PathType Leaf)) {
+        throw "Release notes source CHANGELOG neexistuje: $ChangelogPath"
+    }
+    $changelog = Get-Content -LiteralPath $ChangelogPath -Raw -Encoding UTF8
+    $heading = [regex]::Match($changelog, "(?m)^## \[" + [regex]::Escape($Version) + "\] - \d{4}-\d{2}-\d{2}\s*$")
+    if (-not $heading.Success) {
+        throw "CHANGELOG neobsahuje versioned release section pro $Version."
+    }
+    $tail = $changelog.Substring($heading.Index + $heading.Length)
+    $next = [regex]::Match($tail, "(?m)^## \[")
+    $section = if ($next.Success) { $tail.Substring(0, $next.Index).Trim() } else { $tail.Trim() }
+    if ([string]::IsNullOrWhiteSpace($section) -or $section -notmatch '(?m)^\s*-\s+\S') {
+        throw "CHANGELOG release section pro $Version musí obsahovat konkrétní seznam funkcionalit nebo změn."
+    }
+    return "## Co je nové v DDDA $Version`n`n$section`n`n---`nCanonical DDDA product package and verified release evidence for ``v$Version``. GitHub automatic source archives are convenience source archives, not the canonical DDDA product package."
+}
+
 function Get-DDDAGitHubReleaseByTag {
     param(
         [Parameter(Mandatory = $true)][string]$RepositorySlug,
@@ -66,12 +89,14 @@ function Assert-DDDAGitHubReleaseIdentity {
     param(
         [Parameter(Mandatory = $true)]$Release,
         [Parameter(Mandatory = $true)][string]$Tag,
-        [Parameter(Mandatory = $true)][string]$Title
+        [Parameter(Mandatory = $true)][string]$Title,
+        [Parameter(Mandatory = $true)][string]$ReleaseNotes
     )
 
     if ([string]$Release.tag_name -ne $Tag) { throw "GitHub Release tag neodpovídá $Tag." }
     if ([string]$Release.name -ne $Title) { throw "GitHub Release title neodpovídá '$Title'." }
     if ([bool]$Release.draft -or [bool]$Release.prerelease) { throw "GitHub Release musí být publikovaný finální release." }
+    if ([string]$Release.body -ne $ReleaseNotes) { throw "GitHub Release notes neodpovídají versioned CHANGELOG release section." }
 }
 
 function Test-DDDAGitHubReleaseAssetHash {
@@ -120,12 +145,14 @@ function Publish-DDDACanonicalGitHubRelease {
         [Parameter(Mandatory = $true)][string]$PackagePath,
         [Parameter(Mandatory = $true)][string]$ReportJsonPath,
         [Parameter(Mandatory = $true)][string]$ReportMarkdownPath,
+        [Parameter(Mandatory = $true)][string]$ChangelogPath,
         [Parameter(Mandatory = $true)][string]$Token,
         [Parameter(Mandatory = $true)][string]$PublicationEvidencePath
     )
 
     if ($ReleaseSourceSha -notmatch '^[0-9a-f]{40}$') { throw "Release source SHA není platný." }
     $title = "DDDA $Version"
+    $releaseNotes = Get-DDDAReleaseNotes -ChangelogPath $ChangelogPath -Version $Version
     $tagCommit = Assert-DDDACanonicalReleaseTagReadBack -OriginUrl $OriginUrl -Tag $Tag -ExpectedCommit $ReleaseSourceSha
     $assets = @(Get-DDDAReleasePublicationAssetDescriptors -Version $Version -PackagePath $PackagePath -ReportJsonPath $ReportJsonPath -ReportMarkdownPath $ReportMarkdownPath)
     $report = Get-Content -LiteralPath $ReportJsonPath -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -141,13 +168,13 @@ function Publish-DDDACanonicalGitHubRelease {
             tag_name = $Tag
             target_commitish = $ReleaseSourceSha
             name = $title
-            body = "Canonical DDDA product package and release evidence for `$Tag. GitHub automatic source archives are convenience source archives, not the canonical DDDA product package."
+            body = $releaseNotes
             draft = $false
             prerelease = $false
             generate_release_notes = $false
         }
     }
-    Assert-DDDAGitHubReleaseIdentity -Release $release -Tag $Tag -Title $title
+    Assert-DDDAGitHubReleaseIdentity -Release $release -Tag $Tag -Title $title -ReleaseNotes $releaseNotes
 
     foreach ($descriptor in $assets) {
         $existing = @($release.assets | Where-Object { [string]$_.name -eq [string]$descriptor.name })
@@ -163,7 +190,7 @@ function Publish-DDDACanonicalGitHubRelease {
 
     $readBack = Get-DDDAGitHubReleaseByTag -RepositorySlug $RepositorySlug -Tag $Tag -Token $Token
     if ($null -eq $readBack) { throw "Fresh GitHub read-back nenašel Release pro $Tag." }
-    Assert-DDDAGitHubReleaseIdentity -Release $readBack -Tag $Tag -Title $title
+    Assert-DDDAGitHubReleaseIdentity -Release $readBack -Tag $Tag -Title $title -ReleaseNotes $releaseNotes
     $evidenceAssets = [ordered]@{}
     foreach ($descriptor in $assets) {
         $asset = @($readBack.assets | Where-Object { [string]$_.name -eq [string]$descriptor.name })

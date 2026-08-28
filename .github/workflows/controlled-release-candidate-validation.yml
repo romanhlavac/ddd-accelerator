@@ -102,16 +102,17 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
-      - name: Checkout exact controlled candidate
+      - name: Checkout trusted control plane
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           ref: ${{ needs.select.outputs.source_sha }}
+          path: candidate
 
       - name: Verify exact candidate checkout
         shell: pwsh
         run: |
-          $actual = (git rev-parse HEAD).Trim()
+          $actual = (git -C candidate rev-parse HEAD).Trim()
           if ($actual -ne $env:SOURCE_SHA) {
             throw "Candidate checkout SHA '$actual' does not match requested SHA '$env:SOURCE_SHA'."
           }
@@ -125,30 +126,32 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          .\ddda.ps1 doctor
-          .\ddda.ps1 test -Suite lint -NonInteractive
-          .\ddda.ps1 test -Suite schema -NonInteractive
-          .\ddda.ps1 test -Suite unit -NonInteractive
-          .\ddda.ps1 test -Suite component -NonInteractive
-          .\ddda.ps1 test -Suite regression -NonInteractive
-          .\ddda.ps1 test -Suite security -NonInteractive
+          .\candidate\ddda.ps1 doctor
+          .\candidate\ddda.ps1 test -Suite lint -NonInteractive
+          .\candidate\ddda.ps1 test -Suite schema -NonInteractive
+          .\candidate\ddda.ps1 test -Suite unit -NonInteractive
+          .\candidate\ddda.ps1 test -Suite component -NonInteractive
+          .\candidate\ddda.ps1 test -Suite regression -NonInteractive
+          .\candidate\ddda.ps1 test -Suite security -NonInteractive
 
       - name: Run exact validate-pr through the canonical package path
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          .\ddda.ps1 validate-pr `
+          .\candidate\ddda.ps1 validate-pr `
             -Pr ([int]$env:CANDIDATE_PR) `
             -CleanupOnFailure `
             -NonInteractive
 
       - name: Upload validation evidence
-        if: always()
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: controlled-candidate-validation-${{ env.CANDIDATE_PR }}-${{ env.SOURCE_SHA }}
-          path: ${{ env.LOCALAPPDATA }}/DDDA/validation-reports/pr-${{ env.CANDIDATE_PR }}-${{ env.SOURCE_SHA }}/**
-          if-no-files-found: warn
+          path: |
+            ${{ env.LOCALAPPDATA }}/DDDA/validation-reports/pr-${{ env.CANDIDATE_PR }}-${{ env.SOURCE_SHA }}/**
+            ${{ env.LOCALAPPDATA }}/DDDA/packages/ddda-candidate-pr-${{ env.CANDIDATE_PR }}-${{ env.SOURCE_SHA }}-*.zip
+          if-no-files-found: error
           retention-days: 14
 
   publish-hrdr-scaffold:
@@ -172,17 +175,62 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.sha }}
+          path: control-plane
+
+      - name: Checkout exact controlled candidate
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
           ref: ${{ needs.select.outputs.source_sha }}
+          path: candidate
+
+      - name: Read live candidate identity
+        shell: pwsh
+        run: |
+          gh api "repos/$env:REPOSITORY/pulls/$env:CANDIDATE_PR" > candidate-pr.json
+
+      - name: Restore exact technical evidence
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $artifactName = "controlled-candidate-validation-$env:CANDIDATE_PR-$env:SOURCE_SHA"
+          $all = gh api --paginate "repos/$env:REPOSITORY/actions/artifacts?per_page=100" | ConvertFrom-Json
+          $matches = @($all.artifacts | Where-Object { $_.name -eq $artifactName -and -not $_.expired })
+          if ($matches.Count -ne 1) { throw "Expected exactly one unexpired exact validation artifact '$artifactName', found $($matches.Count)." }
+          gh api -H "Accept: application/vnd.github+json" "repos/$env:REPOSITORY/actions/artifacts/$($matches[0].id)/zip" > validation-evidence.zip
+          Expand-Archive -LiteralPath validation-evidence.zip -DestinationPath validation-evidence -Force
+          $reports = @(Get-ChildItem validation-evidence -Filter result.json -File -Recurse)
+          $packages = @(Get-ChildItem validation-evidence -Filter "ddda-candidate-pr-$env:CANDIDATE_PR-$env:SOURCE_SHA-*.zip" -File -Recurse)
+          if ($reports.Count -ne 1 -or $packages.Count -ne 1) { throw "Exact validation artifact must contain exactly one report and one canonical candidate package." }
+          "validation_report=$($reports[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "candidate_package=$($packages[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Verify restored exact evidence
+        shell: pwsh
+        run: |
+          python .\control-plane\scripts\platform\Test-DDDAControlledReleaseCandidate.py `
+            --repository $env:REPOSITORY `
+            --pr ([int]$env:CANDIDATE_PR) `
+            --source-sha $env:SOURCE_SHA `
+            --version $env:VERSION `
+            --operation $env:OPERATION `
+            --pr-json candidate-pr.json `
+            --validation-report $env:validation_report `
+            --candidate-package $env:candidate_package `
+            --output restored-evidence.json
 
       - name: Publish pending scaffold only
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          .\ddda.ps1 review-pr `
+          .\control-plane\ddda.ps1 review-pr `
             -Pr ([int]$env:CANDIDATE_PR) `
             -Version $env:VERSION `
             -Reviewer $env:REVIEWER `
             -DecisionOwner $env:DECISION_OWNER `
+            -ValidationReportPath $env:validation_report `
+            -CandidatePackagePath $env:candidate_package `
             -PublishScaffold
 
   release-scope-dry-run:
@@ -206,10 +254,77 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ needs.select.outputs.source_sha }}
+          ref: ${{ github.sha }}
+          path: control-plane
 
-      - name: Run promotion preflight only
+      - name: Checkout exact controlled candidate
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.select.outputs.source_sha }}
+          path: candidate
+
+      - name: Read live candidate identity
+        shell: pwsh
+        run: |
+          gh api "repos/$env:REPOSITORY/pulls/$env:CANDIDATE_PR" > candidate-pr.json
+
+      - name: Restore exact technical evidence
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          .\ddda.ps1 promote-pr -Pr ([int]$env:CANDIDATE_PR) -Version $env:VERSION -DryRun
+          $artifactName = "controlled-candidate-validation-$env:CANDIDATE_PR-$env:SOURCE_SHA"
+          $all = gh api --paginate "repos/$env:REPOSITORY/actions/artifacts?per_page=100" | ConvertFrom-Json
+          $matches = @($all.artifacts | Where-Object { $_.name -eq $artifactName -and -not $_.expired })
+          if ($matches.Count -ne 1) { throw "Expected exactly one unexpired exact validation artifact '$artifactName', found $($matches.Count)." }
+          gh api -H "Accept: application/vnd.github+json" "repos/$env:REPOSITORY/actions/artifacts/$($matches[0].id)/zip" > validation-evidence.zip
+          Expand-Archive -LiteralPath validation-evidence.zip -DestinationPath validation-evidence -Force
+          $reports = @(Get-ChildItem validation-evidence -Filter result.json -File -Recurse)
+          $packages = @(Get-ChildItem validation-evidence -Filter "ddda-candidate-pr-$env:CANDIDATE_PR-$env:SOURCE_SHA-*.zip" -File -Recurse)
+          if ($reports.Count -ne 1 -or $packages.Count -ne 1) { throw "Exact validation artifact must contain exactly one report and one canonical candidate package." }
+          "validation_report=$($reports[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "candidate_package=$($packages[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Read exact Human Release Decision Record
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          gh api --paginate "repos/$env:REPOSITORY/issues/$env:CANDIDATE_PR/comments?per_page=100" > hrdr-comments.json
+          python .\control-plane\scripts\platform\Read-DDDAHrdr.py --comments-json hrdr-comments.json --output hrdr.json
+
+      - name: Run Physical Release Scope Gate only
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python .\control-plane\scripts\platform\Test-DDDAControlledReleaseCandidate.py `
+            --repository $env:REPOSITORY `
+            --pr ([int]$env:CANDIDATE_PR) `
+            --source-sha $env:SOURCE_SHA `
+            --version $env:VERSION `
+            --operation $env:OPERATION `
+            --pr-json candidate-pr.json `
+            --validation-report $env:validation_report `
+            --candidate-package $env:candidate_package `
+            --output restored-evidence.json
+          $evidence = Get-Content restored-evidence.json -Raw -Encoding utf8 | ConvertFrom-Json
+          if ($evidence.status -ne 'PASS') { throw 'Restored exact candidate evidence did not pass.' }
+          python .\control-plane\scripts\platform\Test-DDDAReleaseScope.py `
+            --repository $env:REPOSITORY `
+            --pr ([int]$env:CANDIDATE_PR) `
+            --source-sha $env:SOURCE_SHA `
+            --candidate-sha256 $evidence.validation_evidence.candidate_package_sha256 `
+            --version $env:VERSION `
+            --hrdr hrdr.json `
+            --output physical-release-scope.json
+
+      - name: Upload scope-gate evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: controlled-candidate-scope-gate-${{ env.CANDIDATE_PR }}-${{ env.SOURCE_SHA }}
+          path: |
+            restored-evidence.json
+            hrdr.json
+            physical-release-scope.json
+          if-no-files-found: warn
+          retention-days: 14

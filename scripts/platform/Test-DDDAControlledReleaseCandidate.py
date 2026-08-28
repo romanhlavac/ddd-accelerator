@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 from pathlib import Path
@@ -55,6 +56,40 @@ def validate_request(
     }
 
 
+def validate_validation_evidence(
+    report: dict[str, Any], *, repository: str, pr_number: int, source_sha: str, package_path: Path
+) -> dict[str, Any]:
+    """Bind a reusable candidate package to one exact controlled candidate."""
+    failures: list[str] = []
+    source = report.get("source") if isinstance(report.get("source"), dict) else {}
+    package = report.get("package") if isinstance(report.get("package"), dict) else {}
+    expected_hash = str(package.get("sha256") or "").lower()
+    if report.get("status") != "PASS":
+        failures.append("CONTROLLED_CANDIDATE_VALIDATION_NOT_PASS")
+    if str(source.get("repository") or "") != repository:
+        failures.append("CONTROLLED_CANDIDATE_VALIDATION_REPOSITORY_MISMATCH")
+    if int(source.get("pr") or -1) != pr_number:
+        failures.append("CONTROLLED_CANDIDATE_VALIDATION_PR_MISMATCH")
+    if str(source.get("commit") or "") != source_sha:
+        failures.append("CONTROLLED_CANDIDATE_VALIDATION_SHA_MISMATCH")
+    if not re.fullmatch(r"[0-9a-f]{64}", expected_hash):
+        failures.append("CONTROLLED_CANDIDATE_VALIDATION_PACKAGE_HASH_INVALID")
+    if not package_path.is_file():
+        failures.append("CONTROLLED_CANDIDATE_PACKAGE_MISSING")
+    elif expected_hash:
+        actual_hash = hashlib.sha256(package_path.read_bytes()).hexdigest()
+        if actual_hash != expected_hash:
+            failures.append("CONTROLLED_CANDIDATE_PACKAGE_HASH_MISMATCH")
+    return {
+        "status": "PASS" if not failures else "FAIL",
+        "repository": repository,
+        "pr": pr_number,
+        "source_sha": source_sha,
+        "candidate_package_sha256": expected_hash,
+        "failures": sorted(set(failures)),
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--repository", required=True)
@@ -63,6 +98,8 @@ def main() -> int:
     parser.add_argument("--version", required=True)
     parser.add_argument("--operation", required=True)
     parser.add_argument("--pr-json", required=True, type=Path)
+    parser.add_argument("--validation-report", type=Path)
+    parser.add_argument("--candidate-package", type=Path)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     pr = json.loads(args.pr_json.read_text(encoding="utf-8"))
@@ -74,6 +111,20 @@ def main() -> int:
         version=args.version,
         operation=args.operation,
     )
+    if (args.validation_report is None) != (args.candidate_package is None):
+        parser.error("--validation-report and --candidate-package must be supplied together")
+    if args.validation_report and args.candidate_package:
+        evidence = validate_validation_evidence(
+            json.loads(args.validation_report.read_text(encoding="utf-8-sig")),
+            repository=args.repository,
+            pr_number=args.pr,
+            source_sha=args.source_sha,
+            package_path=args.candidate_package,
+        )
+        result["validation_evidence"] = evidence
+        if evidence["status"] != "PASS":
+            result["status"] = "FAIL"
+            result["failures"] = sorted(set(result["failures"] + evidence["failures"]))
     text = json.dumps(result, ensure_ascii=False, indent=2) + "\n"
     if args.output:
         args.output.write_text(text, encoding="utf-8")
