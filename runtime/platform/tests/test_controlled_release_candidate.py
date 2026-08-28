@@ -103,7 +103,7 @@ def test_pre_promotion_candidate_validation_keeps_release_notes_for_promotion_on
     validator = (ROOT / "scripts/platform/Invoke-DDDAValidatePr.ps1").read_text(encoding="utf-8")
     guards = (ROOT / "tests/powershell/Test-DDDAPromotionGuards.ps1").read_text(encoding="utf-8")
 
-    assert ".\\\\candidate\\\\ddda.ps1 test -Suite component -PrePromotionCandidate -NonInteractive" in workflow
+    assert r".\candidate\ddda.ps1 test -Suite component -PrePromotionCandidate -NonInteractive" in workflow
     assert "-PrePromotionCandidate" in workflow
     assert "[switch]$PrePromotionCandidate" in cli
     assert "[switch]$PrePromotionCandidate" in test_runner
