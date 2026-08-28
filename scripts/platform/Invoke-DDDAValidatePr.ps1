@@ -11,7 +11,8 @@ param(
     [switch]$KeepArtifacts,
     [switch]$KeepReviewBoard,
     [string]$MiroTeamId,
-    [switch]$NonInteractive
+    [switch]$NonInteractive,
+    [switch]$PrePromotionCandidate
 )
 
 Set-StrictMode -Version Latest
@@ -229,10 +230,12 @@ try {
     Assert-DDDAPlatformCleanGit -Repository $packageRoot -Label "Rozbalený candidate package"
 
     $commonArguments = @("-PackagePath", $candidatePackagePath)
+    $componentArguments = @("component")
+    if ($PrePromotionCandidate) { $componentArguments += "-PrePromotionCandidate" }
     Invoke-ValidationSuite -Name "lint" -Arguments @("lint")
     Invoke-ValidationSuite -Name "schema" -Arguments @("schema")
     Invoke-ValidationSuite -Name "unit" -Arguments @("unit")
-    Invoke-ValidationSuite -Name "component" -Arguments @("component")
+    Invoke-ValidationSuite -Name "component" -Arguments $componentArguments
     Invoke-ValidationSuite -Name "integration" -Arguments (@("integration") + $commonArguments)
     Invoke-ValidationSuite -Name "smoke" -Arguments (@("smoke") + $commonArguments)
     Invoke-ValidationSuite -Name "regression" -Arguments @("regression")

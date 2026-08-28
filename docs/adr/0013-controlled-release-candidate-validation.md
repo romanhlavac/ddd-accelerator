@@ -24,8 +24,9 @@ The selection step is named and is the sole publisher of the selected exact SHA 
 The workflow has three isolated operations:
 
 1. `technical_validation` checks out the exact candidate and invokes
-   `validate-pr`, which remains the sole canonical package builder and records
-   evidence for that physical package.
+   `validate-pr` in dedicated pre-promotion mode. It remains the sole canonical
+   package builder and records evidence for that physical package without
+   pretending the candidate is already a final release cut.
 2. `publish_hrdr_scaffold` restores the one exact validation artifact and
    publishes only a pending HRDR after explicit reviewer and decision-owner
    inputs.
@@ -44,3 +45,14 @@ Technical candidate evidence, the human release decision and release promotion
 remain separate gates. A PASS technical validation does not create a GO
 decision, and the scope dry-run remains authoritative only with live Project
 read-back and an HRDR for the same candidate identity.
+
+## Pre-promotion validation boundary
+
+A controlled recovery candidate is an auditable source for validation, not a published
+release. Its technical validation therefore uses `-PrePromotionCandidate`: it skips only
+cross-stream integration assertions that require the canonical `main` CI surface.
+
+This mode never authorizes promotion. The `promote-pr` path remains unchanged and
+fail-closed: before any tag or GitHub Release, the release must contain versioned release
+notes and pass the final promotion guards. A technical PASS is evidence of candidate
+integrity, not a release decision.

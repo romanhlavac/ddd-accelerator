@@ -1,6 +1,7 @@
 ﻿[CmdletBinding()]
 param(
-    [string]$PlatformPath = (Resolve-Path (Join-Path $PSScriptRoot "../..")).Path
+    [string]$PlatformPath = (Resolve-Path (Join-Path $PSScriptRoot "../..")).Path,
+    [switch]$PrePromotionCandidate
 )
 
 Set-StrictMode -Version Latest
@@ -122,108 +123,115 @@ Assert-True -Condition ($releaseGovernanceSupport -match 'ddda:human-pr-review:v
 Assert-True -Condition ($releaseGovernanceSupport -match 'Get-DDDAHumanPrReviewComments') -Message "Governance support neumí načíst Human Review evidence."
 Assert-True -Condition ($releaseGovernanceSupport -notmatch 'Set-DDDAHumanPrReview') -Message "Automation support nesmí publikovat Human Review PASS setter."
 
-# Issue #88 regression: REST JSON arrays must be materialized before marker and
-# author extraction; only user.login is canonical and display name is ignored.
-$humanComment = [pscustomobject]@{
-    body = '<!-- ddda:human-pr-review:v1 -->'
-    user = [pscustomobject]@{
-        login = 'romanhlavac'
-        name = 'romanhlavac'
-        type = 'User'
+# Cross-stream integration assertions require the canonical main CI surface. A controlled
+# recovery candidate proves its own source before promotion, without requiring unrelated
+# future-release infrastructure.
+if (-not $PrePromotionCandidate) {
+    # Issue #88 regression: REST JSON arrays must be materialized before marker and
+    # author extraction; only user.login is canonical and display name is ignored.
+    $humanComment = [pscustomobject]@{
+        body = '<!-- ddda:human-pr-review:v1 -->'
+        user = [pscustomobject]@{
+            login = 'romanhlavac'
+            name = 'romanhlavac'
+            type = 'User'
+        }
     }
-}
-$humanReview = [pscustomobject]@{ reviewer = 'romanhlavac' }
-$canonicalLogin = Assert-DDDAHumanPrReviewCommentProvenance -Comment $humanComment -Review $humanReview
-Assert-True -Condition ($canonicalLogin -eq 'romanhlavac') -Message "Canonical Human Review author musí být pouze GitHub user.login."
-Assert-True -Condition ($canonicalLogin -notmatch '\s') -Message "Display name nesmí být concatenován do canonical GitHub loginu."
-
-$missingLoginComment = [pscustomobject]@{ user = [pscustomobject]@{ name = 'romanhlavac'; type = 'User' } }
-Assert-Throws -Action {
-    Assert-DDDAHumanPrReviewCommentProvenance -Comment $missingLoginComment -Review $humanReview
-} -Message "Chybějící Human Review user.login musí failnout closed."
-
-$ambiguousLoginComment = [pscustomobject]@{
-    user = [pscustomobject]@{ login = @('romanhlavac', 'other-user'); name = 'romanhlavac'; type = 'User' }
-}
-Assert-Throws -Action {
-    Assert-DDDAHumanPrReviewCommentProvenance -Comment $ambiguousLoginComment -Review $humanReview
-} -Message "Víceznačný Human Review user.login musí failnout closed."
-
-$botComment = [pscustomobject]@{ user = [pscustomobject]@{ login = 'reviewer[bot]'; name = 'Reviewer'; type = 'Bot' } }
-Assert-Throws -Action {
-    Assert-DDDAHumanPrReviewCommentProvenance -Comment $botComment -Review ([pscustomobject]@{ reviewer = 'reviewer[bot]' })
-} -Message "Bot Human Review author musí failnout closed."
-
-Assert-Throws -Action {
-    Assert-DDDAHumanPrReviewCommentProvenance -Comment $humanComment -Review ([pscustomobject]@{ reviewer = 'other-user' })
-} -Message "Human Review reviewer/user.login mismatch musí failnout closed."
-
-$reviewMarker = '<!-- ddda:human-pr-review:v1 -->'
-$script:humanReviewCommentApiResponse = @(
-    $humanComment,
-    [pscustomobject]@{
-        body = '<!-- ddda:human-pr-review-duplicate:v1 --> non-authoritative ddda:human-pr-review:v1'
-        user = [pscustomobject]@{ login = 'romanhlavac'; name = 'romanhlavac'; type = 'User' }
-    },
-    [pscustomobject]@{
-        body = '<!-- ddda:human-pr-review-superseded:v1 --> historical record'
-        user = [pscustomobject]@{ login = 'romanhlavac'; name = 'romanhlavac'; type = 'User' }
+    $humanReview = [pscustomobject]@{ reviewer = 'romanhlavac' }
+    $canonicalLogin = Assert-DDDAHumanPrReviewCommentProvenance -Comment $humanComment -Review $humanReview
+    Assert-True -Condition ($canonicalLogin -eq 'romanhlavac') -Message "Canonical Human Review author musí být pouze GitHub user.login."
+    Assert-True -Condition ($canonicalLogin -notmatch '\s') -Message "Display name nesmí být concatenován do canonical GitHub loginu."
+    
+    $missingLoginComment = [pscustomobject]@{ user = [pscustomobject]@{ name = 'romanhlavac'; type = 'User' } }
+    Assert-Throws -Action {
+        Assert-DDDAHumanPrReviewCommentProvenance -Comment $missingLoginComment -Review $humanReview
+    } -Message "Chybějící Human Review user.login musí failnout closed."
+    
+    $ambiguousLoginComment = [pscustomobject]@{
+        user = [pscustomobject]@{ login = @('romanhlavac', 'other-user'); name = 'romanhlavac'; type = 'User' }
     }
-)
-$originalGitHubApi = (Get-Command Invoke-DDDAGitHubApi).ScriptBlock
-try {
-    Set-Item -Path Function:Invoke-DDDAGitHubApi -Value {
-        param($Method, $Path, $Token, $Body)
-        Write-Output -NoEnumerate $script:humanReviewCommentApiResponse
+    Assert-Throws -Action {
+        Assert-DDDAHumanPrReviewCommentProvenance -Comment $ambiguousLoginComment -Review $humanReview
+    } -Message "Víceznačný Human Review user.login musí failnout closed."
+    
+    $botComment = [pscustomobject]@{ user = [pscustomobject]@{ login = 'reviewer[bot]'; name = 'Reviewer'; type = 'Bot' } }
+    Assert-Throws -Action {
+        Assert-DDDAHumanPrReviewCommentProvenance -Comment $botComment -Review ([pscustomobject]@{ reviewer = 'reviewer[bot]' })
+    } -Message "Bot Human Review author musí failnout closed."
+    
+    Assert-Throws -Action {
+        Assert-DDDAHumanPrReviewCommentProvenance -Comment $humanComment -Review ([pscustomobject]@{ reviewer = 'other-user' })
+    } -Message "Human Review reviewer/user.login mismatch musí failnout closed."
+    
+    $reviewMarker = '<!-- ddda:human-pr-review:v1 -->'
+    $script:humanReviewCommentApiResponse = @(
+        $humanComment,
+        [pscustomobject]@{
+            body = '<!-- ddda:human-pr-review-duplicate:v1 --> non-authoritative ddda:human-pr-review:v1'
+            user = [pscustomobject]@{ login = 'romanhlavac'; name = 'romanhlavac'; type = 'User' }
+        },
+        [pscustomobject]@{
+            body = '<!-- ddda:human-pr-review-superseded:v1 --> historical record'
+            user = [pscustomobject]@{ login = 'romanhlavac'; name = 'romanhlavac'; type = 'User' }
+        }
+    )
+    $originalGitHubApi = (Get-Command Invoke-DDDAGitHubApi).ScriptBlock
+    try {
+        Set-Item -Path Function:Invoke-DDDAGitHubApi -Value {
+            param($Method, $Path, $Token, $Body)
+            Write-Output -NoEnumerate $script:humanReviewCommentApiResponse
+        }
+        $selectedHumanComments = @(Get-DDDAHumanPrReviewComments -RepositorySlug 'romanhlavac/ddd-accelerator' -Pr 92 -Token 'test-only')
     }
-    $selectedHumanComments = @(Get-DDDAHumanPrReviewComments -RepositorySlug 'romanhlavac/ddd-accelerator' -Pr 92 -Token 'test-only')
+    finally {
+        Set-Item -Path Function:Invoke-DDDAGitHubApi -Value $originalGitHubApi
+    }
+    Assert-True -Condition ($selectedHumanComments.Count -eq 1) -Message "Právě jeden authoritative Human Review marker musí projít selection."
+    Assert-True -Condition ($selectedHumanComments[0].body -eq $reviewMarker) -Message "Duplicate/superseded Human Review marker musí být ignorován."
+    Assert-True -Condition ($releaseGovernanceSupport -match '\$response\s*=\s*Invoke-DDDAGitHubApi[\s\S]+?\$batch\s*=\s*@\(\$response\)') -Message "GitHub Issues Comments REST array musí být materializován před iterací."
+    
+    # Issue #88: one exact-SHA validation decision must preserve one canonical candidate identity.
+    Assert-True -Condition ($validatePr -match '\[string\]\$PackagePath') -Message "validate-pr nemá řízený PackagePath input."
+    Assert-True -Condition (([regex]::Matches($validatePr, 'New-DDDAPlatformPackage\.ps1')).Count -eq 1) -Message "validate-pr obsahuje více než jednu package build cestu."
+    Assert-True -Condition ($validatePr -match 'if\s*\(\[string\]::IsNullOrWhiteSpace\(\$PackagePath\)\)') -Message "validate-pr neomezuje package build pouze na chybějící PackagePath."
+    Assert-True -Condition ($validatePr -match 'ExpectedCommit[^\r\n]+\$headSha') -Message "validate-pr neověřuje source_commit předaného package."
+    Assert-True -Condition ($validatePr -match 'ExpectedKind[^\r\n]+candidate') -Message "validate-pr neověřuje kind=candidate."
+    Assert-True -Condition ($validationReport -match 'PackageArtifactName' -and $validationReport -match 'WorkflowRunId') -Message "Validation report neuchovává canonical artifact/run identity."
+    Assert-True -Condition ($validationReport -match 'PortablePaths') -Message "Validation report neumí odstranit runner-local cesty z publikované evidence."
+    Assert-True -Condition ($releaseGovernanceSupport -match '\[string\]\$ValidationReportPath' -and $releaseGovernanceSupport -match '\[string\]\$PackagePath') -Message "Merge evidence resolver neumí explicitní artifact/report z čistého runneru."
+    Assert-True -Condition ($governedMerge -match 'ExpectedCommit[^\r\n]+\$headSha' -and $governedMerge -match 'ExpectedKind[^\r\n]+candidate') -Message "merge-pr znovu neověřuje candidate kind/source_commit."
+    Assert-True -Condition ($platformCi -match '(?s)validate-pr-command:\s+name: One-command PR validation\s+needs: validate-platform') -Message "validate-pr-command nezávisí na canonical package jobu."
+    Assert-True -Condition ($platformCi -match 'Download canonical candidate package') -Message "validate-pr-command nestahuje canonical candidate artifact."
+    Assert-True -Condition ($platformCi -match '-PackagePath \$packages\[0\]\.FullName') -Message "CI nepředává stažený canonical package do validate-pr."
+    Assert-True -Condition ($platformCi -match '\$version = ''candidate\.''' -and $platformCi -notmatch '\$version = ''ci\.''' ) -Message "Candidate metadata není stabilně odvozeno pouze z exact SHA."
+    Assert-True -Condition ($secondaryCi -notmatch 'New-DDDAPlatformPackage\.ps1') -Message "Sekundární CI workflow nesmí vytvářet nezávislý candidate package."
+    $workflowCandidateBuilders = @(
+        Get-ChildItem -LiteralPath (Join-Path $platformRoot '.github/workflows') -Filter '*.yml' -File |
+            Select-String -Pattern 'New-DDDAPlatformPackage\.ps1'
+    )
+    Assert-True -Condition ($workflowCandidateBuilders.Count -eq 1 -and $workflowCandidateBuilders[0].Path -eq $platformCiPath) -Message "Repository musí mít právě jeden CI candidate builder v canonical platform workflow."
+    $humanReadinessJob = [regex]::Match($platformCi, '(?ms)^  human-review-readiness:\r?\n(?<body>.*?)(?=^  governed-merge-dry-run:)')
+    $mergeDryRunJob = [regex]::Match($platformCi, '(?ms)^  governed-merge-dry-run:\r?\n(?<body>.*)\z')
+    Assert-True -Condition $humanReadinessJob.Success -Message "Standard CI nemá samostatný Human Review readiness coordinator."
+    Assert-True -Condition $mergeDryRunJob.Success -Message "Standard CI nemá samostatný governed merge dry-run job."
+    $humanReadinessBody = $humanReadinessJob.Groups['body'].Value
+    $mergeDryRunBody = $mergeDryRunJob.Groups['body'].Value
+    Assert-True -Condition ($humanReadinessBody -match 'name: Human Review readiness') -Message "Readiness coordinator není jednoznačně pojmenovaný."
+    Assert-True -Condition ($humanReadinessBody -match 'ready:\s+\$\{\{\s*steps\.human-review\.outputs\.ready\s*\}\}') -Message "Readiness coordinator nepublikuje machine-readable ready output."
+    Assert-True -Condition ($humanReadinessBody -match 'PENDING.+Governed merge dry-run.+NOT_RUN') -Message "Pre-HR stav není explicitně reportován jako PENDING / NOT_RUN."
+    Assert-True -Condition ($humanReadinessBody -notmatch 'ddda\.ps1 merge-pr') -Message "Readiness coordinator nesmí být současně merge preflight."
+    Assert-True -Condition ($mergeDryRunBody -match '(?s)needs:.+?- human-review-readiness') -Message "Governed merge dry-run nezávisí na readiness coordinatoru."
+    Assert-True -Condition ($mergeDryRunBody -match "if: github\.event_name == 'pull_request' && needs\.human-review-readiness\.outputs\.ready == 'true'") -Message "Governed merge dry-run není na job-level blokovaný Human Review readiness."
+    Assert-True -Condition ($mergeDryRunBody -notmatch 'steps\.human-review\.outputs\.ready') -Message "Governed merge dry-run stále používá step-level skip, který může vytvořit false PASS."
+    Assert-True -Condition ($mergeDryRunBody -match 'Download exact-run canonical candidate' -and $mergeDryRunBody -match 'Download exact-run validation evidence') -Message "Governed merge dry-run nestahuje exact-run candidate a report."
+    Assert-True -Condition ($mergeDryRunBody -match '\.\\ddda\.ps1 merge-pr' -and $mergeDryRunBody -match '-ValidationReportPath \$reports\[0\]\.FullName' -and $mergeDryRunBody -match '-DryRun') -Message "Governed merge dry-run neprovádí skutečný isolated merge-pr -DryRun."
+    Assert-True -Condition ($mergeDryRunBody -notmatch 'New-DDDAPlatformPackage\.ps1') -Message "Post-HR merge dry-run nesmí znovu sestavit candidate package."
+    Assert-True -Condition ($mergeDryRunBody -match 'packages\.Count -ne 1' -and $mergeDryRunBody -match 'reports\.Count -ne 1') -Message "Artifact resolution není fail-closed pro chybějící/víceznačnou evidence."
+    Assert-True -Condition ($remoteBroker -match 'actions: read') -Message "Remote broker nemá read-only přístup k canonical Actions artifactu."
+    Assert-True -Condition ($remoteBroker -match 'Download exact-SHA canonical candidate' -and $remoteBroker -match '-PackageWorkflowRunId') -Message "Remote broker stále vytváří nezávislou candidate identity."
+    
+    
 }
-finally {
-    Set-Item -Path Function:Invoke-DDDAGitHubApi -Value $originalGitHubApi
-}
-Assert-True -Condition ($selectedHumanComments.Count -eq 1) -Message "Právě jeden authoritative Human Review marker musí projít selection."
-Assert-True -Condition ($selectedHumanComments[0].body -eq $reviewMarker) -Message "Duplicate/superseded Human Review marker musí být ignorován."
-Assert-True -Condition ($releaseGovernanceSupport -match '\$response\s*=\s*Invoke-DDDAGitHubApi[\s\S]+?\$batch\s*=\s*@\(\$response\)') -Message "GitHub Issues Comments REST array musí být materializován před iterací."
-
-# Issue #88: one exact-SHA validation decision must preserve one canonical candidate identity.
-Assert-True -Condition ($validatePr -match '\[string\]\$PackagePath') -Message "validate-pr nemá řízený PackagePath input."
-Assert-True -Condition (([regex]::Matches($validatePr, 'New-DDDAPlatformPackage\.ps1')).Count -eq 1) -Message "validate-pr obsahuje více než jednu package build cestu."
-Assert-True -Condition ($validatePr -match 'if\s*\(\[string\]::IsNullOrWhiteSpace\(\$PackagePath\)\)') -Message "validate-pr neomezuje package build pouze na chybějící PackagePath."
-Assert-True -Condition ($validatePr -match 'ExpectedCommit[^\r\n]+\$headSha') -Message "validate-pr neověřuje source_commit předaného package."
-Assert-True -Condition ($validatePr -match 'ExpectedKind[^\r\n]+candidate') -Message "validate-pr neověřuje kind=candidate."
-Assert-True -Condition ($validationReport -match 'PackageArtifactName' -and $validationReport -match 'WorkflowRunId') -Message "Validation report neuchovává canonical artifact/run identity."
-Assert-True -Condition ($validationReport -match 'PortablePaths') -Message "Validation report neumí odstranit runner-local cesty z publikované evidence."
-Assert-True -Condition ($releaseGovernanceSupport -match '\[string\]\$ValidationReportPath' -and $releaseGovernanceSupport -match '\[string\]\$PackagePath') -Message "Merge evidence resolver neumí explicitní artifact/report z čistého runneru."
-Assert-True -Condition ($governedMerge -match 'ExpectedCommit[^\r\n]+\$headSha' -and $governedMerge -match 'ExpectedKind[^\r\n]+candidate') -Message "merge-pr znovu neověřuje candidate kind/source_commit."
-Assert-True -Condition ($platformCi -match '(?s)validate-pr-command:\s+name: One-command PR validation\s+needs: validate-platform') -Message "validate-pr-command nezávisí na canonical package jobu."
-Assert-True -Condition ($platformCi -match 'Download canonical candidate package') -Message "validate-pr-command nestahuje canonical candidate artifact."
-Assert-True -Condition ($platformCi -match '-PackagePath \$packages\[0\]\.FullName') -Message "CI nepředává stažený canonical package do validate-pr."
-Assert-True -Condition ($platformCi -match '\$version = ''candidate\.''' -and $platformCi -notmatch '\$version = ''ci\.''' ) -Message "Candidate metadata není stabilně odvozeno pouze z exact SHA."
-Assert-True -Condition ($secondaryCi -notmatch 'New-DDDAPlatformPackage\.ps1') -Message "Sekundární CI workflow nesmí vytvářet nezávislý candidate package."
-$workflowCandidateBuilders = @(
-    Get-ChildItem -LiteralPath (Join-Path $platformRoot '.github/workflows') -Filter '*.yml' -File |
-        Select-String -Pattern 'New-DDDAPlatformPackage\.ps1'
-)
-Assert-True -Condition ($workflowCandidateBuilders.Count -eq 1 -and $workflowCandidateBuilders[0].Path -eq $platformCiPath) -Message "Repository musí mít právě jeden CI candidate builder v canonical platform workflow."
-$humanReadinessJob = [regex]::Match($platformCi, '(?ms)^  human-review-readiness:\r?\n(?<body>.*?)(?=^  governed-merge-dry-run:)')
-$mergeDryRunJob = [regex]::Match($platformCi, '(?ms)^  governed-merge-dry-run:\r?\n(?<body>.*)\z')
-Assert-True -Condition $humanReadinessJob.Success -Message "Standard CI nemá samostatný Human Review readiness coordinator."
-Assert-True -Condition $mergeDryRunJob.Success -Message "Standard CI nemá samostatný governed merge dry-run job."
-$humanReadinessBody = $humanReadinessJob.Groups['body'].Value
-$mergeDryRunBody = $mergeDryRunJob.Groups['body'].Value
-Assert-True -Condition ($humanReadinessBody -match 'name: Human Review readiness') -Message "Readiness coordinator není jednoznačně pojmenovaný."
-Assert-True -Condition ($humanReadinessBody -match 'ready:\s+\$\{\{\s*steps\.human-review\.outputs\.ready\s*\}\}') -Message "Readiness coordinator nepublikuje machine-readable ready output."
-Assert-True -Condition ($humanReadinessBody -match 'PENDING.+Governed merge dry-run.+NOT_RUN') -Message "Pre-HR stav není explicitně reportován jako PENDING / NOT_RUN."
-Assert-True -Condition ($humanReadinessBody -notmatch 'ddda\.ps1 merge-pr') -Message "Readiness coordinator nesmí být současně merge preflight."
-Assert-True -Condition ($mergeDryRunBody -match '(?s)needs:.+?- human-review-readiness') -Message "Governed merge dry-run nezávisí na readiness coordinatoru."
-Assert-True -Condition ($mergeDryRunBody -match "if: github\.event_name == 'pull_request' && needs\.human-review-readiness\.outputs\.ready == 'true'") -Message "Governed merge dry-run není na job-level blokovaný Human Review readiness."
-Assert-True -Condition ($mergeDryRunBody -notmatch 'steps\.human-review\.outputs\.ready') -Message "Governed merge dry-run stále používá step-level skip, který může vytvořit false PASS."
-Assert-True -Condition ($mergeDryRunBody -match 'Download exact-run canonical candidate' -and $mergeDryRunBody -match 'Download exact-run validation evidence') -Message "Governed merge dry-run nestahuje exact-run candidate a report."
-Assert-True -Condition ($mergeDryRunBody -match '\.\\ddda\.ps1 merge-pr' -and $mergeDryRunBody -match '-ValidationReportPath \$reports\[0\]\.FullName' -and $mergeDryRunBody -match '-DryRun') -Message "Governed merge dry-run neprovádí skutečný isolated merge-pr -DryRun."
-Assert-True -Condition ($mergeDryRunBody -notmatch 'New-DDDAPlatformPackage\.ps1') -Message "Post-HR merge dry-run nesmí znovu sestavit candidate package."
-Assert-True -Condition ($mergeDryRunBody -match 'packages\.Count -ne 1' -and $mergeDryRunBody -match 'reports\.Count -ne 1') -Message "Artifact resolution není fail-closed pro chybějící/víceznačnou evidence."
-Assert-True -Condition ($remoteBroker -match 'actions: read') -Message "Remote broker nemá read-only přístup k canonical Actions artifactu."
-Assert-True -Condition ($remoteBroker -match 'Download exact-SHA canonical candidate' -and $remoteBroker -match '-PackageWorkflowRunId') -Message "Remote broker stále vytváří nezávislou candidate identity."
 
 # Public release promotion must stay strictly gated before the release executor is reachable.
 $scopeGateMatch = [regex]::Match($governedPromotion, 'release_scope_gate_status[^\r\n]+PASS', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
