@@ -213,6 +213,9 @@ function Invoke-OneSuite {
             $null = Invoke-DDDAPlatformNative -Command $miroPython -Arguments @("-m", "pytest", "-q", (Join-Path $platformRoot "runtime/miro/tests")) -WorkingDirectory $platformRoot
         }
         "component" {
+            Invoke-TestScript -RelativePath "tests/powershell/Test-DDDAValidationReport.ps1" -Arguments @("-PlatformPath", $platformRoot)
+            Invoke-TestScript -RelativePath "tests/powershell/Test-DDDAPromotionGuards.ps1" -Arguments @("-PlatformPath", $platformRoot)
+            Invoke-TestScript -RelativePath "tests/powershell/Test-DDDAReleasePublication.ps1" -Arguments @("-PlatformPath", $platformRoot)
             Invoke-TestScript -RelativePath "tests/powershell/Test-DDDAMiroAutomation.ps1" -Arguments @("-PlatformPath", $platformRoot)
             Invoke-TestScript -RelativePath "tests/powershell/Test-DDDAMiroEvidence.ps1" -Arguments @("-PlatformPath", $platformRoot)
             Invoke-TestScript -RelativePath "tests/powershell/Test-DDDAProjectSteering.ps1" -Arguments @("-PlatformPath", $platformRoot)
@@ -233,6 +236,7 @@ function Invoke-OneSuite {
         }
         "regression" {
             Invoke-TestScript -RelativePath "tests/powershell/Test-DDDAFirstRun.ps1" -Arguments @("-PlatformPath", $platformRoot)
+            Invoke-TestScript -RelativePath "tests/powershell/Test-DDDAReleasePublication.ps1" -Arguments @("-PlatformPath", $platformRoot)
             Invoke-TestScript -RelativePath "tests/powershell/Test-DDDAProjectSteering.ps1" -Arguments @("-PlatformPath", $platformRoot)
             Invoke-TestScript -RelativePath "tests/powershell/Test-DDDAMiroAutomation.ps1" -Arguments @("-PlatformPath", $platformRoot)
             Invoke-TestScript -RelativePath "tests/powershell/Test-DDDAMiroEvidence.ps1" -Arguments @("-PlatformPath", $platformRoot)

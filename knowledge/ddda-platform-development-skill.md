@@ -138,6 +138,7 @@ CI/test pipeline
 29. A governed implementation PR may be merged after exact-SHA technical evidence, Human Review and explicit merge authorization without evaluating release-scope completeness and without creating a release or tag.
 30. HRDR and Release Scope Gate apply to the actual release candidate boundary, after included implementation work has been integrated/terminal; `promote-pr` is a release command, not the general implementation-PR merge command.
 31. Merge, promotion, release and tag are never inferred from technical PASS, Human Review, FAST-LOOP completion or one another.
+32. One exact-SHA validation decision uses one canonical candidate package identity: the package is built once, every validation consumer receives that physical artifact, and report, Human Review and merge preflight must agree on its recalculated SHA-256. A consumer must never rebuild the package to manufacture equivalent evidence.
 
 ## 4. Change classification
 
@@ -216,6 +217,7 @@ release candidate preparation (typically release/<version> PR or equivalent gove
 → smoke + acceptance
 → release report
 → tag
+→ GitHub Release publication of the validated canonical package and portable release evidence
 ```
 
 Release Scope Gate stays strict: incomplete current-release scope is a release failure. It is not evaluated as a prerequisite for merging the individual implementation PRs whose integration is required to make that scope terminal.
@@ -522,3 +524,7 @@ Chat/Work must distinguish an **active external execution** from an **intention 
 - If an external workflow is still running when the response is sent, say exactly that; do not represent future analysis, fixes or retries as already running unless they are actually scheduled or executing.
 
 The intent is operationally strict: **autonomous orchestration while execution is active, truthful stop-state reporting when it is not.**
+
+## Backlog / Project transactional completion
+
+Pro DDDA platform backlog/delivery governance je GitHub Issue/PR mutation a její `DDDA Platform Backlog & Delivery` projection jedna fail-closed transakce. CR/Defect/Enabler/PR creation, state/relationship change nebo implementation authority change není `Ready`/`Done`/governance `PASS`, dokud canonical Project/Milestone reconciliation a repository-wide read-back nevrátí `remaining_mismatches = 0`. Nedostupná Project mutation surface je blocker k dokončení governance transakce, ne důvod projekci odložit nebo ji přenést na člověka k ruční kontrole.

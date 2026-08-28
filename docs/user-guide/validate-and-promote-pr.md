@@ -194,6 +194,7 @@ Canonical promotion po PASS gate:
 5. provede ingestion, security, smoke, E2E a acceptance;
 6. vytvoří release report;
 7. vytvoří/pushne tag až po PASS.
+8. vytvoří GitHub Release pro canonical tag a publikuje validated DDDA ZIP, `result.json` a `result.md`; fresh read-back ověří identity a SHA-256 assets.
 
 Při release validation FAIL se tag nevytvoří.
 
