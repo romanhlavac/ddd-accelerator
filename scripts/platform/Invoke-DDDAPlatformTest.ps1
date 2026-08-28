@@ -12,6 +12,7 @@ param(
     [string]$MiroTeamId,
     [string]$MiroEvidenceOutputPath,
     [switch]$NonInteractive,
+    [switch]$PrePromotionCandidate,
     [switch]$Json
 )
 
@@ -214,7 +215,9 @@ function Invoke-OneSuite {
         }
         "component" {
             Invoke-TestScript -RelativePath "tests/powershell/Test-DDDAValidationReport.ps1" -Arguments @("-PlatformPath", $platformRoot)
-            Invoke-TestScript -RelativePath "tests/powershell/Test-DDDAPromotionGuards.ps1" -Arguments @("-PlatformPath", $platformRoot)
+            $promotionGuardArguments = @("-PlatformPath", $platformRoot)
+            if ($PrePromotionCandidate) { $promotionGuardArguments += "-PrePromotionCandidate" }
+            Invoke-TestScript -RelativePath "tests/powershell/Test-DDDAPromotionGuards.ps1" -Arguments $promotionGuardArguments
             Invoke-TestScript -RelativePath "tests/powershell/Test-DDDAReleasePublication.ps1" -Arguments @("-PlatformPath", $platformRoot)
             Invoke-TestScript -RelativePath "tests/powershell/Test-DDDAMiroAutomation.ps1" -Arguments @("-PlatformPath", $platformRoot)
             Invoke-TestScript -RelativePath "tests/powershell/Test-DDDAMiroEvidence.ps1" -Arguments @("-PlatformPath", $platformRoot)

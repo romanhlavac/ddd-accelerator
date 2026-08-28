@@ -21,6 +21,7 @@ param(
     [switch]$KeepReviewBoard,
     [string]$MiroTeamId,
     [switch]$NonInteractive,
+    [switch]$PrePromotionCandidate,
     [switch]$ConfirmMerge,
     [switch]$DryRun
 )
@@ -80,6 +81,7 @@ switch ($Command) {
         if ($KeepReviewBoard) { $arguments += "-KeepReviewBoard" }
         if (-not [string]::IsNullOrWhiteSpace($MiroTeamId)) { $arguments += @("-MiroTeamId", $MiroTeamId) }
         if ($NonInteractive) { $arguments += "-NonInteractive" }
+        if ($PrePromotionCandidate) { $arguments += "-PrePromotionCandidate" }
         Invoke-DDDACommandScript -RelativePath "scripts/platform/Invoke-DDDAPlatformTest.ps1" -Arguments $arguments
     }
     "validate-pr" {
@@ -94,6 +96,7 @@ switch ($Command) {
         if ($KeepReviewBoard) { $arguments += "-KeepReviewBoard" }
         if (-not [string]::IsNullOrWhiteSpace($MiroTeamId)) { $arguments += @("-MiroTeamId", $MiroTeamId) }
         if ($NonInteractive) { $arguments += "-NonInteractive" }
+        if ($PrePromotionCandidate) { $arguments += "-PrePromotionCandidate" }
         Invoke-DDDACommandScript -RelativePath "scripts/platform/Invoke-DDDAValidatePr.ps1" -Arguments $arguments
     }
     "merge-pr" {

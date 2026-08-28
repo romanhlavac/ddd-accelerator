@@ -1,6 +1,7 @@
 ﻿[CmdletBinding()]
 param(
-    [string]$PlatformPath = (Resolve-Path (Join-Path $PSScriptRoot "../..")).Path
+    [string]$PlatformPath = (Resolve-Path (Join-Path $PSScriptRoot "../..")).Path,
+    [switch]$PrePromotionCandidate
 )
 
 Set-StrictMode -Version Latest
@@ -79,7 +80,7 @@ Assert-True -Condition ($changelog -match '(?m)^## \[Unreleased\]\s*$') -Message
 $versionHeadingPattern = '(?m)^## \[(?<version>(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*))\] - (?<date>\d{4}-\d{2}-\d{2})\s*$'
 $versionHeading = [regex]::Match($changelog, $versionHeadingPattern, [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)
 Assert-True -Condition $versionHeading.Success -Message "Changelog nemá platný versioned release cut."
-if ($versionHeading.Success) {
+if ($versionHeading.Success -and -not $PrePromotionCandidate) {
     $currentRelease = Assert-DDDAPlatformChangelogRelease -Path (Join-Path $platformRoot "CHANGELOG.md") -Version $versionHeading.Groups["version"].Value
     Assert-True -Condition ([string]$currentRelease.Tag -eq ("v" + $versionHeading.Groups["version"].Value)) -Message "Changelog release validator neodvodil očekávaný tag."
 }
