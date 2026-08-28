@@ -126,6 +126,20 @@ Release Scope Gate vyžaduje, aby current release scope byl před skutečným re
 
 Dry-run neprovede merge release candidate, release ani tag.
 
+Governed wrapper navíc ukládá deterministickou machine-readable evidence pod DDDA state root `promotion/`. Výsledek rozlišuje:
+
+```text
+promotion_preflight_status
+side_effect_assertions_status
+wrapper_status
+source_sha
+candidate_package_sha256
+version
+release_scope_gate_status
+```
+
+Před a po dry-runu se čerstvým GitHub read-backem ověřuje, že PR nebyl mergnut, base SHA se nezměnilo a nevznikl canonical tag ani GitHub Release objekt. Očekávaná `404` pro neexistující tag/release je explicitní úspěšná absence assertion; `401/403`, síťová chyba nebo `5xx` zůstávají FAIL a nesmějí zdědit či kontaminovat výsledek jiné operace.
+
 ## Skutečný release promotion
 
 Vyžaduje novou samostatnou explicitní human authorization:
