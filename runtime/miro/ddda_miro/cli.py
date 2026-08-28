@@ -13,6 +13,27 @@ from .render import render_board
 from .sync import sync_project
 
 
+BOARD_IDENTITY_HANDOFF_PREFIX = "DDDA_MIRO_BOARD_ID_HANDOFF:"
+
+
+class _BoardIdentityHandoffClient:
+    """Proxy that emits board identity immediately after successful board creation."""
+
+    def __init__(self, inner):
+        self._inner = inner
+
+    def create_board(self, *args, **kwargs):
+        board = self._inner.create_board(*args, **kwargs)
+        board_id = str((board or {}).get("id") or "").strip()
+        if not board_id:
+            raise ValueError("Miro create_board succeeded without a usable board id")
+        print(f"{BOARD_IDENTITY_HANDOFF_PREFIX}{board_id}", file=sys.stderr, flush=True)
+        return board
+
+    def __getattr__(self, name):
+        return getattr(self._inner, name)
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="ddda-miro")
     parser.add_argument("--project", required=True, type=Path, help="DDDA project root")
@@ -54,7 +75,8 @@ def main(argv: list[str] | None = None) -> int:
                     raise ValueError("Board ID is required for --online doctor")
                 result["board"] = MiroClient(config.access_token()).get_board(config.board_id)
         elif args.command == "render":
-            client = None if args.dry_run and not os.environ.get(config.token_env) else MiroClient(config.access_token())
+            raw_client = None if args.dry_run and not os.environ.get(config.token_env) else MiroClient(config.access_token())
+            client = None if raw_client is None else _BoardIdentityHandoffClient(raw_client)
             result = render_board(config, client, create_board=args.create_board, dry_run=args.dry_run)
         elif args.command == "sync":
             result = sync_project(
