@@ -237,8 +237,28 @@ jobs:
           gh api -H "Accept: application/vnd.github+json" "repos/$env:REPOSITORY/actions/artifacts/$($matches[0].id)/zip" > validation-evidence.zip
           Expand-Archive -LiteralPath validation-evidence.zip -DestinationPath validation-evidence -Force
           $reports = @(Get-ChildItem validation-evidence -Filter result.json -File -Recurse)
-          $packages = @(Get-ChildItem validation-evidence -Filter "ddda-candidate-pr-$env:CANDIDATE_PR-$env:SOURCE_SHA-*.zip" -File -Recurse)
-          if ($reports.Count -ne 1 -or $packages.Count -ne 1) { throw "Exact validation artifact must contain exactly one report and one canonical candidate package." }
+          if ($reports.Count -ne 1) { throw "Exact validation artifact must contain exactly one canonical report." }
+          $report = Get-Content -LiteralPath $reports[0].FullName -Raw -Encoding utf8 | ConvertFrom-Json
+          if (
+            [string]$report.status -ne 'PASS' -or
+            [string]$report.source.repository -ne $env:REPOSITORY -or
+            [int]$report.source.pr -ne [int]$env:CANDIDATE_PR -or
+            [string]$report.source.commit -ne $env:SOURCE_SHA
+          ) { throw 'Exact validation artifact report identity is invalid.' }
+          $packageName = [System.IO.Path]::GetFileName([string]$report.package.path)
+          $expectedPackageHash = [string]$report.package.sha256
+          $shortCandidateSha = $env:SOURCE_SHA.Substring(0, 12)
+          $expectedPackagePrefix = "ddda-candidate-pr-$env:CANDIDATE_PR-$shortCandidateSha-"
+          if (
+            [string]::IsNullOrWhiteSpace($packageName) -or
+            -not $packageName.StartsWith($expectedPackagePrefix, [System.StringComparison]::Ordinal) -or
+            -not $packageName.EndsWith('.zip', [System.StringComparison]::OrdinalIgnoreCase) -or
+            $expectedPackageHash -notmatch '^[0-9a-f]{64}$'
+          ) { throw 'Exact validation artifact package record is invalid.' }
+          $packages = @(Get-ChildItem validation-evidence -Filter $packageName -File -Recurse)
+          if ($packages.Count -ne 1) { throw "Exact validation artifact must contain the one report-bound candidate package." }
+          $actualPackageHash = (Get-FileHash -LiteralPath $packages[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualPackageHash -ne $expectedPackageHash.ToLowerInvariant()) { throw 'Exact validation artifact package hash does not match its report.' }
           "validation_report=$($reports[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "candidate_package=$($packages[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
@@ -316,8 +336,28 @@ jobs:
           gh api -H "Accept: application/vnd.github+json" "repos/$env:REPOSITORY/actions/artifacts/$($matches[0].id)/zip" > validation-evidence.zip
           Expand-Archive -LiteralPath validation-evidence.zip -DestinationPath validation-evidence -Force
           $reports = @(Get-ChildItem validation-evidence -Filter result.json -File -Recurse)
-          $packages = @(Get-ChildItem validation-evidence -Filter "ddda-candidate-pr-$env:CANDIDATE_PR-$env:SOURCE_SHA-*.zip" -File -Recurse)
-          if ($reports.Count -ne 1 -or $packages.Count -ne 1) { throw "Exact validation artifact must contain exactly one report and one canonical candidate package." }
+          if ($reports.Count -ne 1) { throw "Exact validation artifact must contain exactly one canonical report." }
+          $report = Get-Content -LiteralPath $reports[0].FullName -Raw -Encoding utf8 | ConvertFrom-Json
+          if (
+            [string]$report.status -ne 'PASS' -or
+            [string]$report.source.repository -ne $env:REPOSITORY -or
+            [int]$report.source.pr -ne [int]$env:CANDIDATE_PR -or
+            [string]$report.source.commit -ne $env:SOURCE_SHA
+          ) { throw 'Exact validation artifact report identity is invalid.' }
+          $packageName = [System.IO.Path]::GetFileName([string]$report.package.path)
+          $expectedPackageHash = [string]$report.package.sha256
+          $shortCandidateSha = $env:SOURCE_SHA.Substring(0, 12)
+          $expectedPackagePrefix = "ddda-candidate-pr-$env:CANDIDATE_PR-$shortCandidateSha-"
+          if (
+            [string]::IsNullOrWhiteSpace($packageName) -or
+            -not $packageName.StartsWith($expectedPackagePrefix, [System.StringComparison]::Ordinal) -or
+            -not $packageName.EndsWith('.zip', [System.StringComparison]::OrdinalIgnoreCase) -or
+            $expectedPackageHash -notmatch '^[0-9a-f]{64}$'
+          ) { throw 'Exact validation artifact package record is invalid.' }
+          $packages = @(Get-ChildItem validation-evidence -Filter $packageName -File -Recurse)
+          if ($packages.Count -ne 1) { throw "Exact validation artifact must contain the one report-bound candidate package." }
+          $actualPackageHash = (Get-FileHash -LiteralPath $packages[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualPackageHash -ne $expectedPackageHash.ToLowerInvariant()) { throw 'Exact validation artifact package hash does not match its report.' }
           "validation_report=$($reports[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "candidate_package=$($packages[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
@@ -437,8 +477,28 @@ jobs:
           gh api -H "Accept: application/vnd.github+json" "repos/$env:REPOSITORY/actions/artifacts/$($matches[0].id)/zip" > validation-evidence.zip
           Expand-Archive -LiteralPath validation-evidence.zip -DestinationPath validation-evidence -Force
           $reports = @(Get-ChildItem validation-evidence -Filter result.json -File -Recurse)
-          $packages = @(Get-ChildItem validation-evidence -Filter "ddda-candidate-pr-$env:CANDIDATE_PR-$env:SOURCE_SHA-*.zip" -File -Recurse)
-          if ($reports.Count -ne 1 -or $packages.Count -ne 1) { throw "Exact validation artifact must contain exactly one report and one canonical candidate package." }
+          if ($reports.Count -ne 1) { throw "Exact validation artifact must contain exactly one canonical report." }
+          $report = Get-Content -LiteralPath $reports[0].FullName -Raw -Encoding utf8 | ConvertFrom-Json
+          if (
+            [string]$report.status -ne 'PASS' -or
+            [string]$report.source.repository -ne $env:REPOSITORY -or
+            [int]$report.source.pr -ne [int]$env:CANDIDATE_PR -or
+            [string]$report.source.commit -ne $env:SOURCE_SHA
+          ) { throw 'Exact validation artifact report identity is invalid.' }
+          $packageName = [System.IO.Path]::GetFileName([string]$report.package.path)
+          $expectedPackageHash = [string]$report.package.sha256
+          $shortCandidateSha = $env:SOURCE_SHA.Substring(0, 12)
+          $expectedPackagePrefix = "ddda-candidate-pr-$env:CANDIDATE_PR-$shortCandidateSha-"
+          if (
+            [string]::IsNullOrWhiteSpace($packageName) -or
+            -not $packageName.StartsWith($expectedPackagePrefix, [System.StringComparison]::Ordinal) -or
+            -not $packageName.EndsWith('.zip', [System.StringComparison]::OrdinalIgnoreCase) -or
+            $expectedPackageHash -notmatch '^[0-9a-f]{64}$'
+          ) { throw 'Exact validation artifact package record is invalid.' }
+          $packages = @(Get-ChildItem validation-evidence -Filter $packageName -File -Recurse)
+          if ($packages.Count -ne 1) { throw "Exact validation artifact must contain the one report-bound candidate package." }
+          $actualPackageHash = (Get-FileHash -LiteralPath $packages[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualPackageHash -ne $expectedPackageHash.ToLowerInvariant()) { throw 'Exact validation artifact package hash does not match its report.' }
           "validation_report=$($reports[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "candidate_package=$($packages[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
@@ -516,8 +576,28 @@ jobs:
           gh api -H "Accept: application/vnd.github+json" "repos/$env:REPOSITORY/actions/artifacts/$($matches[0].id)/zip" > validation-evidence.zip
           Expand-Archive -LiteralPath validation-evidence.zip -DestinationPath validation-evidence -Force
           $reports = @(Get-ChildItem validation-evidence -Filter result.json -File -Recurse)
-          $packages = @(Get-ChildItem validation-evidence -Filter "ddda-candidate-pr-$env:CANDIDATE_PR-$env:SOURCE_SHA-*.zip" -File -Recurse)
-          if ($reports.Count -ne 1 -or $packages.Count -ne 1) { throw "Exact validation artifact must contain exactly one report and one canonical candidate package." }
+          if ($reports.Count -ne 1) { throw "Exact validation artifact must contain exactly one canonical report." }
+          $report = Get-Content -LiteralPath $reports[0].FullName -Raw -Encoding utf8 | ConvertFrom-Json
+          if (
+            [string]$report.status -ne 'PASS' -or
+            [string]$report.source.repository -ne $env:REPOSITORY -or
+            [int]$report.source.pr -ne [int]$env:CANDIDATE_PR -or
+            [string]$report.source.commit -ne $env:SOURCE_SHA
+          ) { throw 'Exact validation artifact report identity is invalid.' }
+          $packageName = [System.IO.Path]::GetFileName([string]$report.package.path)
+          $expectedPackageHash = [string]$report.package.sha256
+          $shortCandidateSha = $env:SOURCE_SHA.Substring(0, 12)
+          $expectedPackagePrefix = "ddda-candidate-pr-$env:CANDIDATE_PR-$shortCandidateSha-"
+          if (
+            [string]::IsNullOrWhiteSpace($packageName) -or
+            -not $packageName.StartsWith($expectedPackagePrefix, [System.StringComparison]::Ordinal) -or
+            -not $packageName.EndsWith('.zip', [System.StringComparison]::OrdinalIgnoreCase) -or
+            $expectedPackageHash -notmatch '^[0-9a-f]{64}$'
+          ) { throw 'Exact validation artifact package record is invalid.' }
+          $packages = @(Get-ChildItem validation-evidence -Filter $packageName -File -Recurse)
+          if ($packages.Count -ne 1) { throw "Exact validation artifact must contain the one report-bound candidate package." }
+          $actualPackageHash = (Get-FileHash -LiteralPath $packages[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualPackageHash -ne $expectedPackageHash.ToLowerInvariant()) { throw 'Exact validation artifact package hash does not match its report.' }
           "validation_report=$($reports[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "candidate_package=$($packages[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
