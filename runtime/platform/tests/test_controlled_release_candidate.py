@@ -112,3 +112,15 @@ def test_pre_promotion_candidate_validation_keeps_release_notes_for_promotion_on
     assert "if (-not $PrePromotionCandidate)" in guards
     assert "Public release promotion must stay strictly gated" in guards
     assert "Assert-DDDAPlatformChangelogRelease" in guards
+
+
+def test_technical_validation_stages_runner_local_evidence_before_upload() -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+
+    assert "Stage exact validation evidence" in workflow
+    assert "$env:LOCALAPPDATA" in workflow
+    assert "$env:RUNNER_TEMP" in workflow
+    assert "Expected exactly one exact candidate package" in workflow
+    assert "${{ runner.temp }}/controlled-candidate-evidence/**" in workflow
+    assert "${{ env.LOCALAPPDATA }}" not in workflow
+    assert "if-no-files-found: error" in workflow

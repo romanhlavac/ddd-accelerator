@@ -145,14 +145,35 @@ jobs:
             -PrePromotionCandidate `
             -NonInteractive
 
+      - name: Stage exact validation evidence
+        if: success()
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $sourceRoot = Join-Path $env:LOCALAPPDATA 'DDDA'
+          $stageRoot = Join-Path $env:RUNNER_TEMP 'controlled-candidate-evidence'
+          $reportRoot = Join-Path $sourceRoot "validation-reports/pr-$env:CANDIDATE_PR-$env:SOURCE_SHA"
+          $packageRoot = Join-Path $sourceRoot 'packages'
+          $packages = @(Get-ChildItem -LiteralPath $packageRoot -Filter "ddda-candidate-pr-$env:CANDIDATE_PR-$env:SOURCE_SHA-*.zip" -File -ErrorAction SilentlyContinue)
+
+          if (-not (Test-Path -LiteralPath $reportRoot -PathType Container)) {
+            throw "Exact validation report root was not produced: $reportRoot"
+          }
+          if ($packages.Count -ne 1) {
+            throw "Expected exactly one exact candidate package for PR $env:CANDIDATE_PR / $env:SOURCE_SHA, found $($packages.Count)."
+          }
+
+          Remove-Item -LiteralPath $stageRoot -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Path $stageRoot -Force | Out-Null
+          Copy-Item -LiteralPath $reportRoot -Destination (Join-Path $stageRoot 'validation-reports') -Recurse -Force
+          Copy-Item -LiteralPath $packages[0].FullName -Destination (Join-Path $stageRoot $packages[0].Name) -Force
+
       - name: Upload validation evidence
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: controlled-candidate-validation-${{ env.CANDIDATE_PR }}-${{ env.SOURCE_SHA }}
-          path: |
-            ${{ env.LOCALAPPDATA }}/DDDA/validation-reports/pr-${{ env.CANDIDATE_PR }}-${{ env.SOURCE_SHA }}/**
-            ${{ env.LOCALAPPDATA }}/DDDA/packages/ddda-candidate-pr-${{ env.CANDIDATE_PR }}-${{ env.SOURCE_SHA }}-*.zip
+          path: ${{ runner.temp }}/controlled-candidate-evidence/**
           if-no-files-found: error
           retention-days: 14
 
