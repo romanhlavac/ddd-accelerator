@@ -154,7 +154,6 @@ jobs:
           $stageRoot = Join-Path $env:RUNNER_TEMP 'controlled-candidate-evidence'
           $reportRoot = Join-Path $sourceRoot "validation-reports/pr-$env:CANDIDATE_PR-$env:SOURCE_SHA"
           $packageRoot = Join-Path $sourceRoot 'packages'
-
           if (-not (Test-Path -LiteralPath $reportRoot -PathType Container)) {
             throw "Exact validation report root was not produced: $reportRoot"
           }
@@ -365,7 +364,6 @@ jobs:
             physical-release-scope.json
           if-no-files-found: warn
           retention-days: 14
-
           ) {
             throw 'Exact validation report package record is invalid.'
           }
