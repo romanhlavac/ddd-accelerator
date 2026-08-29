@@ -114,13 +114,19 @@ def test_pre_promotion_candidate_validation_keeps_release_notes_for_promotion_on
     assert "Assert-DDDAPlatformChangelogRelease" in guards
 
 
-def test_technical_validation_stages_runner_local_evidence_before_upload() -> None:
+def test_technical_validation_stages_report_bound_exact_evidence_before_upload() -> None:
     workflow = WORKFLOW.read_text(encoding="utf-8")
 
     assert "Stage exact validation evidence" in workflow
     assert "$env:LOCALAPPDATA" in workflow
     assert "$env:RUNNER_TEMP" in workflow
-    assert "Expected exactly one exact candidate package" in workflow
+    assert "Expected exactly one exact validation report" in workflow
+    assert "Get-Content -LiteralPath $reports[0].FullName -Raw -Encoding utf8 | ConvertFrom-Json" in workflow
+    assert "[string]$report.source.commit -ne $env:SOURCE_SHA" in workflow
+    assert "[System.IO.Path]::GetFileName($reportedPackagePath)" in workflow
+    assert "Get-FileHash -LiteralPath $packagePath -Algorithm SHA256" in workflow
+    assert "Exact package hash does not match the canonical validation report." in workflow
+    assert "ddda-candidate-pr-$env:CANDIDATE_PR-$env:SOURCE_SHA-*.zip" not in workflow
     assert "${{ runner.temp }}/controlled-candidate-evidence/**" in workflow
     assert "${{ env.LOCALAPPDATA }}" not in workflow
     assert "if-no-files-found: error" in workflow
