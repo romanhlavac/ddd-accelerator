@@ -162,259 +162,20 @@ jobs:
             throw "Expected exactly one exact validation report for PR $env:CANDIDATE_PR / $env:SOURCE_SHA, found $($reports.Count)."
           }
           $report = Get-Content -LiteralPath $reports[0].FullName -Raw -Encoding utf8 | ConvertFrom-Json
-          if (
-            [string]$report.status -ne 'PASS' -or
-            [string]$report.source.repository -ne $env:REPOSITORY -or
-            [int]$report.source.pr -ne [int]$env:CANDIDATE_PR -or
-            [string]$report.source.commit -ne $env:SOURCE_SHA
-          ) {
+          if ([string]$report.status -ne 'PASS' -or [string]$report.source.repository -ne $env:REPOSITORY -or [int]$report.source.pr -ne [int]$env:CANDIDATE_PR -or [string]$report.source.commit -ne $env:SOURCE_SHA) {
             throw 'Exact validation report identity is invalid.'
           }
-          $reportedPackagePath = [string]$report.package.path
-          $expectedPackageHash = [string]$report.package.sha256
-          $packageName = [System.IO.Path]::GetFileName($reportedPackagePath)
-          $shortCandidateSha = $env:SOURCE_SHA.Substring(0, 12)
-          $expectedPackagePrefix = "ddda-candidate-pr-$env:CANDIDATE_PR-$shortCandidateSha-"
-          if (
-            [string]::IsNullOrWhiteSpace($packageName) -or
-            -not $packageName.StartsWith($expectedPackagePrefix, [System.StringComparison]::Ordinal) -or
-            -not $packageName.EndsWith('.zip', [System.StringComparison]::OrdinalIgnoreCase) -or
-            $expectedPackageHash -notmatch '^[0-9a-f]{64}
-
-      - name: Upload validation evidence
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: controlled-candidate-validation-${{ env.CANDIDATE_PR }}-${{ env.SOURCE_SHA }}
-          path: ${{ runner.temp }}/controlled-candidate-evidence/**
-          if-no-files-found: error
-          retention-days: 14
-
-  publish-hrdr-scaffold:
-    name: Publish pending HRDR scaffold
-    needs: select
-    if: inputs.operation == 'publish_hrdr_scaffold'
-    runs-on: windows-latest
-    env:
-      GH_TOKEN: ${{ github.token }}
-      REVIEWER: ${{ inputs.reviewer }}
-      DECISION_OWNER: ${{ inputs.decision_owner }}
-    steps:
-      - name: Require explicit owner inputs
-        shell: pwsh
-        run: |
-          if ([string]::IsNullOrWhiteSpace($env:REVIEWER) -or [string]::IsNullOrWhiteSpace($env:DECISION_OWNER)) {
-            throw 'reviewer and decision_owner are required for a pending HRDR scaffold.'
-          }
-
-      - name: Checkout exact controlled candidate
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ github.sha }}
-          path: control-plane
-
-      - name: Checkout exact controlled candidate
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ needs.select.outputs.source_sha }}
-          path: candidate
-
-      - name: Read live candidate identity
-        shell: pwsh
-        run: |
-          gh api "repos/$env:REPOSITORY/pulls/$env:CANDIDATE_PR" > candidate-pr.json
-
-      - name: Restore exact technical evidence
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $artifactName = "controlled-candidate-validation-$env:CANDIDATE_PR-$env:SOURCE_SHA"
-          $all = gh api --paginate "repos/$env:REPOSITORY/actions/artifacts?per_page=100" | ConvertFrom-Json
-          $matches = @($all.artifacts | Where-Object { $_.name -eq $artifactName -and -not $_.expired })
-          if ($matches.Count -ne 1) { throw "Expected exactly one unexpired exact validation artifact '$artifactName', found $($matches.Count)." }
-          gh api -H "Accept: application/vnd.github+json" "repos/$env:REPOSITORY/actions/artifacts/$($matches[0].id)/zip" > validation-evidence.zip
-          Expand-Archive -LiteralPath validation-evidence.zip -DestinationPath validation-evidence -Force
-          $reports = @(Get-ChildItem validation-evidence -Filter result.json -File -Recurse)
-          if ($reports.Count -ne 1) { throw "Exact validation artifact must contain exactly one canonical report." }
-          $report = Get-Content -LiteralPath $reports[0].FullName -Raw -Encoding utf8 | ConvertFrom-Json
-          if (
-            [string]$report.status -ne 'PASS' -or
-            [string]$report.source.repository -ne $env:REPOSITORY -or
-            [int]$report.source.pr -ne [int]$env:CANDIDATE_PR -or
-            [string]$report.source.commit -ne $env:SOURCE_SHA
-          ) { throw 'Exact validation artifact report identity is invalid.' }
           $packageName = [System.IO.Path]::GetFileName([string]$report.package.path)
           $expectedPackageHash = [string]$report.package.sha256
           $shortCandidateSha = $env:SOURCE_SHA.Substring(0, 12)
           $expectedPackagePrefix = "ddda-candidate-pr-$env:CANDIDATE_PR-$shortCandidateSha-"
-          if (
-            [string]::IsNullOrWhiteSpace($packageName) -or
-            -not $packageName.StartsWith($expectedPackagePrefix, [System.StringComparison]::Ordinal) -or
-            -not $packageName.EndsWith('.zip', [System.StringComparison]::OrdinalIgnoreCase) -or
-            $expectedPackageHash -notmatch '^[0-9a-f]{64}$'
-          ) { throw 'Exact validation artifact package record is invalid.' }
-          $packages = @(Get-ChildItem validation-evidence -Filter $packageName -File -Recurse)
-          if ($packages.Count -ne 1) { throw "Exact validation artifact must contain the one report-bound candidate package." }
-          $actualPackageHash = (Get-FileHash -LiteralPath $packages[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($actualPackageHash -ne $expectedPackageHash.ToLowerInvariant()) { throw 'Exact validation artifact package hash does not match its report.' }
-          "validation_report=$($reports[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          "candidate_package=$($packages[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
-      - name: Verify restored exact evidence
-        shell: pwsh
-        run: |
-          python .\control-plane\scripts\platform\Test-DDDAControlledReleaseCandidate.py `
-            --repository $env:REPOSITORY `
-            --pr ([int]$env:CANDIDATE_PR) `
-            --source-sha $env:SOURCE_SHA `
-            --version $env:VERSION `
-            --operation $env:OPERATION `
-            --pr-json candidate-pr.json `
-            --validation-report $env:validation_report `
-            --candidate-package $env:candidate_package `
-            --output restored-evidence.json
-
-      - name: Publish pending scaffold only
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          .\control-plane\ddda.ps1 review-pr `
-            -Pr ([int]$env:CANDIDATE_PR) `
-            -Version $env:VERSION `
-            -Reviewer $env:REVIEWER `
-            -DecisionOwner $env:DECISION_OWNER `
-            -ValidationReportPath $env:validation_report `
-            -CandidatePackagePath $env:candidate_package `
-            -PublishScaffold
-
-  release-scope-dry-run:
-    name: Physical Release Scope Gate dry-run
-    needs: select
-    if: inputs.operation == 'release_scope_dry_run'
-    runs-on: windows-latest
-    timeout-minutes: 60
-    env:
-      GH_TOKEN: ${{ github.token }}
-      DDDA_GITHUB_PROJECT_TOKEN: ${{ secrets.DDDA_GITHUB_PROJECT_TOKEN }}
-    steps:
-      - name: Require Project read credential
-        shell: pwsh
-        run: |
-          if ([string]::IsNullOrWhiteSpace($env:DDDA_GITHUB_PROJECT_TOKEN)) {
-            throw 'DDDA_GITHUB_PROJECT_TOKEN is required for the authoritative read-only Release Scope Gate.'
-          }
-
-      - name: Checkout exact controlled candidate
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ github.sha }}
-          path: control-plane
-
-      - name: Checkout exact controlled candidate
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ needs.select.outputs.source_sha }}
-          path: candidate
-
-      - name: Read live candidate identity
-        shell: pwsh
-        run: |
-          gh api "repos/$env:REPOSITORY/pulls/$env:CANDIDATE_PR" > candidate-pr.json
-
-      - name: Restore exact technical evidence
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $artifactName = "controlled-candidate-validation-$env:CANDIDATE_PR-$env:SOURCE_SHA"
-          $all = gh api --paginate "repos/$env:REPOSITORY/actions/artifacts?per_page=100" | ConvertFrom-Json
-          $matches = @($all.artifacts | Where-Object { $_.name -eq $artifactName -and -not $_.expired })
-          if ($matches.Count -ne 1) { throw "Expected exactly one unexpired exact validation artifact '$artifactName', found $($matches.Count)." }
-          gh api -H "Accept: application/vnd.github+json" "repos/$env:REPOSITORY/actions/artifacts/$($matches[0].id)/zip" > validation-evidence.zip
-          Expand-Archive -LiteralPath validation-evidence.zip -DestinationPath validation-evidence -Force
-          $reports = @(Get-ChildItem validation-evidence -Filter result.json -File -Recurse)
-          if ($reports.Count -ne 1) { throw "Exact validation artifact must contain exactly one canonical report." }
-          $report = Get-Content -LiteralPath $reports[0].FullName -Raw -Encoding utf8 | ConvertFrom-Json
-          if (
-            [string]$report.status -ne 'PASS' -or
-            [string]$report.source.repository -ne $env:REPOSITORY -or
-            [int]$report.source.pr -ne [int]$env:CANDIDATE_PR -or
-            [string]$report.source.commit -ne $env:SOURCE_SHA
-          ) { throw 'Exact validation artifact report identity is invalid.' }
-          $packageName = [System.IO.Path]::GetFileName([string]$report.package.path)
-          $expectedPackageHash = [string]$report.package.sha256
-          $shortCandidateSha = $env:SOURCE_SHA.Substring(0, 12)
-          $expectedPackagePrefix = "ddda-candidate-pr-$env:CANDIDATE_PR-$shortCandidateSha-"
-          if (
-            [string]::IsNullOrWhiteSpace($packageName) -or
-            -not $packageName.StartsWith($expectedPackagePrefix, [System.StringComparison]::Ordinal) -or
-            -not $packageName.EndsWith('.zip', [System.StringComparison]::OrdinalIgnoreCase) -or
-            $expectedPackageHash -notmatch '^[0-9a-f]{64}$'
-          ) { throw 'Exact validation artifact package record is invalid.' }
-          $packages = @(Get-ChildItem validation-evidence -Filter $packageName -File -Recurse)
-          if ($packages.Count -ne 1) { throw "Exact validation artifact must contain the one report-bound candidate package." }
-          $actualPackageHash = (Get-FileHash -LiteralPath $packages[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($actualPackageHash -ne $expectedPackageHash.ToLowerInvariant()) { throw 'Exact validation artifact package hash does not match its report.' }
-          "validation_report=$($reports[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          "candidate_package=$($packages[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
-      - name: Read exact Human Release Decision Record
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          gh api --paginate "repos/$env:REPOSITORY/issues/$env:CANDIDATE_PR/comments?per_page=100" > hrdr-comments.json
-          python .\control-plane\scripts\platform\Read-DDDAHrdr.py --comments-json hrdr-comments.json --output hrdr.json
-
-      - name: Run Physical Release Scope Gate only
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          python .\control-plane\scripts\platform\Test-DDDAControlledReleaseCandidate.py `
-            --repository $env:REPOSITORY `
-            --pr ([int]$env:CANDIDATE_PR) `
-            --source-sha $env:SOURCE_SHA `
-            --version $env:VERSION `
-            --operation $env:OPERATION `
-            --pr-json candidate-pr.json `
-            --validation-report $env:validation_report `
-            --candidate-package $env:candidate_package `
-            --output restored-evidence.json
-          $evidence = Get-Content restored-evidence.json -Raw -Encoding utf8 | ConvertFrom-Json
-          if ($evidence.status -ne 'PASS') { throw 'Restored exact candidate evidence did not pass.' }
-          python .\control-plane\scripts\platform\Test-DDDAReleaseScope.py `
-            --repository $env:REPOSITORY `
-            --pr ([int]$env:CANDIDATE_PR) `
-            --source-sha $env:SOURCE_SHA `
-            --candidate-sha256 $evidence.validation_evidence.candidate_package_sha256 `
-            --version $env:VERSION `
-            --hrdr hrdr.json `
-            --output physical-release-scope.json
-
-      - name: Upload scope-gate evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: controlled-candidate-scope-gate-${{ env.CANDIDATE_PR }}-${{ env.SOURCE_SHA }}
-          path: |
-            restored-evidence.json
-            hrdr.json
-            physical-release-scope.json
-          if-no-files-found: warn
-          retention-days: 14
-          ) {
+          if ([string]::IsNullOrWhiteSpace($packageName) -or -not $packageName.StartsWith($expectedPackagePrefix, [System.StringComparison]::Ordinal) -or -not $packageName.EndsWith('.zip', [System.StringComparison]::OrdinalIgnoreCase) -or $expectedPackageHash -notmatch '^[0-9a-f]{64}$') {
             throw 'Exact validation report package record is invalid.'
           }
           $packagePath = Join-Path $packageRoot $packageName
-          if (-not (Test-Path -LiteralPath $packagePath -PathType Leaf)) {
-            throw "Exact package recorded by validation report was not produced: $packageName"
-          }
+          if (-not (Test-Path -LiteralPath $packagePath -PathType Leaf)) { throw "Exact package recorded by validation report was not produced: $packageName" }
           $actualPackageHash = (Get-FileHash -LiteralPath $packagePath -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($actualPackageHash -ne $expectedPackageHash.ToLowerInvariant()) {
-            throw 'Exact package hash does not match the canonical validation report.'
-          }
+          if ($actualPackageHash -ne $expectedPackageHash.ToLowerInvariant()) { throw 'Exact package hash does not match the canonical validation report.' }
 
           Remove-Item -LiteralPath $stageRoot -Recurse -Force -ErrorAction SilentlyContinue
           New-Item -ItemType Directory -Path $stageRoot -Force | Out-Null
@@ -479,22 +240,12 @@ jobs:
           $reports = @(Get-ChildItem validation-evidence -Filter result.json -File -Recurse)
           if ($reports.Count -ne 1) { throw "Exact validation artifact must contain exactly one canonical report." }
           $report = Get-Content -LiteralPath $reports[0].FullName -Raw -Encoding utf8 | ConvertFrom-Json
-          if (
-            [string]$report.status -ne 'PASS' -or
-            [string]$report.source.repository -ne $env:REPOSITORY -or
-            [int]$report.source.pr -ne [int]$env:CANDIDATE_PR -or
-            [string]$report.source.commit -ne $env:SOURCE_SHA
-          ) { throw 'Exact validation artifact report identity is invalid.' }
+          if ([string]$report.status -ne 'PASS' -or [string]$report.source.repository -ne $env:REPOSITORY -or [int]$report.source.pr -ne [int]$env:CANDIDATE_PR -or [string]$report.source.commit -ne $env:SOURCE_SHA) { throw 'Exact validation artifact report identity is invalid.' }
           $packageName = [System.IO.Path]::GetFileName([string]$report.package.path)
           $expectedPackageHash = [string]$report.package.sha256
           $shortCandidateSha = $env:SOURCE_SHA.Substring(0, 12)
           $expectedPackagePrefix = "ddda-candidate-pr-$env:CANDIDATE_PR-$shortCandidateSha-"
-          if (
-            [string]::IsNullOrWhiteSpace($packageName) -or
-            -not $packageName.StartsWith($expectedPackagePrefix, [System.StringComparison]::Ordinal) -or
-            -not $packageName.EndsWith('.zip', [System.StringComparison]::OrdinalIgnoreCase) -or
-            $expectedPackageHash -notmatch '^[0-9a-f]{64}$'
-          ) { throw 'Exact validation artifact package record is invalid.' }
+          if ([string]::IsNullOrWhiteSpace($packageName) -or -not $packageName.StartsWith($expectedPackagePrefix, [System.StringComparison]::Ordinal) -or -not $packageName.EndsWith('.zip', [System.StringComparison]::OrdinalIgnoreCase) -or $expectedPackageHash -notmatch '^[0-9a-f]{64}$') { throw 'Exact validation artifact package record is invalid.' }
           $packages = @(Get-ChildItem validation-evidence -Filter $packageName -File -Recurse)
           if ($packages.Count -ne 1) { throw "Exact validation artifact must contain the one report-bound candidate package." }
           $actualPackageHash = (Get-FileHash -LiteralPath $packages[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -578,22 +329,12 @@ jobs:
           $reports = @(Get-ChildItem validation-evidence -Filter result.json -File -Recurse)
           if ($reports.Count -ne 1) { throw "Exact validation artifact must contain exactly one canonical report." }
           $report = Get-Content -LiteralPath $reports[0].FullName -Raw -Encoding utf8 | ConvertFrom-Json
-          if (
-            [string]$report.status -ne 'PASS' -or
-            [string]$report.source.repository -ne $env:REPOSITORY -or
-            [int]$report.source.pr -ne [int]$env:CANDIDATE_PR -or
-            [string]$report.source.commit -ne $env:SOURCE_SHA
-          ) { throw 'Exact validation artifact report identity is invalid.' }
+          if ([string]$report.status -ne 'PASS' -or [string]$report.source.repository -ne $env:REPOSITORY -or [int]$report.source.pr -ne [int]$env:CANDIDATE_PR -or [string]$report.source.commit -ne $env:SOURCE_SHA) { throw 'Exact validation artifact report identity is invalid.' }
           $packageName = [System.IO.Path]::GetFileName([string]$report.package.path)
           $expectedPackageHash = [string]$report.package.sha256
           $shortCandidateSha = $env:SOURCE_SHA.Substring(0, 12)
           $expectedPackagePrefix = "ddda-candidate-pr-$env:CANDIDATE_PR-$shortCandidateSha-"
-          if (
-            [string]::IsNullOrWhiteSpace($packageName) -or
-            -not $packageName.StartsWith($expectedPackagePrefix, [System.StringComparison]::Ordinal) -or
-            -not $packageName.EndsWith('.zip', [System.StringComparison]::OrdinalIgnoreCase) -or
-            $expectedPackageHash -notmatch '^[0-9a-f]{64}$'
-          ) { throw 'Exact validation artifact package record is invalid.' }
+          if ([string]::IsNullOrWhiteSpace($packageName) -or -not $packageName.StartsWith($expectedPackagePrefix, [System.StringComparison]::Ordinal) -or -not $packageName.EndsWith('.zip', [System.StringComparison]::OrdinalIgnoreCase) -or $expectedPackageHash -notmatch '^[0-9a-f]{64}$') { throw 'Exact validation artifact package record is invalid.' }
           $packages = @(Get-ChildItem validation-evidence -Filter $packageName -File -Recurse)
           if ($packages.Count -ne 1) { throw "Exact validation artifact must contain the one report-bound candidate package." }
           $actualPackageHash = (Get-FileHash -LiteralPath $packages[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant()
