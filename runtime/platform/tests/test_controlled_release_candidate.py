@@ -123,7 +123,7 @@ def test_technical_validation_stages_report_bound_exact_evidence_before_upload()
     assert "Expected exactly one exact validation report" in workflow
     assert "Get-Content -LiteralPath $reports[0].FullName -Raw -Encoding utf8 | ConvertFrom-Json" in workflow
     assert "[string]$report.source.commit -ne $env:SOURCE_SHA" in workflow
-    assert "[System.IO.Path]::GetFileName($reportedPackagePath)" in workflow
+    assert "[System.IO.Path]::GetFileName([string]$report.package.path)" in workflow
     assert "Get-FileHash -LiteralPath $packagePath -Algorithm SHA256" in workflow
     assert "Exact package hash does not match the canonical validation report." in workflow
     assert "ddda-candidate-pr-$env:CANDIDATE_PR-$env:SOURCE_SHA-*.zip" not in workflow
