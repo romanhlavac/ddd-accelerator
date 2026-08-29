@@ -56,3 +56,15 @@ This mode never authorizes promotion. The `promote-pr` path remains unchanged an
 fail-closed: before any tag or GitHub Release, the release must contain versioned release
 notes and pass the final promotion guards. A technical PASS is evidence of candidate
 integrity, not a release decision.
+
+
+## Evidence staging boundary
+
+Runner-local environment variables are not evaluated in an action input expression.
+After successful technical validation, the workflow therefore stages the exact report
+directory and the single exact candidate package from `$env:LOCALAPPDATA` into
+`$env:RUNNER_TEMP`. The upload action consumes only that staged directory.
+
+Staging fails closed if the report directory is missing or the exact package count is
+not one. This keeps artifact upload bound to the selected PR and SHA while avoiding a
+silent empty upload.
