@@ -68,3 +68,15 @@ directory and the single exact candidate package from `$env:LOCALAPPDATA` into
 Staging fails closed if the report directory is missing or the exact package count is
 not one. This keeps artifact upload bound to the selected PR and SHA while avoiding a
 silent empty upload.
+
+## Report-bound package staging
+
+The candidate package filename intentionally contains a short SHA for readability; the
+full candidate identity is held by the validation report. Evidence staging therefore
+requires exactly one PASS result.json, verifies its repository, PR and full commit
+SHA, then resolves only the reported package basename beneath the runner-local package
+store. It recomputes the package SHA-256 and requires it to match the report before
+upload.
+
+A missing report, invalid identity, unsafe package record, absent package or hash
+mismatch fails closed. The filename alone is never treated as exact candidate evidence.
