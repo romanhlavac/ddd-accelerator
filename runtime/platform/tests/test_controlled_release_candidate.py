@@ -163,3 +163,13 @@ def test_hrdr_milestone_discovery_materializes_paginated_api_arrays_without_nest
     assert scope_reader.count("$batch = @($response)") == 2
     assert "@(Invoke-DDDAGitHubApi -Method GET -Path \"repos/$RepositorySlug/milestones" not in scope_reader
     assert "@(Invoke-DDDAGitHubApi -Method GET -Path \"repos/$RepositorySlug/issues" not in scope_reader
+
+
+def test_hrdr_scaffold_has_only_the_pr_comment_write_capability_it_needs() -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+
+    assert "issues: write" in workflow
+    assert "pull-requests: write" in workflow
+    assert "pull-requests: read" not in workflow
+    assert "pull-requests: write\n  contents: write" not in workflow
+    assert "contents: write" not in workflow
