@@ -33,10 +33,12 @@ from release_governance import evaluate_merge_release_eligibility  # noqa: E402
 API_ROOT = "https://api.github.com"
 MILESTONE_RE = re.compile(r"^DDDA (?P<version>(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*))$")
 POLICY_ACTIVE_MILESTONE_RE = re.compile(
-    r"(?m)^[ \t]*-[ \t]+name:[ \t]*DDDA[ \t]+"
+    r"(?ms)^[ \t]*-[ \t]+name:[ \t]*DDDA[ \t]+"
     r"(?P<version>(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*))[ \t]*\r?$"
-    r"\n^[ \t]+state:[ \t]*open[ \t]*\r?$"
+    r"(?:(?!^[ \t]*-[ \t]+name:).)*?^[ \t]+state:[ \t]*open[ \t]*\r?$"
+    r"(?:(?!^[ \t]*-[ \t]+name:).)*?^[ \t]+pre_release_prerequisites:[ \t]*\[[^\]]+\][ \t]*\r?$"
 )
+
 PRIMARY_RE = re.compile(r"(?im)^\s*(?:[-*]\s*)?(?:Implements|Closes)\s+#(\d+)\s*$")
 TARGET_RE = re.compile(
     r"(?im)^\s*(?:[-*]\s*)?(?:\*\*)?Target\s+Release(?:\*\*)?\s*:\s*`?([^`\r\n]+)"
