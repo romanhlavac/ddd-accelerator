@@ -235,3 +235,35 @@ def test_governance_repair_transition_requires_exact_base_marker_and_paths(monke
     )
 
     assert result["status"] == "PASS"
+
+
+def test_active_release_uses_versioned_policy_for_one_open_active_train() -> None:
+    backlog_policy = """
+milestones:
+  initial:
+    - name: DDDA 0.1.1
+      state: open
+      issues: [9, 12]
+"""
+    milestones = [
+        {"title": "DDDA 0.1.1", "state": "open"},
+        {"title": "DDDA 0.1.2", "state": "open"},
+        {"title": "DDDA 0.2.0", "state": "open"},
+    ]
+
+    assert COLLECTOR.active_release(milestones, backlog_policy) == {"version": "0.1.1"}
+
+
+def test_active_release_fails_closed_when_versioned_active_train_is_not_live() -> None:
+    backlog_policy = """
+milestones:
+  initial:
+    - name: DDDA 0.1.1
+      state: open
+"""
+    try:
+        COLLECTOR.active_release([{"title": "DDDA 0.1.2", "state": "open"}], backlog_policy)
+    except COLLECTOR.GitHubReadError as exc:
+        assert "exactly one live active" in str(exc)
+    else:
+        raise AssertionError("expected missing live active train to fail closed")
