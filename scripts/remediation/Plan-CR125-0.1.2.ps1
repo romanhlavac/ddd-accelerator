@@ -15,6 +15,7 @@ $root = (Resolve-Path -LiteralPath $RepositoryRoot).Path
 Set-Location -LiteralPath $root
 
 $baseSha = 'ab6abb02cf76338796efbb12c32d16ccaf23e47b'
+$stagingParent = '5dd36b68ba165104909f09216eb2fb01feb8f861'
 $scriptRel = 'scripts/remediation/Plan-CR125-0.1.2.ps1'
 $targetPaths = @(
     'config/governance/backlog-policy.yaml',
@@ -22,12 +23,11 @@ $targetPaths = @(
     'docs/roadmap/backlog-index.md',
     'runtime/platform/tests/test_project_backlog_delivery_governance.py'
 )
-$allowedPaths = @($targetPaths + $scriptRel)
 
 $head = (& git rev-parse HEAD).Trim()
 $parent = (& git rev-parse HEAD^).Trim()
-if ($parent -ne $baseSha) {
-    throw "Staging commit parent '$parent' does not match authorized base '$baseSha'."
+if ($parent -ne $stagingParent) {
+    throw "Corrective transport parent '$parent' does not match expected staging SHA '$stagingParent'."
 }
 if (-not [string]::IsNullOrWhiteSpace(((& git status --porcelain) -join "`n"))) {
     throw 'Working tree must be clean before remediation.'
@@ -35,7 +35,7 @@ if (-not [string]::IsNullOrWhiteSpace(((& git status --porcelain) -join "`n"))) 
 
 $stagingDelta = @(& git diff --name-only "$baseSha..$head")
 if ($stagingDelta.Count -ne 1 -or $stagingDelta[0] -ne $scriptRel) {
-    throw "Expected staging delta to contain only '$scriptRel'; observed: $($stagingDelta -join ', ')."
+    throw "Expected net transport delta to contain only '$scriptRel'; observed: $($stagingDelta -join ', ')."
 }
 
 $beforeHashes = [ordered]@{}
@@ -61,11 +61,13 @@ function Replace-Unique {
     if ($count -ne 1) {
         throw "Expected exactly one match in '$Path', found $count."
     }
-    $updated = $text.Replace($Old, $New)
-    [System.IO.File]::WriteAllText($full, $updated, [System.Text.UTF8Encoding]::new($false))
+    [System.IO.File]::WriteAllText(
+        $full,
+        $text.Replace($Old, $New),
+        [System.Text.UTF8Encoding]::new($false)
+    )
 }
 
-# backlog-policy.yaml: Other ownership and DDDA 0.1.2 release scope.
 Replace-Unique -Path $targetPaths[0] `
     -Old '    unparented_items: [16, 42, 44, 45, 49, 65, 66, 67, 68, 69, 70, 73, 75, 85, 88, 94, 96, 98, 113]' `
     -New '    unparented_items: [16, 42, 44, 45, 49, 65, 66, 67, 68, 69, 70, 73, 75, 85, 88, 94, 96, 98, 113, 125]'
@@ -73,7 +75,6 @@ Replace-Unique -Path $targetPaths[0] `
     -Old '      issues: [16, 65, 69, 73, 85, 94, 113]' `
     -New '      issues: [16, 65, 69, 73, 85, 94, 113, 125]'
 
-# github-bootstrap.json: planning metadata plus milestone membership.
 Replace-Unique -Path $targetPaths[1] `
     -Old '      "issues": [16, 65, 69, 73, 85, 94, 113],' `
     -New '      "issues": [16, 65, 69, 73, 85, 94, 113, 125],'
@@ -119,7 +120,6 @@ $replacement = @(
 ) -join $nl
 Replace-Unique -Path $targetPaths[1] -Old $anchor -New $replacement
 
-# Roadmap projection.
 Replace-Unique -Path $targetPaths[2] `
     -Old '| DDDA 0.1.2 | Governance consolidation: #16, #65, #69, #73, #85, #94, #113. |' `
     -New '| DDDA 0.1.2 | Governance consolidation: #16, #65, #69, #73, #85, #94, #113, #125. |'
@@ -130,7 +130,6 @@ $roadmapAnchor = '- #113 — entry-point operating-model documentation (`Other`,
 $roadmapReplacement = $roadmapAnchor + $roadmapNl + '- #125 — historical DDDA 0.1.0 GitHub Release publication backfill (`Other`, primary `RELEASE`), P1 and planned for DDDA 0.1.2.'
 Replace-Unique -Path $targetPaths[2] -Old $roadmapAnchor -New $roadmapReplacement
 
-# Regression contract.
 Replace-Unique -Path $targetPaths[3] `
     -Old '        "DDDA 0.1.2": [16, 65, 69, 73, 85, 94, 113],' `
     -New '        "DDDA 0.1.2": [16, 65, 69, 73, 85, 94, 113, 125],'
@@ -167,13 +166,11 @@ $testReplacement = @(
 ) -join $testNl
 Replace-Unique -Path $targetPaths[3] -Old $testAnchor -New $testReplacement
 
-# Fail closed if the active 0.1.1 scope changed.
 $policyText = [System.IO.File]::ReadAllText((Join-Path $root $targetPaths[0]))
 if (-not $policyText.Contains('      issues: [9, 12, 67, 68, 70, 96, 98]')) {
     throw 'DDDA 0.1.1 versioned scope changed unexpectedly.'
 }
 
-# The remediation transport is self-removing so the final PR diff contains only canonical planning paths.
 & git rm -- $scriptRel | Out-Null
 if ($LASTEXITCODE -ne 0) { throw 'Failed to remove remediation transport.' }
 
@@ -187,6 +184,8 @@ if (($actualChanges -join "`n") -ne ($expectedChanges -join "`n")) {
 if ($LASTEXITCODE -ne 0) { throw 'git diff --check failed.' }
 & python -m json.tool config/governance/github-bootstrap.json *> $null
 if ($LASTEXITCODE -ne 0) { throw 'github-bootstrap.json is not valid JSON.' }
+& python -m pip install --disable-pip-version-check 'pytest>=8,<9'
+if ($LASTEXITCODE -ne 0) { throw 'Failed to install governance test dependency pytest.' }
 & python -m pytest -q runtime/platform/tests/test_project_backlog_delivery_governance.py
 if ($LASTEXITCODE -ne 0) { throw 'Planning-governance regression test failed.' }
 
@@ -219,7 +218,7 @@ New-Item -ItemType Directory -Path $reportRoot -Force | Out-Null
     change = 'CR125 planning projection'
     repository = 'romanhlavac/ddd-accelerator'
     base_sha = $baseSha
-    staging_sha = $head
+    corrective_transport_sha = $head
     validated_sha = $newHead
     target_release = '0.1.2'
     milestone = 'DDDA 0.1.2'
