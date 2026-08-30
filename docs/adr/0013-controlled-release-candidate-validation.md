@@ -80,3 +80,13 @@ upload.
 
 A missing report, invalid identity, unsafe package record, absent package or hash
 mismatch fails closed. The filename alone is never treated as exact candidate evidence.
+
+
+## Artifact pagination boundary
+
+Artifact discovery is repository-wide and may exceed one API page. The workflow
+therefore collects GitHub Actions artifact pages with a JSON-safe paged response,
+flattens only their artifacts arrays and then requires exactly one unexpired
+artifact with the exact candidate identity. A pagination, response-shape or
+identity ambiguity remains fail-closed; it cannot select an arbitrary first
+artifact or silently narrow the evidence set.
