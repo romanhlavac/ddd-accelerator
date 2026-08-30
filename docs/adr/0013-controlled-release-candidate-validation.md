@@ -117,3 +117,17 @@ its items for both pagination loops: milestones and milestone issues. It still
 requires exactly one `DDDA <version>` milestone and preserves all fail-closed
 checks; the change does not create, edit or close a milestone, issue, Project
 item, release, tag or promotion.
+
+
+## HRDR PR-comment permission boundary
+
+A pending HRDR is an auditable comment on the controlled candidate PR, not a
+review approval or a release action. The scaffold operation consequently needs
+write access to that PR conversation in addition to the existing issue-comment
+capability. Its workflow permission is explicitly `pull-requests: write`.
+
+This narrow permission allows the one pending HRDR record to be published after
+all identity and evidence checks. It does not grant repository-content write
+access and does not create, approve, merge or close a pull request; candidate
+reconstruction, release, tag, promotion, milestone and Project changes remain
+outside this operation.

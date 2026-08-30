@@ -40,7 +40,7 @@ permissions:
   checks: read
   contents: read
   issues: write
-  pull-requests: read
+  pull-requests: write
 
 concurrency:
   group: controlled-release-candidate-${{ inputs.candidate_pr }}-${{ inputs.source_sha }}-${{ inputs.operation }}
