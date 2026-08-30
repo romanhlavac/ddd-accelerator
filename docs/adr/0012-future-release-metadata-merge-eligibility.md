@@ -77,3 +77,7 @@ through this allowance.
 - unit tests cover active-train allowance, future-plan proof, incomplete proof
   rejection and the exact-base transition;
 - standard exact-SHA CI and package-first validation remain mandatory.
+
+## Active-train marker regression
+
+An open future milestone is planning data, not an active release train. The guard selects exactly one open train carrying the explicit `pre_release_prerequisites` marker. Missing or duplicate markers fail closed; future open milestones cannot block an implementation merge for the active train. The former single-open-train policy remains supported only when no `release_train` section exists; it is never used as a fallback for an ambiguous current release train.
