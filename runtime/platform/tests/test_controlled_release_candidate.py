@@ -150,3 +150,16 @@ def test_hrdr_scaffold_forwards_report_bound_package_through_public_review_entry
     assert 'if (-not [string]::IsNullOrWhiteSpace($CandidatePackagePath)) { $arguments += @("-CandidatePackagePath", $CandidatePackagePath) }' in cli
     assert "[string]$CandidatePackagePath" in review_command
     assert "-PackagePath $CandidatePackagePath" in review_command
+
+
+def test_hrdr_milestone_discovery_materializes_paginated_api_arrays_without_nesting() -> None:
+    support = (ROOT / "scripts/platform/DDDAReleaseGovernanceSupport.ps1").read_text(encoding="utf-8-sig")
+    start = support.index("function Get-DDDAReleaseMilestoneScope")
+    end = support.index("function Get-DDDAHrdrComments")
+    scope_reader = support[start:end]
+
+    assert '$response = Invoke-DDDAGitHubApi -Method GET -Path "repos/$RepositorySlug/milestones?state=all&per_page=100&page=$page" -Token $Token' in scope_reader
+    assert '$response = Invoke-DDDAGitHubApi -Method GET -Path "repos/$RepositorySlug/issues?state=all&milestone=$([int]$milestone.number)&per_page=100&page=$page" -Token $Token' in scope_reader
+    assert scope_reader.count("$batch = @($response)") == 2
+    assert "@(Invoke-DDDAGitHubApi -Method GET -Path \"repos/$RepositorySlug/milestones" not in scope_reader
+    assert "@(Invoke-DDDAGitHubApi -Method GET -Path \"repos/$RepositorySlug/issues" not in scope_reader
