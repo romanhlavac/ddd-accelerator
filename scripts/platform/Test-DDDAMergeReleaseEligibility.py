@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """Read-only releasable-main guard for governed implementation merges.
 
-The active train is the single open ``DDDA X.Y.Z`` Milestone.  While it
-exists, a PR may merge to main only when its one primary Change Request is in
-that Milestone.  The script never changes a Milestone, Project field or PR.
+The active train is the one release version declared open in versioned
+backlog policy and evidenced by its live ``DDDA X.Y.Z`` Milestone. Other
+open DDDA Milestones may be planned future trains and cannot become active
+merely by being open. While the active train exists, a PR may merge to main
+only when its one primary Change Request is in that Milestone. The script
+never changes a Milestone, Project field or PR.
 """
 
 from __future__ import annotations
@@ -29,6 +32,11 @@ from release_governance import evaluate_merge_release_eligibility  # noqa: E402
 
 API_ROOT = "https://api.github.com"
 MILESTONE_RE = re.compile(r"^DDDA (?P<version>(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*))$")
+POLICY_ACTIVE_MILESTONE_RE = re.compile(
+    r"(?m)^[ \t]*-[ \t]+name:[ \t]*DDDA[ \t]+"
+    r"(?P<version>(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*))[ \t]*\r?$"
+    r"\n^[ \t]+state:[ \t]*open[ \t]*\r?$"
+)
 PRIMARY_RE = re.compile(r"(?im)^\s*(?:[-*]\s*)?(?:Implements|Closes)\s+#(\d+)\s*$")
 TARGET_RE = re.compile(
     r"(?im)^\s*(?:[-*]\s*)?(?:\*\*)?Target\s+Release(?:\*\*)?\s*:\s*`?([^`\r\n]+)"
@@ -129,18 +137,48 @@ def pages(path: str, token: str) -> list[Any]:
     raise GitHubReadError(f"Pagination limit exceeded for {path}")
 
 
-def active_release(milestones: list[dict[str, Any]]) -> dict[str, str] | None:
-    matches = []
-    for milestone in milestones:
-        match = MILESTONE_RE.fullmatch(str(milestone.get("title") or ""))
-        if match and milestone.get("state") == "open":
-            matches.append(match.group("version"))
+def configured_active_release(backlog_policy: str) -> str | None:
+    matches = POLICY_ACTIVE_MILESTONE_RE.findall(backlog_policy or "")
     if not matches:
         return None
     if len(matches) != 1:
-        raise GitHubReadError(f"Expected at most one active DDDA release train, found {sorted(matches)}")
-    return {"version": matches[0]}
+        raise GitHubReadError(
+            f"Expected exactly one versioned active DDDA release train, found {sorted(matches)}"
+        )
+    return matches[0]
 
+
+def active_release(
+    milestones: list[dict[str, Any]], backlog_policy: str | None = None
+) -> dict[str, str] | None:
+    if backlog_policy is None:
+        matches = [
+            match.group("version")
+            for milestone in milestones
+            if milestone.get("state") == "open"
+            if (match := MILESTONE_RE.fullmatch(str(milestone.get("title") or "")))
+        ]
+        if not matches:
+            return None
+        if len(matches) != 1:
+            raise GitHubReadError(f"Expected at most one active DDDA release train, found {sorted(matches)}")
+        return {"version": matches[0]}
+
+    configured = configured_active_release(backlog_policy)
+    if configured is None:
+        return None
+    matches = [
+        milestone
+        for milestone in milestones
+        if MILESTONE_RE.fullmatch(str(milestone.get("title") or ""))
+        and str(milestone.get("title") or "") == f"DDDA {configured}"
+        and milestone.get("state") == "open"
+    ]
+    if len(matches) != 1:
+        raise GitHubReadError(
+            f"Expected exactly one live active DDDA release train for {configured}, found {len(matches)}"
+        )
+    return {"version": configured}
 
 def primary_changes(body: str) -> list[int]:
     return sorted({int(x) for x in PRIMARY_RE.findall(body or "")})
@@ -411,10 +449,14 @@ def collect(repository: str, pr_number: int, expected_sha: str, token: str) -> d
     issue: dict[str, Any] = {}
     if len(primary) == 1:
         issue = request_json(f"repos/{repository}/issues/{primary[0]}", token) or {}
-    active = active_release(pages(f"repos/{repository}/milestones?state=all", token))
+    base_sha = str(((pr.get("base") or {}).get("sha")) or "")
+    if not base_sha:
+        raise GitHubReadError("PR base SHA is required for active release discovery")
+    backlog_policy = content_text(repository, "config/governance/backlog-policy.yaml", base_sha, token)
+    milestones = pages(f"repos/{repository}/milestones?state=all", token)
+    active = active_release(milestones, backlog_policy)
     active_issue_numbers: set[int] = set()
     if active is not None:
-        milestones = pages(f"repos/{repository}/milestones?state=all", token)
         matches = [row for row in milestones if row.get("title") == f"DDDA {active['version']}" and row.get("state") == "open"]
         if len(matches) != 1:
             raise GitHubReadError("Active release milestone evidence is ambiguous")

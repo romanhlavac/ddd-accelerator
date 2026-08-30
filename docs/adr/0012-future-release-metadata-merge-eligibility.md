@@ -12,11 +12,22 @@ active release. It also blocked PRs which only define the versioned plan and
 Project projection for later releases: those PRs have a future CR but ship no
 runtime or active-release content.
 
+Open GitHub Milestones alone cannot identify the active train: planned future
+versions may legitimately be open for roadmap visibility. The collector must
+therefore distinguish the sole versioned active train from those future plans
+without rewriting their live milestone state.
+
 ## Decision
 
-The read-only merge eligibility collector may permit a future-release planning
-PR only when it proves all of the following from live GitHub data and the exact
-base/head Git trees:
+The read-only merge eligibility collector derives the active train from the
+exact PR-base `backlog-policy.yaml`: exactly one `DDDA X.Y.Z` entry must be
+declared `open`, and exactly one live open Milestone with that same title must
+exist. Any other open DDDA Milestone remains a planned future train; it cannot
+change merge eligibility merely through its live state. Missing, duplicate or
+non-live active evidence fails closed.
+
+The collector may permit a future-release planning PR only when it proves all
+of the following from live GitHub data and the exact base/head Git trees:
 
 - its changed-path set is exactly the four versioned planning paths;
 - every changed file is a modification, not an add, rename or delete;
@@ -56,6 +67,7 @@ through this allowance.
 
 - a runtime, release or active-scope change remains blocked outside the active
   train;
+- an open future Milestone cannot silently become the active train;
 - missing, ambiguous or stale GitHub/file evidence fails closed; and
 - future milestones remain versioned Git authority and are projected only by
   the canonical reconciler after their PR is governed-merged.
