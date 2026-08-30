@@ -165,7 +165,7 @@ native_sub_issue_mapping:
     parent_issue: 61
     children: [36, 37, 38, 39, 40, 41]
   Other:
-    unparented_items: [16, 42, 44, 45, 49, 65, 66, 67, 68, 69, 70, 73, 75, 85, 88, 94, 96, 98]
+    unparented_items: [16, 42, 44, 45, 49, 65, 66, 67, 68, 69, 70, 73, 75, 85, 88, 94, 96, 98, 113]
 
 dependency_edges:
   WP-08:
@@ -338,7 +338,7 @@ milestones:
       pre_release_prerequisites: [44]
     - name: DDDA 0.1.2
       state: open
-      issues: [16, 65, 69, 73, 85, 94]
+      issues: [16, 65, 69, 73, 85, 94, 113]
       pulls: []
       outcome: governance consolidation after the first controlled release
     - name: DDDA 0.2.0

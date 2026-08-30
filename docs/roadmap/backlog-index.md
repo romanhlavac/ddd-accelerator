@@ -16,7 +16,7 @@ Milestone membership is a deliberate release-scope decision, not release approva
 | Release | Scope |
 | --- | --- |
 | DDDA 0.1.1 | Stabilization/release safety only: #9, #12, #67, #68, #70, #96, #98. Do not add scope. |
-| DDDA 0.1.2 | Governance consolidation: #16, #65, #69, #73, #85, #94. |
+| DDDA 0.1.2 | Governance consolidation: #16, #65, #69, #73, #85, #94, #113. |
 | DDDA 0.2.0 | EventStorming MVP: #34, #35, #48, #52, #66. |
 | DDDA 0.3.0 | Enterprise ingestion and EventStorming evidence integration: #27–#33, #47, #62, #46. |
 | DDDA 0.3.1 | Miro platform lifecycle: #53–#57. |
@@ -79,7 +79,8 @@ Children: #36, #37, #38, #39, #40, #41.
 
 - #16 — GitHub-native backlog governance;
 - #45 — GitHub Pages Artifact Registry dashboard (`Other`);
-- #49 — role-based documentation IA (`Other`), blocked by #16, #46, #48 and #53.
+- #49 — role-based documentation IA (`Other`), blocked by #16, #46, #48 and #53;
+- #113 — entry-point operating-model documentation (`Other`, primary `DOC`, secondary `METHODOLOGY`), planned for DDDA 0.1.2.
 
 ## Boundary invariant
 
