@@ -1,1 +1,0 @@
-Repository root/documentation index links are intentionally deferred until this branch is rebased after PR #8, because PR #8 modifies the same central files and is under active Human Review.
