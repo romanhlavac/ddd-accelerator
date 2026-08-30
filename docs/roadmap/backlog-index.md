@@ -9,6 +9,24 @@ Parent/sub-issue represents capability ownership. Native `blocked by` represents
 3. **WP-12 / #60 — P2**: Miro platform environments & lifecycle; may overlap WP-11 after stable PR8 Miro baseline.
 4. **WP-13 / #61 — P3**: multi-agent orchestration & evidence synthesis.
 
+## Approved release train
+
+Milestone membership is a deliberate release-scope decision, not release approval. No target date is implied.
+
+| Release | Scope |
+| --- | --- |
+| DDDA 0.1.1 | Stabilization/release safety only: #9, #12, #67, #68, #70, #96, #98. Do not add scope. |
+| DDDA 0.1.2 | Governance consolidation: #16, #65, #69, #73, #85, #94, #113. |
+| DDDA 0.2.0 | EventStorming MVP: #34, #35, #48, #52, #66. |
+| DDDA 0.3.0 | Enterprise ingestion and EventStorming evidence integration: #27–#33, #47, #62, #46. |
+| DDDA 0.3.1 | Miro platform lifecycle: #53–#57. |
+| DDDA 0.4.0 | Strategy and portfolio: #21–#25, #50, #26, #51. |
+| DDDA 0.5.0 | Multi-agent orchestration: #36–#41. |
+
+The plan corrects one dependency conflict in the earlier draft: #62 cannot be in 0.2.0 because it is directly blocked by #47, which needs the ingestion core and security work in 0.3.0. Therefore #62 and the resulting first-user explanation #46 are both in 0.3.0.
+
+Remain intentionally outside any milestone: #44 (0.1.1 pre-release prerequisite, not release scope), #45 and #49 (separate cross-cutting decisions), and #88 (scope decision pending).
+
 ## WP-08 — #17
 
 Children: #9–#15 only. PR #8 remains the implementation under closure. No new feature scope.
@@ -61,7 +79,8 @@ Children: #36, #37, #38, #39, #40, #41.
 
 - #16 — GitHub-native backlog governance;
 - #45 — GitHub Pages Artifact Registry dashboard (`Other`);
-- #49 — role-based documentation IA (`Other`), blocked by #16, #46, #48 and #53.
+- #49 — role-based documentation IA (`Other`), blocked by #16, #46, #48 and #53;
+- #113 — entry-point operating-model documentation (`Other`, primary `DOC`, secondary `METHODOLOGY`), planned for DDDA 0.1.2.
 
 ## Boundary invariant
 
