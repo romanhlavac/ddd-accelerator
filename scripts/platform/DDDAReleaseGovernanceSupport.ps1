@@ -93,7 +93,8 @@ function Get-DDDAReleaseMilestoneScope {
     $wantedTitle = "DDDA $Version"
     $milestones = [System.Collections.Generic.List[object]]::new()
     for ($page = 1; ; $page++) {
-        $batch = @(Invoke-DDDAGitHubApi -Method GET -Path "repos/$RepositorySlug/milestones?state=all&per_page=100&page=$page" -Token $Token)
+        $response = Invoke-DDDAGitHubApi -Method GET -Path "repos/$RepositorySlug/milestones?state=all&per_page=100&page=$page" -Token $Token
+        $batch = @($response)
         foreach ($row in $batch) { $milestones.Add($row) }
         if ($batch.Count -lt 100) { break }
     }
@@ -105,7 +106,8 @@ function Get-DDDAReleaseMilestoneScope {
 
     $issues = [System.Collections.Generic.List[int]]::new()
     for ($page = 1; ; $page++) {
-        $batch = @(Invoke-DDDAGitHubApi -Method GET -Path "repos/$RepositorySlug/issues?state=all&milestone=$([int]$milestone.number)&per_page=100&page=$page" -Token $Token)
+        $response = Invoke-DDDAGitHubApi -Method GET -Path "repos/$RepositorySlug/issues?state=all&milestone=$([int]$milestone.number)&per_page=100&page=$page" -Token $Token
+        $batch = @($response)
         foreach ($row in $batch) {
             if ($null -eq $row.PSObject.Properties["pull_request"]) {
                 $issues.Add([int]$row.number)
