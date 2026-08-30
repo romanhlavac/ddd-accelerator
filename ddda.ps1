@@ -10,6 +10,7 @@ param(
     [int]$Pr,
     [string]$Version,
     [string]$PackagePath,
+    [string]$CandidatePackagePath,
     [string]$PackageArtifactName,
     [string]$PackageWorkflowRunId,
     [string]$ValidationReportPath,
@@ -127,6 +128,8 @@ switch ($Command) {
         $arguments = @("-PlatformPath", $platformRoot, "-Pr", [string]$Pr, "-Version", $Version)
         if (-not [string]::IsNullOrWhiteSpace($Reviewer)) { $arguments += @("-Reviewer", $Reviewer) }
         if (-not [string]::IsNullOrWhiteSpace($DecisionOwner)) { $arguments += @("-DecisionOwner", $DecisionOwner) }
+        if (-not [string]::IsNullOrWhiteSpace($ValidationReportPath)) { $arguments += @("-ValidationReportPath", $ValidationReportPath) }
+        if (-not [string]::IsNullOrWhiteSpace($CandidatePackagePath)) { $arguments += @("-CandidatePackagePath", $CandidatePackagePath) }
         if ($PublishScaffold) { $arguments += "-PublishScaffold" }
         Invoke-DDDACommandScript -RelativePath "scripts/platform/Invoke-DDDAReviewPr.ps1" -Arguments $arguments
     }
