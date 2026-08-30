@@ -149,8 +149,21 @@ def configured_active_release(backlog_policy: str) -> str | None:
 
 
 def active_release(
-    milestones: list[dict[str, Any]], backlog_policy: str
+    milestones: list[dict[str, Any]], backlog_policy: str | None = None
 ) -> dict[str, str] | None:
+    if backlog_policy is None:
+        matches = [
+            match.group("version")
+            for milestone in milestones
+            if milestone.get("state") == "open"
+            if (match := MILESTONE_RE.fullmatch(str(milestone.get("title") or "")))
+        ]
+        if not matches:
+            return None
+        if len(matches) != 1:
+            raise GitHubReadError(f"Expected at most one active DDDA release train, found {sorted(matches)}")
+        return {"version": matches[0]}
+
     configured = configured_active_release(backlog_policy)
     if configured is None:
         return None
