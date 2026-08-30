@@ -663,7 +663,7 @@
         "Status": "Backlog",
         "Work Package": "WP-09",
         "Item Type": "Change Request",
-        "Target Release": "TBD",
+        "Target Release": "0.4.0",
         "Blocked": "No",
         "Human Review": "Not required"
       }
@@ -682,7 +682,7 @@
         "Status": "Backlog",
         "Work Package": "WP-09",
         "Item Type": "Change Request",
-        "Target Release": "TBD",
+        "Target Release": "0.4.0",
         "Blocked": "Yes",
         "Human Review": "Not required"
       }
@@ -696,7 +696,7 @@
         "Status": "Backlog",
         "Work Package": "WP-10",
         "Item Type": "Change Request",
-        "Target Release": "TBD",
+        "Target Release": "0.3.0",
         "Blocked": "No",
         "Human Review": "Not required"
       }
@@ -710,7 +710,7 @@
         "Status": "Backlog",
         "Work Package": "WP-10",
         "Item Type": "Change Request",
-        "Target Release": "TBD",
+        "Target Release": "0.3.0",
         "Blocked": "Yes",
         "Human Review": "Not required"
       }
@@ -728,7 +728,7 @@
         "Status": "Backlog",
         "Work Package": "WP-10",
         "Item Type": "Change Request",
-        "Target Release": "TBD",
+        "Target Release": "0.3.0",
         "Blocked": "Yes",
         "Human Review": "Not required"
       }
@@ -744,7 +744,7 @@
         "Status": "Backlog",
         "Work Package": "WP-11",
         "Item Type": "Change Request",
-        "Target Release": "TBD",
+        "Target Release": "0.2.0",
         "Blocked": "No",
         "Human Review": "Not required"
       }
@@ -752,15 +752,13 @@
     {
       "kind": "issue",
       "numbers": [
-        35,
-        47,
-        46
+        35
       ],
       "metadata": {
         "Status": "Backlog",
         "Work Package": "WP-11",
         "Item Type": "Change Request",
-        "Target Release": "TBD",
+        "Target Release": "0.2.0",
         "Blocked": "Yes",
         "Human Review": "Not required"
       }
@@ -787,7 +785,7 @@
         "Status": "In progress",
         "Work Package": "Other",
         "Item Type": "Change Request",
-        "Target Release": "TBD",
+        "Target Release": "0.1.2",
         "Blocked": "No",
         "Human Review": "Pending"
       }
@@ -904,7 +902,7 @@
         "Status": "In progress",
         "Work Package": "WP-12",
         "Item Type": "Change Request",
-        "Target Release": "TBD",
+        "Target Release": "0.3.1",
         "Blocked": "Yes",
         "Human Review": "Not required",
         "Outcome summary": "Persistent DDDA Platform Lab with explicit board taxonomy, reference/adoption lifecycle, managed namespaces and governed cleanup."
@@ -919,7 +917,7 @@
         "Status": "Backlog",
         "Work Package": "WP-12",
         "Item Type": "Change Request",
-        "Target Release": "TBD",
+        "Target Release": "0.3.1",
         "Blocked": "Yes",
         "Human Review": "Not required",
         "Outcome summary": "Persistent DDDA Example Project board lifecycle generated from exact candidate/release packages."
@@ -934,7 +932,7 @@
         "Status": "Backlog",
         "Work Package": "WP-12",
         "Item Type": "Change Request",
-        "Target Release": "TBD",
+        "Target Release": "0.3.1",
         "Blocked": "Yes",
         "Human Review": "Not required",
         "Outcome summary": "Per-project Miro identity, team, Space, token and board provisioning UX."
@@ -949,7 +947,7 @@
         "Status": "Backlog",
         "Work Package": "WP-12",
         "Item Type": "Change Request",
-        "Target Release": "TBD",
+        "Target Release": "0.3.1",
         "Blocked": "Yes",
         "Human Review": "Not required",
         "Outcome summary": "Governed rebinding of Miro execution profiles to the corporate team/Space."
@@ -964,7 +962,7 @@
         "Status": "Backlog",
         "Work Package": "WP-12",
         "Item Type": "Change Request",
-        "Target Release": "TBD",
+        "Target Release": "0.3.1",
         "Blocked": "Yes",
         "Human Review": "Not required",
         "Outcome summary": "Remove generic MIRO_ACCESS_TOKEN fallback after explicit profile credential migration."
@@ -979,7 +977,7 @@
         "Status": "Backlog",
         "Work Package": "WP-13",
         "Item Type": "Change Request",
-        "Target Release": "TBD",
+        "Target Release": "0.5.0",
         "Blocked": "No",
         "Human Review": "Not required"
       }
@@ -993,7 +991,7 @@
         "Status": "Backlog",
         "Work Package": "WP-13",
         "Item Type": "Change Request",
-        "Target Release": "TBD",
+        "Target Release": "0.5.0",
         "Blocked": "Yes",
         "Human Review": "Not required"
       }
@@ -1007,7 +1005,7 @@
         "Status": "Backlog",
         "Work Package": "WP-13",
         "Item Type": "Change Request",
-        "Target Release": "TBD",
+        "Target Release": "0.5.0",
         "Blocked": "Yes",
         "Human Review": "Not required"
       }
@@ -1021,7 +1019,7 @@
         "Status": "Backlog",
         "Work Package": "WP-13",
         "Item Type": "Change Request",
-        "Target Release": "TBD",
+        "Target Release": "0.5.0",
         "Blocked": "Yes",
         "Human Review": "Not required"
       }
@@ -1035,7 +1033,7 @@
         "Status": "Backlog",
         "Work Package": "WP-13",
         "Item Type": "Change Request",
-        "Target Release": "TBD",
+        "Target Release": "0.5.0",
         "Blocked": "Yes",
         "Human Review": "Not required"
       }
@@ -1049,7 +1047,7 @@
         "Status": "Backlog",
         "Work Package": "WP-13",
         "Item Type": "Change Request",
-        "Target Release": "TBD",
+        "Target Release": "0.5.0",
         "Blocked": "Yes",
         "Human Review": "Not required"
       }
@@ -1063,7 +1061,7 @@
         "Status": "Backlog",
         "Work Package": "WP-11",
         "Item Type": "Change Request",
-        "Target Release": "TBD",
+        "Target Release": "0.3.0",
         "Blocked": "Yes",
         "Human Review": "Pending",
         "Outcome summary": "Package-first EventStorming E2E acceptance without mandatory multi-agent runtime."
@@ -1147,20 +1145,66 @@
     },
     {
       "kind": "issue",
-      "numbers": [
-        65,
-        66,
-        69,
-        73,
-        85
-      ],
+      "numbers": [65, 69, 73, 85],
       "metadata": {
         "Status": "Backlog",
         "Work Package": "Other",
         "Item Type": "Change Request",
-        "Target Release": "TBD",
+        "Target Release": "0.1.2",
         "Blocked": "No",
         "Human Review": "Pending"
+      }
+    },
+    {
+      "kind": "issue",
+      "numbers": [66],
+      "metadata": {
+        "Status": "Backlog",
+        "Work Package": "Other",
+        "Item Type": "Change Request",
+        "Target Release": "0.2.0",
+        "Blocked": "No",
+        "Human Review": "Pending"
+      }
+    },
+    {
+      "kind": "issue",
+      "numbers": [47, 46],
+      "metadata": {
+        "Status": "Backlog",
+        "Work Package": "WP-11",
+        "Item Type": "Change Request",
+        "Target Release": "0.3.0",
+        "Blocked": "Yes",
+        "Human Review": "Not required"
+      }
+    },
+    {
+      "kind": "issue",
+      "numbers": [94],
+      "metadata": {
+        "Status": "Backlog",
+        "Work Package": "Other",
+        "Item Type": "Defect",
+        "Target Release": "0.1.2",
+        "Blocked": "No",
+        "Human Review": "Pending"
+      }
+    },
+    {
+      "kind": "issue",
+      "numbers": [113],
+      "metadata": {
+        "Status": "Backlog",
+        "Priority": "P2",
+        "Work Package": "Other",
+        "Item Type": "Change Request",
+        "Platform Area": "DOC",
+        "Impact": "LOW",
+        "Target Release": "0.1.2",
+        "Blocked": "No",
+        "Human Review": "Pending",
+        "Outcome summary": "Expose the canonical DDDA operating model in entry-point documentation: Work as development/governance control plane, GitHub as canonical system of record, GitHub Actions as authoritative technical execution plane, and Cursor as the current reference project runtime."
       }
     },
     {
@@ -1362,6 +1406,48 @@
         96,
         98
       ],
+      "pulls": []
+    },
+    {
+      "title": "DDDA 0.1.2",
+      "state": "open",
+      "description": "Governance consolidation after DDDA 0.1.1: backlog authority, branch lifecycle, release history, mandatory-gate semantics, terminology and planning/delivery separation. Milestone membership is release scope, not release approval.",
+      "issues": [16, 65, 69, 73, 85, 94, 113],
+      "pulls": []
+    },
+    {
+      "title": "DDDA 0.2.0",
+      "state": "open",
+      "description": "EventStorming MVP: executable session, facilitation guidance, Miro/Git round-trip, DDD Starter templates and methodology. Milestone membership is release scope, not release approval.",
+      "issues": [34, 35, 48, 52, 66],
+      "pulls": []
+    },
+    {
+      "title": "DDDA 0.3.0",
+      "state": "open",
+      "description": "Enterprise ingestion and EventStorming evidence integration: manifest core, security, adapters, traceability, corpus, governed workshop round-trip, E2E acceptance and first-user explanation. Milestone membership is release scope, not release approval.",
+      "issues": [27, 28, 29, 30, 31, 32, 33, 47, 62, 46],
+      "pulls": []
+    },
+    {
+      "title": "DDDA 0.3.1",
+      "state": "open",
+      "description": "Miro platform lifecycle: Platform Lab, Example Project lifecycle, project identity UX, corporate rebinding and legacy-token fallback removal. Milestone membership is release scope, not release approval.",
+      "issues": [53, 54, 55, 56, 57],
+      "pulls": []
+    },
+    {
+      "title": "DDDA 0.4.0",
+      "state": "open",
+      "description": "Strategy and portfolio capability: P0-P10 lifecycle, intake, Wardley mapping, investment decisions, traceability, roadmap, benefits and package-first acceptance. Milestone membership is release scope, not release approval.",
+      "issues": [21, 22, 23, 24, 25, 50, 26, 51],
+      "pulls": []
+    },
+    {
+      "title": "DDDA 0.5.0",
+      "state": "open",
+      "description": "Multi-agent orchestration: capability contract, bounded fan-out/fan-in, human checkpoints, resilience, observability and package-first acceptance. Milestone membership is release scope, not release approval.",
+      "issues": [36, 37, 38, 39, 40, 41],
       "pulls": []
     }
   ]

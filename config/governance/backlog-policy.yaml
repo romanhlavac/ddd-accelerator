@@ -165,7 +165,7 @@ native_sub_issue_mapping:
     parent_issue: 61
     children: [36, 37, 38, 39, 40, 41]
   Other:
-    unparented_items: [16, 42, 44, 45, 49, 65, 66, 67, 68, 69, 70, 73, 75, 85, 88, 96, 98]
+    unparented_items: [16, 42, 44, 45, 49, 65, 66, 67, 68, 69, 70, 73, 75, 85, 88, 94, 96, 98, 113]
 
 dependency_edges:
   WP-08:
@@ -326,18 +326,55 @@ baseline_compatibility:
 
 milestones:
   naming: 'DDDA <semver>'
-  initial:
+  release_train:
     - name: DDDA 0.1.0
       state: closed
       issues: [10, 11, 13, 14]
       pulls: [8]
-      excluded_future_items: [9, 12, 45, 53, 54, 55, 56, 57, 65, 66, 67, 68, 69, 70, 73, 75, 85, 88]
     - name: DDDA 0.1.1
       state: open
       issues: [9, 12, 67, 68, 70, 96, 98]
       pulls: []
       pre_release_prerequisites: [44]
-      explicitly_deferred_items: [65, 66, 69, 73, 85, 88]
+    - name: DDDA 0.1.2
+      state: open
+      issues: [16, 65, 69, 73, 85, 94, 113]
+      pulls: []
+      outcome: governance consolidation after the first controlled release
+    - name: DDDA 0.2.0
+      state: open
+      issues: [34, 35, 48, 52, 66]
+      pulls: []
+      outcome: EventStorming MVP
+    - name: DDDA 0.3.0
+      state: open
+      issues: [27, 28, 29, 30, 31, 32, 33, 47, 62, 46]
+      pulls: []
+      outcome: enterprise ingestion and EventStorming evidence integration
+    - name: DDDA 0.3.1
+      state: open
+      issues: [53, 54, 55, 56, 57]
+      pulls: []
+      outcome: Miro platform lifecycle
+    - name: DDDA 0.4.0
+      state: open
+      issues: [21, 22, 23, 24, 25, 50, 26, 51]
+      pulls: []
+      outcome: strategy and portfolio capability
+    - name: DDDA 0.5.0
+      state: open
+      issues: [36, 37, 38, 39, 40, 41]
+      pulls: []
+      outcome: multi-agent orchestration
+  explicitly_unplanned:
+    - issue: 44
+      rationale: pre-release control prerequisite for 0.1.1; not a release-scope item
+    - issue: 45
+      rationale: cross-cutting Artifact Registry dashboard requires a separate public/private publication decision
+    - issue: 49
+      rationale: role-based documentation IA waits for its explicit cross-stream blockers
+    - issue: 88
+      rationale: control-plane enabler requires a separate scope decision before it enters a release
   parent_work_packages_counted_in_release_progress: false
   unplanned_work_packages_target_release: TBD
   membership_is_release_scope_not_approval: true
