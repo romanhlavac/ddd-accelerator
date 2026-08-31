@@ -254,11 +254,11 @@ function Format-DDDAHrdrComment {
 $script:DDDAHrdrMarker
 ## $Heading
 
-> Automation may scaffold and validate this record. Only an explicit human action may change `decision` from `pending` to a release decision or alter accepted risks.
+> Automation may scaffold and validate this record. Only an explicit human action may change decision from pending to a release decision or alter accepted risks.
 
-```json
+``````json
 $json
-```
+``````
 "@
 }
 
