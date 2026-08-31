@@ -267,7 +267,7 @@ def test_release_train_milestone_and_project_target_contract():
     expected = {
         "DDDA 0.1.0": [10, 11, 13, 14],
         "DDDA 0.1.1": [9, 12, 67, 68, 70, 96, 98],
-        "DDDA 0.1.2": [16, 65, 69, 73, 85, 94, 113],
+        "DDDA 0.1.2": [16, 65, 69, 73, 85, 94, 113, 125],
         "DDDA 0.2.0": [34, 35, 48, 52, 66],
         "DDDA 0.3.0": [27, 28, 29, 30, 31, 32, 33, 47, 62, 46],
         "DDDA 0.3.1": [53, 54, 55, 56, 57],
@@ -314,7 +314,7 @@ def test_release_train_milestone_and_project_target_contract():
     assert meta[98]["Impact"] == "HIGH"
     dependencies = {entry["blocked"]: entry["blocked_by"] for entry in cfg["dependencies"]}
     assert dependencies[75] == [96, 98]
-    assert "unparented_items: [16, 42, 44, 45, 49, 65, 66, 67, 68, 69, 70, 73, 75, 85, 88, 94, 96, 98, 113]" in POLICY.read_text(encoding="utf-8")
+    assert "unparented_items: [16, 42, 44, 45, 49, 65, 66, 67, 68, 69, 70, 73, 75, 85, 88, 94, 96, 98, 113, 125]" in POLICY.read_text(encoding="utf-8")
     assert meta[75]["Item Type"] == "Enabler"
     assert meta[85]["Work Package"] == "Other"
     assert meta[85]["Target Release"] == "0.1.2"
@@ -336,6 +336,20 @@ def test_release_train_milestone_and_project_target_contract():
         "Work as development/governance control plane, GitHub as canonical system of record, "
         "GitHub Actions as authoritative technical execution plane, and Cursor as the current "
         "reference project runtime."
+    )
+    assert meta[125]["Item Type"] == "Change Request"
+    assert meta[125]["Work Package"] == "Other"
+    assert meta[125]["Priority"] == "P1"
+    assert meta[125]["Platform Area"] == "RELEASE"
+    assert meta[125]["Impact"] == "HIGH"
+    assert meta[125]["Target Release"] == "0.1.2"
+    assert meta[125]["Status"] == "Backlog"
+    assert meta[125]["Blocked"] == "No"
+    assert meta[125]["Human Review"] == "Pending"
+    assert meta[125]["Outcome summary"] == (
+        "Backfill the historical DDDA 0.1.0 GitHub Release from the original validated "
+        "canonical package and portable evidence without changing source, tag or historical "
+        "release decision."
     )
     assert meta[88]["Item Type"] == "Enabler"
     assert meta[88]["Work Package"] == "Other"
