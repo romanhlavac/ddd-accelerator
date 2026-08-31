@@ -100,6 +100,14 @@ GOVERNANCE_REPAIR_PATHS = frozenset(
         "scripts/platform/Test-DDDAMergeReleaseEligibility.py",
     }
 )
+# This is a second, equally bounded repair class: GitHub retries leave
+# historical check-runs immutable, so the aggregation code and its regression
+# test must be mergeable without changing any release or backlog authority.
+CI_CHECK_RUN_REPAIR_FILE_STATUSES = {
+    "scripts/platform/DDDAGitHubSupport.ps1": "modified",
+    "scripts/platform/Invoke-DDDAPlatformTest.ps1": "modified",
+    "tests/powershell/Test-DDDAGitHubCheckRuns.ps1": "added",
+}
 GOVERNANCE_REPAIR_TRANSITION_PATHS = GOVERNANCE_REPAIR_PATHS | {
     "runtime/platform/release_governance.py",
 }
@@ -355,18 +363,29 @@ def governance_repair_evidence(
         rows = pr_files(repository, int(pr["number"]), token)
         paths = {str(row.get("filename") or "") for row in rows}
         integration_merge = False
-        if paths != GOVERNANCE_REPAIR_PATHS:
+        allowed_path_sets = (
+            GOVERNANCE_REPAIR_PATHS,
+            frozenset(CI_CHECK_RUN_REPAIR_FILE_STATUSES),
+        )
+        if paths not in allowed_path_sets:
             normalized = integration_merge_files(repository, pr, token)
             if normalized is not None:
                 head_sha, rows = normalized
                 paths = {str(row.get("filename") or "") for row in rows}
                 integration_merge = True
+        expected_statuses: dict[str, str] | None = None
+        if paths == GOVERNANCE_REPAIR_PATHS:
+            expected_statuses = {path: "modified" for path in GOVERNANCE_REPAIR_PATHS}
+        elif paths == frozenset(CI_CHECK_RUN_REPAIR_FILE_STATUSES):
+            expected_statuses = CI_CHECK_RUN_REPAIR_FILE_STATUSES
         if primary != [TRANSITION_PRIMARY_CR]:
             failures.append("MERGE_ELIGIBILITY_GOVERNANCE_REPAIR_PRIMARY_CR_INVALID")
-        if paths != GOVERNANCE_REPAIR_PATHS:
+        if expected_statuses is None:
             failures.append("MERGE_ELIGIBILITY_GOVERNANCE_REPAIR_PATHS_INVALID")
-        if any(str(row.get("status") or "") != "modified" for row in rows):
-            failures.append("MERGE_ELIGIBILITY_GOVERNANCE_REPAIR_FILE_STATUS_INVALID")
+        else:
+            statuses = {str(row.get("filename") or ""): str(row.get("status") or "") for row in rows}
+            if statuses != expected_statuses:
+                failures.append("MERGE_ELIGIBILITY_GOVERNANCE_REPAIR_FILE_STATUS_INVALID")
 
         base = json.loads(content_text(repository, "config/governance/github-bootstrap.json", base_sha, token))
         head = json.loads(content_text(repository, "config/governance/github-bootstrap.json", head_sha, token))
