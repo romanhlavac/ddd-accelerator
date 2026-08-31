@@ -302,3 +302,49 @@ milestones:
         assert "marker-designated" in str(exc)
     else:
         raise AssertionError("expected unmarked release_train to fail closed")
+
+
+def test_governance_repair_allows_exact_ci_check_run_aggregation_set(monkeypatch):
+    base = bootstrap([9, 12])
+    pr = future_plan_pr()
+    monkeypatch.setattr(
+        COLLECTOR,
+        "pr_files",
+        lambda *_args: [
+            {"filename": path, "status": status}
+            for path, status in COLLECTOR.CI_CHECK_RUN_REPAIR_FILE_STATUSES.items()
+        ],
+    )
+    monkeypatch.setattr(COLLECTOR, "content_text", lambda *_args: json.dumps(base))
+    result = COLLECTOR.governance_repair_evidence(
+        repository="romanhlavac/ddd-accelerator",
+        pr=pr,
+        active={"version": "0.1.1"},
+        active_issue_numbers={9, 12},
+        primary=[16],
+        token="not-used",
+    )
+    assert result["status"] == "PASS"
+
+
+def test_governance_repair_rejects_ci_check_run_status_change(monkeypatch):
+    base = bootstrap([9, 12])
+    pr = future_plan_pr()
+    statuses = dict(COLLECTOR.CI_CHECK_RUN_REPAIR_FILE_STATUSES)
+    statuses["tests/powershell/Test-DDDAGitHubCheckRuns.ps1"] = "modified"
+    monkeypatch.setattr(
+        COLLECTOR,
+        "pr_files",
+        lambda *_args: [{"filename": path, "status": status} for path, status in statuses.items()],
+    )
+    monkeypatch.setattr(COLLECTOR, "content_text", lambda *_args: json.dumps(base))
+    result = COLLECTOR.governance_repair_evidence(
+        repository="romanhlavac/ddd-accelerator",
+        pr=pr,
+        active={"version": "0.1.1"},
+        active_issue_numbers={9, 12},
+        primary=[16],
+        token="not-used",
+    )
+    assert result["status"] == "FAIL"
+    assert "MERGE_ELIGIBILITY_GOVERNANCE_REPAIR_FILE_STATUS_INVALID" in result["failures"]

@@ -1209,6 +1209,22 @@
     },
     {
       "kind": "issue",
+      "numbers": [125],
+      "metadata": {
+        "Status": "Backlog",
+        "Priority": "P1",
+        "Work Package": "Other",
+        "Item Type": "Change Request",
+        "Platform Area": "RELEASE",
+        "Impact": "HIGH",
+        "Target Release": "0.1.2",
+        "Blocked": "No",
+        "Human Review": "Pending",
+        "Outcome summary": "Backfill the historical DDDA 0.1.0 GitHub Release from the original validated canonical package and portable evidence without changing source, tag or historical release decision."
+      }
+    },
+    {
+      "kind": "issue",
       "numbers": [
         67,
         68
@@ -1412,7 +1428,7 @@
       "title": "DDDA 0.1.2",
       "state": "open",
       "description": "Governance consolidation after DDDA 0.1.1: backlog authority, branch lifecycle, release history, mandatory-gate semantics, terminology and planning/delivery separation. Milestone membership is release scope, not release approval.",
-      "issues": [16, 65, 69, 73, 85, 94, 113],
+      "issues": [16, 65, 69, 73, 85, 94, 113, 125],
       "pulls": []
     },
     {
