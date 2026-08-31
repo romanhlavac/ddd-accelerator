@@ -81,3 +81,16 @@ through this allowance.
 ## Active-train marker regression
 
 An open future milestone is planning data, not an active release train. The guard selects exactly one open train carrying the explicit `pre_release_prerequisites` marker. Missing or duplicate markers fail closed; future open milestones cannot block an implementation merge for the active train. The former single-open-train policy remains supported only when no `release_train` section exists; it is never used as a fallback for an ambiguous current release train.
+
+
+## Check-run aggregation repair boundary
+
+A second bounded governance-repair class is permitted for the exact GitHub
+check-run aggregation implementation: DDDAGitHubSupport.ps1 and
+Invoke-DDDAPlatformTest.ps1 must be modified, and
+Test-DDDAGitHubCheckRuns.ps1 must be added. The sole primary CR remains #16,
+and the complete versioned governance bootstrap—including the active release
+scope—must remain byte-for-data unchanged. Any other path, status, primary CR
+or governance change fails closed. This allows a later successful retry to
+supersede only its historical same-name check run; it does not allow a failed
+or missing current check to pass.
