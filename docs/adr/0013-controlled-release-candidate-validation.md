@@ -103,3 +103,31 @@ This keeps the HRDR bound to the already validated physical package. It neither
 rebuilds a candidate nor permits a filename-only or ambient-artifact fallback;
 an unsupported or missing evidence handoff fails before any pending HRDR comment
 is written.
+
+
+## HRDR milestone discovery boundary
+
+The pending-HRDR command reads the live milestone and its issue scope through
+paginated GitHub API responses. In PowerShell, directly wrapping the API command
+in an array expression can preserve a JSON array as one nested object. That makes
+a real milestone appear absent and must fail before any HRDR comment is written.
+
+The command therefore first assigns each API response and only then materializes
+its items for both pagination loops: milestones and milestone issues. It still
+requires exactly one `DDDA <version>` milestone and preserves all fail-closed
+checks; the change does not create, edit or close a milestone, issue, Project
+item, release, tag or promotion.
+
+
+## HRDR PR-comment permission boundary
+
+A pending HRDR is an auditable comment on the controlled candidate PR, not a
+review approval or a release action. The scaffold operation consequently needs
+write access to that PR conversation in addition to the existing issue-comment
+capability. Its workflow permission is explicitly `pull-requests: write`.
+
+This narrow permission allows the one pending HRDR record to be published after
+all identity and evidence checks. It does not grant repository-content write
+access and does not create, approve, merge or close a pull request; candidate
+reconstruction, release, tag, promotion, milestone and Project changes remain
+outside this operation.
