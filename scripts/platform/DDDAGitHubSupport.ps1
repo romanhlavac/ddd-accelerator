@@ -154,6 +154,42 @@ function Get-DDDAGitHubPullRequest {
     return $result
 }
 
+function Get-DDDALatestCheckRunsByName {
+    param([Parameter(Mandatory = $true)][object[]]$CheckRuns)
+
+    $selected = [System.Collections.Generic.List[object]]::new()
+    foreach ($group in @($CheckRuns | Group-Object -Property { [string]$_.name })) {
+        if ([string]::IsNullOrWhiteSpace([string]$group.Name)) {
+            throw "CI check run without a name cannot be evaluated."
+        }
+        $ordered = @(
+            $group.Group | Sort-Object -Property @(
+                @{
+                    Expression = {
+                        $raw = [string]$_.started_at
+                        if ([string]::IsNullOrWhiteSpace($raw)) {
+                            throw "CI check run '$([string]$_.name)' is missing started_at."
+                        }
+                        try {
+                            ([DateTimeOffset]::Parse($raw)).UtcDateTime.Ticks
+                        }
+                        catch {
+                            throw "CI check run '$([string]$_.name)' has an invalid started_at '$raw'."
+                        }
+                    }
+                    Descending = $true
+                },
+                @{
+                    Expression = { [Int64]$_.id }
+                    Descending = $true
+                }
+            )
+        )
+        $selected.Add($ordered[0])
+    }
+    return @($selected)
+}
+
 function Assert-DDDAGitHubChecksPassed {
     param(
         [Parameter(Mandatory = $true)][string]$RepositorySlug,
@@ -177,9 +213,14 @@ function Assert-DDDAGitHubChecksPassed {
         throw "GitHub nevrátil žádné CI check runs pro commit $Commit."
     }
 
+    # Retries leave immutable historical check-runs on the same commit. A governed
+    # gate evaluates the latest authoritative attempt per check name; an old failure
+    # must not mask a newer successful retry, while a latest failure still blocks.
+    $evaluatedCheckRuns = @(Get-DDDALatestCheckRunsByName -CheckRuns @($checkRuns))
+
     $allowedConclusions = @("success", "neutral", "skipped")
     $notPassed = @(
-        $checkRuns |
+        $evaluatedCheckRuns |
             Where-Object {
                 [string]$_.name -notin $IgnoredCheckRunNames -and (
                 [string]$_.status -ne "completed" -or
@@ -208,6 +249,7 @@ function Assert-DDDAGitHubChecksPassed {
 
     return [pscustomobject]@{
         CheckRunCount = $checkRuns.Count
+        EvaluatedCheckRunCount = $evaluatedCheckRuns.Count
         CommitStatusCount = $commitStatuses.Count
     }
 }
