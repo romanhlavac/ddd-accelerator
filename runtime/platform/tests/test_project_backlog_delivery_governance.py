@@ -267,7 +267,7 @@ def test_release_train_milestone_and_project_target_contract():
     expected = {
         "DDDA 0.1.0": [10, 11, 13, 14],
         "DDDA 0.1.1": [9, 12, 67, 68, 70, 96, 98],
-        "DDDA 0.1.2": [16, 65, 69, 73, 85, 94, 113, 125],
+        "DDDA 0.1.2": [16, 65, 69, 73, 85, 94, 113, 125, 131, 132],
         "DDDA 0.2.0": [34, 35, 48, 52, 66],
         "DDDA 0.3.0": [27, 28, 29, 30, 31, 32, 33, 47, 62, 46],
         "DDDA 0.3.1": [53, 54, 55, 56, 57],
@@ -314,7 +314,7 @@ def test_release_train_milestone_and_project_target_contract():
     assert meta[98]["Impact"] == "HIGH"
     dependencies = {entry["blocked"]: entry["blocked_by"] for entry in cfg["dependencies"]}
     assert dependencies[75] == [96, 98]
-    assert "unparented_items: [16, 42, 44, 45, 49, 65, 66, 67, 68, 69, 70, 73, 75, 85, 88, 94, 96, 98, 113, 125]" in POLICY.read_text(encoding="utf-8")
+    assert "unparented_items: [16, 42, 44, 45, 49, 65, 66, 67, 68, 69, 70, 73, 75, 85, 88, 94, 96, 98, 113, 125, 131, 132]" in POLICY.read_text(encoding="utf-8")
     assert meta[75]["Item Type"] == "Enabler"
     assert meta[85]["Work Package"] == "Other"
     assert meta[85]["Target Release"] == "0.1.2"
@@ -350,6 +350,34 @@ def test_release_train_milestone_and_project_target_contract():
         "Backfill the historical DDDA 0.1.0 GitHub Release from the original validated "
         "canonical package and portable evidence without changing source, tag or historical "
         "release decision."
+    )
+    assert meta[131]["Item Type"] == "Change Request"
+    assert meta[131]["Work Package"] == "Other"
+    assert meta[131]["Priority"] == "P1"
+    assert meta[131]["Platform Area"] == "RELEASE"
+    assert meta[131]["Impact"] == "HIGH"
+    assert meta[131]["Target Release"] == "0.1.2"
+    assert meta[131]["Status"] == "Backlog"
+    assert meta[131]["Blocked"] == "No"
+    assert meta[131]["Human Review"] == "Pending"
+    assert meta[131]["Outcome summary"] == (
+        "Make every DDDA release-candidate PR human-recognizable and machine-verifiable "
+        "through consistent title, labels, branch and versioned body marker, with explicit "
+        "normal versus controlled-recovery semantics."
+    )
+    assert meta[132]["Item Type"] == "Change Request"
+    assert meta[132]["Work Package"] == "Other"
+    assert meta[132]["Priority"] == "P2"
+    assert meta[132]["Platform Area"] == "SECURITY-GOVERNANCE"
+    assert meta[132]["Impact"] == "MEDIUM"
+    assert meta[132]["Target Release"] == "0.1.2"
+    assert meta[132]["Status"] == "Backlog"
+    assert meta[132]["Blocked"] == "No"
+    assert meta[132]["Human Review"] == "Pending"
+    assert meta[132]["Outcome summary"] == (
+        "Define one canonical naming contract for DDDA GitHub Issues, PRs, branches, labels, "
+        "markers, milestones, tags, Releases, workflows and evidence artifacts while "
+        "preserving #65 and #131 ownership boundaries."
     )
     assert meta[88]["Item Type"] == "Enabler"
     assert meta[88]["Work Package"] == "Other"

@@ -1225,6 +1225,38 @@
     },
     {
       "kind": "issue",
+      "numbers": [131],
+      "metadata": {
+        "Status": "Backlog",
+        "Priority": "P1",
+        "Work Package": "Other",
+        "Item Type": "Change Request",
+        "Platform Area": "RELEASE",
+        "Impact": "HIGH",
+        "Target Release": "0.1.2",
+        "Blocked": "No",
+        "Human Review": "Pending",
+        "Outcome summary": "Make every DDDA release-candidate PR human-recognizable and machine-verifiable through consistent title, labels, branch and versioned body marker, with explicit normal versus controlled-recovery semantics."
+      }
+    },
+    {
+      "kind": "issue",
+      "numbers": [132],
+      "metadata": {
+        "Status": "Backlog",
+        "Priority": "P2",
+        "Work Package": "Other",
+        "Item Type": "Change Request",
+        "Platform Area": "SECURITY-GOVERNANCE",
+        "Impact": "MEDIUM",
+        "Target Release": "0.1.2",
+        "Blocked": "No",
+        "Human Review": "Pending",
+        "Outcome summary": "Define one canonical naming contract for DDDA GitHub Issues, PRs, branches, labels, markers, milestones, tags, Releases, workflows and evidence artifacts while preserving #65 and #131 ownership boundaries."
+      }
+    },
+    {
+      "kind": "issue",
       "numbers": [
         67,
         68
@@ -1428,7 +1460,7 @@
       "title": "DDDA 0.1.2",
       "state": "open",
       "description": "Governance consolidation after DDDA 0.1.1: backlog authority, branch lifecycle, release history, mandatory-gate semantics, terminology and planning/delivery separation. Milestone membership is release scope, not release approval.",
-      "issues": [16, 65, 69, 73, 85, 94, 113, 125],
+      "issues": [16, 65, 69, 73, 85, 94, 113, 125, 131, 132],
       "pulls": []
     },
     {
