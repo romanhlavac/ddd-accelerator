@@ -47,6 +47,11 @@ class GitHubReadError(RuntimeError):
     pass
 
 
+def emit_utf8(text: str) -> None:
+    """Write result evidence without depending on the Windows console code page."""
+    sys.stdout.buffer.write(text.encode("utf-8"))
+
+
 def _headers(token: str) -> dict[str, str]:
     return {
         "Authorization": f"Bearer {token}",
@@ -620,7 +625,7 @@ def main() -> int:
             out = Path(args.output)
             out.parent.mkdir(parents=True, exist_ok=True)
             out.write_text(text, encoding="utf-8")
-        print(text, end="")
+        emit_utf8(text)
         return 0 if result.status == "PASS" else 1
     except (OSError, ValueError, GitHubReadError) as exc:
         print(f"Release Scope Gate FAIL: {exc}", file=sys.stderr)
