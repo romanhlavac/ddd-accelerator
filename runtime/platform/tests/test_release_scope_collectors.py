@@ -91,3 +91,13 @@ def test_merge_collector_recognizes_one_open_release_train_and_tbd_target():
     }
     assert ns.primary_changes("Implements #96\nCloses #96\n") == [96]
     assert ns.target_release("Target Release: `TBD`\n") == "TBD"
+
+
+def test_scope_collector_emits_utf8_evidence_without_windows_charmap(capsysbinary):
+    ns = _scope_namespace()
+    payload = '{"note":"ř"}\\n'
+
+    ns.emit_utf8(payload)
+
+    captured = capsysbinary.readouterr()
+    assert captured.out == payload.encode("utf-8")
