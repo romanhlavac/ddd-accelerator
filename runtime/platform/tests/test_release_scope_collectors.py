@@ -101,3 +101,63 @@ def test_scope_collector_emits_utf8_evidence_without_windows_charmap(capsysbinar
 
     captured = capsysbinary.readouterr()
     assert captured.out == payload.encode("utf-8")
+
+
+def test_physical_scope_preserves_candidate_source_sha_and_derives_metadata_tip():
+    ns = _scope_namespace()
+    candidate_sha = "d" * 40
+    recovered_sha = "b" * 40
+    source_merge_sha = "e" * 40
+    ns.previous_release_tag = lambda *_: {"tag": "v0.1.0", "sha": "a" * 40}
+    ns.compare_commits = lambda *_: ("ahead", [{"sha": recovered_sha}, {"sha": candidate_sha}])
+    ns.recovery_ledger_at_source = lambda *_: {
+        "schema_version": 1,
+        "version": "0.1.1",
+        "previous_release_tag": "v0.1.0",
+        "entries": [{
+            "recovered_commit_sha": recovered_sha,
+            "source_pr": 77,
+            "source_merge_commit_sha": source_merge_sha,
+            "primary_cr": 96,
+        }],
+    }
+    ns.commit_path_hashes = lambda _repo, sha, _token: (
+        {ns.RECOVERY_LEDGER_PATH: "ledger"} if sha == candidate_sha else {"file": sha}
+    )
+    ns.shipping_row = lambda _repo, number, _token, _rows: {
+        "number": number,
+        "merged": True,
+        "merge_commit_sha": source_merge_sha,
+        "primary_crs": [96],
+        "milestone": "DDDA 0.1.1",
+        "target_release": "0.1.1",
+    }
+
+    actual = ns.physical_scope_snapshot(
+        "owner/repo", "0.1.1", candidate_sha, "token", {96: {"Target Release": "0.1.1"}}
+    )
+
+    assert actual["release_source_sha"] == candidate_sha
+    assert actual["recovery_ledger"]["metadata_commit_shas"] == [candidate_sha]
+
+
+def test_physical_scope_does_not_classify_non_metadata_candidate_tip():
+    ns = _scope_namespace()
+    candidate_sha = "d" * 40
+    ns.previous_release_tag = lambda *_: {"tag": "v0.1.0", "sha": "a" * 40}
+    ns.compare_commits = lambda *_: ("ahead", [{"sha": candidate_sha}])
+    ns.recovery_ledger_at_source = lambda *_: {
+        "schema_version": 1,
+        "version": "0.1.1",
+        "previous_release_tag": "v0.1.0",
+        "entries": [],
+    }
+    ns.commit_path_hashes = lambda *_: {ns.RECOVERY_LEDGER_PATH: "ledger", "other": "x"}
+    ns.rest_pages = lambda *_: []
+
+    actual = ns.physical_scope_snapshot(
+        "owner/repo", "0.1.1", candidate_sha, "token", {}
+    )
+
+    assert actual["recovery_ledger"]["metadata_commit_shas"] == []
+    assert actual["unmapped_commit_shas"] == [candidate_sha]
