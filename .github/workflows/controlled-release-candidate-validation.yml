@@ -285,6 +285,7 @@ jobs:
     name: Physical Release Scope Gate dry-run
     needs: select
     if: inputs.operation == 'release_scope_dry_run'
+    environment: ddda-backlog-governance
     runs-on: windows-latest
     timeout-minutes: 60
     env:

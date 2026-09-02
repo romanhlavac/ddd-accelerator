@@ -47,6 +47,11 @@ class GitHubReadError(RuntimeError):
     pass
 
 
+def emit_utf8(text: str) -> None:
+    """Write result evidence without depending on the Windows console code page."""
+    sys.stdout.buffer.write(text.encode("utf-8"))
+
+
 def _headers(token: str) -> dict[str, str]:
     return {
         "Authorization": f"Bearer {token}",
@@ -385,7 +390,8 @@ def physical_scope_snapshot(
     ledger_entries = (ledger or {}).get("entries") if isinstance(ledger, dict) else None
     entries_by_commit: dict[str, dict[str, Any]] = {}
     ordered_entries: list[tuple[str, dict[str, Any]]] = []
-    metadata_commits: set[str] = set()
+    declared_metadata_commits: set[str] = set()
+    metadata_candidates: set[str] = set()
     ledger_evidence: dict[str, Any] | None = None
     if ledger is not None:
         if not isinstance(ledger_entries, list):
@@ -397,12 +403,24 @@ def physical_scope_snapshot(
                     ordered_entries.append((row["recovered_commit_sha"], row))
             raw_metadata = ledger.get("metadata_commit_shas") if isinstance(ledger, dict) else []
             if isinstance(raw_metadata, list):
-                metadata_commits = {str(value) for value in raw_metadata}
+                declared_metadata_commits = {str(value) for value in raw_metadata}
+            metadata_candidates = set(declared_metadata_commits)
+            # A recovery ledger's metadata commit cannot name itself in the
+            # content it creates. Derive only the exact candidate tip and only
+            # when its complete diff is the ledger file; all other shapes stay
+            # unclassified and therefore fail closed downstream.
+            candidate_tip_paths = commit_path_hashes(repository, source_sha, token)
+            if (
+                candidate_tip_paths is not None
+                and set(candidate_tip_paths) == {RECOVERY_LEDGER_PATH}
+                and source_sha not in entries_by_commit
+            ):
+                metadata_candidates.add(source_sha)
             ledger_evidence = {
                 "schema_version": ledger.get("schema_version"),
                 "version": ledger.get("version"),
                 "previous_release_tag": ledger.get("previous_release_tag"),
-                "metadata_commit_shas": sorted(metadata_commits),
+                "metadata_commit_shas": sorted(metadata_candidates),
                 "entries": [],
             }
 
@@ -411,7 +429,7 @@ def physical_scope_snapshot(
     metadata_only: set[str] = set()
     for commit in commits:
         sha = str(commit.get("sha") or "")
-        if sha in metadata_commits:
+        if sha in metadata_candidates:
             paths = commit_path_hashes(repository, sha, token)
             if paths is not None and set(paths) == {RECOVERY_LEDGER_PATH}:
                 metadata_only.add(sha)
@@ -443,8 +461,8 @@ def physical_scope_snapshot(
             except (TypeError, ValueError):
                 number = primary = 0
             source = shipping_row(repository, number, token, project_rows) if number > 0 else {}
-            source_sha = str(entry.get("source_merge_commit_sha") or "")
-            source_paths = commit_path_hashes(repository, source_sha, token) if source_sha else None
+            source_merge_sha = str(entry.get("source_merge_commit_sha") or "")
+            source_paths = commit_path_hashes(repository, source_merge_sha, token) if source_merge_sha else None
             recovered_paths = commit_path_hashes(repository, sha, token)
             ledger_evidence["entries"].append(
                 {
@@ -453,7 +471,7 @@ def physical_scope_snapshot(
                     "primary_cr": primary,
                     "source_pr_merged": source.get("merged"),
                     "source_primary_crs": source.get("primary_crs"),
-                    "source_merge_commit_sha": source_sha,
+                    "source_merge_commit_sha": source_merge_sha,
                     "observed_source_merge_commit_sha": source.get("merge_commit_sha"),
                     "changed_path_hashes_match": source_paths is not None and source_paths == recovered_paths,
                 }
@@ -620,7 +638,7 @@ def main() -> int:
             out = Path(args.output)
             out.parent.mkdir(parents=True, exist_ok=True)
             out.write_text(text, encoding="utf-8")
-        print(text, end="")
+        emit_utf8(text)
         return 0 if result.status == "PASS" else 1
     except (OSError, ValueError, GitHubReadError) as exc:
         print(f"Release Scope Gate FAIL: {exc}", file=sys.stderr)

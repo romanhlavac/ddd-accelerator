@@ -94,10 +94,14 @@ def evaluate_recovery_ledger(
     if not physical_commits:
         failures.append("RECOVERY_LEDGER_PHYSICAL_COMMIT_EVIDENCE_MISSING")
 
-    # The metadata commit is derived from the physical inventory, rather than
-    # declared inside the ledger it creates. Requiring a commit to contain its
-    # own SHA would make a valid ledger impossible to construct.
-    metadata = _sha_values(physical.get("metadata_commit_shas"))
+    # Canonical collector evidence is nested under recovery_ledger. Preserve
+    # the pre-existing root-level unit-fixture shape only as a compatibility
+    # fallback when the nested field is absent; live collector output uses the
+    # nested contract and therefore exercises the canonical path.
+    if "metadata_commit_shas" in ledger:
+        metadata = _sha_values(ledger.get("metadata_commit_shas"))
+    else:
+        metadata = _sha_values(physical.get("metadata_commit_shas"))
     if len(metadata) != 1 or not metadata.issubset(physical_commits):
         failures.append("RECOVERY_LEDGER_METADATA_COMMIT_INVALID")
 
