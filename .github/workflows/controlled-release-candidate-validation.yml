@@ -288,6 +288,7 @@ jobs:
     environment: ddda-backlog-governance
     runs-on: windows-latest
     timeout-minutes: 60
+    environment: ddda-backlog-governance
     env:
       GH_TOKEN: ${{ github.token }}
       DDDA_GITHUB_PROJECT_TOKEN: ${{ secrets.DDDA_GITHUB_PROJECT_TOKEN }}
