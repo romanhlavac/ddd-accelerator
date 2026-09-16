@@ -24,6 +24,7 @@ $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "DDDAPlatformSupport.ps1")
 . (Join-Path $PSScriptRoot "DDDAGitHubSupport.ps1")
 . (Join-Path $PSScriptRoot "DDDAReleasePublicationSupport.ps1")
+. (Join-Path $PSScriptRoot "DDDAReleaseGovernanceSupport.ps1")
 
 Assert-DDDAPlatformSemanticVersion -Version $Version
 $platformRoot = Get-DDDAPlatformGitRoot -Path $PlatformPath
@@ -75,7 +76,6 @@ if ($ControlledReleaseSource) {
     }
     $controlledGate = Get-Content -LiteralPath $GateEvidencePath -Raw -Encoding UTF8 | ConvertFrom-Json
     $ledger = $controlledGate.physical_scope.recovery_ledger
-    $expectedControlledRef = "release/$Version-controlled-recovery-source"
     $controlledMarker = "Controlled release-source candidate — DDDA $Version"
     $prBody = [string]$prInfo.body
     if (
@@ -91,7 +91,7 @@ if ($ControlledReleaseSource) {
         [bool]$ledger.release_cut.changed_paths_match -ne $true -or
         [bool]$ledger.release_cut.source_blob_matches -ne $true -or
         [bool]$ledger.release_cut.release_blob_matches -ne $true -or
-        $headRefName -ne $expectedControlledRef -or
+        -not (Test-DDDAControlledReleaseSourceBranch -Branch $headRefName -Version $Version) -or
         $headRepository -ne $repositorySlug -or
         $prBody -notlike "*$controlledMarker*" -or
         $prBody -notmatch '(?i)must not be merged into `?main`?'

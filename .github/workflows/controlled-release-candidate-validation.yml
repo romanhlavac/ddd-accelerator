@@ -346,15 +346,7 @@ jobs:
           "validation_report=$($reports[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "candidate_package=$($packages[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-      - name: Read exact Human Release Decision Record
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          gh api --paginate "repos/$env:REPOSITORY/issues/$env:CANDIDATE_PR/comments?per_page=100" > hrdr-comments.json
-          python .\control-plane\scripts\platform\Read-DDDAHrdr.py --comments-json hrdr-comments.json --output hrdr.json
-
-      - name: Run Physical Release Scope Gate only
-        if: inputs.operation == 'release_scope_dry_run'
+      - name: Verify restored exact evidence
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -368,6 +360,21 @@ jobs:
             --validation-report $env:validation_report `
             --candidate-package $env:candidate_package `
             --output restored-evidence.json
+          $evidence = Get-Content restored-evidence.json -Raw -Encoding utf8 | ConvertFrom-Json
+          if ([string]$evidence.status -ne 'PASS') { throw 'Restored exact candidate evidence did not pass.' }
+
+      - name: Read exact Human Release Decision Record
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          gh api --paginate "repos/$env:REPOSITORY/issues/$env:CANDIDATE_PR/comments?per_page=100" > hrdr-comments.json
+          python .\control-plane\scripts\platform\Read-DDDAHrdr.py --comments-json hrdr-comments.json --output hrdr.json
+
+      - name: Run Physical Release Scope Gate only
+        if: inputs.operation == 'release_scope_dry_run'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
           $evidence = Get-Content restored-evidence.json -Raw -Encoding utf8 | ConvertFrom-Json
           if ($evidence.status -ne 'PASS') { throw 'Restored exact candidate evidence did not pass.' }
           python .\control-plane\scripts\platform\Test-DDDAReleaseScope.py `
