@@ -15,7 +15,10 @@ Before every operation it reads the live candidate PR and requires all of:
 
 - open Draft PR owned by this repository;
 - exact requested head SHA;
-- branch exactly `release/<version>-controlled-recovery-source`;
+- branch exactly `release/<version>-controlled-recovery-source`, or an explicit
+  numbered superseding generation `release/<version>-controlled-recovery-source-vN`
+  where `N >= 2`; suffixes with leading zeroes, `v1`, and arbitrary variants are
+  rejected fail-closed;
 - base `main`;
 - candidate body marker for the requested version.
 
