@@ -45,12 +45,13 @@ def test_rejects_non_draft_or_wrong_branch_even_with_matching_sha():
 
 
 def test_scope_gate_allows_only_the_exact_ready_candidate_state():
-    ready = validate(candidate(draft=False), operation="release_scope_dry_run")
-    assert ready["status"] == "PASS"
+    for operation in ("release_scope_dry_run", "promotion_dry_run"):
+        ready = validate(candidate(draft=False), operation=operation)
+        assert ready["status"] == "PASS"
 
-    draft = validate(candidate(), operation="release_scope_dry_run")
-    assert draft["status"] == "FAIL"
-    assert "CONTROLLED_CANDIDATE_SCOPE_DRY_RUN_REQUIRES_READY" in draft["failures"]
+        draft = validate(candidate(), operation=operation)
+        assert draft["status"] == "FAIL"
+        assert "CONTROLLED_CANDIDATE_SCOPE_DRY_RUN_REQUIRES_READY" in draft["failures"]
 
 
 def test_rejects_sha_drift_and_unknown_operation():
@@ -182,3 +183,21 @@ def test_hrdr_scaffold_has_only_the_pr_comment_write_capability_it_needs() -> No
     assert "pull-requests: read" not in workflow
     assert "pull-requests: write\n  contents: write" not in workflow
     assert "contents: write" not in workflow
+
+
+def test_promotion_dry_run_uses_explicit_exact_evidence_and_uploads_zero_side_effect_result() -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    cli = (ROOT / "ddda.ps1").read_text(encoding="utf-8-sig")
+    governed = (ROOT / "scripts/platform/Invoke-DDDAGovernedPromotePr.ps1").read_text(encoding="utf-8-sig")
+
+    assert "- promotion_dry_run" in workflow
+    assert "inputs.operation == 'release_scope_dry_run' || inputs.operation == 'promotion_dry_run'" in workflow
+    assert "-ValidationReportPath $env:validation_report" in workflow
+    assert "-PackagePath $env:candidate_package" in workflow
+    assert "[string]$result.wrapper_status -ne 'PASS'" in workflow
+    assert "[string]$result.side_effect_assertions_status -ne 'PASS'" in workflow
+    assert "controlled-candidate-promotion-dry-run-${{ env.CANDIDATE_PR }}-${{ env.SOURCE_SHA }}" in workflow
+    assert 'if (-not [string]::IsNullOrWhiteSpace($ValidationReportPath)) { $arguments += @("-ValidationReportPath", $ValidationReportPath) }' in cli
+    assert 'if (-not [string]::IsNullOrWhiteSpace($PackagePath)) { $arguments += @("-PackagePath", $PackagePath) }' in cli
+    assert "-ValidationReportPath $ValidationReportPath" in governed
+    assert "-PackagePath $PackagePath" in governed

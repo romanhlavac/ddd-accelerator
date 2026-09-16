@@ -155,6 +155,15 @@ Release Scope Gate vyžaduje, aby current release scope byl před skutečným re
 
 Dry-run neprovede merge release candidate, release package, tag ani GitHub Release.
 
+Pro controlled recovery candidate lze stejný governed wrapper spustit vzdáleně
+z workflow `Controlled release-candidate validation` operací
+`promotion_dry_run`. Operace přijímá exact PR, source SHA a verzi, obnoví
+report-bound canonical candidate package, znovu vyhodnotí HRDR a Release Scope
+Gate a publikuje operation-local `dry-run-result.json`. Workflow fail-closed
+vyžaduje `promotion_preflight_status=PASS`,
+`side_effect_assertions_status=PASS` a `wrapper_status=PASS`; nepřijímá promotion
+authorization a nemá `contents: write` oprávnění.
+
 Governed wrapper navíc ukládá deterministickou machine-readable evidence pod DDDA state root `promotion/`. Výsledek rozlišuje:
 
 ```text
