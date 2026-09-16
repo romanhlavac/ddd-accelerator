@@ -94,6 +94,16 @@ artifact with the exact candidate identity. A pagination, response-shape or
 identity ambiguity remains fail-closed; it cannot select an arbitrary first
 artifact or silently narrow the evidence set.
 
+## HRDR-bound validation-run boundary
+
+After a Human Release Decision Record exists, a scope or promotion dry-run does
+not use repository-wide artifact discovery to rediscover technical evidence.
+It reads the HRDR first, requires one positive `validation_workflow_run`, and
+accepts exactly one unexpired artifact of the expected name from that run only.
+This prevents an equally named later artifact from becoming an ambiguous or
+silent substitute for the human-approved validation evidence. A missing,
+non-positive, expired, or non-unique HRDR-bound artifact fails closed.
+
 ## HRDR canonical evidence handoff
 
 The controlled-candidate workflow restores both the canonical validation report and

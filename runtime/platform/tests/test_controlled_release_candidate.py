@@ -158,11 +158,26 @@ def test_technical_validation_stages_report_bound_exact_evidence_before_upload()
 def test_restored_candidate_evidence_aggregates_paginated_artifact_pages_fail_closed() -> None:
     workflow = WORKFLOW.read_text(encoding="utf-8")
 
-    assert workflow.count('gh api --paginate --slurp "repos/$env:REPOSITORY/actions/artifacts?per_page=100"') == 2
-    assert workflow.count('$pages = @(gh api --paginate --slurp') == 2
-    assert workflow.count('$artifacts = @($pages | ForEach-Object { @($_.artifacts) })') == 2
+    assert workflow.count('gh api --paginate --slurp "repos/$env:REPOSITORY/actions/artifacts?per_page=100"') == 1
+    assert workflow.count('$pages = @(gh api --paginate --slurp') == 1
+    assert workflow.count('$artifacts = @($pages | ForEach-Object { @($_.artifacts) })') == 1
     assert '$all.artifacts' not in workflow
-    assert workflow.count("Expected exactly one unexpired exact validation artifact") == 2
+    assert workflow.count("Expected exactly one unexpired exact validation artifact") == 1
+
+
+def test_dry_run_restores_only_the_validation_artifact_bound_by_the_hrdr() -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    dry_run = workflow.split("  release-scope-dry-run:\n", 1)[1]
+
+    hrdr = dry_run.index("      - name: Read exact Human Release Decision Record")
+    restore = dry_run.index("      - name: Restore exact technical evidence")
+    assert hrdr < restore
+    restore_block = dry_run[restore:dry_run.index("      - name: Verify restored exact evidence")]
+    assert '$validationRun = [int]$hrdr.evidence.validation_workflow_run' in restore_block
+    assert 'actions/runs/$validationRun/artifacts?per_page=100' in restore_block
+    assert 'Authoritative HRDR must name one positive validation_workflow_run.' in restore_block
+    assert 'Expected exactly one unexpired HRDR-bound validation artifact' in restore_block
+    assert 'actions/artifacts?per_page=100' not in restore_block
 
 def test_hrdr_scaffold_forwards_report_bound_package_through_public_review_entrypoint() -> None:
     workflow = WORKFLOW.read_text(encoding="utf-8")

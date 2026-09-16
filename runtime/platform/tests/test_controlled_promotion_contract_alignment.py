@@ -13,7 +13,7 @@ def test_controlled_promotion_executor_uses_the_shared_versioned_branch_contract
     assert '$headRefName -ne $expectedControlledRef' not in text
 
 
-def test_promotion_dry_run_restores_exact_evidence_before_hrdr_and_staging():
+def test_promotion_dry_run_uses_hrdr_bound_evidence_before_staging():
     text = WORKFLOW.read_text(encoding="utf-8")
     dry_run = text.split("  release-scope-dry-run:\n", 1)[1]
 
@@ -23,7 +23,7 @@ def test_promotion_dry_run_restores_exact_evidence_before_hrdr_and_staging():
     promotion = dry_run.index("      - name: Run governed promotion dry-run only")
     staging = dry_run.index("      - name: Stage promotion dry-run evidence")
 
-    assert restore < verify < hrdr < promotion < staging
-    verify_block = dry_run[verify:hrdr]
+    assert hrdr < restore < verify < promotion < staging
+    verify_block = dry_run[verify:promotion]
     assert "--output restored-evidence.json" in verify_block
     assert "Restored exact candidate evidence did not pass." in verify_block
