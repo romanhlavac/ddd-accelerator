@@ -4,6 +4,7 @@ param(
     [Parameter(Mandatory = $true)][ValidateRange(1, 2147483647)][int]$Pr,
     [Parameter(Mandatory = $true)][string]$Version,
     [switch]$ConfirmMerge,
+    [switch]$ConfirmPromotion,
     [switch]$WithMiro,
     [switch]$Full,
     [switch]$CleanupOnFailure,
@@ -220,6 +221,13 @@ Write-Host "Changelog release: PASS ($($changelogRelease.Version), $($changelogR
 Write-Host "Release tag free:  PASS ($tag)"
 Write-Host "Release source:    $(if ($ControlledReleaseSource) { 'exact controlled PR SHA (no merge)' } else { 'standard merged PR' })"
 
+if ($ControlledReleaseSource -and $ConfirmMerge) {
+    throw "Controlled no-merge promotion nepřijímá -ConfirmMerge; použij -ConfirmPromotion."
+}
+if (-not $ControlledReleaseSource -and $ConfirmPromotion) {
+    throw "Standard merge-first promotion nepřijímá -ConfirmPromotion; použij -ConfirmMerge."
+}
+
 if ($DryRun) {
     Write-Host ""
     Write-Host "DDDA promote-pr dry-run: PASS"
@@ -230,8 +238,13 @@ if ($DryRun) {
     exit 0
 }
 
-if ([bool]$policy.require_explicit_confirmation -and -not $ConfirmMerge) {
-    throw "Promotion vyžaduje explicitní -ConfirmMerge."
+if ([bool]$policy.require_explicit_confirmation) {
+    if ($ControlledReleaseSource -and -not $ConfirmPromotion) {
+        throw "Controlled no-merge promotion vyžaduje explicitní -ConfirmPromotion."
+    }
+    if (-not $ControlledReleaseSource -and -not $ConfirmMerge) {
+        throw "Standard merge-first promotion vyžaduje explicitní -ConfirmMerge."
+    }
 }
 
 $releaseCommit = $headSha

@@ -308,7 +308,11 @@ Gate fail-closed ověřuje zejména:
 Skutečný promotion vyžaduje novou explicitní lidskou autorizaci:
 
 ```powershell
+# standard merge-first release candidate
 .\ddda.ps1 promote-pr -Pr <RELEASE_PR> -Version <X.Y.Z> -ConfirmMerge
+
+# controlled no-merge recovery source
+.\ddda.ps1 promote-pr -Pr <RECOVERY_PR> -Version <X.Y.Z> -ConfirmPromotion
 ```
 
 Implementation merge authorization nikdy neimplikuje release/promotion/tag authorization.
@@ -320,6 +324,9 @@ operation-local package; canonical release package, tag a GitHub Release mohou
 vzniknout až po security/smoke/E2E/acceptance a machine-readable release report
 PASS. Controlled schema v2 dovoluje právě jeden release-cut commit měnící pouze
 `CHANGELOG.md`, následovaný právě jedním ledger-only commitem.
+Recovered commity se nesmějí překrývat s release-cut ani ledger-tip commitem.
+Controlled režim odmítá `-ConfirmMerge`; standard režim odmítá
+`-ConfirmPromotion`.
 
 ## 9. Selhání a diagnostika
 

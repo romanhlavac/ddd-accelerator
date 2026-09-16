@@ -181,6 +181,8 @@ def evaluate_recovery_ledger(
         if primary_cr not in declared_scope:
             failures.append(f"RECOVERY_LEDGER_OUT_OF_SCOPE_PRIMARY_CR:PR#{source_pr}:#{primary_cr}")
 
+    if recovered & metadata:
+        failures.append("RECOVERY_LEDGER_COMMIT_ROLE_OVERLAP")
     if recovered | metadata != physical_commits:
         failures.append("RECOVERY_LEDGER_COMMIT_COVERAGE_MISMATCH")
     return sorted(set(failures))

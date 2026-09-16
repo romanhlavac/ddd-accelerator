@@ -35,6 +35,12 @@ Schema v2 permits exactly one deterministic release-cut metadata commit. It may
 change only `CHANGELOG.md` and is bound to its single parent/result blob SHAs.
 It is followed by exactly one ledger-only tip commit. Schema v1 remains
 readable for existing evidence but cannot authorize controlled promotion.
+Recovered commits and both metadata commits are disjoint roles. Any overlap,
+including an entry that reuses the release-cut or ledger-tip SHA, fails closed.
+
+Actual controlled no-merge promotion uses the explicit `-ConfirmPromotion`
+authorization boundary. It rejects `-ConfirmMerge`; that parameter remains
+specific to standard merge-first promotion and implementation merge.
 
 Promotion dry-run exits before merge, package materialization, tag or release.
 The governed wrapper performs fresh before/after read-back and records

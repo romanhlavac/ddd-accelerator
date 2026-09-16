@@ -1,5 +1,7 @@
 from runtime.platform.release_governance import evaluate_recovery_ledger
 
+import pytest
+
 
 def test_recovery_ledger_accepts_collector_derived_metadata_commit():
     recovered = "d" * 40
@@ -76,6 +78,65 @@ def test_recovery_ledger_v2_accepts_exact_one_file_release_cut_and_ledger_tip():
         expected_version="0.1.1",
         declared_scope={96},
     ) == []
+
+
+@pytest.mark.parametrize("overlapping_metadata_role", ["release_cut", "ledger_tip"])
+def test_recovery_ledger_v2_rejects_recovered_metadata_role_overlap(
+    overlapping_metadata_role,
+):
+    recovered = "d" * 40
+    release_cut = "e" * 40
+    ledger_tip = "f" * 40
+    overlapping_sha = release_cut if overlapping_metadata_role == "release_cut" else ledger_tip
+    physical = {
+        "previous_release_tag": "v0.1.0",
+        "commit_shas": [recovered, release_cut, ledger_tip],
+        "recovery_ledger": {
+            "schema_version": 2,
+            "version": "0.1.1",
+            "previous_release_tag": "v0.1.0",
+            "metadata_commit_shas": [release_cut, ledger_tip],
+            "release_cut": {
+                "commit_sha": release_cut,
+                "path": "CHANGELOG.md",
+                "version": "0.1.1",
+                "changed_paths_match": True,
+                "source_blob_matches": True,
+                "release_blob_matches": True,
+            },
+            "entries": [
+                {
+                    "recovered_commit_sha": recovered,
+                    "source_pr": 97,
+                    "primary_cr": 96,
+                    "source_pr_merged": True,
+                    "source_primary_crs": [96],
+                    "source_merge_commit_sha": "a" * 40,
+                    "observed_source_merge_commit_sha": "a" * 40,
+                    "changed_path_hashes_match": True,
+                },
+                {
+                    "recovered_commit_sha": overlapping_sha,
+                    "source_pr": 111,
+                    "primary_cr": 98,
+                    "source_pr_merged": True,
+                    "source_primary_crs": [98],
+                    "source_merge_commit_sha": "b" * 40,
+                    "observed_source_merge_commit_sha": "b" * 40,
+                    "changed_path_hashes_match": True,
+                },
+            ],
+        },
+    }
+
+    failures = evaluate_recovery_ledger(
+        physical,
+        expected_version="0.1.1",
+        declared_scope={96, 98},
+    )
+
+    assert "RECOVERY_LEDGER_COMMIT_ROLE_OVERLAP" in failures
+    assert "RECOVERY_LEDGER_COMMIT_COVERAGE_MISMATCH" not in failures
 
 
 def test_recovery_ledger_v2_rejects_release_cut_blob_or_path_drift():

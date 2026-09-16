@@ -89,6 +89,7 @@ Assert-True -Condition ($entry -match 'ValidateSet\("doctor",\s*"test",\s*"valid
 Assert-True -Condition ($entry -match 'Invoke-DDDAGovernedMergePr\.ps1') -Message "Root CLI neroutuje merge-pr přes governed implementation merge."
 Assert-True -Condition ($entry -match 'Invoke-DDDAGovernedPromotePr\.ps1') -Message "Root CLI obchází governed release promotion wrapper."
 Assert-True -Condition ($entry -match '\[switch\]\$ConfirmMerge') -Message "Root CLI nemá explicitní ConfirmMerge."
+Assert-True -Condition ($entry -match '\[switch\]\$ConfirmPromotion') -Message "Root CLI nemá explicitní ConfirmPromotion."
 Assert-True -Condition ($entry -match '\[switch\]\$DryRun') -Message "Root CLI nemá DryRun."
 Assert-True -Condition ($entry -match 'PackageArtifactName') -Message "Root CLI nepředává canonical artifact identity do validate-pr."
 Assert-True -Condition ($entry -match 'ValidationReportPath') -Message "Root CLI nepředává přenositelnou validation evidence do merge-pr."
@@ -267,9 +268,14 @@ Assert-True -Condition ($promotion -match 'schema_version\s*-ne\s*2') -Message "
 Assert-True -Condition ($promotion -match 'Copy-Item[\s\S]+releasePackagePath' -and $promotion -match 'if\s*\(\s*-not\s+\$releasePassed') -Message "Canonical release package není materializován až po release validation PASS."
 Assert-True -Condition ($recoveryLedgerSchema -match '"schema_version"\s*:\s*\{"enum"\s*:\s*\[1,\s*2\]' -and $recoveryLedgerSchema -match '"release_cut"') -Message "Recovery ledger schema nemá versioned release-cut v2 contract."
 Assert-True -Condition ($releaseGovernanceRuntime -match 'RECOVERY_LEDGER_RELEASE_CUT_PATHS_MISMATCH' -and $releaseGovernanceRuntime -match 'RECOVERY_LEDGER_RELEASE_CUT_RESULT_BLOB_MISMATCH' -and $releaseGovernanceRuntime -match 'RECOVERY_LEDGER_RELEASE_CUT_SEQUENCE_INVALID') -Message "Release Scope Gate nevyhodnocuje one-file release-cut path/blob/sequence evidence."
+Assert-True -Condition ($releaseGovernanceRuntime -match 'recovered\s*&\s*metadata' -and $releaseGovernanceRuntime -match 'RECOVERY_LEDGER_COMMIT_ROLE_OVERLAP') -Message "Release Scope Gate neodmítá překryv recovered a metadata commit rolí."
+Assert-True -Condition ($governedPromotion -match '\[switch\]\$ConfirmPromotion') -Message "Governed controlled promotion nemá explicitní ConfirmPromotion boundary."
+Assert-True -Condition ($governedPromotion -match 'Controlled no-merge promotion nepřijímá -ConfirmMerge' -and $governedPromotion -match 'if\s*\(\$ConfirmPromotion\)\s*\{\s*\$arguments\s*\+=\s*"-ConfirmPromotion"') -Message "Governed controlled promotion neodmítá merge authorization nebo nepředává promotion authorization."
+Assert-True -Condition ($promotion -match '\[switch\]\$ConfirmPromotion') -Message "Controlled promotion executor nemá explicitní ConfirmPromotion boundary."
+Assert-True -Condition ($promotion -match 'Controlled no-merge promotion nepřijímá -ConfirmMerge' -and $promotion -match 'Controlled no-merge promotion vyžaduje explicitní -ConfirmPromotion') -Message "Controlled executor nerozlišuje merge a promotion authorization."
 
 $dryRunMatch = [regex]::Match($promotion, 'if\s*\(\$DryRun\)', [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)
-$confirmationMatch = [regex]::Match($promotion, 'if\s*\(\[bool\]\$policy\.require_explicit_confirmation\s*-and\s*-not\s*\$ConfirmMerge\)', [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)
+$confirmationMatch = [regex]::Match($promotion, 'if\s*\(\[bool\]\$policy\.require_explicit_confirmation\)', [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)
 $promotionMergeMatch = [regex]::Match($promotion, 'Merge-DDDAGitHubPullRequest', [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)
 $releaseGateMatch = [regex]::Match($promotion, 'if\s*\(\s*-not\s+\$releasePassed(?:\s*-or\s*-not\s+\$releaseReportCreated)?\s*\)', [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)
 $tagCreationMatch = [regex]::Match($promotion, 'Invoke-DDDAPlatformGit[^\r\n]+@\("tag"', [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)

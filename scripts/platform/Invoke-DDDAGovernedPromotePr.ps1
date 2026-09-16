@@ -4,6 +4,7 @@ param(
     [Parameter(Mandatory = $true)][ValidateRange(1, 2147483647)][int]$Pr,
     [Parameter(Mandatory = $true)][string]$Version,
     [switch]$ConfirmMerge,
+    [switch]$ConfirmPromotion,
     [switch]$WithMiro,
     [switch]$Full,
     [switch]$CleanupOnFailure,
@@ -137,6 +138,12 @@ if ($controlledReleaseSource) {
     if ($body -notlike "*$candidateMarker*" -or $body -notmatch '(?i)must not be merged into `?main`?') {
         throw "Controlled release source postrádá canonical candidate marker nebo explicitní no-merge boundary."
     }
+    if ($ConfirmMerge) {
+        throw "Controlled no-merge promotion nepřijímá -ConfirmMerge; explicitní promotion authorization používá -ConfirmPromotion."
+    }
+}
+elseif ($ConfirmPromotion) {
+    throw "Standard merge-first promotion nepřijímá -ConfirmPromotion; explicitní merge authorization používá -ConfirmMerge."
 }
 
 Write-Host "=== DDDA governed promotion preflight ==="
@@ -156,7 +163,12 @@ $arguments = @(
     "-Pr", [string]$Pr,
     "-Version", $Version
 )
-if ($ConfirmMerge) { $arguments += "-ConfirmMerge" }
+if ($controlledReleaseSource) {
+    if ($ConfirmPromotion) { $arguments += "-ConfirmPromotion" }
+}
+elseif ($ConfirmMerge) {
+    $arguments += "-ConfirmMerge"
+}
 if ($WithMiro) { $arguments += "-WithMiro" }
 if ($Full) { $arguments += "-Full" }
 if ($CleanupOnFailure) { $arguments += "-CleanupOnFailure" }

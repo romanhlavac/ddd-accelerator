@@ -45,7 +45,9 @@ that creates it. Every other physical commit since the previous tag must have
 one and only one ledger entry. The Gate freshly reads back the original PR,
 its single primary CR, merged SHA and changed-path result hashes.
 Any stale SHA, non-merged source PR, altered path result, incomplete coverage,
-duplicate mapping or out-of-scope CR is a failure.
+duplicate mapping, recovered/metadata role overlap or out-of-scope CR is a
+failure. In particular, neither the release-cut nor the ledger-tip commit may
+also appear as a recovered entry.
 
 Schema v2 adds exactly one `release_cut` record. It binds the release version,
 the release-cut commit SHA, the fixed path `CHANGELOG.md`, and that path's
@@ -81,6 +83,16 @@ Release Scope Gate and exact-SHA validation are all PASS, governed promotion
 uses the PR head itself as the release source. It never merges that PR into
 `main` and never deletes its source branch. Dry-run records before/after
 assertions for PR merged state, head SHA, base SHA, tag and GitHub Release.
+Actual controlled promotion requires the explicit no-merge authorization
+boundary:
+
+```powershell
+.\ddda.ps1 promote-pr -Pr <RECOVERY_PR> -Version <X.Y.Z> -ConfirmPromotion
+```
+
+`-ConfirmMerge` is rejected in controlled mode. It remains the boundary for a
+standard merge-first release candidate.
+
 Actual promotion validates an operation-local package first; only after the
 release suites and report are PASS may it materialize the canonical package,
 tag the exact candidate SHA and publish the GitHub Release.

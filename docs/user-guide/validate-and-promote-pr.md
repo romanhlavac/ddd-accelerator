@@ -174,13 +174,21 @@ Před a po dry-runu se čerstvým GitHub read-backem ověřuje, že PR nebyl mer
 Vyžaduje novou samostatnou explicitní human authorization:
 
 ```powershell
+# standard merge-first release candidate
 .\ddda.ps1 promote-pr -Pr <RELEASE_PR> -Version <X.Y.Z> -ConfirmMerge
+
+# controlled no-merge recovery source
+.\ddda.ps1 promote-pr -Pr <RECOVERY_PR> -Version <X.Y.Z> -ConfirmPromotion
 ```
 
 S online Miro release acceptance, je-li relevantní:
 
 ```powershell
+# standard merge-first release candidate
 .\ddda.ps1 promote-pr -Pr <RELEASE_PR> -Version <X.Y.Z> -ConfirmMerge -WithMiro -Full -CleanupOnFailure
+
+# controlled no-merge recovery source
+.\ddda.ps1 promote-pr -Pr <RECOVERY_PR> -Version <X.Y.Z> -ConfirmPromotion -WithMiro -Full -CleanupOnFailure
 ```
 
 Implementation `merge-pr -ConfirmMerge` authorization nikdy neautorizuje release.
@@ -203,6 +211,9 @@ commit měnící pouze `CHANGELOG.md` a jeden finální ledger-only commit. Cand
 PR musí používat `release/<version>-controlled-recovery-source`, nést canonical
 marker a explicitně deklarovat, že se nesmí mergovat do `main`. Ruční přepnutí
 obyčejného PR do tohoto režimu není veřejný CLI contract.
+Recovered, release-cut a ledger-tip role musí být disjunktní. Controlled režim
+odmítá `-ConfirmMerge` a vyžaduje `-ConfirmPromotion`; standard merge-first režim
+naopak nepřijímá `-ConfirmPromotion`.
 
 Při release validation FAIL se tag nevytvoří.
 
