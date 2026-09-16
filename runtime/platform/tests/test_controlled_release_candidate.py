@@ -94,3 +94,33 @@ def test_technical_validation_binds_checkout_to_identified_selection_output():
     assert "source_sha: ${{ steps.selection.outputs.source_sha }}" in workflow
     assert "ref: ${{ needs.select.outputs.source_sha }}" in workflow
     assert "Candidate checkout SHA '$actual' does not match requested SHA '$env:SOURCE_SHA'." in workflow
+
+
+def test_pre_promotion_candidate_validation_keeps_release_notes_for_promotion_only() -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    cli = (ROOT / "ddda.ps1").read_text(encoding="utf-8")
+    test_runner = (ROOT / "scripts/platform/Invoke-DDDAPlatformTest.ps1").read_text(encoding="utf-8")
+    validator = (ROOT / "scripts/platform/Invoke-DDDAValidatePr.ps1").read_text(encoding="utf-8")
+    guards = (ROOT / "tests/powershell/Test-DDDAPromotionGuards.ps1").read_text(encoding="utf-8")
+
+    assert r".\candidate\ddda.ps1 test -Suite component -PrePromotionCandidate -NonInteractive" in workflow
+    assert "-PrePromotionCandidate" in workflow
+    assert "[switch]$PrePromotionCandidate" in cli
+    assert "[switch]$PrePromotionCandidate" in test_runner
+    assert "[switch]$PrePromotionCandidate" in validator
+    assert "[switch]$PrePromotionCandidate" in guards
+    assert "if (-not $PrePromotionCandidate)" in guards
+    assert "Public release promotion must stay strictly gated" in guards
+    assert "Assert-DDDAPlatformChangelogRelease" in guards
+
+
+def test_technical_validation_stages_runner_local_evidence_before_upload() -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+
+    assert "Stage exact validation evidence" in workflow
+    assert "$env:LOCALAPPDATA" in workflow
+    assert "$env:RUNNER_TEMP" in workflow
+    assert "Expected exactly one exact candidate package" in workflow
+    assert "${{ runner.temp }}/controlled-candidate-evidence/**" in workflow
+    assert "${{ env.LOCALAPPDATA }}" not in workflow
+    assert "if-no-files-found: error" in workflow
