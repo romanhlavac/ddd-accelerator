@@ -11,6 +11,11 @@ from dataclasses import dataclass
 from typing import Any, Iterable
 import re
 
+try:
+    from .recovery_transformation import apply_recovery_transformation_decision
+except ImportError:  # direct script/runtime path import
+    from recovery_transformation import apply_recovery_transformation_decision
+
 SHA40 = re.compile(r"^[0-9a-f]{40}$")
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 SEMVER = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$")
@@ -486,10 +491,20 @@ def evaluate_release_scope(
     )
 
     failures = sorted(set(failures))
-    return GovernanceResult(
+    base_result = GovernanceResult(
         status="PASS" if not failures else "FAIL",
         failures=tuple(failures),
         scope_issues=tuple(sorted(scope_issues)),
         accepted_risk_issues=tuple(sorted(risk_issues)),
         side_effects_allowed=not failures,
+    )
+    return apply_recovery_transformation_decision(
+        base_result,
+        snapshot,
+        expected_repository=expected_repository,
+        expected_pr=expected_pr,
+        expected_source_sha=expected_source_sha,
+        expected_package_sha256=expected_package_sha256,
+        expected_version=expected_version,
+        expected_decision_owner=str(record.get("decision_owner") or ""),
     )
