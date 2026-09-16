@@ -31,7 +31,15 @@ def validate_request(
     expected_ref = f"release/{version}-controlled-recovery-source"
     if int(pr.get("number") or -1) != pr_number:
         failures.append("CONTROLLED_CANDIDATE_PR_IDENTITY_INVALID")
-    if pr.get("state") != "open" or pr.get("draft") is not True:
+    if pr.get("state") != "open":
+        failures.append("CONTROLLED_CANDIDATE_MUST_REMAIN_OPEN")
+    elif operation == "release_scope_dry_run":
+        # Scope evidence is evaluated only after the explicit Human Release
+        # Decision on the Ready candidate. It does not authorize promotion,
+        # tag creation, or GitHub Release publication.
+        if pr.get("draft") is not False:
+            failures.append("CONTROLLED_CANDIDATE_SCOPE_DRY_RUN_REQUIRES_READY")
+    elif pr.get("draft") is not True:
         failures.append("CONTROLLED_CANDIDATE_MUST_REMAIN_OPEN_DRAFT")
     if str(head.get("sha") or "") != source_sha:
         failures.append("CONTROLLED_CANDIDATE_HEAD_SHA_MISMATCH")
