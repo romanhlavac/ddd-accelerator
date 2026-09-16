@@ -44,6 +44,15 @@ def test_rejects_non_draft_or_wrong_branch_even_with_matching_sha():
     assert "CONTROLLED_CANDIDATE_BRANCH_INVALID" in result["failures"]
 
 
+def test_scope_gate_allows_only_the_exact_ready_candidate_state():
+    ready = validate(candidate(draft=False), operation="release_scope_dry_run")
+    assert ready["status"] == "PASS"
+
+    draft = validate(candidate(), operation="release_scope_dry_run")
+    assert draft["status"] == "FAIL"
+    assert "CONTROLLED_CANDIDATE_SCOPE_DRY_RUN_REQUIRES_READY" in draft["failures"]
+
+
 def test_rejects_sha_drift_and_unknown_operation():
     result = validate(candidate(), source_sha="b" * 40, operation="publish_release")
     assert result["status"] == "FAIL"
