@@ -433,6 +433,7 @@ $publication = Publish-DDDACanonicalGitHubRelease `
     -PackagePath $releasePackagePath `
     -ReportJsonPath $releaseReportJson `
     -ReportMarkdownPath $releaseReportMarkdown `
+    -ChangelogPath (Join-Path $releasePackageRoot "CHANGELOG.md") `
     -Token $githubAuth.Token `
     -PublicationEvidencePath $publicationEvidencePath
 

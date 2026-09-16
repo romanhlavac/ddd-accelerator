@@ -223,3 +223,11 @@ release-reports/
 - LOW/MEDIUM squash exception musí mít lidskou provenance a exact candidate binding;
 - `merge-pr` nesmí být release bypass;
 - `promote-pr` nesmí být použit jako obecný mechanismus merge implementačních PR.
+## GitHub Release notes
+
+Every published DDDA release contains a user-facing **Co je nové** section.
+It is generated only from the matching versioned section in `CHANGELOG.md`;
+therefore the release notes list the functionality and relevant fixes delivered
+by that release. Publication fails closed when that versioned section is missing
+or has no concrete list items. Existing GitHub Release notes must match the same
+versioned section on fresh server read-back and are never replaced heuristically.

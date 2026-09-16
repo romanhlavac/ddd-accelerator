@@ -6,6 +6,7 @@ param(
     [Parameter(Mandatory = $true)][string]$ReleasePackagePath,
     [Parameter(Mandatory = $true)][string]$ReleaseReportJsonPath,
     [Parameter(Mandatory = $true)][string]$ReleaseReportMarkdownPath,
+    [Parameter(Mandatory = $true)][string]$ChangelogPath,
     [switch]$ConfirmRecovery
 )
 
@@ -38,6 +39,7 @@ $publication = Publish-DDDACanonicalGitHubRelease `
     -PackagePath $ReleasePackagePath `
     -ReportJsonPath $ReleaseReportJsonPath `
     -ReportMarkdownPath $ReleaseReportMarkdownPath `
+    -ChangelogPath $ChangelogPath `
     -Token $githubAuth.Token `
     -PublicationEvidencePath (Join-Path $evidenceRoot "publication.json")
 
