@@ -31,6 +31,15 @@ def validate_request(
     base = pr.get("base") if isinstance(pr.get("base"), dict) else {}
     head_repo = head.get("repo") if isinstance(head.get("repo"), dict) else {}
     expected_ref = f"release/{version}-controlled-recovery-source"
+    actual_ref = str(head.get("ref") or "")
+    ref_match = re.fullmatch(
+        rf"{re.escape(expected_ref)}(?:-v(?P<generation>[1-9]\d*))?",
+        actual_ref,
+    )
+    valid_ref = ref_match is not None and (
+        ref_match.group("generation") is None
+        or int(ref_match.group("generation")) >= 2
+    )
     if int(pr.get("number") or -1) != pr_number:
         failures.append("CONTROLLED_CANDIDATE_PR_IDENTITY_INVALID")
     if pr.get("state") != "open":
@@ -45,7 +54,7 @@ def validate_request(
         failures.append("CONTROLLED_CANDIDATE_MUST_REMAIN_OPEN_DRAFT")
     if str(head.get("sha") or "") != source_sha:
         failures.append("CONTROLLED_CANDIDATE_HEAD_SHA_MISMATCH")
-    if str(head.get("ref") or "") != expected_ref:
+    if not valid_ref:
         failures.append("CONTROLLED_CANDIDATE_BRANCH_INVALID")
     if str(head_repo.get("full_name") or "") != repository:
         failures.append("CONTROLLED_CANDIDATE_HEAD_REPOSITORY_INVALID")
@@ -61,7 +70,7 @@ def validate_request(
         "pr": pr_number,
         "source_sha": source_sha,
         "version": version,
-        "expected_branch": expected_ref,
+        "expected_branch": f"{expected_ref} or {expected_ref}-vN (N >= 2)",
         "failures": sorted(set(failures)),
     }
 
