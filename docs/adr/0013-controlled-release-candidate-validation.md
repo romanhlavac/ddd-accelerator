@@ -90,3 +90,16 @@ flattens only their artifacts arrays and then requires exactly one unexpired
 artifact with the exact candidate identity. A pagination, response-shape or
 identity ambiguity remains fail-closed; it cannot select an arbitrary first
 artifact or silently narrow the evidence set.
+
+## HRDR canonical evidence handoff
+
+The controlled-candidate workflow restores both the canonical validation report and
+the one report-bound candidate package before it creates a pending HRDR. Its
+public `ddda.ps1 review-pr` entrypoint explicitly accepts and forwards
+`CandidatePackagePath` together with `ValidationReportPath` to the review
+command. The review command then rechecks the report/package identity and hash.
+
+This keeps the HRDR bound to the already validated physical package. It neither
+rebuilds a candidate nor permits a filename-only or ambient-artifact fallback;
+an unsupported or missing evidence handoff fails before any pending HRDR comment
+is written.

@@ -139,3 +139,14 @@ def test_restored_candidate_evidence_aggregates_paginated_artifact_pages_fail_cl
     assert workflow.count('$artifacts = @($pages | ForEach-Object { @($_.artifacts) })') == 2
     assert '$all.artifacts' not in workflow
     assert workflow.count("Expected exactly one unexpired exact validation artifact") == 2
+
+def test_hrdr_scaffold_forwards_report_bound_package_through_public_review_entrypoint() -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    cli = (ROOT / "ddda.ps1").read_text(encoding="utf-8")
+    review_command = (ROOT / "scripts/platform/Invoke-DDDAReviewPr.ps1").read_text(encoding="utf-8")
+
+    assert "-CandidatePackagePath $env:candidate_package" in workflow
+    assert "[string]$CandidatePackagePath" in cli
+    assert 'if (-not [string]::IsNullOrWhiteSpace($CandidatePackagePath)) { $arguments += @("-CandidatePackagePath", $CandidatePackagePath) }' in cli
+    assert "[string]$CandidatePackagePath" in review_command
+    assert "-PackagePath $CandidatePackagePath" in review_command

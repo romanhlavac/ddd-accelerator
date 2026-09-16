@@ -10,6 +10,10 @@ param(
     [int]$Pr,
     [string]$Version,
     [string]$PackagePath,
+    [string]$CandidatePackagePath,
+    [string]$PackageArtifactName,
+    [string]$PackageWorkflowRunId,
+    [string]$ValidationReportPath,
     [string]$Reviewer,
     [string]$DecisionOwner,
     [ValidateSet("merge", "squash")][string]$MergeMethod,
@@ -89,6 +93,9 @@ switch ($Command) {
             throw "Příkaz validate-pr vyžaduje kladné -Pr."
         }
         $arguments = @("-PlatformPath", $platformRoot, "-Pr", [string]$Pr)
+        if (-not [string]::IsNullOrWhiteSpace($PackagePath)) { $arguments += @("-PackagePath", $PackagePath) }
+        if (-not [string]::IsNullOrWhiteSpace($PackageArtifactName)) { $arguments += @("-PackageArtifactName", $PackageArtifactName) }
+        if (-not [string]::IsNullOrWhiteSpace($PackageWorkflowRunId)) { $arguments += @("-PackageWorkflowRunId", $PackageWorkflowRunId) }
         if ($WithMiro) { $arguments += "-WithMiro" }
         if ($Full) { $arguments += "-Full" }
         if ($CleanupOnFailure) { $arguments += "-CleanupOnFailure" }
@@ -104,6 +111,8 @@ switch ($Command) {
             throw "Příkaz merge-pr vyžaduje kladné -Pr."
         }
         $arguments = @("-PlatformPath", $platformRoot, "-Pr", [string]$Pr)
+        if (-not [string]::IsNullOrWhiteSpace($PackagePath)) { $arguments += @("-PackagePath", $PackagePath) }
+        if (-not [string]::IsNullOrWhiteSpace($ValidationReportPath)) { $arguments += @("-ValidationReportPath", $ValidationReportPath) }
         if (-not [string]::IsNullOrWhiteSpace($MergeMethod)) { $arguments += @("-MergeMethod", $MergeMethod) }
         if ($ConfirmMerge) { $arguments += "-ConfirmMerge" }
         if ($DryRun) { $arguments += "-DryRun" }
@@ -119,6 +128,8 @@ switch ($Command) {
         $arguments = @("-PlatformPath", $platformRoot, "-Pr", [string]$Pr, "-Version", $Version)
         if (-not [string]::IsNullOrWhiteSpace($Reviewer)) { $arguments += @("-Reviewer", $Reviewer) }
         if (-not [string]::IsNullOrWhiteSpace($DecisionOwner)) { $arguments += @("-DecisionOwner", $DecisionOwner) }
+        if (-not [string]::IsNullOrWhiteSpace($ValidationReportPath)) { $arguments += @("-ValidationReportPath", $ValidationReportPath) }
+        if (-not [string]::IsNullOrWhiteSpace($CandidatePackagePath)) { $arguments += @("-CandidatePackagePath", $CandidatePackagePath) }
         if ($PublishScaffold) { $arguments += "-PublishScaffold" }
         Invoke-DDDACommandScript -RelativePath "scripts/platform/Invoke-DDDAReviewPr.ps1" -Arguments $arguments
     }
