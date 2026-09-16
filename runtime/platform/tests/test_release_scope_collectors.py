@@ -161,3 +161,88 @@ def test_physical_scope_does_not_classify_non_metadata_candidate_tip():
 
     assert actual["recovery_ledger"]["metadata_commit_shas"] == []
     assert actual["unmapped_commit_shas"] == [candidate_sha]
+
+
+def test_release_cut_readback_requires_one_parent_one_changelog_path_and_exact_blobs():
+    ns = _scope_namespace()
+    commit_sha = "c" * 40
+    parent_sha = "a" * 40
+    declared = {
+        "commit_sha": commit_sha,
+        "path": "CHANGELOG.md",
+        "version": "0.1.1",
+        "source_blob_sha": "1" * 40,
+        "release_blob_sha": "2" * 40,
+    }
+    ns.rest_get = lambda path, _token: (
+        {"parents": [{"sha": parent_sha}]} if path.endswith(f"commits/{commit_sha}") else
+        {"type": "file", "sha": "1" * 40}
+    )
+    ns.commit_path_hashes = lambda *_: {"CHANGELOG.md": "2" * 40}
+
+    actual = ns.release_cut_readback("owner/repo", declared, "token")
+
+    assert actual["changed_paths_match"] is True
+    assert actual["source_blob_matches"] is True
+    assert actual["release_blob_matches"] is True
+
+
+def test_physical_scope_v2_classifies_only_release_cut_and_ledger_tip_as_metadata():
+    ns = _scope_namespace()
+    recovered = "b" * 40
+    release_cut = "c" * 40
+    ledger_tip = "d" * 40
+    source_merge = "e" * 40
+    ns.previous_release_tag = lambda *_: {"tag": "v0.1.0", "sha": "a" * 40}
+    ns.compare_commits = lambda *_: (
+        "ahead",
+        [{"sha": recovered}, {"sha": release_cut}, {"sha": ledger_tip}],
+    )
+    ns.recovery_ledger_at_source = lambda *_: {
+        "schema_version": 2,
+        "version": "0.1.1",
+        "previous_release_tag": "v0.1.0",
+        "release_cut": {
+            "commit_sha": release_cut,
+            "path": "CHANGELOG.md",
+            "version": "0.1.1",
+            "source_blob_sha": "1" * 40,
+            "release_blob_sha": "2" * 40,
+        },
+        "entries": [{
+            "recovered_commit_sha": recovered,
+            "source_pr": 97,
+            "source_merge_commit_sha": source_merge,
+            "primary_cr": 96,
+        }],
+    }
+    ns.release_cut_readback = lambda *_: {
+        "commit_sha": release_cut,
+        "path": "CHANGELOG.md",
+        "version": "0.1.1",
+        "source_blob_sha": "1" * 40,
+        "release_blob_sha": "2" * 40,
+        "changed_paths_match": True,
+        "source_blob_matches": True,
+        "release_blob_matches": True,
+    }
+    ns.commit_path_hashes = lambda _repo, sha, _token: (
+        {"CHANGELOG.md": "2" * 40} if sha == release_cut else
+        {ns.RECOVERY_LEDGER_PATH: "3" * 40} if sha == ledger_tip else
+        {"runtime/file.py": "4" * 40}
+    )
+    ns.shipping_row = lambda _repo, number, _token, _rows: {
+        "number": number,
+        "merged": True,
+        "merge_commit_sha": source_merge,
+        "primary_crs": [96],
+        "milestone": "DDDA 0.1.1",
+        "target_release": "0.1.1",
+    }
+
+    actual = ns.physical_scope_snapshot(
+        "owner/repo", "0.1.1", ledger_tip, "token", {96: {"Target Release": "0.1.1"}}
+    )
+
+    assert actual["recovery_ledger"]["metadata_commit_shas"] == [release_cut, ledger_tip]
+    assert actual["unmapped_commit_shas"] == []

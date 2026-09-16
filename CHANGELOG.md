@@ -8,6 +8,7 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 ### Added
 
+- fail-closed controlled release-source promotion: schema-v2 recovery evidence binds exactly one `CHANGELOG.md` release-cut commit, promotion preserves the exact PR candidate SHA without merging it to `main`, and canonical package/tag/GitHub Release remain behind Release Scope Gate and release-validation PASS;
 - fail-closed Recovery Transformation Decision Record: intentional subset/adapted release-source recovery can override only exact observed path/hash mismatches when a live human record is bound to repository, candidate PR/SHA/package/version, source/recovered commits and the complete differing path→blob set; exact equality remains the default.
 - CR #96 physical release-scope contract: release preflight now derives the shipping commit/PR/primary-CR set from the previous canonical SemVer tag to the exact candidate source SHA and fails closed on an unmapped, ambiguous or out-of-scope change;
 - read-only releasable-main eligibility guard for `merge-pr`: while one DDDA release Milestone is open, a PR whose primary CR is outside that train cannot be merged into `main`;
@@ -27,6 +28,8 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 - governed implementation merge používá po aktivaci #70 merge commit jako canonical default; HIGH/BREAKING a neklasifikované PR nesmějí squash/rebase, LOW/MEDIUM squash vyžaduje explicitní human exception a canonical merge ověřuje validated PR HEAD server-side jako parent/ancestor výsledného main state.
 
 ### Fixed
+- Release Scope Gate now rejects recovered/metadata commit-role overlap, and controlled no-merge promotion uses an explicit `ConfirmPromotion` authorization boundary instead of merge authorization.
+
 - Controlled release-candidate validation now binds the selected exact SHA through an identified cross-job output; it cannot silently validate `main` instead of the candidate.
 
 - delivery governance nyní odvozuje PR `Blocked` a `Status` z unresolved blocker state primárního Change Requestu; stale Project dvojice `Blocked = Yes` / `Status = Blocked` proto nemůže projít fresh fail-closed read-backem a druhý reconcile je idempotentní;

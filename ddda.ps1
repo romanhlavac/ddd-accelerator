@@ -27,6 +27,7 @@ param(
     [switch]$NonInteractive,
     [switch]$PrePromotionCandidate,
     [switch]$ConfirmMerge,
+    [switch]$ConfirmPromotion,
     [switch]$DryRun
 )
 
@@ -110,6 +111,9 @@ switch ($Command) {
         if ($Pr -le 0) {
             throw "Příkaz merge-pr vyžaduje kladné -Pr."
         }
+        if ($ConfirmPromotion) {
+            throw "Příkaz merge-pr nepřijímá -ConfirmPromotion; implementation merge používá -ConfirmMerge."
+        }
         $arguments = @("-PlatformPath", $platformRoot, "-Pr", [string]$Pr)
         if (-not [string]::IsNullOrWhiteSpace($PackagePath)) { $arguments += @("-PackagePath", $PackagePath) }
         if (-not [string]::IsNullOrWhiteSpace($ValidationReportPath)) { $arguments += @("-ValidationReportPath", $ValidationReportPath) }
@@ -142,6 +146,7 @@ switch ($Command) {
         }
         $arguments = @("-PlatformPath", $platformRoot, "-Pr", [string]$Pr, "-Version", $Version)
         if ($ConfirmMerge) { $arguments += "-ConfirmMerge" }
+        if ($ConfirmPromotion) { $arguments += "-ConfirmPromotion" }
         if ($WithMiro) { $arguments += "-WithMiro" }
         if ($Full) { $arguments += "-Full" }
         if ($CleanupOnFailure) { $arguments += "-CleanupOnFailure" }
