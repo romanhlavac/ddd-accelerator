@@ -360,6 +360,51 @@ def commit_path_hashes(repository: str, sha: str, token: str) -> dict[str, str |
     return result
 
 
+def file_blob_sha_at_ref(repository: str, path: str, ref: str, token: str) -> str | None:
+    """Read one file blob identity at an exact ref; directories/ambiguous shapes fail closed."""
+    data = rest_get(f"repos/{repository}/contents/{path}?ref={ref}", token)
+    if not isinstance(data, dict) or data.get("type") != "file":
+        return None
+    sha = str(data.get("sha") or "")
+    return sha if re.fullmatch(r"[0-9a-f]{40}", sha) else None
+
+
+def release_cut_readback(
+    repository: str,
+    declared: dict[str, Any],
+    token: str,
+) -> dict[str, Any]:
+    """Read back the deterministic one-file release-cut commit declared by ledger v2."""
+    commit_sha = str(declared.get("commit_sha") or "")
+    path = str(declared.get("path") or "")
+    evidence = {
+        "commit_sha": commit_sha,
+        "path": path,
+        "version": declared.get("version"),
+        "source_blob_sha": declared.get("source_blob_sha"),
+        "release_blob_sha": declared.get("release_blob_sha"),
+        "changed_paths_match": False,
+        "source_blob_matches": False,
+        "release_blob_matches": False,
+    }
+    if not re.fullmatch(r"[0-9a-f]{40}", commit_sha) or path != "CHANGELOG.md":
+        return evidence
+    data = rest_get(f"repos/{repository}/commits/{commit_sha}", token)
+    parents = (data or {}).get("parents") if isinstance(data, dict) else None
+    paths = commit_path_hashes(repository, commit_sha, token)
+    if not isinstance(parents, list) or len(parents) != 1 or paths is None:
+        return evidence
+    parent_sha = str((parents[0] or {}).get("sha") or "")
+    if not re.fullmatch(r"[0-9a-f]{40}", parent_sha):
+        return evidence
+    observed_source = file_blob_sha_at_ref(repository, path, parent_sha, token)
+    observed_release = paths.get(path) if set(paths) == {path} else None
+    evidence["changed_paths_match"] = set(paths) == {path}
+    evidence["source_blob_matches"] = observed_source == declared.get("source_blob_sha")
+    evidence["release_blob_matches"] = observed_release == declared.get("release_blob_sha")
+    return evidence
+
+
 def shipping_row(repository: str, number: int, token: str, project_rows: dict[int, dict[str, Any]]) -> dict[str, Any]:
     pr = rest_get(f"repos/{repository}/pulls/{number}", token) or {}
     primary = primary_change_requests(str(pr.get("body") or ""))
@@ -394,6 +439,7 @@ def physical_scope_snapshot(
     declared_metadata_commits: set[str] = set()
     metadata_candidates: set[str] = set()
     ledger_evidence: dict[str, Any] | None = None
+    release_cut_sha: str | None = None
     if ledger is not None:
         if not isinstance(ledger_entries, list):
             ledger_evidence = {"invalid": "ENTRIES"}
@@ -406,6 +452,12 @@ def physical_scope_snapshot(
             if isinstance(raw_metadata, list):
                 declared_metadata_commits = {str(value) for value in raw_metadata}
             metadata_candidates = set(declared_metadata_commits)
+            release_cut = ledger.get("release_cut") if ledger.get("schema_version") == 2 else None
+            if isinstance(release_cut, dict):
+                candidate = str(release_cut.get("commit_sha") or "")
+                if re.fullmatch(r"[0-9a-f]{40}", candidate):
+                    release_cut_sha = candidate
+                    metadata_candidates.add(candidate)
             # A recovery ledger's metadata commit cannot name itself in the
             # content it creates. Derive only the exact candidate tip and only
             # when its complete diff is the ledger file; all other shapes stay
@@ -424,6 +476,8 @@ def physical_scope_snapshot(
                 "metadata_commit_shas": sorted(metadata_candidates),
                 "entries": [],
             }
+            if isinstance(release_cut, dict):
+                ledger_evidence["release_cut"] = release_cut_readback(repository, release_cut, token)
 
     pr_numbers: set[int] = set()
     unmapped: set[str] = set()
@@ -433,6 +487,9 @@ def physical_scope_snapshot(
         if sha in metadata_candidates:
             paths = commit_path_hashes(repository, sha, token)
             if paths is not None and set(paths) == {RECOVERY_LEDGER_PATH}:
+                metadata_only.add(sha)
+                continue
+            if sha == release_cut_sha and paths is not None and set(paths) == {"CHANGELOG.md"}:
                 metadata_only.add(sha)
                 continue
         entry = entries_by_commit.get(sha)

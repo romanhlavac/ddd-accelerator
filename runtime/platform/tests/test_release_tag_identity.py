@@ -18,7 +18,7 @@ def test_release_executor_configures_deterministic_repo_local_tagger_before_tag_
     email_assignment = '$releaseTaggerEmail = "ddda-release-tagger@example.invalid"'
     name_config = '@("config", "user.name", $releaseTaggerName)'
     email_config = '@("config", "user.email", $releaseTaggerEmail)'
-    tag_creation = '@("tag", "-a", $tag, $mergeCommit, "-m", "DDDA $Version")'
+    tag_creation = '@("tag", "-a", $tag, $releaseCommit, "-m", "DDDA $Version")'
 
     for contract in (name_assignment, email_assignment, name_config, email_config, tag_creation):
         assert contract in text
@@ -27,6 +27,7 @@ def test_release_executor_configures_deterministic_repo_local_tagger_before_tag_
     assert text.index(email_assignment) < text.index(tag_creation)
     assert text.index(name_config) < text.index(tag_creation)
     assert text.index(email_config) < text.index(tag_creation)
+    assert '$releaseCommit = $headSha' in text
     assert '@("push", "origin", $tag)' in text
 
 
