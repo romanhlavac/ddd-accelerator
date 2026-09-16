@@ -4,6 +4,7 @@ param(
     [Parameter(Mandatory = $true)][ValidateRange(1, 2147483647)][int]$Pr,
     [Parameter(Mandatory = $true)][string]$Version,
     [switch]$ConfirmMerge,
+    [switch]$ConfirmPromotion,
     [switch]$WithMiro,
     [switch]$Full,
     [switch]$CleanupOnFailure,
@@ -11,7 +12,11 @@ param(
     [switch]$KeepReviewBoard,
     [string]$MiroTeamId,
     [switch]$NonInteractive,
-    [switch]$DryRun
+    [switch]$DryRun,
+    [switch]$ControlledReleaseSource,
+    [string]$GateEvidencePath,
+    [string]$ValidationReportPath,
+    [string]$PackagePath
 )
 
 Set-StrictMode -Version Latest
@@ -51,7 +56,7 @@ if ($baseRefName -ne [string]$policy.base_branch) {
     throw "PR #$Pr míří do '$baseRefName', očekáváno '$($policy.base_branch)'."
 }
 $mergeStateStatus = ([string]$prInfo.mergeable_state).ToUpperInvariant()
-if ($mergeStateStatus -notin @("CLEAN", "HAS_HOOKS", "UNSTABLE")) {
+if (-not $ControlledReleaseSource -and $mergeStateStatus -notin @("CLEAN", "HAS_HOOKS", "UNSTABLE")) {
     throw "PR #$Pr není připraven k merge. mergeable_state=$([string]$prInfo.mergeable_state)"
 }
 $headSha = [string]$prInfo.head.sha
@@ -59,6 +64,47 @@ $headRefName = [string]$prInfo.head.ref
 $headRepository = if ($null -ne $prInfo.head.repo) { [string]$prInfo.head.repo.full_name } else { $null }
 if ($headSha -notmatch '^[0-9a-f]{40}$') {
     throw "GitHub nevrátil platný PR head SHA."
+}
+
+$controlledGate = $null
+if ($ControlledReleaseSource) {
+    foreach ($requiredPath in @($GateEvidencePath, $ValidationReportPath, $PackagePath)) {
+        if ([string]::IsNullOrWhiteSpace($requiredPath) -or -not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
+            throw "Controlled release source vyžaduje existující gate, validation report a candidate package evidence."
+        }
+    }
+    $controlledGate = Get-Content -LiteralPath $GateEvidencePath -Raw -Encoding UTF8 | ConvertFrom-Json
+    $ledger = $controlledGate.physical_scope.recovery_ledger
+    $expectedControlledRef = "release/$Version-controlled-recovery-source"
+    $controlledMarker = "Controlled release-source candidate — DDDA $Version"
+    $prBody = [string]$prInfo.body
+    if (
+        [string]$controlledGate.release_scope_gate_status -ne "PASS" -or
+        -not [bool]$controlledGate.side_effects_allowed -or
+        [string]$controlledGate.repository -ne $repositorySlug -or
+        [int]$controlledGate.pr -ne $Pr -or
+        [string]$controlledGate.source_sha -ne $headSha -or
+        [string]$controlledGate.version -ne $Version -or
+        [int]$ledger.schema_version -ne 2 -or
+        $null -eq $ledger.release_cut -or
+        [string]$ledger.release_cut.commit_sha -notmatch '^[0-9a-f]{40}$' -or
+        [bool]$ledger.release_cut.changed_paths_match -ne $true -or
+        [bool]$ledger.release_cut.source_blob_matches -ne $true -or
+        [bool]$ledger.release_cut.release_blob_matches -ne $true -or
+        $headRefName -ne $expectedControlledRef -or
+        $headRepository -ne $repositorySlug -or
+        $prBody -notlike "*$controlledMarker*" -or
+        $prBody -notmatch '(?i)must not be merged into `?main`?'
+    ) {
+        throw "Controlled release source gate evidence není exact, PASS schema-v2 release-cut authority."
+    }
+}
+elseif (
+    -not [string]::IsNullOrWhiteSpace($GateEvidencePath) -or
+    -not [string]::IsNullOrWhiteSpace($ValidationReportPath) -or
+    -not [string]::IsNullOrWhiteSpace($PackagePath)
+) {
+    throw "Explicit gate/package evidence parameters jsou vyhrazeny pro governed controlled release source."
 }
 
 try {
@@ -79,7 +125,10 @@ if ($minimumApprovals -gt 0) {
 
 $validationRoot = Join-Path (Get-DDDAPlatformStateRoot) ("validation-reports/pr-$Pr-$headSha")
 $validationReports = @()
-if (Test-Path -LiteralPath $validationRoot) {
+if ($ControlledReleaseSource) {
+    $validationReports = @((Get-Item -LiteralPath $ValidationReportPath))
+}
+elseif (Test-Path -LiteralPath $validationRoot) {
     $validationReports = @(
         Get-ChildItem -LiteralPath $validationRoot -Filter "result.json" -File -Recurse -ErrorAction SilentlyContinue |
             Sort-Object LastWriteTimeUtc -Descending
@@ -95,6 +144,7 @@ foreach ($candidate in $validationReports) {
     $candidateReport = Get-Content -LiteralPath $candidate.FullName -Raw -Encoding UTF8 | ConvertFrom-Json
     if (
         $candidateReport.status -eq "PASS" -and
+        $candidateReport.source.repository -eq $repositorySlug -and
         $candidateReport.source.commit -eq $headSha -and
         $candidateReport.source.pr -eq $Pr -and
         $null -ne $candidateReport.package
@@ -113,12 +163,16 @@ if ($WithMiro) {
         throw "Promotion s -WithMiro vyžaduje PASS strukturovanou Miro evidence ve validate-pr reportu pro exact SHA."
     }
 }
-if (-not (Test-Path -LiteralPath $validationReport.package.path -PathType Leaf)) {
-    throw "Candidate package z validation reportu neexistuje: $($validationReport.package.path)"
+$candidatePackagePath = if ($ControlledReleaseSource) { (Resolve-Path -LiteralPath $PackagePath).Path } else { [string]$validationReport.package.path }
+if (-not (Test-Path -LiteralPath $candidatePackagePath -PathType Leaf)) {
+    throw "Candidate package z validation reportu neexistuje: $candidatePackagePath"
 }
-$actualCandidateHash = Get-DDDAPlatformFileHash -Path $validationReport.package.path
+$actualCandidateHash = Get-DDDAPlatformFileHash -Path $candidatePackagePath
 if ($actualCandidateHash -ne [string]$validationReport.package.sha256) {
     throw "Candidate package hash neodpovídá validation reportu."
+}
+if ($ControlledReleaseSource -and $actualCandidateHash -ne [string]$controlledGate.candidate_package_sha256) {
+    throw "Candidate package hash neodpovídá exact Release Scope Gate evidence."
 }
 
 $stateRoot = Get-DDDAPlatformStateRoot
@@ -165,42 +219,58 @@ Write-Host "Approvals policy:  PASS"
 Write-Host "Governance docs:   PASS"
 Write-Host "Changelog release: PASS ($($changelogRelease.Version), $($changelogRelease.Date))"
 Write-Host "Release tag free:  PASS ($tag)"
+Write-Host "Release source:    $(if ($ControlledReleaseSource) { 'exact controlled PR SHA (no merge)' } else { 'standard merged PR' })"
+
+if ($ControlledReleaseSource -and $ConfirmMerge) {
+    throw "Controlled no-merge promotion nepřijímá -ConfirmMerge; použij -ConfirmPromotion."
+}
+if (-not $ControlledReleaseSource -and $ConfirmPromotion) {
+    throw "Standard merge-first promotion nepřijímá -ConfirmPromotion; použij -ConfirmMerge."
+}
 
 if ($DryRun) {
     Write-Host ""
     Write-Host "DDDA promote-pr dry-run: PASS"
-    Write-Host "Nebyl proveden merge, release ani tag."
+    Write-Host "Nebyl proveden merge, release package, tag ani GitHub Release."
     if (-not $KeepArtifacts -and (Test-Path -LiteralPath $promotionRoot)) {
         Remove-Item -LiteralPath $promotionRoot -Recurse -Force -ErrorAction SilentlyContinue
     }
     exit 0
 }
 
-if ([bool]$policy.require_explicit_confirmation -and -not $ConfirmMerge) {
-    throw "Promotion vyžaduje explicitní -ConfirmMerge."
-}
-
-$mergeMethod = [string]$policy.merge_method
-if ($mergeMethod -notin @("squash", "merge", "rebase")) {
-    throw "Nepodporovaná merge_method v policy: $mergeMethod"
-}
-$mergeResult = Merge-DDDAGitHubPullRequest -RepositorySlug $repositorySlug -Pr $Pr -HeadSha $headSha -MergeMethod $mergeMethod -Token $githubAuth.Token
-$mergeCommit = [string]$mergeResult.sha
-if ($mergeCommit -notmatch '^[0-9a-f]{40}$') {
-    throw "GitHub nevrátil platný merge commit SHA."
-}
-
-$postMerge = Get-DDDAGitHubPullRequest -RepositorySlug $repositorySlug -Pr $Pr -Token $githubAuth.Token
-if (-not [bool]$postMerge.merged) {
-    throw "GitHub nepotvrdil merge PR #$Pr."
-}
-
-if (-not [string]::IsNullOrWhiteSpace($headRefName) -and $headRepository -eq $repositorySlug) {
-    try {
-        $null = Invoke-DDDAPlatformNative -Command "git" -Arguments @("push", "origin", "--delete", $headRefName) -WorkingDirectory $platformRoot
+if ([bool]$policy.require_explicit_confirmation) {
+    if ($ControlledReleaseSource -and -not $ConfirmPromotion) {
+        throw "Controlled no-merge promotion vyžaduje explicitní -ConfirmPromotion."
     }
-    catch {
-        Write-Warning "PR byl mergován, ale zdrojovou větev se nepodařilo odstranit: $($_.Exception.Message)"
+    if (-not $ControlledReleaseSource -and -not $ConfirmMerge) {
+        throw "Standard merge-first promotion vyžaduje explicitní -ConfirmMerge."
+    }
+}
+
+$releaseCommit = $headSha
+if (-not $ControlledReleaseSource) {
+    $mergeMethod = [string]$policy.merge_method
+    if ($mergeMethod -notin @("squash", "merge", "rebase")) {
+        throw "Nepodporovaná merge_method v policy: $mergeMethod"
+    }
+    $mergeResult = Merge-DDDAGitHubPullRequest -RepositorySlug $repositorySlug -Pr $Pr -HeadSha $headSha -MergeMethod $mergeMethod -Token $githubAuth.Token
+    $releaseCommit = [string]$mergeResult.sha
+    if ($releaseCommit -notmatch '^[0-9a-f]{40}$') {
+        throw "GitHub nevrátil platný merge commit SHA."
+    }
+
+    $postMerge = Get-DDDAGitHubPullRequest -RepositorySlug $repositorySlug -Pr $Pr -Token $githubAuth.Token
+    if (-not [bool]$postMerge.merged) {
+        throw "GitHub nepotvrdil merge PR #$Pr."
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($headRefName) -and $headRepository -eq $repositorySlug) {
+        try {
+            $null = Invoke-DDDAPlatformNative -Command "git" -Arguments @("push", "origin", "--delete", $headRefName) -WorkingDirectory $platformRoot
+        }
+        catch {
+            Write-Warning "PR byl mergován, ale zdrojovou větev se nepodařilo odstranit: $($_.Exception.Message)"
+        }
     }
 }
 
@@ -208,7 +278,8 @@ $releaseSource = Join-Path $promotionRoot "release-source"
 $releasePackageRoot = Join-Path $promotionRoot "release-package"
 $releaseWorkspace = Join-Path $promotionRoot "release-workspace"
 $releaseReports = Join-Path $stateRoot ("release-reports/$Version/$timestamp")
-$releasePackagePath = Join-Path $stateRoot ("packages/ddda-release-$Version-$($mergeCommit.Substring(0,12)).zip")
+$releasePackagePath = Join-Path $stateRoot ("packages/ddda-release-$Version-$($releaseCommit.Substring(0,12)).zip")
+$validationPackagePath = Join-Path $promotionRoot ("validation/ddda-release-$Version-$($releaseCommit.Substring(0,12)).zip")
 $releaseSuitesPath = Join-Path $promotionRoot "release-suites.json"
 $releaseMiroEvidencePath = Join-Path $promotionRoot "release-miro-acceptance-evidence.json"
 $releaseSuites = [System.Collections.Generic.List[object]]::new()
@@ -271,9 +342,14 @@ function Invoke-ReleaseSuite {
 }
 
 try {
-    $null = Invoke-DDDAPlatformNative -Command "git" -Arguments @(
-        "clone", "--branch", [string]$policy.base_branch, "--single-branch", $originUrl, $releaseSource
-    )
+    $null = Invoke-DDDAPlatformNative -Command "git" -Arguments @("clone", "--no-checkout", $originUrl, $releaseSource)
+    if ($ControlledReleaseSource) {
+        $null = Invoke-DDDAPlatformGit -Repository $releaseSource -Arguments @("fetch", "origin", "refs/pull/$Pr/head")
+        $null = Invoke-DDDAPlatformGit -Repository $releaseSource -Arguments @("checkout", "--detach", $releaseCommit)
+    }
+    else {
+        $null = Invoke-DDDAPlatformGit -Repository $releaseSource -Arguments @("checkout", [string]$policy.base_branch)
+    }
 
     # Release tags are annotated objects and require a tagger identity. Configure it
     # only in the isolated release-source clone so clean runners never depend on
@@ -289,28 +365,28 @@ try {
     }
 
     $releaseHead = Invoke-DDDAPlatformGit -Repository $releaseSource -Arguments @("rev-parse", "HEAD")
-    if ($releaseHead -ne $mergeCommit) {
-        throw "Aktuální main HEAD '$releaseHead' neodpovídá merge commit '$mergeCommit'."
+    if ($releaseHead -ne $releaseCommit) {
+        throw "Release-source HEAD '$releaseHead' neodpovídá exact release commit '$releaseCommit'."
     }
     Assert-DDDAPlatformCleanGit -Repository $releaseSource -Label "Release source"
 
-    $releasePackageText = & (Join-Path $releaseSource "scripts/platform/New-DDDAPlatformPackage.ps1") -PlatformPath $releaseSource -Kind release -Version $Version -SourceRef $mergeCommit -OutputPath $releasePackagePath -Json | Out-String
+    $releasePackageText = & (Join-Path $releaseSource "scripts/platform/New-DDDAPlatformPackage.ps1") -PlatformPath $releaseSource -Kind release -Version $Version -SourceRef $releaseCommit -OutputPath $validationPackagePath -Json | Out-String
     if ([string]::IsNullOrWhiteSpace($releasePackageText)) {
         throw "Vytvoření release package nevrátilo JSON."
     }
     $releasePackage = $releasePackageText.Trim() | ConvertFrom-Json
-    if ($releasePackage.source_commit -ne $mergeCommit) {
-        throw "Release package není svázán s merge commit SHA."
+    if ($releasePackage.source_commit -ne $releaseCommit) {
+        throw "Release package není svázán s exact release source SHA."
     }
 
     Invoke-DDDAPlatformChildPowerShell -ScriptPath (Join-Path $releaseSource "scripts/platform/Test-DDDAPlatformPackage.ps1") -Arguments @(
-        "-PackagePath", $releasePackagePath,
-        "-ExpectedCommit", $mergeCommit,
+        "-PackagePath", $validationPackagePath,
+        "-ExpectedCommit", $releaseCommit,
         "-ExpectedKind", "release"
     ) -SuppressOutput
 
     New-Item -ItemType Directory -Path $releasePackageRoot -Force | Out-Null
-    Expand-Archive -LiteralPath $releasePackagePath -DestinationPath $releasePackageRoot -Force
+    Expand-Archive -LiteralPath $validationPackagePath -DestinationPath $releasePackageRoot -Force
     $null = Invoke-DDDAPlatformNative -Command "git" -Arguments @("-C", $releasePackageRoot, "init", "-b", "main")
     $null = Invoke-DDDAPlatformGit -Repository $releasePackageRoot -Arguments @("config", "user.name", "DDDA Release Validation")
     $null = Invoke-DDDAPlatformGit -Repository $releasePackageRoot -Arguments @("config", "user.email", "ddda-release@example.invalid")
@@ -327,15 +403,15 @@ try {
         throw "Release validation workspace nevrátil PASS."
     }
 
-    Invoke-ReleaseSuite -Name "security" -Arguments @("security", "-PackagePath", $releasePackagePath)
-    Invoke-ReleaseSuite -Name "smoke" -Arguments @("smoke", "-PackagePath", $releasePackagePath)
-    Invoke-ReleaseSuite -Name "e2e" -Arguments @("e2e", "-PackagePath", $releasePackagePath)
-    Invoke-ReleaseSuite -Name "acceptance" -Arguments @("acceptance", "-PackagePath", $releasePackagePath, "-CleanupOnFailure", "-NonInteractive")
+    Invoke-ReleaseSuite -Name "security" -Arguments @("security", "-PackagePath", $validationPackagePath)
+    Invoke-ReleaseSuite -Name "smoke" -Arguments @("smoke", "-PackagePath", $validationPackagePath)
+    Invoke-ReleaseSuite -Name "e2e" -Arguments @("e2e", "-PackagePath", $validationPackagePath)
+    Invoke-ReleaseSuite -Name "acceptance" -Arguments @("acceptance", "-PackagePath", $validationPackagePath, "-CleanupOnFailure", "-NonInteractive")
 
     if ($WithMiro) {
         $miroArguments = @(
             "acceptance",
-            "-PackagePath", $releasePackagePath,
+            "-PackagePath", $validationPackagePath,
             "-WithMiro",
             "-CleanupOnFailure",
             "-MiroEvidenceOutputPath", $releaseMiroEvidencePath
@@ -376,8 +452,8 @@ finally {
         Status = $releaseStatus
         SourceKind = "release"
         Repository = $repositorySlug
-        Commit = $mergeCommit
-        Branch = [string]$policy.base_branch
+        Commit = $releaseCommit
+        Branch = if ($ControlledReleaseSource) { $headRefName } else { [string]$policy.base_branch }
         SuitesJsonPath = $releaseSuitesPath
         OutputRoot = $releaseReports
         Diagnostics = @($releaseDiagnostics)
@@ -386,8 +462,8 @@ finally {
         PortablePaths = $true
         RedactedRoots = @($stateRoot, $promotionRoot)
     }
-    if (Test-Path -LiteralPath $releasePackagePath -PathType Leaf) {
-        $releaseReportArguments["PackagePath"] = $releasePackagePath
+    if (Test-Path -LiteralPath $validationPackagePath -PathType Leaf) {
+        $releaseReportArguments["PackagePath"] = $validationPackagePath
     }
     if (Test-Path -LiteralPath $releaseWorkspace -PathType Container) {
         $releaseReportArguments["Workspace"] = $releaseWorkspace
@@ -414,14 +490,26 @@ finally {
 }
 
 if (-not $releasePassed -or -not $releaseReportCreated) {
-    throw "PR byl mergován, ale release validation selhala. Release tag nebyl vytvořen. Důvod: $releaseFailure Report: $releaseReports"
+    throw "Release validation selhala. Release tag ani GitHub Release nebyly vytvořeny. Důvod: $releaseFailure Report: $releaseReports"
+}
+
+# Materialize the canonical release package only after all release suites and
+# the machine-readable PASS report exist. The validation package remains an
+# operation-local artifact until this boundary.
+if (Test-Path -LiteralPath $releasePackagePath) {
+    throw "Canonical release package již existuje a nebude přepsán: $releasePackagePath"
+}
+New-Item -ItemType Directory -Path (Split-Path -Parent $releasePackagePath) -Force | Out-Null
+Copy-Item -LiteralPath $validationPackagePath -Destination $releasePackagePath
+if ((Get-DDDAPlatformFileHash -Path $releasePackagePath) -ne (Get-DDDAPlatformFileHash -Path $validationPackagePath)) {
+    throw "Canonical release package hash se liší od PASS validation package. Tag nebyl vytvořen."
 }
 
 $existingTagAfterValidation = Invoke-DDDAPlatformNative -Command "git" -Arguments @("ls-remote", "--tags", $originUrl, "refs/tags/$tag")
 if (-not [string]::IsNullOrWhiteSpace($existingTagAfterValidation)) {
     throw "Release tag vznikl souběžně během validace a nebude přepsán: $tag"
 }
-$null = Invoke-DDDAPlatformGit -Repository $releaseSource -Arguments @("tag", "-a", $tag, $mergeCommit, "-m", "DDDA $Version")
+$null = Invoke-DDDAPlatformGit -Repository $releaseSource -Arguments @("tag", "-a", $tag, $releaseCommit, "-m", "DDDA $Version")
 $null = Invoke-DDDAPlatformGit -Repository $releaseSource -Arguments @("push", "origin", $tag)
 $publicationEvidencePath = Join-Path $releaseReports "publication.json"
 $publication = Publish-DDDACanonicalGitHubRelease `
@@ -429,7 +517,7 @@ $publication = Publish-DDDACanonicalGitHubRelease `
     -OriginUrl $originUrl `
     -Version $Version `
     -Tag $tag `
-    -ReleaseSourceSha $mergeCommit `
+    -ReleaseSourceSha $releaseCommit `
     -PackagePath $releasePackagePath `
     -ReportJsonPath $releaseReportJson `
     -ReportMarkdownPath $releaseReportMarkdown `
@@ -445,7 +533,7 @@ Write-Host ""
 Write-Host "========================================"
 Write-Host "DDDA PR promotion: PASS"
 Write-Host "PR:              $Pr"
-Write-Host "Merge commit:    $mergeCommit"
+Write-Host "Release source:  $releaseCommit"
 Write-Host "Release version: $Version"
 Write-Host "Release package: $releasePackagePath"
 Write-Host "Release report:  $releaseReports"

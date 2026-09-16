@@ -42,6 +42,7 @@ $releaseScopeCollectorPath = Join-Path $platformRoot "scripts/platform/Test-DDDA
 $mergeEligibilityCollectorPath = Join-Path $platformRoot "scripts/platform/Test-DDDAMergeReleaseEligibility.py"
 $releaseGovernanceRuntimePath = Join-Path $platformRoot "runtime/platform/release_governance.py"
 $hrdrSchemaPath = Join-Path $platformRoot "schemas/human-release-decision.schema.json"
+$recoveryLedgerSchemaPath = Join-Path $platformRoot "schemas/release-source-recovery-ledger.schema.json"
 $githubSupportPath = Join-Path $platformRoot "scripts/platform/DDDAGitHubSupport.ps1"
 $platformSupportPath = Join-Path $platformRoot "scripts/platform/DDDAPlatformSupport.ps1"
 $changelogPath = Join-Path $platformRoot "CHANGELOG.md"
@@ -51,7 +52,7 @@ $gateCommandPath = Join-Path $platformRoot "scripts/Complete-DDDALifecycleStep.p
 $enginePath = Join-Path $platformRoot "runtime/steering/ddda_steering/engine.py"
 $gateSchemaPath = Join-Path $platformRoot "schemas/gate-status.schema.json"
 
-foreach ($path in @($entryPath, $governedMergePath, $governedPromotionPath, $promotionPath, $releaseGovernanceSupportPath, $validatePrPath, $validationReportPath, $platformCiPath, $secondaryCiPath, $remoteBrokerPath, $releaseScopeCollectorPath, $mergeEligibilityCollectorPath, $releaseGovernanceRuntimePath, $hrdrSchemaPath, $githubSupportPath, $platformSupportPath, $changelogPath, $policyPath, $acceptancePath, $gateCommandPath, $enginePath, $gateSchemaPath)) {
+foreach ($path in @($entryPath, $governedMergePath, $governedPromotionPath, $promotionPath, $releaseGovernanceSupportPath, $validatePrPath, $validationReportPath, $platformCiPath, $secondaryCiPath, $remoteBrokerPath, $releaseScopeCollectorPath, $mergeEligibilityCollectorPath, $releaseGovernanceRuntimePath, $hrdrSchemaPath, $recoveryLedgerSchemaPath, $githubSupportPath, $platformSupportPath, $changelogPath, $policyPath, $acceptancePath, $gateCommandPath, $enginePath, $gateSchemaPath)) {
     Assert-True -Condition (Test-Path -LiteralPath $path -PathType Leaf) -Message "Chybí merge/promotion nebo gate kontrakt: $path"
 }
 
@@ -69,6 +70,7 @@ $releaseScopeCollector = Get-Content -LiteralPath $releaseScopeCollectorPath -Ra
 $mergeEligibilityCollector = Get-Content -LiteralPath $mergeEligibilityCollectorPath -Raw -Encoding UTF8
 $releaseGovernanceRuntime = Get-Content -LiteralPath $releaseGovernanceRuntimePath -Raw -Encoding UTF8
 $hrdrSchema = Get-Content -LiteralPath $hrdrSchemaPath -Raw -Encoding UTF8
+$recoveryLedgerSchema = Get-Content -LiteralPath $recoveryLedgerSchemaPath -Raw -Encoding UTF8
 $githubSupport = Get-Content -LiteralPath $githubSupportPath -Raw -Encoding UTF8
 $platformSupport = Get-Content -LiteralPath $platformSupportPath -Raw -Encoding UTF8
 $changelog = Get-Content -LiteralPath $changelogPath -Raw -Encoding UTF8
@@ -87,6 +89,7 @@ Assert-True -Condition ($entry -match 'ValidateSet\("doctor",\s*"test",\s*"valid
 Assert-True -Condition ($entry -match 'Invoke-DDDAGovernedMergePr\.ps1') -Message "Root CLI neroutuje merge-pr přes governed implementation merge."
 Assert-True -Condition ($entry -match 'Invoke-DDDAGovernedPromotePr\.ps1') -Message "Root CLI obchází governed release promotion wrapper."
 Assert-True -Condition ($entry -match '\[switch\]\$ConfirmMerge') -Message "Root CLI nemá explicitní ConfirmMerge."
+Assert-True -Condition ($entry -match '\[switch\]\$ConfirmPromotion') -Message "Root CLI nemá explicitní ConfirmPromotion."
 Assert-True -Condition ($entry -match '\[switch\]\$DryRun') -Message "Root CLI nemá DryRun."
 Assert-True -Condition ($entry -match 'PackageArtifactName') -Message "Root CLI nepředává canonical artifact identity do validate-pr."
 Assert-True -Condition ($entry -match 'ValidationReportPath') -Message "Root CLI nepředává přenositelnou validation evidence do merge-pr."
@@ -253,9 +256,26 @@ Assert-True -Condition ($releaseScopeCollector -match 'commits/.+/pulls' -and $r
 Assert-True -Condition ($releaseGovernanceRuntime -match 'RECOVERY_DECISION_REQUIRED') -Message "Physical scope mismatch nemá explicitní human recovery boundary."
 Assert-True -Condition ($governedMerge -match 'Test-DDDAMergeReleaseEligibility\.py') -Message "Governed merge nevolá releasable-main eligibility guard."
 Assert-True -Condition ($releaseGovernanceRuntime -match 'MERGE_ELIGIBILITY_OUTSIDE_ACTIVE_RELEASE') -Message "Merge eligibility guard neblokuje PR mimo aktivní release train."
+Assert-True -Condition ($governedPromotion -match 'CONTROLLED_EXACT_PR_SHA') -Message "Governed promotion neoznačuje controlled exact-SHA release-source mode."
+Assert-True -Condition ($governedPromotion -match 'schema_version\s*-eq\s*2') -Message "Controlled promotion není fail-closed na versioned recovery ledger v2."
+Assert-True -Condition ($governedPromotion -match 'must not be merged into') -Message "Controlled promotion nevyžaduje explicitní no-merge PR boundary."
+Assert-True -Condition ($governedPromotion -match 'GateEvidencePath' -and $governedPromotion -match 'ValidationReportPath' -and $governedPromotion -match 'PackagePath') -Message "Governed promotion nepředává exact gate/validation/package evidence executorovi."
+Assert-True -Condition ($governedPromotion -match 'Get-DDDAPromotionDryRunSnapshot' -and $governedPromotion -match 'Test-DDDAPromotionDryRunSideEffects') -Message "Promotion dry-run nemá zero-side-effect before/after assertions."
+Assert-True -Condition ($promotion -match 'if\s*\(-not\s+\$ControlledReleaseSource\)') -Message "Executor neodděluje standard merge od controlled no-merge promotion."
+Assert-True -Condition ($promotion -match '\$releaseCommit\s*=\s*\$headSha') -Message "Controlled release source není vázán na exact PR candidate SHA."
+Assert-True -Condition ($promotion -match 'checkout"?,\s*"--detach"?,\s*\$releaseCommit') -Message "Controlled release source není checkoutnut jako exact detached SHA."
+Assert-True -Condition ($promotion -match 'schema_version\s*-ne\s*2') -Message "Executor nerevaliduje schema-v2 gate evidence."
+Assert-True -Condition ($promotion -match 'Copy-Item[\s\S]+releasePackagePath' -and $promotion -match 'if\s*\(\s*-not\s+\$releasePassed') -Message "Canonical release package není materializován až po release validation PASS."
+Assert-True -Condition ($recoveryLedgerSchema -match '"schema_version"\s*:\s*\{"enum"\s*:\s*\[1,\s*2\]' -and $recoveryLedgerSchema -match '"release_cut"') -Message "Recovery ledger schema nemá versioned release-cut v2 contract."
+Assert-True -Condition ($releaseGovernanceRuntime -match 'RECOVERY_LEDGER_RELEASE_CUT_PATHS_MISMATCH' -and $releaseGovernanceRuntime -match 'RECOVERY_LEDGER_RELEASE_CUT_RESULT_BLOB_MISMATCH' -and $releaseGovernanceRuntime -match 'RECOVERY_LEDGER_RELEASE_CUT_SEQUENCE_INVALID') -Message "Release Scope Gate nevyhodnocuje one-file release-cut path/blob/sequence evidence."
+Assert-True -Condition ($releaseGovernanceRuntime -match 'recovered\s*&\s*metadata' -and $releaseGovernanceRuntime -match 'RECOVERY_LEDGER_COMMIT_ROLE_OVERLAP') -Message "Release Scope Gate neodmítá překryv recovered a metadata commit rolí."
+Assert-True -Condition ($governedPromotion -match '\[switch\]\$ConfirmPromotion') -Message "Governed controlled promotion nemá explicitní ConfirmPromotion boundary."
+Assert-True -Condition ($governedPromotion -match 'Controlled no-merge promotion nepřijímá -ConfirmMerge' -and $governedPromotion -match 'if\s*\(\$ConfirmPromotion\)\s*\{\s*\$arguments\s*\+=\s*"-ConfirmPromotion"') -Message "Governed controlled promotion neodmítá merge authorization nebo nepředává promotion authorization."
+Assert-True -Condition ($promotion -match '\[switch\]\$ConfirmPromotion') -Message "Controlled promotion executor nemá explicitní ConfirmPromotion boundary."
+Assert-True -Condition ($promotion -match 'Controlled no-merge promotion nepřijímá -ConfirmMerge' -and $promotion -match 'Controlled no-merge promotion vyžaduje explicitní -ConfirmPromotion') -Message "Controlled executor nerozlišuje merge a promotion authorization."
 
 $dryRunMatch = [regex]::Match($promotion, 'if\s*\(\$DryRun\)', [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)
-$confirmationMatch = [regex]::Match($promotion, 'if\s*\(\[bool\]\$policy\.require_explicit_confirmation\s*-and\s*-not\s*\$ConfirmMerge\)', [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)
+$confirmationMatch = [regex]::Match($promotion, 'if\s*\(\[bool\]\$policy\.require_explicit_confirmation\)', [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)
 $promotionMergeMatch = [regex]::Match($promotion, 'Merge-DDDAGitHubPullRequest', [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)
 $releaseGateMatch = [regex]::Match($promotion, 'if\s*\(\s*-not\s+\$releasePassed(?:\s*-or\s*-not\s+\$releaseReportCreated)?\s*\)', [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)
 $tagCreationMatch = [regex]::Match($promotion, 'Invoke-DDDAPlatformGit[^\r\n]+@\("tag"', [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)
