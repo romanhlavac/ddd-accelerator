@@ -33,8 +33,10 @@ def validate(pr, **overrides):
     return MODULE.validate_request(pr, **arguments)
 
 
-def test_accepts_only_exact_controlled_candidate_identity():
+def test_accepts_canonical_and_numbered_successor_controlled_candidate_identity():
     assert validate(candidate())["status"] == "PASS"
+    assert validate(candidate(ref="release/0.1.1-controlled-recovery-source-v2"))["status"] == "PASS"
+    assert validate(candidate(ref="release/0.1.1-controlled-recovery-source-v12"))["status"] == "PASS"
 
 
 def test_rejects_non_draft_or_wrong_branch_even_with_matching_sha():
@@ -42,6 +44,18 @@ def test_rejects_non_draft_or_wrong_branch_even_with_matching_sha():
     assert result["status"] == "FAIL"
     assert "CONTROLLED_CANDIDATE_MUST_REMAIN_OPEN_DRAFT" in result["failures"]
     assert "CONTROLLED_CANDIDATE_BRANCH_INVALID" in result["failures"]
+
+
+def test_rejects_ambiguous_or_noncanonical_successor_branch_names():
+    for ref in (
+        "release/0.1.1-controlled-recovery-source-v1",
+        "release/0.1.1-controlled-recovery-source-v02",
+        "release/0.1.1-controlled-recovery-source-v2-extra",
+        "release/0.1.2-controlled-recovery-source-v2",
+    ):
+        result = validate(candidate(ref=ref))
+        assert result["status"] == "FAIL"
+        assert "CONTROLLED_CANDIDATE_BRANCH_INVALID" in result["failures"]
 
 
 def test_scope_gate_allows_only_the_exact_ready_candidate_state():
