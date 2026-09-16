@@ -6,6 +6,8 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-09-16
+
 ### Added
 
 - fail-closed controlled release-source promotion: schema-v2 recovery evidence binds exactly one `CHANGELOG.md` release-cut commit, promotion preserves the exact PR candidate SHA without merging it to `main`, and canonical package/tag/GitHub Release remain behind Release Scope Gate and release-validation PASS;
