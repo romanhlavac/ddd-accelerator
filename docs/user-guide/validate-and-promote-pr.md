@@ -217,8 +217,11 @@ Canonical promotion po PASS gate:
 Controlled promotion je dostupná pouze automaticky po PASS Release Scope Gate
 nad recovery ledgerem schema v2. Ledger musí dokazovat právě jeden release-cut
 commit měnící pouze `CHANGELOG.md` a jeden finální ledger-only commit. Candidate
-PR musí používat `release/<version>-controlled-recovery-source`, nést canonical
-marker a explicitně deklarovat, že se nesmí mergovat do `main`. Ruční přepnutí
+PR musí používat `release/<version>-controlled-recovery-source` nebo číslovanou
+superseding generaci `release/<version>-controlled-recovery-source-vN` s
+`N >= 2`, nést canonical marker a explicitně deklarovat, že se nesmí mergovat
+do `main`. `v1`, generace s leading zeroes a libovolné další suffixy se odmítají
+fail-closed. Ruční přepnutí
 obyčejného PR do tohoto režimu není veřejný CLI contract.
 Recovered, release-cut a ledger-tip role musí být disjunktní. Controlled režim
 odmítá `-ConfirmMerge` a vyžaduje `-ConfirmPromotion`; standard merge-first režim

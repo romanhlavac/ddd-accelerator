@@ -4,6 +4,21 @@ $ErrorActionPreference = "Stop"
 $script:DDDAHrdrMarker = "<!-- ddda:human-release-decision:v1 -->"
 $script:DDDAHumanPrReviewMarker = "<!-- ddda:human-pr-review:v1 -->"
 
+function Test-DDDAControlledReleaseSourceBranch {
+    param(
+        [Parameter(Mandatory = $true)][string]$Branch,
+        [Parameter(Mandatory = $true)][string]$Version
+    )
+
+    $canonicalBranch = "release/$Version-controlled-recovery-source"
+    $pattern = '^' + [regex]::Escape($canonicalBranch) + '(?:-v(?:[2-9]|[1-9]\d+))?$'
+    return [regex]::IsMatch(
+        $Branch,
+        $pattern,
+        [System.Text.RegularExpressions.RegexOptions]::CultureInvariant
+    )
+}
+
 function Get-DDDACandidateValidationEvidence {
     param(
         [Parameter(Mandatory = $true)][int]$Pr,

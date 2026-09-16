@@ -259,6 +259,7 @@ Assert-True -Condition ($releaseGovernanceRuntime -match 'MERGE_ELIGIBILITY_OUTS
 Assert-True -Condition ($governedPromotion -match 'CONTROLLED_EXACT_PR_SHA') -Message "Governed promotion neoznačuje controlled exact-SHA release-source mode."
 Assert-True -Condition ($governedPromotion -match 'schema_version\s*-eq\s*2') -Message "Controlled promotion není fail-closed na versioned recovery ledger v2."
 Assert-True -Condition ($governedPromotion -match 'must not be merged into') -Message "Controlled promotion nevyžaduje explicitní no-merge PR boundary."
+Assert-True -Condition ($governedPromotion -match 'Test-DDDAControlledReleaseSourceBranch') -Message "Governed promotion nepoužívá canonical versioned controlled-source branch contract."
 Assert-True -Condition ($governedPromotion -match 'GateEvidencePath' -and $governedPromotion -match 'ValidationReportPath' -and $governedPromotion -match 'PackagePath') -Message "Governed promotion nepředává exact gate/validation/package evidence executorovi."
 Assert-True -Condition ($governedPromotion -match 'Get-DDDAPromotionDryRunSnapshot' -and $governedPromotion -match 'Test-DDDAPromotionDryRunSideEffects') -Message "Promotion dry-run nemá zero-side-effect before/after assertions."
 Assert-True -Condition ($promotion -match 'if\s*\(-not\s+\$ControlledReleaseSource\)') -Message "Executor neodděluje standard merge od controlled no-merge promotion."
@@ -273,6 +274,23 @@ Assert-True -Condition ($governedPromotion -match '\[switch\]\$ConfirmPromotion'
 Assert-True -Condition ($governedPromotion -match 'Controlled no-merge promotion nepřijímá -ConfirmMerge' -and $governedPromotion -match 'if\s*\(\$ConfirmPromotion\)\s*\{\s*\$arguments\s*\+=\s*"-ConfirmPromotion"') -Message "Governed controlled promotion neodmítá merge authorization nebo nepředává promotion authorization."
 Assert-True -Condition ($promotion -match '\[switch\]\$ConfirmPromotion') -Message "Controlled promotion executor nemá explicitní ConfirmPromotion boundary."
 Assert-True -Condition ($promotion -match 'Controlled no-merge promotion nepřijímá -ConfirmMerge' -and $promotion -match 'Controlled no-merge promotion vyžaduje explicitní -ConfirmPromotion') -Message "Controlled executor nerozlišuje merge a promotion authorization."
+
+foreach ($branch in @(
+    'release/0.1.1-controlled-recovery-source',
+    'release/0.1.1-controlled-recovery-source-v2',
+    'release/0.1.1-controlled-recovery-source-v12'
+)) {
+    Assert-True -Condition (Test-DDDAControlledReleaseSourceBranch -Branch $branch -Version '0.1.1') -Message "Controlled promotion odmítá validní canonical/successor branch: $branch"
+}
+foreach ($branch in @(
+    'release/0.1.1-controlled-recovery-source-v1',
+    'release/0.1.1-controlled-recovery-source-v02',
+    'release/0.1.1-controlled-recovery-source-v2-extra',
+    'release/0.1.2-controlled-recovery-source-v4',
+    'feature/controlled-recovery-source-v4'
+)) {
+    Assert-True -Condition (-not (Test-DDDAControlledReleaseSourceBranch -Branch $branch -Version '0.1.1')) -Message "Controlled promotion přijímá necanonical nebo cross-version branch: $branch"
+}
 
 $dryRunMatch = [regex]::Match($promotion, 'if\s*\(\$DryRun\)', [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)
 $confirmationMatch = [regex]::Match($promotion, 'if\s*\(\[bool\]\$policy\.require_explicit_confirmation\)', [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)
