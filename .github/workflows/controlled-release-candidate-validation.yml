@@ -232,8 +232,9 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $artifactName = "controlled-candidate-validation-$env:CANDIDATE_PR-$env:SOURCE_SHA"
-          $all = gh api --paginate "repos/$env:REPOSITORY/actions/artifacts?per_page=100" | ConvertFrom-Json
-          $matches = @($all.artifacts | Where-Object { $_.name -eq $artifactName -and -not $_.expired })
+          $pages = @(gh api --paginate --slurp "repos/$env:REPOSITORY/actions/artifacts?per_page=100" | ConvertFrom-Json)
+          $artifacts = @($pages | ForEach-Object { @($_.artifacts) })
+          $matches = @($artifacts | Where-Object { $_.name -eq $artifactName -and -not $_.expired })
           if ($matches.Count -ne 1) { throw "Expected exactly one unexpired exact validation artifact '$artifactName', found $($matches.Count)." }
           gh api -H "Accept: application/vnd.github+json" "repos/$env:REPOSITORY/actions/artifacts/$($matches[0].id)/zip" > validation-evidence.zip
           Expand-Archive -LiteralPath validation-evidence.zip -DestinationPath validation-evidence -Force
@@ -321,8 +322,9 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $artifactName = "controlled-candidate-validation-$env:CANDIDATE_PR-$env:SOURCE_SHA"
-          $all = gh api --paginate "repos/$env:REPOSITORY/actions/artifacts?per_page=100" | ConvertFrom-Json
-          $matches = @($all.artifacts | Where-Object { $_.name -eq $artifactName -and -not $_.expired })
+          $pages = @(gh api --paginate --slurp "repos/$env:REPOSITORY/actions/artifacts?per_page=100" | ConvertFrom-Json)
+          $artifacts = @($pages | ForEach-Object { @($_.artifacts) })
+          $matches = @($artifacts | Where-Object { $_.name -eq $artifactName -and -not $_.expired })
           if ($matches.Count -ne 1) { throw "Expected exactly one unexpired exact validation artifact '$artifactName', found $($matches.Count)." }
           gh api -H "Accept: application/vnd.github+json" "repos/$env:REPOSITORY/actions/artifacts/$($matches[0].id)/zip" > validation-evidence.zip
           Expand-Archive -LiteralPath validation-evidence.zip -DestinationPath validation-evidence -Force

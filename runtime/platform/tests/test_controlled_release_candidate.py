@@ -130,3 +130,12 @@ def test_technical_validation_stages_report_bound_exact_evidence_before_upload()
     assert "${{ runner.temp }}/controlled-candidate-evidence/**" in workflow
     assert "${{ env.LOCALAPPDATA }}" not in workflow
     assert "if-no-files-found: error" in workflow
+
+def test_restored_candidate_evidence_aggregates_paginated_artifact_pages_fail_closed() -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+
+    assert workflow.count('gh api --paginate --slurp "repos/$env:REPOSITORY/actions/artifacts?per_page=100"') == 2
+    assert workflow.count('$pages = @(gh api --paginate --slurp') == 2
+    assert workflow.count('$artifacts = @($pages | ForEach-Object { @($_.artifacts) })') == 2
+    assert '$all.artifacts' not in workflow
+    assert workflow.count("Expected exactly one unexpired exact validation artifact") == 2
