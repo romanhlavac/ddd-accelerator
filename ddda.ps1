@@ -145,6 +145,8 @@ switch ($Command) {
             throw "Příkaz promote-pr vyžaduje -Version."
         }
         $arguments = @("-PlatformPath", $platformRoot, "-Pr", [string]$Pr, "-Version", $Version)
+        if (-not [string]::IsNullOrWhiteSpace($ValidationReportPath)) { $arguments += @("-ValidationReportPath", $ValidationReportPath) }
+        if (-not [string]::IsNullOrWhiteSpace($PackagePath)) { $arguments += @("-PackagePath", $PackagePath) }
         if ($ConfirmMerge) { $arguments += "-ConfirmMerge" }
         if ($ConfirmPromotion) { $arguments += "-ConfirmPromotion" }
         if ($WithMiro) { $arguments += "-WithMiro" }

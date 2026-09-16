@@ -3,6 +3,8 @@ param(
     [string]$PlatformPath = (Resolve-Path (Join-Path $PSScriptRoot "../..")).Path,
     [Parameter(Mandatory = $true)][ValidateRange(1, 2147483647)][int]$Pr,
     [Parameter(Mandatory = $true)][string]$Version,
+    [string]$ValidationReportPath,
+    [string]$PackagePath,
     [switch]$ConfirmMerge,
     [switch]$ConfirmPromotion,
     [switch]$WithMiro,
@@ -41,7 +43,11 @@ if ($headSha -notmatch '^[0-9a-f]{40}$') {
     throw "GitHub nevrátil platný PR head SHA."
 }
 
-$validation = Get-DDDACandidateValidationEvidence -Pr $Pr -HeadSha $headSha
+$validation = Get-DDDACandidateValidationEvidence `
+    -Pr $Pr `
+    -HeadSha $headSha `
+    -ValidationReportPath $ValidationReportPath `
+    -PackagePath $PackagePath
 
 $comments = @(Get-DDDAHrdrComments -RepositorySlug $repositorySlug -Pr $Pr -Token $githubAuth.Token)
 if ($comments.Count -ne 1) {

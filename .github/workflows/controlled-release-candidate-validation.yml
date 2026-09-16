@@ -12,8 +12,9 @@ on:
           - technical_validation
           - publish_hrdr_scaffold
           - release_scope_dry_run
+          - promotion_dry_run
       candidate_pr:
-        description: Open Draft controlled release-candidate PR number.
+        description: Controlled candidate PR; validation/scaffold require Draft, dry-runs require Ready.
         required: true
         default: "103"
         type: string
@@ -282,9 +283,9 @@ jobs:
             -PublishScaffold
 
   release-scope-dry-run:
-    name: Physical Release Scope Gate dry-run
+    name: Controlled release governance dry-run
     needs: select
-    if: inputs.operation == 'release_scope_dry_run'
+    if: inputs.operation == 'release_scope_dry_run' || inputs.operation == 'promotion_dry_run'
     environment: ddda-backlog-governance
     runs-on: windows-latest
     timeout-minutes: 60
@@ -353,6 +354,7 @@ jobs:
           python .\control-plane\scripts\platform\Read-DDDAHrdr.py --comments-json hrdr-comments.json --output hrdr.json
 
       - name: Run Physical Release Scope Gate only
+        if: inputs.operation == 'release_scope_dry_run'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -378,7 +380,7 @@ jobs:
             --output physical-release-scope.json
 
       - name: Upload scope-gate evidence
-        if: always()
+        if: always() && inputs.operation == 'release_scope_dry_run'
         uses: actions/upload-artifact@v4
         with:
           name: controlled-candidate-scope-gate-${{ env.CANDIDATE_PR }}-${{ env.SOURCE_SHA }}
@@ -387,4 +389,56 @@ jobs:
             hrdr.json
             physical-release-scope.json
           if-no-files-found: warn
+          retention-days: 14
+
+      - name: Run governed promotion dry-run only
+        if: inputs.operation == 'promotion_dry_run'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          .\control-plane\ddda.ps1 promote-pr `
+            -Pr ([int]$env:CANDIDATE_PR) `
+            -Version $env:VERSION `
+            -ValidationReportPath $env:validation_report `
+            -PackagePath $env:candidate_package `
+            -DryRun `
+            -NonInteractive
+
+      - name: Stage promotion dry-run evidence
+        if: always() && inputs.operation == 'promotion_dry_run'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $resultPath = Join-Path $env:LOCALAPPDATA "DDDA\promotion\pr-$env:CANDIDATE_PR-$env:SOURCE_SHA\$env:VERSION\dry-run-result.json"
+          $gatePath = Join-Path $env:LOCALAPPDATA "DDDA\release-scope-gates\pr-$env:CANDIDATE_PR-$env:SOURCE_SHA\release-scope-gate.json"
+          $stageRoot = Join-Path $env:RUNNER_TEMP 'controlled-candidate-promotion-dry-run'
+          New-Item -ItemType Directory -Path $stageRoot -Force | Out-Null
+          foreach ($source in @('restored-evidence.json', 'hrdr.json')) {
+            if (Test-Path -LiteralPath $source -PathType Leaf) { Copy-Item -LiteralPath $source -Destination $stageRoot -Force }
+          }
+          if (Test-Path -LiteralPath $resultPath -PathType Leaf) { Copy-Item -LiteralPath $resultPath -Destination (Join-Path $stageRoot 'dry-run-result.json') -Force }
+          if (Test-Path -LiteralPath $gatePath -PathType Leaf) { Copy-Item -LiteralPath $gatePath -Destination (Join-Path $stageRoot 'release-scope-gate.json') -Force }
+          if (-not (Test-Path -LiteralPath $resultPath -PathType Leaf)) { throw "Promotion dry-run result missing: $resultPath" }
+          if (-not (Test-Path -LiteralPath $gatePath -PathType Leaf)) { throw "Promotion dry-run gate evidence missing: $gatePath" }
+          $result = Get-Content -LiteralPath $resultPath -Raw -Encoding utf8 | ConvertFrom-Json
+          $restored = Get-Content -LiteralPath restored-evidence.json -Raw -Encoding utf8 | ConvertFrom-Json
+          if (
+            [string]$result.wrapper_status -ne 'PASS' -or
+            [string]$result.promotion_preflight_status -ne 'PASS' -or
+            [string]$result.side_effect_assertions_status -ne 'PASS' -or
+            [string]$result.release_scope_gate_status -ne 'PASS' -or
+            [string]$result.release_source_mode -ne 'CONTROLLED_EXACT_PR_SHA' -or
+            [int]$result.pr -ne [int]$env:CANDIDATE_PR -or
+            [string]$result.source_sha -ne $env:SOURCE_SHA -or
+            [string]$result.version -ne $env:VERSION -or
+            [string]$result.candidate_package_sha256 -ne [string]$restored.validation_evidence.candidate_package_sha256
+          ) { throw 'Promotion dry-run evidence identity or PASS status is invalid.' }
+
+      - name: Upload promotion dry-run evidence
+        if: always() && inputs.operation == 'promotion_dry_run'
+        uses: actions/upload-artifact@v4
+        with:
+          name: controlled-candidate-promotion-dry-run-${{ env.CANDIDATE_PR }}-${{ env.SOURCE_SHA }}
+          path: ${{ runner.temp }}/controlled-candidate-promotion-dry-run/**
+          if-no-files-found: error
           retention-days: 14

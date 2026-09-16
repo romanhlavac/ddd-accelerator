@@ -12,7 +12,9 @@ from typing import Any
 
 SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 VERSION_RE = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
-OPERATIONS = frozenset({"technical_validation", "publish_hrdr_scaffold", "release_scope_dry_run"})
+OPERATIONS = frozenset(
+    {"technical_validation", "publish_hrdr_scaffold", "release_scope_dry_run", "promotion_dry_run"}
+)
 
 
 def validate_request(
@@ -33,10 +35,10 @@ def validate_request(
         failures.append("CONTROLLED_CANDIDATE_PR_IDENTITY_INVALID")
     if pr.get("state") != "open":
         failures.append("CONTROLLED_CANDIDATE_MUST_REMAIN_OPEN")
-    elif operation == "release_scope_dry_run":
-        # Scope evidence is evaluated only after the explicit Human Release
-        # Decision on the Ready candidate. It does not authorize promotion,
-        # tag creation, or GitHub Release publication.
+    elif operation in {"release_scope_dry_run", "promotion_dry_run"}:
+        # Governance dry-runs are evaluated only after the explicit Human
+        # Release Decision on the Ready candidate. They do not authorize
+        # promotion, tag creation, or GitHub Release publication.
         if pr.get("draft") is not False:
             failures.append("CONTROLLED_CANDIDATE_SCOPE_DRY_RUN_REQUIRES_READY")
     elif pr.get("draft") is not True:
