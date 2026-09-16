@@ -26,6 +26,10 @@ SHA, version, package hash, Gate PASS and schema-v2 release-cut authority. In
 controlled mode it:
 
 - does not require GitHub mergeability;
+- treats the revalidated exact validation report, candidate package and Release
+  Scope Gate as CI evidence, rather than requiring a direct GitHub check-run on
+  the frozen PR SHA; the ordinary merge-first path retains that direct check-run
+  requirement;
 - never merges the candidate or deletes its branch;
 - checks out the exact PR head detached and keeps it as the release source;
 - runs the normal changelog, CI, approval, release-validation and publication

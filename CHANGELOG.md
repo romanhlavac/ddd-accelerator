@@ -29,6 +29,10 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 - governed implementation merge používá po aktivaci #70 merge commit jako canonical default; HIGH/BREAKING a neklasifikované PR nesmějí squash/rebase, LOW/MEDIUM squash vyžaduje explicitní human exception a canonical merge ověřuje validated PR HEAD server-side jako parent/ancestor výsledného main state.
 
 ### Fixed
+- controlled promotion now accepts only the already revalidated exact
+  validation-report/package/Release-Scope-Gate evidence for its frozen PR SHA;
+  ordinary merge-first promotion still requires direct GitHub check-runs.
+
 - Release Scope Gate now rejects recovered/metadata commit-role overlap, and controlled no-merge promotion uses an explicit `ConfirmPromotion` authorization boundary instead of merge authorization.
 
 - Controlled release-candidate validation now binds the selected exact SHA through an identified cross-job output; it cannot silently validate `main` instead of the candidate.
