@@ -6,6 +6,8 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-09-16
+
 ### Added
 
 - controlled candidate selection accepts only the canonical release-source branch or an explicit numbered superseding generation (`-vN`, `N >= 2`), preserving exact-SHA and marker checks while allowing governed candidate reconstruction without mutating the superseded PR;
