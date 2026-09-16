@@ -3,6 +3,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 SCRIPT = ROOT / "scripts" / "platform" / "Test-DDDAControlledReleaseCandidate.py"
+WORKFLOW = ROOT / ".github" / "workflows" / "controlled-release-candidate-validation.yml"
 SPEC = importlib.util.spec_from_file_location("controlled_candidate", SCRIPT)
 assert SPEC is not None and SPEC.loader is not None
 MODULE = importlib.util.module_from_spec(SPEC)
@@ -83,3 +84,13 @@ def test_rejects_package_or_report_identity_drift(tmp_path):
     assert result["status"] == "FAIL"
     assert "CONTROLLED_CANDIDATE_VALIDATION_SHA_MISMATCH" in result["failures"]
     assert "CONTROLLED_CANDIDATE_PACKAGE_HASH_MISMATCH" in result["failures"]
+
+
+def test_technical_validation_binds_checkout_to_identified_selection_output():
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+
+    assert """      - name: Read live candidate identity
+        id: selection""" in workflow
+    assert "source_sha: ${{ steps.selection.outputs.source_sha }}" in workflow
+    assert "ref: ${{ needs.select.outputs.source_sha }}" in workflow
+    assert "Candidate checkout SHA '$actual' does not match requested SHA '$env:SOURCE_SHA'." in workflow

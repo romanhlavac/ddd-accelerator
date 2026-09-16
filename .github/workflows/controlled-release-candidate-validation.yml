@@ -67,6 +67,7 @@ jobs:
           ref: ${{ github.sha }}
 
       - name: Read live candidate identity
+        id: selection
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}

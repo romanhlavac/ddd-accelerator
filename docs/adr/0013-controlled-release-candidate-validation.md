@@ -19,6 +19,8 @@ Before every operation it reads the live candidate PR and requires all of:
 - base `main`;
 - candidate body marker for the requested version.
 
+The selection step is named and is the sole publisher of the selected exact SHA across job boundaries. If that output is absent or does not match the requested identity, validation must fail rather than fall back to the default branch.
+
 The workflow has three isolated operations:
 
 1. `technical_validation` checks out the exact candidate and invokes
