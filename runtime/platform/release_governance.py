@@ -77,9 +77,11 @@ def evaluate_recovery_ledger(
     A reconstructed source has new commit identities.  It therefore cannot
     inherit GitHub's original commit-to-PR association implicitly.  The ledger
     is an explicit, versioned replacement provenance record.  It is accepted
-    only when it covers every reconstructed physical commit (except one
-    metadata-only ledger commit) and the collector has freshly read back the
-    original merged PR/CR authority and exact changed-path hashes.
+    only when it covers every reconstructed physical commit. Schema v1 allows
+    one metadata-only ledger commit. Schema v2 additionally requires exactly
+    one declared release-cut commit changing only CHANGELOG.md, followed by
+    the metadata-only ledger commit. The collector freshly reads back all
+    original PR/CR authority and exact changed-path/blob hashes.
     """
     ledger = physical.get("recovery_ledger")
     if ledger is None:
@@ -88,7 +90,8 @@ def evaluate_recovery_ledger(
         return ["RECOVERY_LEDGER_EVIDENCE_INVALID"]
 
     failures: list[str] = []
-    if ledger.get("schema_version") != 1:
+    schema_version = ledger.get("schema_version")
+    if schema_version not in {1, 2}:
         failures.append("RECOVERY_LEDGER_SCHEMA_VERSION")
     if ledger.get("version") != expected_version:
         failures.append("RECOVERY_LEDGER_VERSION_MISMATCH")
@@ -107,8 +110,40 @@ def evaluate_recovery_ledger(
         metadata = _sha_values(ledger.get("metadata_commit_shas"))
     else:
         metadata = _sha_values(physical.get("metadata_commit_shas"))
-    if len(metadata) != 1 or not metadata.issubset(physical_commits):
+    expected_metadata_count = 2 if schema_version == 2 else 1
+    if len(metadata) != expected_metadata_count or not metadata.issubset(physical_commits):
         failures.append("RECOVERY_LEDGER_METADATA_COMMIT_INVALID")
+
+    if schema_version == 2:
+        release_cut = ledger.get("release_cut")
+        if not isinstance(release_cut, dict):
+            failures.append("RECOVERY_LEDGER_RELEASE_CUT_EVIDENCE_MISSING")
+        else:
+            release_cut_sha = str(release_cut.get("commit_sha") or "")
+            if not SHA40.fullmatch(release_cut_sha) or release_cut_sha not in metadata:
+                failures.append("RECOVERY_LEDGER_RELEASE_CUT_COMMIT_INVALID")
+            if release_cut.get("path") != "CHANGELOG.md":
+                failures.append("RECOVERY_LEDGER_RELEASE_CUT_PATH_INVALID")
+            if release_cut.get("version") != expected_version:
+                failures.append("RECOVERY_LEDGER_RELEASE_CUT_VERSION_MISMATCH")
+            if release_cut.get("changed_paths_match") is not True:
+                failures.append("RECOVERY_LEDGER_RELEASE_CUT_PATHS_MISMATCH")
+            if release_cut.get("source_blob_matches") is not True:
+                failures.append("RECOVERY_LEDGER_RELEASE_CUT_SOURCE_BLOB_MISMATCH")
+            if release_cut.get("release_blob_matches") is not True:
+                failures.append("RECOVERY_LEDGER_RELEASE_CUT_RESULT_BLOB_MISMATCH")
+            ordered_commits = [
+                str(value)
+                for value in physical.get("commit_shas", [])
+                if SHA40.fullmatch(str(value))
+            ]
+            if (
+                len(ordered_commits) < 2
+                or ordered_commits[-2] != release_cut_sha
+                or ordered_commits[-1] == release_cut_sha
+                or ordered_commits[-1] not in metadata
+            ):
+                failures.append("RECOVERY_LEDGER_RELEASE_CUT_SEQUENCE_INVALID")
 
     entries = ledger.get("entries")
     if not isinstance(entries, list) or not entries:

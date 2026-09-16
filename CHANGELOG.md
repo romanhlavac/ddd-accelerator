@@ -8,6 +8,7 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 ### Added
 
+- fail-closed controlled release-source promotion: schema-v2 recovery evidence binds exactly one `CHANGELOG.md` release-cut commit, promotion preserves the exact PR candidate SHA without merging it to `main`, and canonical package/tag/GitHub Release remain behind Release Scope Gate and release-validation PASS;
 - fail-closed Recovery Transformation Decision Record: intentional subset/adapted release-source recovery can override only exact observed path/hash mismatches when a live human record is bound to repository, candidate PR/SHA/package/version, source/recovered commits and the complete differing path→blob set; exact equality remains the default.
 - CR #96 physical release-scope contract: release preflight now derives the shipping commit/PR/primary-CR set from the previous canonical SemVer tag to the exact candidate source SHA and fails closed on an unmapped, ambiguous or out-of-scope change;
 - read-only releasable-main eligibility guard for `merge-pr`: while one DDDA release Milestone is open, a PR whose primary CR is outside that train cannot be merged into `main`;

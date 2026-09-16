@@ -153,7 +153,7 @@ Gate vytvoří inventory shipping commitů, PR a jejich právě jednoho primary 
 
 Release Scope Gate vyžaduje, aby current release scope byl před skutečným release terminal nebo explicitně deferred mimo release. Toto pravidlo **neplatí jako precondition pro předchozí implementation merges**.
 
-Dry-run neprovede merge release candidate, release ani tag.
+Dry-run neprovede merge release candidate, release package, tag ani GitHub Release.
 
 Governed wrapper navíc ukládá deterministickou machine-readable evidence pod DDDA state root `promotion/`. Výsledek rozlišuje:
 
@@ -187,14 +187,22 @@ Implementation `merge-pr -ConfirmMerge` authorization nikdy neautorizuje release
 
 Canonical promotion po PASS gate:
 
-1. provede release-candidate merge, pokud jej workflow vyžaduje;
-2. načte nový canonical release source;
-3. vytvoří release package;
+1. pro běžný release candidate provede merge; pro schema-v2 controlled
+   recovery source PR nikdy nemerguje a zachová jeho exact head SHA;
+2. načte canonical release source jako merge commit nebo exact controlled PR SHA;
+3. vytvoří operation-local validation package;
 4. vygeneruje release validation workspace;
 5. provede ingestion, security, smoke, E2E a acceptance;
-6. vytvoří release report;
-7. vytvoří/pushne tag až po PASS.
+6. vytvoří PASS release report;
+7. teprve poté materializuje canonical release package a vytvoří/pushne tag;
 8. vytvoří GitHub Release pro canonical tag a publikuje validated DDDA ZIP, `result.json` a `result.md`; fresh read-back ověří identity a SHA-256 assets.
+
+Controlled promotion je dostupná pouze automaticky po PASS Release Scope Gate
+nad recovery ledgerem schema v2. Ledger musí dokazovat právě jeden release-cut
+commit měnící pouze `CHANGELOG.md` a jeden finální ledger-only commit. Candidate
+PR musí používat `release/<version>-controlled-recovery-source`, nést canonical
+marker a explicitně deklarovat, že se nesmí mergovat do `main`. Ruční přepnutí
+obyčejného PR do tohoto režimu není veřejný CLI contract.
 
 Při release validation FAIL se tag nevytvoří.
 

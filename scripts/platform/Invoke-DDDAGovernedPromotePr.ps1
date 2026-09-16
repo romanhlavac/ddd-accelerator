@@ -106,6 +106,39 @@ if ([string]$gate.release_scope_gate_status -ne "PASS" -or -not [bool]$gate.side
     throw "Release Scope Gate FAIL:`n$($failures -join "`n")"
 }
 
+# A schema-v2 recovery ledger is the sole authority for controlled-source
+# promotion. It proves the one-file release cut and keeps the PR itself as the
+# immutable release source instead of treating it as an implementation merge.
+$controlledReleaseSource = $false
+$recoveryLedgerPresent = $false
+$physicalScope = $gate.PSObject.Properties["physical_scope"]
+if ($null -ne $physicalScope -and $null -ne $physicalScope.Value) {
+    $ledgerProperty = $physicalScope.Value.PSObject.Properties["recovery_ledger"]
+    if ($null -ne $ledgerProperty -and $null -ne $ledgerProperty.Value) {
+        $recoveryLedgerPresent = $true
+        $ledger = $ledgerProperty.Value
+        $controlledReleaseSource = (
+            [int]$ledger.schema_version -eq 2 -and
+            $null -ne $ledger.PSObject.Properties["release_cut"] -and
+            [string]$ledger.release_cut.commit_sha -match '^[0-9a-f]{40}$'
+        )
+    }
+}
+if ($recoveryLedgerPresent -and -not $controlledReleaseSource) {
+    throw "Recovery-ledger release source vyžaduje schema v2 a exact one-file release-cut evidence; standard merge promotion není povolena."
+}
+if ($controlledReleaseSource) {
+    $expectedRef = "release/$Version-controlled-recovery-source"
+    if ([string]$prInfo.head.ref -ne $expectedRef) {
+        throw "Controlled release source musí používat exact branch '$expectedRef'."
+    }
+    $candidateMarker = "Controlled release-source candidate — DDDA $Version"
+    $body = [string]$prInfo.body
+    if ($body -notlike "*$candidateMarker*" -or $body -notmatch '(?i)must not be merged into `?main`?') {
+        throw "Controlled release source postrádá canonical candidate marker nebo explicitní no-merge boundary."
+    }
+}
+
 Write-Host "=== DDDA governed promotion preflight ==="
 Write-Host "Repository:          $repositorySlug"
 Write-Host "PR:                  $Pr"
@@ -115,6 +148,7 @@ Write-Host "Version:             $Version"
 Write-Host "HRDR decision:       $([string]$hrdr.decision)"
 Write-Host "Decision owner:      $([string]$hrdr.decision_owner)"
 Write-Host "Release Scope Gate:  PASS"
+Write-Host "Release source mode:  $(if ($controlledReleaseSource) { 'CONTROLLED_EXACT_PR_SHA' } else { 'STANDARD_MERGE' })"
 Write-Host "Gate evidence:       $gatePath"
 
 $arguments = @(
@@ -131,6 +165,14 @@ if ($KeepReviewBoard) { $arguments += "-KeepReviewBoard" }
 if (-not [string]::IsNullOrWhiteSpace($MiroTeamId)) { $arguments += @("-MiroTeamId", $MiroTeamId) }
 if ($NonInteractive) { $arguments += "-NonInteractive" }
 if ($DryRun) { $arguments += "-DryRun" }
+if ($controlledReleaseSource) {
+    $arguments += @(
+        "-ControlledReleaseSource",
+        "-GateEvidencePath", $gatePath,
+        "-ValidationReportPath", [string]$validation.ReportPath,
+        "-PackagePath", [string]$validation.PackagePath
+    )
+}
 
 # This is the only call into the legacy release executor. No merge/release/tag
 # code is reachable until the read-only Release Scope Gate returned PASS.
@@ -201,6 +243,7 @@ finally {
         source_sha = $headSha
         candidate_package_sha256 = [string]$validation.PackageSha256
         version = $Version
+        release_source_mode = if ($controlledReleaseSource) { "CONTROLLED_EXACT_PR_SHA" } else { "STANDARD_MERGE" }
         release_scope_gate_status = [string]$gate.release_scope_gate_status
         promotion_preflight_status = $promotionPreflightStatus
         side_effect_assertions_status = $sideEffectAssertionsStatus

@@ -12,6 +12,7 @@ The recovery source contains
 ```text
 previous canonical tag
 → recovered commits for approved shipping PRs only
+→ exactly one deterministic release-cut commit changing only CHANGELOG.md
 → one metadata-only recovery ledger commit
 ```
 
@@ -23,7 +24,9 @@ The candidate source contains exactly one versioned file:
 config/governance/release-source-recovery-ledger.json
 ```
 
-Its schema is `schemas/release-source-recovery-ledger.schema.json`. Each entry
+Its schema is `schemas/release-source-recovery-ledger.schema.json`. Schema v1
+remains readable for historical pre-promotion candidates. Promotion of a
+controlled recovery source requires schema v2. Each entry
 binds one reconstructed commit to the immutable original authority:
 
 ```json
@@ -44,6 +47,13 @@ its single primary CR, merged SHA and changed-path result hashes.
 Any stale SHA, non-merged source PR, altered path result, incomplete coverage,
 duplicate mapping or out-of-scope CR is a failure.
 
+Schema v2 adds exactly one `release_cut` record. It binds the release version,
+the release-cut commit SHA, the fixed path `CHANGELOG.md`, and that path's
+source/result blob SHAs. The Gate reads the commit and its single parent back
+from GitHub, requires the complete changed-path set to equal
+`{CHANGELOG.md}`, and verifies both blob identities. The final ledger-only
+commit is derived from the candidate tip, so the ledger never self-references.
+
 ## Authority boundary
 
 The ledger is evidence, not authorization. It cannot add an Issue to a
@@ -58,10 +68,22 @@ governance boundaries are satisfied.
 2. Create the reconstruction branch from the previous canonical SemVer tag.
 3. Reapply only the selected original shipping changes, preserving their exact
    changed-path results.
-4. Add the ledger as its only metadata-only commit.
-5. Open a Draft recovery candidate PR and run exact-SHA standard CI.
-6. Run the read-only Release Scope Gate inventory. A PASS proves the physical
+4. Create exactly one deterministic release-cut commit changing only
+   `CHANGELOG.md` and record its commit/source/result blob identities in a
+   schema-v2 ledger.
+5. Add/update the ledger in one final ledger-only metadata commit.
+6. Open a Draft recovery candidate PR and run exact-SHA standard CI.
+7. Run the read-only Release Scope Gate inventory. A PASS proves the physical
    source equals the declared scope; it is not a release authorization.
+
+After the candidate is Ready and HRDR, RTDR (when transformations exist), the
+Release Scope Gate and exact-SHA validation are all PASS, governed promotion
+uses the PR head itself as the release source. It never merges that PR into
+`main` and never deletes its source branch. Dry-run records before/after
+assertions for PR merged state, head SHA, base SHA, tag and GitHub Release.
+Actual promotion validates an operation-local package first; only after the
+release suites and report are PASS may it materialize the canonical package,
+tag the exact candidate SHA and publish the GitHub Release.
 
 No automatic revert, scope expansion, tag movement, force-push or history
 rewrite is permitted.
