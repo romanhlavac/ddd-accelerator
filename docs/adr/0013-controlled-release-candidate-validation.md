@@ -103,3 +103,17 @@ This keeps the HRDR bound to the already validated physical package. It neither
 rebuilds a candidate nor permits a filename-only or ambient-artifact fallback;
 an unsupported or missing evidence handoff fails before any pending HRDR comment
 is written.
+
+
+## HRDR milestone discovery boundary
+
+The pending-HRDR command reads the live milestone and its issue scope through
+paginated GitHub API responses. In PowerShell, directly wrapping the API command
+in an array expression can preserve a JSON array as one nested object. That makes
+a real milestone appear absent and must fail before any HRDR comment is written.
+
+The command therefore first assigns each API response and only then materializes
+its items for both pagination loops: milestones and milestone issues. It still
+requires exactly one `DDDA <version>` milestone and preserves all fail-closed
+checks; the change does not create, edit or close a milestone, issue, Project
+item, release, tag or promotion.
