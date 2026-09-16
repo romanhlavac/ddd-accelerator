@@ -107,13 +107,6 @@ elseif (
     throw "Explicit gate/package evidence parameters jsou vyhrazeny pro governed controlled release source."
 }
 
-try {
-    $checkSummary = Assert-DDDAGitHubChecksPassed -RepositorySlug $repositorySlug -Commit $headSha -Token $githubAuth.Token
-}
-catch {
-    throw "CI kontroly PR #$Pr nejsou všechny PASS:`n$($_.Exception.Message)"
-}
-
 $minimumApprovals = [int]$policy.minimum_approvals
 $approvedUsers = @()
 if ($minimumApprovals -gt 0) {
@@ -175,6 +168,35 @@ if ($ControlledReleaseSource -and $actualCandidateHash -ne [string]$controlledGa
     throw "Candidate package hash neodpovídá exact Release Scope Gate evidence."
 }
 
+# A controlled source is deliberately never merged. Its validation workflow runs
+# from the trusted default branch and checks out the exact PR SHA, so GitHub does
+# not attach check-runs to that frozen source commit. In that mode the already
+# revalidated report, package and Release Scope Gate are the CI evidence. The
+# ordinary merge-first path keeps its direct GitHub check-run requirement.
+$ciEvidence = $null
+if ($ControlledReleaseSource) {
+    $ciEvidence = [pscustomobject]@{
+        Mode = "EXACT_VALIDATION_EVIDENCE"
+        Status = "PASS"
+        SourceSha = $headSha
+        ValidationReportPath = $validationReportPath
+        PackageSha256 = $actualCandidateHash
+    }
+}
+else {
+    try {
+        $checkSummary = Assert-DDDAGitHubChecksPassed -RepositorySlug $repositorySlug -Commit $headSha -Token $githubAuth.Token
+    }
+    catch {
+        throw "CI kontroly PR #$Pr nejsou všechny PASS:`n$($_.Exception.Message)"
+    }
+    $ciEvidence = [pscustomobject]@{
+        Mode = "DIRECT_GITHUB_CHECK_RUNS"
+        Status = "PASS"
+        CheckRunCount = $checkSummary.CheckRunCount
+    }
+}
+
 $stateRoot = Get-DDDAPlatformStateRoot
 $timestamp = Get-DDDAPlatformTimestamp
 $promotionId = "release-$Version-pr-$Pr-$timestamp"
@@ -214,7 +236,12 @@ Write-Host "Version:           $Version"
 Write-Host "GitHub auth:       $($githubAuth.Source)"
 Write-Host "Validation report: $validationReportPath"
 Write-Host "Candidate hash:    $actualCandidateHash"
-Write-Host "CI checks:         PASS ($($checkSummary.CheckRunCount) check runs)"
+if ([string]$ciEvidence.Mode -eq "EXACT_VALIDATION_EVIDENCE") {
+    Write-Host "CI evidence:       PASS (EXACT_VALIDATION_EVIDENCE; exact report/package/gate bound to PR SHA)"
+}
+else {
+    Write-Host "CI checks:         PASS ($($ciEvidence.CheckRunCount) check runs)"
+}
 Write-Host "Approvals policy:  PASS"
 Write-Host "Governance docs:   PASS"
 Write-Host "Changelog release: PASS ($($changelogRelease.Version), $($changelogRelease.Date))"

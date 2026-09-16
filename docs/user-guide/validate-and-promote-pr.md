@@ -227,6 +227,13 @@ Recovered, release-cut a ledger-tip role musí být disjunktní. Controlled rež
 odmítá `-ConfirmMerge` a vyžaduje `-ConfirmPromotion`; standard merge-first režim
 naopak nepřijímá `-ConfirmPromotion`.
 
+Protože controlled validační workflow běží z trusted default branch a explicitně
+checkoutuje frozen PR SHA, GitHub k tomuto SHA nemusí připojit vlastní check-run.
+V controlled režimu je proto CI evidence výhradně revalidovaný PASS
+`validation report` spolu s jeho exact candidate package a PASS Release Scope Gate;
+všechny tři identity musí souhlasit s repository, PR, SHA a verzí. Standardní
+merge-first promotion nadále vyžaduje přímé GitHub check-runs pro PR head.
+
 Při release validation FAIL se tag nevytvoří.
 
 ## Diagnostické cesty
