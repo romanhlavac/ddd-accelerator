@@ -319,15 +319,25 @@ jobs:
         run: |
           gh api "repos/$env:REPOSITORY/pulls/$env:CANDIDATE_PR" > candidate-pr.json
 
+      - name: Read exact Human Release Decision Record
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          gh api --paginate "repos/$env:REPOSITORY/issues/$env:CANDIDATE_PR/comments?per_page=100" > hrdr-comments.json
+          python .\control-plane\scripts\platform\Read-DDDAHrdr.py --comments-json hrdr-comments.json --output hrdr.json
+
       - name: Restore exact technical evidence
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           $artifactName = "controlled-candidate-validation-$env:CANDIDATE_PR-$env:SOURCE_SHA"
-          $pages = @(gh api --paginate --slurp "repos/$env:REPOSITORY/actions/artifacts?per_page=100" | ConvertFrom-Json)
-          $artifacts = @($pages | ForEach-Object { @($_.artifacts) })
+          $hrdr = Get-Content -LiteralPath hrdr.json -Raw -Encoding utf8 | ConvertFrom-Json
+          $validationRun = [int]$hrdr.evidence.validation_workflow_run
+          if ($validationRun -le 0) { throw 'Authoritative HRDR must name one positive validation_workflow_run.' }
+          $response = gh api "repos/$env:REPOSITORY/actions/runs/$validationRun/artifacts?per_page=100" | ConvertFrom-Json
+          $artifacts = @($response.artifacts)
           $matches = @($artifacts | Where-Object { $_.name -eq $artifactName -and -not $_.expired })
-          if ($matches.Count -ne 1) { throw "Expected exactly one unexpired exact validation artifact '$artifactName', found $($matches.Count)." }
+          if ($matches.Count -ne 1) { throw "Expected exactly one unexpired HRDR-bound validation artifact '$artifactName' in run $validationRun, found $($matches.Count)." }
           gh api -H "Accept: application/vnd.github+json" "repos/$env:REPOSITORY/actions/artifacts/$($matches[0].id)/zip" > validation-evidence.zip
           Expand-Archive -LiteralPath validation-evidence.zip -DestinationPath validation-evidence -Force
           $reports = @(Get-ChildItem validation-evidence -Filter result.json -File -Recurse)
@@ -362,13 +372,6 @@ jobs:
             --output restored-evidence.json
           $evidence = Get-Content restored-evidence.json -Raw -Encoding utf8 | ConvertFrom-Json
           if ([string]$evidence.status -ne 'PASS') { throw 'Restored exact candidate evidence did not pass.' }
-
-      - name: Read exact Human Release Decision Record
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          gh api --paginate "repos/$env:REPOSITORY/issues/$env:CANDIDATE_PR/comments?per_page=100" > hrdr-comments.json
-          python .\control-plane\scripts\platform\Read-DDDAHrdr.py --comments-json hrdr-comments.json --output hrdr.json
 
       - name: Run Physical Release Scope Gate only
         if: inputs.operation == 'release_scope_dry_run'
