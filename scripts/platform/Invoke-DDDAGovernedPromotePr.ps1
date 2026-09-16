@@ -136,8 +136,8 @@ if ($recoveryLedgerPresent -and -not $controlledReleaseSource) {
 }
 if ($controlledReleaseSource) {
     $expectedRef = "release/$Version-controlled-recovery-source"
-    if ([string]$prInfo.head.ref -ne $expectedRef) {
-        throw "Controlled release source musí používat exact branch '$expectedRef'."
+    if (-not (Test-DDDAControlledReleaseSourceBranch -Branch ([string]$prInfo.head.ref) -Version $Version)) {
+        throw "Controlled release source musí používat canonical branch '$expectedRef' nebo numbered successor '$expectedRef-vN' (N >= 2, bez leading zeroes)."
     }
     $candidateMarker = "Controlled release-source candidate — DDDA $Version"
     $body = [string]$prInfo.body

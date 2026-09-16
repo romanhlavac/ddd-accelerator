@@ -14,8 +14,11 @@ Governed promotion automatically selects controlled-source mode only when the
 fresh Release Scope Gate is PASS and its physical-source evidence contains a
 schema-v2 recovery ledger with an exact release-cut record. The PR must remain
 open, Ready, repository-owned, based on `main`, use
-`release/<version>-controlled-recovery-source`, and carry both the canonical
-candidate marker and explicit no-merge boundary.
+`release/<version>-controlled-recovery-source` or a numbered superseding
+generation `release/<version>-controlled-recovery-source-vN` where `N >= 2`,
+and carry both the canonical candidate marker and explicit no-merge boundary.
+The branch contract is identical to the trusted candidate selector: `v1`,
+leading-zero generations and arbitrary suffixes are rejected fail-closed.
 
 The governed wrapper passes operation-local Gate, validation-report and package
 evidence to the executor. The executor revalidates repository, PR, exact head
