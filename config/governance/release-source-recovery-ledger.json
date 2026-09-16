@@ -1,0 +1,188 @@
+{
+  "schema_version": 2,
+  "version": "0.1.1",
+  "previous_release_tag": "v0.1.0",
+  "entries": [
+    {
+      "recovered_commit_sha": "877bcc36d1bc6527ab88f169f4423d465270c3fc",
+      "source_pr": 74,
+      "source_merge_commit_sha": "43a62152b7fd8be383337c23ffb10d0fda9e7077",
+      "primary_cr": 9
+    },
+    {
+      "recovered_commit_sha": "80b896e6de6a363fec14603a46748a6398d52360",
+      "source_pr": 77,
+      "source_merge_commit_sha": "baad4684328262ef94b31f50cef7c51193cf8ad3",
+      "primary_cr": 67
+    },
+    {
+      "recovered_commit_sha": "efeb874afd6d5cd9cbd28c6737687ff754c81f76",
+      "source_pr": 78,
+      "source_merge_commit_sha": "2646bf28918dfbb98fb8980f2be07428dc1ebbb1",
+      "primary_cr": 68
+    },
+    {
+      "recovered_commit_sha": "bee39deb5290610ffdf2f82e377f94d84f2e850b",
+      "source_pr": 79,
+      "source_merge_commit_sha": "297f61f6012f180e70805999df2ac1abe9616a05",
+      "primary_cr": 12
+    },
+    {
+      "recovered_commit_sha": "ba979ab2fe134cd04533784d08ba5b2d07dc6664",
+      "source_pr": 84,
+      "source_merge_commit_sha": "1f66880c30b7bc1814d21200ef6fcc5b08cadfba",
+      "primary_cr": 70
+    },
+    {
+      "recovered_commit_sha": "9170ab04cdde7b82c494ee8888a7989fac9ee799",
+      "source_pr": 97,
+      "source_merge_commit_sha": "cdb9237391cafc9dbc1779debd834154828b644c",
+      "primary_cr": 96
+    },
+    {
+      "recovered_commit_sha": "5c85cfd029bd75ecf8aeeccfa146c1f33f3050cb",
+      "source_pr": 99,
+      "source_merge_commit_sha": "e5faf19a6377e72e25b69064f5a3ac3ed2543e6e",
+      "primary_cr": 98
+    },
+    {
+      "recovered_commit_sha": "9fb3545ef829d06161cba705cac1d2f2dd906458",
+      "source_pr": 101,
+      "source_merge_commit_sha": "5ebc3eb79c8cc7d5732afa077f7c0d072448c879",
+      "primary_cr": 96
+    },
+    {
+      "recovered_commit_sha": "74d7836c7efac306f91159da7c352aa1b99618da",
+      "source_pr": 102,
+      "source_merge_commit_sha": "b61392ace66a95c808f321f3bd4b046cc5f564e5",
+      "primary_cr": 96
+    },
+    {
+      "recovered_commit_sha": "825f156366eee52b7b9b3c573c51df36fe9bcc4d",
+      "source_pr": 111,
+      "source_merge_commit_sha": "036a686568f35ec0f9588d5a06cb2994b6c2d22b",
+      "primary_cr": 96
+    },
+    {
+      "recovered_commit_sha": "024c12f1474c018fb949f7fa3daaf1b9a69d5537",
+      "source_pr": 108,
+      "source_merge_commit_sha": "4abfd47975c0480e4573803b530df6a9efd473c5",
+      "primary_cr": 96
+    },
+    {
+      "recovered_commit_sha": "f6c6817b78ef4298b080d505aa683e5c3aa697ee",
+      "source_pr": 109,
+      "source_merge_commit_sha": "b48bb534117a810af4aced403f1cc27f2204f922",
+      "primary_cr": 96
+    },
+    {
+      "recovered_commit_sha": "38cfd796185f5110df0dcaeda64eba3869cd64ea",
+      "source_pr": 110,
+      "source_merge_commit_sha": "97fde11f1f4238c6f12250b69500e0a3e88a45d9",
+      "primary_cr": 96
+    },
+    {
+      "recovered_commit_sha": "3f75e20cfa4c90fe27d8c1344b59b6765bc804b3",
+      "source_pr": 112,
+      "source_merge_commit_sha": "b344884745f5f1a8c661a64157f5e91fb489a5a3",
+      "primary_cr": 96
+    },
+    {
+      "recovered_commit_sha": "e2be238e73e7f506116f67f3071a8ac4106467e7",
+      "source_pr": 114,
+      "source_merge_commit_sha": "9de9d9ca944974ff8028fcfb8a216cf5ba4958c5",
+      "primary_cr": 96
+    },
+    {
+      "recovered_commit_sha": "6b04d3eabf2cd4b35f0c7fb0e6721569c4838d0b",
+      "source_pr": 115,
+      "source_merge_commit_sha": "5cef70ecdd80106ce14e6fc753edae08d673897b",
+      "primary_cr": 96
+    },
+    {
+      "recovered_commit_sha": "43064cc57df3df25142813a1e1f703ba2f0f0bad",
+      "source_pr": 117,
+      "source_merge_commit_sha": "d0a1511217288b1ef62b4f4541a92f24d6b3b899",
+      "primary_cr": 96
+    },
+    {
+      "recovered_commit_sha": "0409290a418c39bf774ec716b0dbf5aeaa75ebc5",
+      "source_pr": 124,
+      "source_merge_commit_sha": "c1369b117dceb250f272e994d0fac7c53b29940a",
+      "primary_cr": 96
+    },
+    {
+      "recovered_commit_sha": "f50121706d1ea1aafc6c7a937f8fd59a3ec68f1f",
+      "source_pr": 127,
+      "source_merge_commit_sha": "ada80cf0cb3f464f893eddfa3238e547a8b22328",
+      "primary_cr": 96
+    },
+    {
+      "recovered_commit_sha": "89ce3bc259dc356342bf33e426c83c58784dc87d",
+      "source_pr": 128,
+      "source_merge_commit_sha": "50f30e378a2b916a9fa65da9d5341468282f5a43",
+      "primary_cr": 96
+    },
+    {
+      "recovered_commit_sha": "cf465c401db1a7ab197d640203b8236e0fc4477e",
+      "source_pr": 134,
+      "source_merge_commit_sha": "bce7cc75337fb11248edda4ee80c1278e06f2ff5",
+      "primary_cr": 96
+    },
+    {
+      "recovered_commit_sha": "f45dcb5cf7d555ae4fd06e4787bf6cefb0dbfe98",
+      "source_pr": 136,
+      "source_merge_commit_sha": "6537c0ab1f9db53ea9f3048ecb3ff6c4b6fe2fe3",
+      "primary_cr": 96
+    },
+    {
+      "recovered_commit_sha": "b6b9b0f230c21f27da9c412765fe35a5b6dff38f",
+      "source_pr": 137,
+      "source_merge_commit_sha": "0f5269c57dc79d37156324995effd4c10b9450a6",
+      "primary_cr": 96
+    },
+    {
+      "recovered_commit_sha": "0bcc3ba957afe9df6820bdad3490c46b18816f19",
+      "source_pr": 138,
+      "source_merge_commit_sha": "474dd7ed1dab231f778ef7f5fbbbd674e0bc6367",
+      "primary_cr": 96
+    },
+    {
+      "recovered_commit_sha": "2dff94fae7547da80a3b6c8ca702677a2d4a80e7",
+      "source_pr": 139,
+      "source_merge_commit_sha": "c9393fd876250f9a84cd1ac90c738c599653f6a4",
+      "primary_cr": 96
+    },
+    {
+      "recovered_commit_sha": "8c15900b7f5d2f9b5635ad3019e9d7911c654988",
+      "source_pr": 140,
+      "source_merge_commit_sha": "392948a4e55b31b370131866a09d6788ca805473",
+      "primary_cr": 96
+    },
+    {
+      "recovered_commit_sha": "ae892cf45b4a77aefd5ead742ed7273a76f662f5",
+      "source_pr": 141,
+      "source_merge_commit_sha": "5ba29cb93f3fce4c362b87533eb22f89d6a5f768",
+      "primary_cr": 96
+    },
+    {
+      "recovered_commit_sha": "3a86f898df80935e9355378a0a238c856d5af899",
+      "source_pr": 142,
+      "source_merge_commit_sha": "e0383304c025f1e19d2417b09f30b8b100869817",
+      "primary_cr": 96
+    },
+    {
+      "recovered_commit_sha": "6f6b2f696aa9bf2a15074360369d0bc2d4c4f83c",
+      "source_pr": 144,
+      "source_merge_commit_sha": "41b155872eb63ee4b820f2db53b09f2991cdf89f",
+      "primary_cr": 96
+    }
+  ],
+  "release_cut": {
+    "commit_sha": "a9a75e4f511477f785c98ea7893f2f316d4e3ec6",
+    "path": "CHANGELOG.md",
+    "source_blob_sha": "9ba91f94f639076beba39892e69b0aabbf31e7be",
+    "release_blob_sha": "61bed34384883d135ffe9a6b8558a62915ea9193",
+    "version": "0.1.1"
+  }
+}
