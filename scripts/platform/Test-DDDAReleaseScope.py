@@ -26,6 +26,7 @@ if str(PLATFORM_RUNTIME) not in sys.path:
     sys.path.insert(0, str(PLATFORM_RUNTIME))
 
 from release_governance import evaluate_release_scope  # noqa: E402
+from recovery_transformation import augment_recovery_transformation_evidence  # noqa: E402
 
 
 API_ROOT = "https://api.github.com"
@@ -545,6 +546,14 @@ def collect_snapshot(
         current_head,
         api_token,
         project_rows,
+    )
+    physical_scope = augment_recovery_transformation_evidence(
+        physical_scope,
+        repository=repository,
+        pr=pr,
+        token=api_token,
+        fetch_comments=rest_pages,
+        fetch_commit_path_hashes=commit_path_hashes,
     )
 
     return {
