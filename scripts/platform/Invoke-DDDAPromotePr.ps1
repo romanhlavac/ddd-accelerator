@@ -464,7 +464,14 @@ catch {
 finally {
     Write-DDDAPlatformJson -Value @($releaseSuites) -Path $releaseSuitesPath
     $releaseStatus = if ($releasePassed) { "PASS" } else { "FAIL" }
-    $reportScriptRoot = if (Test-Path -LiteralPath (Join-Path $releaseSource "scripts/platform/New-DDDAValidationReport.ps1")) {
+
+    # A controlled source is frozen release content, not a trusted control-plane runtime.
+    # Use the current control-plane reporter so evidence parameters such as PortablePaths
+    # and RedactedRoots stay compatible without mutating or rebuilding the frozen source.
+    $reportScriptRoot = if ($ControlledReleaseSource) {
+        $platformRoot
+    }
+    elseif (Test-Path -LiteralPath (Join-Path $releaseSource "scripts/platform/New-DDDAValidationReport.ps1")) {
         $releaseSource
     }
     elseif (Test-Path -LiteralPath (Join-Path $reviewRoot "scripts/platform/New-DDDAValidationReport.ps1")) {
