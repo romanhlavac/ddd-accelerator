@@ -70,19 +70,40 @@ function Assert-DDDACanonicalReleaseTagReadBack {
     param(
         [Parameter(Mandatory = $true)][string]$OriginUrl,
         [Parameter(Mandatory = $true)][string]$Tag,
-        [Parameter(Mandatory = $true)][string]$ExpectedCommit
+        [Parameter(Mandatory = $true)][string]$ExpectedCommit,
+        [ValidateRange(1, 6)][int]$RetryAttempts = 4,
+        [ValidateRange(0, 10)][int]$RetryDelaySeconds = 2
     )
 
-    $lines = @(Invoke-DDDAPlatformNative -Command "git" -Arguments @("ls-remote", "--tags", $OriginUrl, "refs/tags/$Tag", "refs/tags/$Tag^{}"))
-    $peeled = @($lines | Where-Object { $_ -match ("refs/tags/" + [regex]::Escape($Tag) + "\\^\\{\\}$") }) | Select-Object -First 1
-    if ($null -eq $peeled) {
-        throw "Fresh remote read-back neprokázal annotated canonical tag $Tag."
+    if ($ExpectedCommit -notmatch '^[0-9a-f]{40}$') { throw "ExpectedCommit není plný SHA." }
+    $escapedTag = [regex]::Escape($Tag)
+    $tagPattern = "^(?<sha>[0-9a-f]{40})\s+refs/tags/$escapedTag$"
+    $peeledPattern = "^(?<sha>[0-9a-f]{40})\s+refs/tags/$escapedTag\^\{\}$"
+
+    for ($attempt = 1; $attempt -le $RetryAttempts; $attempt++) {
+        # Invoke-DDDAPlatformNative returns one text value. Split it explicitly so
+        # both the annotated-tag object and its peeled commit are independently
+        # validated rather than accidentally parsing the first line as the commit.
+        $raw = [string](Invoke-DDDAPlatformNative -Command "git" -Arguments @("ls-remote", "--tags", $OriginUrl, "refs/tags/$Tag", "refs/tags/$Tag^{}"))
+        $lines = @($raw -split "`r?`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+        $tagLines = @($lines | Where-Object { $_ -match $tagPattern })
+        $peeledLines = @($lines | Where-Object { $_ -match $peeledPattern })
+
+        if ($tagLines.Count -gt 1 -or $peeledLines.Count -gt 1) {
+            throw "Fresh remote read-back vrátil nejednoznačný canonical tag $Tag."
+        }
+        if ($tagLines.Count -eq 1 -and $peeledLines.Count -eq 1) {
+            $actualCommit = ([regex]::Match([string]$peeledLines[0], $peeledPattern)).Groups['sha'].Value
+            if ($actualCommit -ne $ExpectedCommit) {
+                throw "Canonical tag $Tag ukazuje na $actualCommit, očekáváno $ExpectedCommit."
+            }
+            return $actualCommit
+        }
+        if ($attempt -lt $RetryAttempts -and $RetryDelaySeconds -gt 0) {
+            Start-Sleep -Seconds $RetryDelaySeconds
+        }
     }
-    $actualCommit = ([string]$peeled -split "\s+")[0].Trim()
-    if ($actualCommit -ne $ExpectedCommit) {
-        throw "Canonical tag $Tag ukazuje na $actualCommit, očekáváno $ExpectedCommit."
-    }
-    return $actualCommit
+    throw "Fresh remote read-back neprokázal annotated canonical tag $Tag po $RetryAttempts pokusech."
 }
 
 function Assert-DDDAGitHubReleaseIdentity {

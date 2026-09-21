@@ -43,10 +43,32 @@ try {
     try { $null = Get-DDDAReleasePublicationAssetDescriptors -Version "1.2.3" -PackagePath $package -ReportJsonPath (Join-Path $root "missing.json") -ReportMarkdownPath $reportMarkdown } catch { $missingRejected = $true }
     Assert-True -Condition $missingRejected -Message "Chybějící publication input musí failnout před side effectem."
 
+    $expectedTagCommit = "0123456789abcdef0123456789abcdef01234567"
+    $tagObject = "89abcdef0123456789abcdef0123456789abcdef"
+    $script:tagReadBackCalls = 0
+    $script:tagReadBackResponses = @(
+        "",
+        "$tagObject`trefs/tags/v1.2.3`n$expectedTagCommit`trefs/tags/v1.2.3^{}"
+    )
+    function Invoke-DDDAPlatformNative {
+        param([string]$Command, [string[]]$Arguments, [string]$WorkingDirectory)
+        $response = $script:tagReadBackResponses[[Math]::Min($script:tagReadBackCalls, $script:tagReadBackResponses.Count - 1)]
+        $script:tagReadBackCalls++
+        return $response
+    }
+    $readBackCommit = Assert-DDDACanonicalReleaseTagReadBack -OriginUrl "https://example.invalid/repository.git" -Tag "v1.2.3" -ExpectedCommit $expectedTagCommit -RetryAttempts 2 -RetryDelaySeconds 0
+    Assert-True -Condition ($readBackCommit -eq $expectedTagCommit -and $script:tagReadBackCalls -eq 2) -Message "Tag read-back musí po bounded retry ověřit peeled exact source SHA."
+
+    $script:tagReadBackCalls = 0
+    $script:tagReadBackResponses = @("$expectedTagCommit`trefs/tags/v1.2.3")
+    $lightweightRejected = $false
+    try { $null = Assert-DDDACanonicalReleaseTagReadBack -OriginUrl "https://example.invalid/repository.git" -Tag "v1.2.3" -ExpectedCommit $expectedTagCommit -RetryAttempts 1 -RetryDelaySeconds 0 } catch { $lightweightRejected = $true }
+    Assert-True -Condition $lightweightRejected -Message "Read-back musí fail-closed odmítnout tag bez annotated peeled reference."
+
     $support = Get-Content -LiteralPath (Join-Path $PlatformPath "scripts/platform/DDDAReleasePublicationSupport.ps1") -Raw -Encoding UTF8
     $promotion = Get-Content -LiteralPath (Join-Path $PlatformPath "scripts/platform/Invoke-DDDAPromotePr.ps1") -Raw -Encoding UTF8
     $recovery = Get-Content -LiteralPath (Join-Path $PlatformPath "scripts/platform/Invoke-DDDARecoverGitHubRelease.ps1") -Raw -Encoding UTF8
-    Assert-True -Condition ($support -match 'Fresh GitHub read-back' -and $support -match 'assets\?name=' -and $support -match 'se nesmí přepsat') -Message "Publication support nemá fail-closed read-back/asset contract."
+    Assert-True -Condition ($support -match 'Fresh GitHub read-back' -and $support -match 'assets\?name=' -and $support -match 'se nesmí přepsat' -and $support -match 'RetryAttempts' -and $support -match 'nejednoznačný canonical tag') -Message "Publication support nemá fail-closed read-back/asset contract."
     Assert-True -Condition ($promotion -match 'PortablePaths\s*=\s*\$true' -and $promotion -match 'Publish-DDDACanonicalGitHubRelease' -and $promotion -match 'ChangelogPath') -Message "Promotion nepublikuje portable validated evidence a versioned release notes po tagu."
     Assert-True -Condition ($recovery -match '\[switch\]\$ConfirmRecovery' -and $recovery -match 'if \(-not \$ConfirmRecovery\)' -and $recovery -match 'ChangelogPath') -Message "Recovery nemá explicitní authorization boundary a versioned release notes contract."
     Assert-True -Condition ($support -notmatch 'DELETE.+releases|Remove-DDDA.*Release|Delete-DDDA.*Asset') -Message "Publication contract nesmí obsahovat automatické přepsání Release/assets."

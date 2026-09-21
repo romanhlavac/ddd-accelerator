@@ -51,4 +51,4 @@ Do not delete, replace, retag, force-push or rerun promotion heuristically. Afte
   -ConfirmRecovery
 ```
 
-Recovery finishes only after fresh tag/Release/asset read-back proves the original identities and physical package SHA-256.
+Recovery finishes only after fresh tag/Release/asset read-back proves the original identities and physical package SHA-256. The tag read-back requires exactly one annotated tag-object ref and exactly one peeled commit ref for the requested tag; it uses a bounded retry only to tolerate remote visibility delay. A missing, lightweight, ambiguous or mismatching tag fails closed. Existing tags are never changed, replaced or deleted.
