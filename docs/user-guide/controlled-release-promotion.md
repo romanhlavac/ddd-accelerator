@@ -47,6 +47,8 @@ The workflow:
 11. performs fresh server-side read-back proving the default branch is unchanged, the controlled PR remains open and unmerged, the tag resolves to the frozen source SHA and the GitHub Release contains the canonical package plus `result.json` and `result.md`;
 12. uploads an audit artifact containing authorization, exact evidence, dry-run evidence, release report, package and final read-back.
 
+For a controlled release source, the frozen PR owns the exact release content and validation package, but it does not own the release-control evidence schema. Release report generation therefore uses `New-DDDAValidationReport.ps1` from the trusted current default-branch control plane. This keeps current portable/redaction evidence parameters compatible without mutating, rebuilding or substituting the frozen release source.
+
 ## Permissions and secrets
 
 The workflow runs in environment `ddda-backlog-governance`.

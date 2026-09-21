@@ -35,3 +35,17 @@ def test_promotion_dry_run_supports_github_workflow_run_ids_above_int32():
 
     assert "$validationRun = [long]$hrdr.evidence.validation_workflow_run" in dry_run
     assert "$validationRun = [int]$hrdr.evidence.validation_workflow_run" not in dry_run
+
+
+def test_controlled_promotion_uses_trusted_control_plane_reporter():
+    text = EXECUTOR.read_text(encoding="utf-8-sig")
+
+    marker = "$reportScriptRoot = if ($ControlledReleaseSource) {"
+    assert marker in text
+    controlled_branch = text.split(marker, 1)[1].split("}", 1)[0]
+
+    assert "$platformRoot" in controlled_branch
+    assert "$releaseSource" not in controlled_branch
+    assert 'elseif (Test-Path -LiteralPath (Join-Path $releaseSource "scripts/platform/New-DDDAValidationReport.ps1"))' in text
+    assert "PortablePaths = $true" in text
+    assert "RedactedRoots = @($stateRoot, $promotionRoot)" in text
