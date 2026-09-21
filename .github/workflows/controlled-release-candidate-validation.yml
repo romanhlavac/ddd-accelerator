@@ -332,7 +332,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $artifactName = "controlled-candidate-validation-$env:CANDIDATE_PR-$env:SOURCE_SHA"
           $hrdr = Get-Content -LiteralPath hrdr.json -Raw -Encoding utf8 | ConvertFrom-Json
-          $validationRun = [int]$hrdr.evidence.validation_workflow_run
+          $validationRun = [long]$hrdr.evidence.validation_workflow_run
           if ($validationRun -le 0) { throw 'Authoritative HRDR must name one positive validation_workflow_run.' }
           $response = gh api "repos/$env:REPOSITORY/actions/runs/$validationRun/artifacts?per_page=100" | ConvertFrom-Json
           $artifacts = @($response.artifacts)

@@ -173,7 +173,7 @@ def test_dry_run_restores_only_the_validation_artifact_bound_by_the_hrdr() -> No
     restore = dry_run.index("      - name: Restore exact technical evidence")
     assert hrdr < restore
     restore_block = dry_run[restore:dry_run.index("      - name: Verify restored exact evidence")]
-    assert '$validationRun = [int]$hrdr.evidence.validation_workflow_run' in restore_block
+    assert '$validationRun = [long]$hrdr.evidence.validation_workflow_run' in restore_block
     assert 'actions/runs/$validationRun/artifacts?per_page=100' in restore_block
     assert 'Authoritative HRDR must name one positive validation_workflow_run.' in restore_block
     assert 'Expected exactly one unexpired HRDR-bound validation artifact' in restore_block

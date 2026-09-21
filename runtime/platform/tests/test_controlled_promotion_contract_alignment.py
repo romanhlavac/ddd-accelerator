@@ -27,3 +27,11 @@ def test_promotion_dry_run_uses_hrdr_bound_evidence_before_staging():
     verify_block = dry_run[verify:promotion]
     assert "--output restored-evidence.json" in verify_block
     assert "Restored exact candidate evidence did not pass." in verify_block
+
+
+def test_promotion_dry_run_supports_github_workflow_run_ids_above_int32():
+    text = WORKFLOW.read_text(encoding="utf-8")
+    dry_run = text.split("  release-scope-dry-run:\n", 1)[1]
+
+    assert "$validationRun = [long]$hrdr.evidence.validation_workflow_run" in dry_run
+    assert "$validationRun = [int]$hrdr.evidence.validation_workflow_run" not in dry_run
