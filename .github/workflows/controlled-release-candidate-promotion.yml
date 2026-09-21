@@ -1,0 +1,355 @@
+name: Controlled release-candidate promotion
+
+on:
+  issue_comment:
+    types:
+      - created
+
+permissions:
+  actions: read
+  checks: read
+  contents: write
+  issues: read
+  pull-requests: read
+
+concurrency:
+  group: controlled-release-promotion-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    if: >-
+      github.event.issue.pull_request &&
+      startsWith(github.event.comment.body, '/ddda promote-controlled ')
+    environment: ddda-backlog-governance
+    runs-on: windows-latest
+    timeout-minutes: 150
+    env:
+      REPOSITORY: ${{ github.repository }}
+      CANDIDATE_PR: ${{ github.event.issue.number }}
+      REQUEST_ACTOR: ${{ github.actor }}
+      COMMAND_TEXT: ${{ github.event.comment.body }}
+      GH_TOKEN: ${{ github.token }}
+      DDDA_GITHUB_PROJECT_TOKEN: ${{ secrets.DDDA_GITHUB_PROJECT_TOKEN }}
+
+    steps:
+      - name: Checkout trusted default-branch control plane
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.repository.default_branch }}
+          path: control-plane
+
+      - name: Bind execution to current default-branch SHA
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $actual = (git -C control-plane rev-parse HEAD).Trim()
+          $repository = gh api "repos/$env:REPOSITORY" | ConvertFrom-Json
+          $defaultBranch = [string]$repository.default_branch
+          $live = gh api "repos/$env:REPOSITORY/branches/$defaultBranch" | ConvertFrom-Json
+          if ($actual -ne [string]$live.commit.sha) {
+            throw "Trusted control plane is stale. Checkout=$actual live-default=$([string]$live.commit.sha)."
+          }
+          "CONTROL_PLANE_SHA=$actual" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "DEFAULT_BRANCH=$defaultBranch" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Require Project read credential
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:DDDA_GITHUB_PROJECT_TOKEN)) {
+            throw 'DDDA_GITHUB_PROJECT_TOKEN is required for the authoritative Release Scope Gate.'
+          }
+
+      - name: Validate explicit human promotion authorization
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          gh api --paginate --slurp "repos/$env:REPOSITORY/issues/$env:CANDIDATE_PR/comments?per_page=100" > promotion-comments.json
+          python .\control-plane\scripts\platform\Test-DDDAControlledPromotionAuthorization.py `
+            --repository $env:REPOSITORY `
+            --pr ([int]$env:CANDIDATE_PR) `
+            --actor $env:REQUEST_ACTOR `
+            --command-text $env:COMMAND_TEXT `
+            --comments-json promotion-comments.json `
+            --output promotion-authorization.json
+          $authorization = Get-Content -LiteralPath promotion-authorization.json -Raw -Encoding utf8 | ConvertFrom-Json
+          if ([string]$authorization.status -ne 'PASS') {
+            throw "Controlled promotion authorization failed: $(@($authorization.failures) -join ', ')"
+          }
+          "SOURCE_SHA=$([string]$authorization.source_sha)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "VERSION=$([string]$authorization.version)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "EXPECTED_PACKAGE_SHA256=$([string]$authorization.candidate_package_sha256)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "AUTHORIZATION_COMMENT_ID=$([string]$authorization.authorization_comment_id)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Select exact Ready controlled candidate
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          gh api "repos/$env:REPOSITORY/pulls/$env:CANDIDATE_PR" > candidate-pr.json
+          python .\control-plane\scripts\platform\Test-DDDAControlledReleaseCandidate.py `
+            --repository $env:REPOSITORY `
+            --pr ([int]$env:CANDIDATE_PR) `
+            --source-sha $env:SOURCE_SHA `
+            --version $env:VERSION `
+            --operation promotion_dry_run `
+            --pr-json candidate-pr.json `
+            --output selection.json
+
+      - name: Read exact Human Release Decision Record
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          gh api --paginate "repos/$env:REPOSITORY/issues/$env:CANDIDATE_PR/comments?per_page=100" > hrdr-comments.json
+          python .\control-plane\scripts\platform\Read-DDDAHrdr.py --comments-json hrdr-comments.json --output hrdr.json
+
+      - name: Restore HRDR-bound exact technical evidence
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $artifactName = "controlled-candidate-validation-$env:CANDIDATE_PR-$env:SOURCE_SHA"
+          $hrdr = Get-Content -LiteralPath hrdr.json -Raw -Encoding utf8 | ConvertFrom-Json
+          $validationRun = [long]$hrdr.evidence.validation_workflow_run
+          if ($validationRun -le 0) { throw 'Authoritative HRDR must name one positive validation_workflow_run.' }
+          $response = gh api "repos/$env:REPOSITORY/actions/runs/$validationRun/artifacts?per_page=100" | ConvertFrom-Json
+          $artifacts = @($response.artifacts)
+          $matches = @($artifacts | Where-Object { $_.name -eq $artifactName -and -not $_.expired })
+          if ($matches.Count -ne 1) {
+            throw "Expected exactly one unexpired HRDR-bound validation artifact '$artifactName' in run $validationRun, found $($matches.Count)."
+          }
+          gh api -H "Accept: application/vnd.github+json" "repos/$env:REPOSITORY/actions/artifacts/$($matches[0].id)/zip" > validation-evidence.zip
+          Expand-Archive -LiteralPath validation-evidence.zip -DestinationPath validation-evidence -Force
+          $reports = @(Get-ChildItem validation-evidence -Filter result.json -File -Recurse)
+          if ($reports.Count -ne 1) { throw 'Exact validation artifact must contain exactly one canonical report.' }
+          $report = Get-Content -LiteralPath $reports[0].FullName -Raw -Encoding utf8 | ConvertFrom-Json
+          if (
+            [string]$report.status -ne 'PASS' -or
+            [string]$report.source.repository -ne $env:REPOSITORY -or
+            [int]$report.source.pr -ne [int]$env:CANDIDATE_PR -or
+            [string]$report.source.commit -ne $env:SOURCE_SHA
+          ) { throw 'Exact validation artifact report identity is invalid.' }
+          $packageName = [System.IO.Path]::GetFileName([string]$report.package.path)
+          $expectedPackageHash = ([string]$report.package.sha256).ToLowerInvariant()
+          if ($expectedPackageHash -ne $env:EXPECTED_PACKAGE_SHA256.ToLowerInvariant()) {
+            throw 'HRDR-bound validation report package hash does not match the explicit release authorization.'
+          }
+          $packages = @(Get-ChildItem validation-evidence -Filter $packageName -File -Recurse)
+          if ($packages.Count -ne 1) { throw 'Exact validation artifact must contain the one report-bound candidate package.' }
+          $actualPackageHash = (Get-FileHash -LiteralPath $packages[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualPackageHash -ne $expectedPackageHash) { throw 'Exact candidate package hash does not match its canonical validation report.' }
+          "VALIDATION_REPORT=$($reports[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "CANDIDATE_PACKAGE=$($packages[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Verify restored exact candidate evidence
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python .\control-plane\scripts\platform\Test-DDDAControlledReleaseCandidate.py `
+            --repository $env:REPOSITORY `
+            --pr ([int]$env:CANDIDATE_PR) `
+            --source-sha $env:SOURCE_SHA `
+            --version $env:VERSION `
+            --operation promotion_dry_run `
+            --pr-json candidate-pr.json `
+            --validation-report $env:VALIDATION_REPORT `
+            --candidate-package $env:CANDIDATE_PACKAGE `
+            --output restored-evidence.json
+          $restored = Get-Content -LiteralPath restored-evidence.json -Raw -Encoding utf8 | ConvertFrom-Json
+          if (
+            [string]$restored.status -ne 'PASS' -or
+            [string]$restored.validation_evidence.candidate_package_sha256 -ne $env:EXPECTED_PACKAGE_SHA256
+          ) { throw 'Restored exact candidate evidence does not match the explicit release authorization.' }
+
+      - name: Run governed promotion dry-run immediately before release
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          .\control-plane\ddda.ps1 promote-pr `
+            -Pr ([int]$env:CANDIDATE_PR) `
+            -Version $env:VERSION `
+            -ValidationReportPath $env:VALIDATION_REPORT `
+            -PackagePath $env:CANDIDATE_PACKAGE `
+            -DryRun `
+            -NonInteractive
+
+      - name: Verify dry-run PASS and zero-side-effect evidence
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $resultPath = Join-Path $env:LOCALAPPDATA "DDDA\promotion\pr-$env:CANDIDATE_PR-$env:SOURCE_SHA\$env:VERSION\dry-run-result.json"
+          $gatePath = Join-Path $env:LOCALAPPDATA "DDDA\release-scope-gates\pr-$env:CANDIDATE_PR-$env:SOURCE_SHA\release-scope-gate.json"
+          if (-not (Test-Path -LiteralPath $resultPath -PathType Leaf)) { throw "Promotion dry-run result missing: $resultPath" }
+          if (-not (Test-Path -LiteralPath $gatePath -PathType Leaf)) { throw "Release Scope Gate evidence missing: $gatePath" }
+          $result = Get-Content -LiteralPath $resultPath -Raw -Encoding utf8 | ConvertFrom-Json
+          if (
+            [string]$result.wrapper_status -ne 'PASS' -or
+            [string]$result.promotion_preflight_status -ne 'PASS' -or
+            [string]$result.side_effect_assertions_status -ne 'PASS' -or
+            [string]$result.release_scope_gate_status -ne 'PASS' -or
+            [string]$result.release_source_mode -ne 'CONTROLLED_EXACT_PR_SHA' -or
+            [string]$result.source_sha -ne $env:SOURCE_SHA -or
+            [string]$result.candidate_package_sha256 -ne $env:EXPECTED_PACKAGE_SHA256 -or
+            [string]$result.before.tag_status -ne 'ABSENT' -or
+            [string]$result.before.github_release_status -ne 'ABSENT' -or
+            [string]$result.after.tag_status -ne 'ABSENT' -or
+            [string]$result.after.github_release_status -ne 'ABSENT'
+          ) { throw 'Governed promotion dry-run evidence is not an exact zero-side-effect PASS.' }
+          "DRY_RUN_RESULT=$resultPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "GATE_EVIDENCE=$gatePath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Fresh read-back before irreversible side effects
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $liveMain = gh api "repos/$env:REPOSITORY/branches/$env:DEFAULT_BRANCH" | ConvertFrom-Json
+          if ([string]$liveMain.commit.sha -ne $env:CONTROL_PLANE_SHA) {
+            throw "Default branch drifted after dry-run. Expected $env:CONTROL_PLANE_SHA, got $([string]$liveMain.commit.sha)."
+          }
+          gh api "repos/$env:REPOSITORY/pulls/$env:CANDIDATE_PR" > candidate-pr-before-promotion.json
+          python .\control-plane\scripts\platform\Test-DDDAControlledReleaseCandidate.py `
+            --repository $env:REPOSITORY `
+            --pr ([int]$env:CANDIDATE_PR) `
+            --source-sha $env:SOURCE_SHA `
+            --version $env:VERSION `
+            --operation promotion_dry_run `
+            --pr-json candidate-pr-before-promotion.json `
+            --output selection-before-promotion.json
+          gh api --paginate --slurp "repos/$env:REPOSITORY/issues/$env:CANDIDATE_PR/comments?per_page=100" > promotion-comments-before-promotion.json
+          python .\control-plane\scripts\platform\Test-DDDAControlledPromotionAuthorization.py `
+            --repository $env:REPOSITORY `
+            --pr ([int]$env:CANDIDATE_PR) `
+            --actor $env:REQUEST_ACTOR `
+            --command-text $env:COMMAND_TEXT `
+            --comments-json promotion-comments-before-promotion.json `
+            --output promotion-authorization-before-promotion.json
+          $authorization = Get-Content -LiteralPath promotion-authorization-before-promotion.json -Raw -Encoding utf8 | ConvertFrom-Json
+          if (
+            [string]$authorization.status -ne 'PASS' -or
+            [string]$authorization.authorization_comment_id -ne $env:AUTHORIZATION_COMMENT_ID -or
+            [string]$authorization.source_sha -ne $env:SOURCE_SHA -or
+            [string]$authorization.candidate_package_sha256 -ne $env:EXPECTED_PACKAGE_SHA256
+          ) { throw 'Promotion authorization changed after dry-run.' }
+
+      - name: Configure Git authentication for canonical tag push
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          gh auth setup-git
+
+      - name: Execute canonical controlled promotion
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          .\control-plane\ddda.ps1 promote-pr `
+            -Pr ([int]$env:CANDIDATE_PR) `
+            -Version $env:VERSION `
+            -ValidationReportPath $env:VALIDATION_REPORT `
+            -PackagePath $env:CANDIDATE_PACKAGE `
+            -ConfirmPromotion `
+            -NonInteractive
+
+      - name: Fresh post-release read-back
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $liveMain = gh api "repos/$env:REPOSITORY/branches/$env:DEFAULT_BRANCH" | ConvertFrom-Json
+          if ([string]$liveMain.commit.sha -ne $env:CONTROL_PLANE_SHA) {
+            throw 'Controlled promotion changed the default branch; this is forbidden.'
+          }
+          $pr = gh api "repos/$env:REPOSITORY/pulls/$env:CANDIDATE_PR" | ConvertFrom-Json
+          if ([string]$pr.state -ne 'open' -or [bool]$pr.merged -or [string]$pr.head.sha -ne $env:SOURCE_SHA) {
+            throw 'Controlled release source PR was merged, closed, or drifted.'
+          }
+          $tag = "v$env:VERSION"
+          $tagRef = gh api "repos/$env:REPOSITORY/git/ref/tags/$tag" | ConvertFrom-Json
+          $tagTarget = $null
+          if ([string]$tagRef.object.type -eq 'tag') {
+            $tagObject = gh api "repos/$env:REPOSITORY/git/tags/$([string]$tagRef.object.sha)" | ConvertFrom-Json
+            $tagTarget = [string]$tagObject.object.sha
+          }
+          elseif ([string]$tagRef.object.type -eq 'commit') {
+            $tagTarget = [string]$tagRef.object.sha
+          }
+          if ($tagTarget -ne $env:SOURCE_SHA) { throw "Canonical tag target '$tagTarget' does not equal frozen source '$env:SOURCE_SHA'." }
+          $release = gh api "repos/$env:REPOSITORY/releases/tags/$tag" | ConvertFrom-Json
+          if ([string]$release.tag_name -ne $tag -or [bool]$release.draft -or [bool]$release.prerelease) {
+            throw 'Canonical GitHub Release read-back is invalid.'
+          }
+          $stateRoot = Join-Path $env:LOCALAPPDATA 'DDDA'
+          $shortSha = $env:SOURCE_SHA.Substring(0, 12)
+          $releasePackagePath = Join-Path $stateRoot "packages\ddda-release-$env:VERSION-$shortSha.zip"
+          if (-not (Test-Path -LiteralPath $releasePackagePath -PathType Leaf)) { throw "Canonical release package missing: $releasePackagePath" }
+          $releasePackageHash = (Get-FileHash -LiteralPath $releasePackagePath -Algorithm SHA256).Hash.ToLowerInvariant()
+          $reportRoot = Join-Path $stateRoot "release-reports\$env:VERSION"
+          $reports = @(Get-ChildItem -LiteralPath $reportRoot -Filter result.json -File -Recurse)
+          if ($reports.Count -ne 1) { throw "Expected exactly one release result.json on the clean runner, found $($reports.Count)." }
+          $report = Get-Content -LiteralPath $reports[0].FullName -Raw -Encoding utf8 | ConvertFrom-Json
+          if ([string]$report.status -ne 'PASS' -or [string]$report.source.commit -ne $env:SOURCE_SHA) {
+            throw 'Release report is not PASS for the frozen controlled source.'
+          }
+          $reportDir = Split-Path -Parent $reports[0].FullName
+          $publicationPath = Join-Path $reportDir 'publication.json'
+          if (-not (Test-Path -LiteralPath $publicationPath -PathType Leaf)) { throw 'Canonical publication evidence is missing.' }
+          $assetNames = @($release.assets | ForEach-Object { [string]$_.name })
+          $packageName = [System.IO.Path]::GetFileName($releasePackagePath)
+          foreach ($requiredAsset in @($packageName, 'result.json', 'result.md')) {
+            if ($requiredAsset -notin $assetNames) { throw "GitHub Release is missing canonical asset '$requiredAsset'." }
+          }
+          [ordered]@{
+            schema_version = 1
+            repository = $env:REPOSITORY
+            pr = [int]$env:CANDIDATE_PR
+            source_sha = $env:SOURCE_SHA
+            version = $env:VERSION
+            control_plane_sha = $env:CONTROL_PLANE_SHA
+            candidate_package_sha256 = $env:EXPECTED_PACKAGE_SHA256
+            release_package = $packageName
+            release_package_sha256 = $releasePackageHash
+            tag = $tag
+            tag_target_sha = $tagTarget
+            github_release_id = [long]$release.id
+            github_release_url = [string]$release.html_url
+            pr_open_unmerged = $true
+            default_branch_unchanged = $true
+            status = 'PASS'
+          } | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath release-readback.json -Encoding utf8
+          "RELEASE_PACKAGE_PATH=$releasePackagePath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "RELEASE_REPORT_DIR=$reportDir" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Stage canonical promotion evidence
+        if: always()
+        shell: pwsh
+        run: |
+          $stageRoot = Join-Path $env:RUNNER_TEMP 'controlled-release-promotion-evidence'
+          New-Item -ItemType Directory -Path $stageRoot -Force | Out-Null
+          foreach ($source in @(
+            'promotion-authorization.json',
+            'promotion-authorization-before-promotion.json',
+            'selection.json',
+            'selection-before-promotion.json',
+            'restored-evidence.json',
+            'hrdr.json',
+            'release-readback.json'
+          )) {
+            if (Test-Path -LiteralPath $source -PathType Leaf) { Copy-Item -LiteralPath $source -Destination $stageRoot -Force }
+          }
+          foreach ($source in @($env:DRY_RUN_RESULT, $env:GATE_EVIDENCE)) {
+            if (-not [string]::IsNullOrWhiteSpace($source) -and (Test-Path -LiteralPath $source -PathType Leaf)) {
+              Copy-Item -LiteralPath $source -Destination $stageRoot -Force
+            }
+          }
+          if (-not [string]::IsNullOrWhiteSpace($env:RELEASE_REPORT_DIR) -and (Test-Path -LiteralPath $env:RELEASE_REPORT_DIR -PathType Container)) {
+            Copy-Item -LiteralPath $env:RELEASE_REPORT_DIR -Destination (Join-Path $stageRoot 'release-report') -Recurse -Force
+          }
+          if (-not [string]::IsNullOrWhiteSpace($env:RELEASE_PACKAGE_PATH) -and (Test-Path -LiteralPath $env:RELEASE_PACKAGE_PATH -PathType Leaf)) {
+            Copy-Item -LiteralPath $env:RELEASE_PACKAGE_PATH -Destination $stageRoot -Force
+          }
+
+      - name: Upload canonical promotion evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: controlled-candidate-promotion-${{ env.CANDIDATE_PR }}-${{ env.SOURCE_SHA }}
+          path: ${{ runner.temp }}/controlled-release-promotion-evidence/**
+          if-no-files-found: warn
+          retention-days: 30
