@@ -1,0 +1,277 @@
+name: Controlled GitHub Release recovery
+
+on:
+  issue_comment:
+    types:
+      - created
+
+permissions:
+  actions: read
+  contents: write
+  issues: read
+  pull-requests: read
+
+concurrency:
+  group: controlled-release-recovery-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    if: >-
+      github.event.issue.pull_request &&
+      startsWith(github.event.comment.body, '/ddda recover-controlled ') &&
+      github.event.comment.user.type == 'User' &&
+      github.event.comment.author_association == 'OWNER'
+    environment: ddda-backlog-governance
+    runs-on: windows-latest
+    timeout-minutes: 150
+    env:
+      REPOSITORY: ${{ github.repository }}
+      CANDIDATE_PR: ${{ github.event.issue.number }}
+      REQUEST_ACTOR: ${{ github.actor }}
+      COMMAND_TEXT: ${{ github.event.comment.body }}
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Checkout trusted default-branch control plane
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.repository.default_branch }}
+          path: control-plane
+
+      - name: Bind execution to live default branch and parse authorization command
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $actual = (git -C control-plane rev-parse HEAD).Trim()
+          $repository = gh api "repos/$env:REPOSITORY" | ConvertFrom-Json
+          $defaultBranch = [string]$repository.default_branch
+          $live = gh api "repos/$env:REPOSITORY/branches/$defaultBranch" | ConvertFrom-Json
+          if ($actual -ne [string]$live.commit.sha) {
+            throw "Trusted recovery control plane is stale. Checkout=$actual live-default=$([string]$live.commit.sha)."
+          }
+          $pattern = '^/ddda recover-controlled\s+--source-sha\s+(?<sha>[0-9a-f]{40})\s+--version\s+(?<version>(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*))\s+--candidate-package-sha256\s+(?<hash>[0-9a-f]{64})$'
+          $match = [regex]::Match($env:COMMAND_TEXT.Trim(), $pattern)
+          if (-not $match.Success) { throw 'Controlled release recovery command is invalid.' }
+          "CONTROL_PLANE_SHA=$actual" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "DEFAULT_BRANCH=$defaultBranch" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "SOURCE_SHA=$($match.Groups['sha'].Value)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "VERSION=$($match.Groups['version'].Value)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "EXPECTED_CANDIDATE_SHA256=$($match.Groups['hash'].Value)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Verify frozen controlled candidate identity
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          gh api "repos/$env:REPOSITORY/pulls/$env:CANDIDATE_PR" > candidate-pr.json
+          python .\control-plane\scripts\platform\Test-DDDAControlledReleaseCandidate.py `
+            --repository $env:REPOSITORY `
+            --pr ([int]$env:CANDIDATE_PR) `
+            --source-sha $env:SOURCE_SHA `
+            --version $env:VERSION `
+            --operation promotion_dry_run `
+            --pr-json candidate-pr.json `
+            --output selection.json
+          $selection = Get-Content -LiteralPath selection.json -Raw -Encoding utf8 | ConvertFrom-Json
+          if ([string]$selection.status -ne 'PASS') { throw 'Frozen controlled candidate identity is invalid.' }
+
+      - name: Read exact Human Release Decision Record
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          gh api --paginate "repos/$env:REPOSITORY/issues/$env:CANDIDATE_PR/comments?per_page=100" > hrdr-comments.json
+          python .\control-plane\scripts\platform\Read-DDDAHrdr.py --comments-json hrdr-comments.json --output hrdr.json
+
+      - name: Restore HRDR-bound exact candidate evidence
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $artifactName = "controlled-candidate-validation-$env:CANDIDATE_PR-$env:SOURCE_SHA"
+          $hrdr = Get-Content -LiteralPath hrdr.json -Raw -Encoding utf8 | ConvertFrom-Json
+          $validationRun = [long]$hrdr.evidence.validation_workflow_run
+          if ($validationRun -le 0) { throw 'Authoritative HRDR must name one positive validation_workflow_run.' }
+          $response = gh api "repos/$env:REPOSITORY/actions/runs/$validationRun/artifacts?per_page=100" | ConvertFrom-Json
+          $matches = @($response.artifacts | Where-Object { $_.name -eq $artifactName -and -not $_.expired })
+          if ($matches.Count -ne 1) {
+            throw "Expected exactly one unexpired HRDR-bound validation artifact '$artifactName' in run $validationRun, found $($matches.Count)."
+          }
+          gh api -H "Accept: application/vnd.github+json" "repos/$env:REPOSITORY/actions/artifacts/$($matches[0].id)/zip" > validation-evidence.zip
+          Expand-Archive -LiteralPath validation-evidence.zip -DestinationPath validation-evidence -Force
+          $reports = @(Get-ChildItem validation-evidence -Filter result.json -File -Recurse)
+          if ($reports.Count -ne 1) { throw 'Exact validation artifact must contain exactly one canonical candidate report.' }
+          $report = Get-Content -LiteralPath $reports[0].FullName -Raw -Encoding utf8 | ConvertFrom-Json
+          if (
+            [string]$report.status -ne 'PASS' -or
+            [string]$report.source.repository -ne $env:REPOSITORY -or
+            [int]$report.source.pr -ne [int]$env:CANDIDATE_PR -or
+            [string]$report.source.commit -ne $env:SOURCE_SHA
+          ) { throw 'Exact candidate validation report identity is invalid.' }
+          $packageName = [System.IO.Path]::GetFileName([string]$report.package.path)
+          $expectedHash = ([string]$report.package.sha256).ToLowerInvariant()
+          if ($expectedHash -ne $env:EXPECTED_CANDIDATE_SHA256.ToLowerInvariant()) {
+            throw 'HRDR-bound candidate package hash does not match the recovery authorization.'
+          }
+          $packages = @(Get-ChildItem validation-evidence -Filter $packageName -File -Recurse)
+          if ($packages.Count -ne 1) { throw 'Exact validation artifact must contain the one report-bound candidate package.' }
+          $actualHash = (Get-FileHash -LiteralPath $packages[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualHash -ne $expectedHash) { throw 'Exact candidate package hash does not match its canonical validation report.' }
+          "VALIDATION_REPORT=$($reports[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "CANDIDATE_PACKAGE=$($packages[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "VALIDATION_RUN=$validationRun" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "VALIDATION_ARTIFACT_ID=$($matches[0].id)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Verify immutable annotated tag before recovery
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          . .\control-plane\scripts\platform\DDDAPlatformSupport.ps1
+          . .\control-plane\scripts\platform\DDDAGitHubSupport.ps1
+          . .\control-plane\scripts\platform\DDDAReleasePublicationSupport.ps1
+          $origin = (git -C control-plane remote get-url origin).Trim()
+          $actual = Assert-DDDACanonicalReleaseTagReadBack -OriginUrl $origin -Tag "v$env:VERSION" -ExpectedCommit $env:SOURCE_SHA
+          if ($actual -ne $env:SOURCE_SHA) { throw 'Annotated tag peeled identity mismatch before recovery.' }
+          $liveMain = gh api "repos/$env:REPOSITORY/branches/$env:DEFAULT_BRANCH" | ConvertFrom-Json
+          if ([string]$liveMain.commit.sha -ne $env:CONTROL_PLANE_SHA) { throw 'Default branch drifted before recovery.' }
+
+      - name: Rebuild canonical release evidence from frozen source
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = Join-Path $env:RUNNER_TEMP 'controlled-release-recovery'
+          .\control-plane\scripts\platform\Invoke-DDDARebuildReleaseEvidence.ps1 `
+            -PlatformPath .\control-plane `
+            -Version $env:VERSION `
+            -ReleaseSourceSha $env:SOURCE_SHA `
+            -CandidatePackagePath $env:CANDIDATE_PACKAGE `
+            -CandidateValidationReportPath $env:VALIDATION_REPORT `
+            -OutputRoot $root
+          $short = $env:SOURCE_SHA.Substring(0, 12)
+          $package = Join-Path $root "package\ddda-release-$env:VERSION-$short.zip"
+          $reportJson = Join-Path $root 'report\result.json'
+          $reportMd = Join-Path $root 'report\result.md'
+          $changelog = Join-Path $root 'release-source\CHANGELOG.md'
+          foreach ($path in @($package, $reportJson, $reportMd, $changelog)) {
+            if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Recovery output missing: $path" }
+          }
+          $report = Get-Content -LiteralPath $reportJson -Raw -Encoding utf8 | ConvertFrom-Json
+          $packageHash = (Get-FileHash -LiteralPath $package -Algorithm SHA256).Hash.ToLowerInvariant()
+          if (
+            [string]$report.status -ne 'PASS' -or
+            [string]$report.source.kind -ne 'release' -or
+            [string]$report.source.repository -ne $env:REPOSITORY -or
+            [string]$report.source.commit -ne $env:SOURCE_SHA -or
+            [string]$report.package.sha256 -ne $packageHash
+          ) { throw 'Rebuilt release evidence is not an exact canonical PASS.' }
+          "RECOVERY_ROOT=$root" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "RELEASE_PACKAGE=$package" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "RELEASE_PACKAGE_SHA256=$packageHash" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "RELEASE_REPORT_JSON=$reportJson" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "RELEASE_REPORT_MD=$reportMd" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "RELEASE_CHANGELOG=$changelog" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Fresh read-back before GitHub Release side effect
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $liveMain = gh api "repos/$env:REPOSITORY/branches/$env:DEFAULT_BRANCH" | ConvertFrom-Json
+          if ([string]$liveMain.commit.sha -ne $env:CONTROL_PLANE_SHA) { throw 'Default branch drifted after evidence rebuild.' }
+          $pr = gh api "repos/$env:REPOSITORY/pulls/$env:CANDIDATE_PR" | ConvertFrom-Json
+          if ([string]$pr.state -ne 'open' -or [bool]$pr.merged -or [string]$pr.head.sha -ne $env:SOURCE_SHA) {
+            throw 'Controlled release source PR was merged, closed, or drifted before recovery publication.'
+          }
+
+      - name: Execute idempotent GitHub Release recovery
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          .\control-plane\scripts\platform\Invoke-DDDARecoverGitHubRelease.ps1 `
+            -PlatformPath .\control-plane `
+            -Version $env:VERSION `
+            -ReleaseSourceSha $env:SOURCE_SHA `
+            -ReleasePackagePath $env:RELEASE_PACKAGE `
+            -ReleaseReportJsonPath $env:RELEASE_REPORT_JSON `
+            -ReleaseReportMarkdownPath $env:RELEASE_REPORT_MD `
+            -ChangelogPath $env:RELEASE_CHANGELOG `
+            -ConfirmRecovery
+
+      - name: Fresh post-recovery read-back
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $liveMain = gh api "repos/$env:REPOSITORY/branches/$env:DEFAULT_BRANCH" | ConvertFrom-Json
+          if ([string]$liveMain.commit.sha -ne $env:CONTROL_PLANE_SHA) { throw 'Release recovery changed the default branch.' }
+          $pr = gh api "repos/$env:REPOSITORY/pulls/$env:CANDIDATE_PR" | ConvertFrom-Json
+          if ([string]$pr.state -ne 'open' -or [bool]$pr.merged -or [string]$pr.head.sha -ne $env:SOURCE_SHA) {
+            throw 'Controlled release source PR was merged, closed, or drifted during recovery.'
+          }
+          $tag = "v$env:VERSION"
+          $tagRef = gh api "repos/$env:REPOSITORY/git/ref/tags/$tag" | ConvertFrom-Json
+          if ([string]$tagRef.object.type -ne 'tag') { throw 'Canonical release tag is not annotated.' }
+          $tagObject = gh api "repos/$env:REPOSITORY/git/tags/$($tagRef.object.sha)" | ConvertFrom-Json
+          if ([string]$tagObject.tag -ne $tag -or [string]$tagObject.object.type -ne 'commit' -or [string]$tagObject.object.sha -ne $env:SOURCE_SHA) {
+            throw 'Canonical annotated tag object or peeled source SHA changed during recovery.'
+          }
+          $release = gh api "repos/$env:REPOSITORY/releases/tags/$tag" | ConvertFrom-Json
+          if ([string]$release.tag_name -ne $tag -or [bool]$release.draft -or [bool]$release.prerelease) {
+            throw 'Canonical GitHub Release read-back is invalid.'
+          }
+          $expected = @(
+            [pscustomobject]@{ name = "ddda-$env:VERSION.zip"; path = $env:RELEASE_PACKAGE },
+            [pscustomobject]@{ name = "ddda-$env:VERSION-release-report.json"; path = $env:RELEASE_REPORT_JSON },
+            [pscustomobject]@{ name = "ddda-$env:VERSION-release-report.md"; path = $env:RELEASE_REPORT_MD }
+          )
+          foreach ($descriptor in $expected) {
+            $assets = @($release.assets | Where-Object { [string]$_.name -eq [string]$descriptor.name })
+            if ($assets.Count -ne 1) { throw "Expected exactly one release asset $($descriptor.name)." }
+            $expectedHash = (Get-FileHash -LiteralPath $descriptor.path -Algorithm SHA256).Hash.ToLowerInvariant()
+            $digest = [string]$assets[0].digest
+            if ($digest -match '^sha256:(?<hash>[0-9a-fA-F]{64})$') {
+              $actualHash = $Matches['hash'].ToLowerInvariant()
+            }
+            else {
+              $tmp = [System.IO.Path]::GetTempFileName()
+              try {
+                Invoke-WebRequest -Method GET -Uri ([string]$assets[0].url) -Headers @{ Authorization = "Bearer $env:GH_TOKEN"; Accept = 'application/octet-stream'; 'User-Agent' = 'DDDA-Controlled-Release-Recovery' } -OutFile $tmp -ErrorAction Stop | Out-Null
+                $actualHash = (Get-FileHash -LiteralPath $tmp -Algorithm SHA256).Hash.ToLowerInvariant()
+              }
+              finally { Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue }
+            }
+            if ($actualHash -ne $expectedHash) { throw "Release asset SHA-256 mismatch for $($descriptor.name)." }
+          }
+          $publication = @(Get-ChildItem -LiteralPath (Join-Path $env:LOCALAPPDATA "DDDA\release-publication-recovery\$env:VERSION") -Filter publication.json -File -Recurse)
+          if ($publication.Count -ne 1) { throw "Expected exactly one recovery publication evidence file, found $($publication.Count)." }
+          $evidence = Get-Content -LiteralPath $publication[0].FullName -Raw -Encoding utf8 | ConvertFrom-Json
+          if ([string]$evidence.publication_status -ne 'PASS' -or [string]$evidence.server_read_back_status -ne 'PASS' -or [string]$evidence.release_source_sha -ne $env:SOURCE_SHA -or [string]$evidence.tag -ne $tag) {
+            throw 'Recovery publication evidence is not canonical PASS.'
+          }
+          $audit = Join-Path $env:RUNNER_TEMP 'controlled-release-recovery-audit'
+          New-Item -ItemType Directory -Path $audit -Force | Out-Null
+          Copy-Item -LiteralPath $publication[0].FullName -Destination (Join-Path $audit 'publication.json') -Force
+          Copy-Item -LiteralPath $env:RELEASE_REPORT_JSON -Destination (Join-Path $audit 'result.json') -Force
+          Copy-Item -LiteralPath $env:RELEASE_REPORT_MD -Destination (Join-Path $audit 'result.md') -Force
+          @{
+            repository = $env:REPOSITORY
+            candidate_pr = [int]$env:CANDIDATE_PR
+            source_sha = $env:SOURCE_SHA
+            candidate_package_sha256 = $env:EXPECTED_CANDIDATE_SHA256
+            release_package_sha256 = $env:RELEASE_PACKAGE_SHA256
+            version = $env:VERSION
+            tag_object_sha = [string]$tagRef.object.sha
+            peeled_tag_sha = [string]$tagObject.object.sha
+            github_release_id = [int64]$release.id
+            github_release_url = [string]$release.html_url
+            control_plane_sha = $env:CONTROL_PLANE_SHA
+            validation_workflow_run = [long]$env:VALIDATION_RUN
+            validation_artifact_id = [long]$env:VALIDATION_ARTIFACT_ID
+            status = 'PASS'
+          } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $audit 'recovery-summary.json') -Encoding utf8
+
+      - name: Upload controlled release recovery audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: controlled-release-recovery-${{ env.CANDIDATE_PR }}-${{ env.SOURCE_SHA }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/controlled-release-recovery-audit/**
+          if-no-files-found: warn
+          retention-days: 30

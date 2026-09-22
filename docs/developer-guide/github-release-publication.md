@@ -52,3 +52,15 @@ Do not delete, replace, retag, force-push or rerun promotion heuristically. Afte
 ```
 
 Recovery finishes only after fresh tag/Release/asset read-back proves the original identities and physical package SHA-256. The tag read-back requires exactly one annotated tag-object ref and exactly one peeled commit ref for the requested tag; it uses a bounded retry only to tolerate remote visibility delay. A missing, lightweight, ambiguous or mismatching tag fails closed. Existing tags are never changed, replaced or deleted.
+
+### Chat/Work remote recovery execution
+
+When recovery is orchestrated remotely, the default-branch workflow `.github/workflows/controlled-release-recovery.yml` is the canonical execution surface. It is only valid after a separate human recovery authorization and is triggered by an owner-authored PR comment:
+
+```text
+/ddda recover-controlled --source-sha <40-char-frozen-sha> --version X.Y.Z --candidate-package-sha256 <64-char-sha256>
+```
+
+The workflow binds itself to the live default-branch control-plane SHA, restores the HRDR-bound exact candidate evidence, checks the candidate package hash, verifies the existing annotated tag without changing it, reconstructs the release-kind package and portable release report from the frozen source, and only then calls `Invoke-DDDARecoverGitHubRelease.ps1 -ConfirmRecovery`.
+
+The recovery workflow is intentionally idempotent: a correct existing Release/asset is read back and retained, a missing one is created, and any identity or hash mismatch fails closed. It never creates, moves, deletes, replaces or retags the release tag, and it never merges the controlled release-source PR.
