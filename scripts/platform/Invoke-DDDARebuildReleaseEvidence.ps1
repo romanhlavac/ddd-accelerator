@@ -54,6 +54,17 @@ foreach ($suite in @("smoke", "e2e", "acceptance")) {
     $suites.Add([ordered]@{ name = $suite; status = "PASS"; duration_ms = [int64]((Get-Date) - $suiteStarted).TotalMilliseconds; details = "Revalidated during idempotent recovery from exact frozen source SHA." })
 }
 Write-DDDAPlatformJson -Value @($suites.ToArray()) -Path $suitesPath
+
+# workflow_run_id was added to newer validation reports. Frozen controlled
+# candidates can legitimately carry older schema-v1 reports without that
+# optional property, so read it through the PSObject property bag under
+# Set-StrictMode instead of dereferencing a missing member.
+$workflowRunId = $null
+$workflowRunProperty = $report.package.PSObject.Properties['workflow_run_id']
+if ($null -ne $workflowRunProperty -and -not [string]::IsNullOrWhiteSpace([string]$workflowRunProperty.Value)) {
+    $workflowRunId = [string]$workflowRunProperty.Value
+}
+
 $reportArguments = @{
     ValidationId = "release-recovery-$Version-$($ReleaseSourceSha.Substring(0, 12))"
     Status = "PASS"
@@ -63,7 +74,7 @@ $reportArguments = @{
     Pr = [int]$report.source.pr
     Branch = [string]$report.source.branch
     PackagePath = $releasePackagePath
-    WorkflowRunId = [string]$report.package.workflow_run_id
+    WorkflowRunId = $workflowRunId
     SuitesJsonPath = $suitesPath
     OutputRoot = $reportRoot
     Diagnostics = @("Reconstructed from exact candidate package SHA-256 $candidateHash and revalidated release suites.")

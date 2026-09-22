@@ -17,6 +17,7 @@ Assert-True -Condition ($content -match 'checkout", "--detach", \$ReleaseSourceS
 Assert-True -Condition ($content -match 'Kind = "release"' -and $content -match 'SourceKind = "release"') -Message "Recovery rebuild musí vytvářet release package a release report, ne candidate evidence."
 Assert-True -Condition ($content -match '@\("smoke", "e2e", "acceptance"\)') -Message "Recovery rebuild musí znovu provést required release suites."
 Assert-True -Condition ($content -match 'Join-Path \$platformRoot "scripts/platform/New-DDDAValidationReport.ps1"' -and $content -notmatch 'Join-Path \$sourceRoot "scripts/platform/New-DDDAValidationReport.ps1"') -Message "Portable recovery report musí generovat trusted current control-plane reporter, nikoli historický frozen reporter."
+Assert-True -Condition ($content -match "PSObject\.Properties\['workflow_run_id'\]" -and $content -match 'WorkflowRunId = \$workflowRunId' -and $content -notmatch '\$report\.package\.workflow_run_id') -Message "Recovery rebuild musí tolerovat legacy candidate report bez optional package.workflow_run_id i pod StrictMode."
 Assert-True -Condition ($content -notmatch 'Publish-DDDA|Invoke-RestMethod|gh api|git".*push|--delete') -Message "Recovery evidence rebuild nesmí mít GitHub/tag side effect."
 
 $workflowPath = Join-Path $PlatformPath ".github/workflows/controlled-release-recovery.yml"
