@@ -219,6 +219,7 @@ function Invoke-OneSuite {
             if ($PrePromotionCandidate) { $promotionGuardArguments += "-PrePromotionCandidate" }
             Invoke-TestScript -RelativePath "tests/powershell/Test-DDDAPromotionGuards.ps1" -Arguments $promotionGuardArguments
             Invoke-TestScript -RelativePath "tests/powershell/Test-DDDAReleasePublication.ps1" -Arguments @("-PlatformPath", $platformRoot)
+            Invoke-TestScript -RelativePath "tests/powershell/Test-DDDAReleaseRecoveryEvidence.ps1" -Arguments @("-PlatformPath", $platformRoot)
             Invoke-TestScript -RelativePath "tests/powershell/Test-DDDAHrdrComment.ps1" -Arguments @("-PlatformPath", $platformRoot)
             Invoke-TestScript -RelativePath "tests/powershell/Test-DDDAGitHubCheckRuns.ps1" -Arguments @("-PlatformPath", $platformRoot)
             Invoke-TestScript -RelativePath "tests/powershell/Test-DDDAMiroAutomation.ps1" -Arguments @("-PlatformPath", $platformRoot)
