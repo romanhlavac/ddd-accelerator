@@ -70,7 +70,10 @@ $reportArguments = @{
     PortablePaths = $true
     RedactedRoots = @($recoveryRoot)
 }
-& (Join-Path $sourceRoot "scripts/platform/New-DDDAValidationReport.ps1") @reportArguments | Out-Null
+# Release source code builds and exercises the frozen package, but portable report
+# materialization is a trusted control-plane concern. Historical candidates may
+# predate current report parameters such as PortablePaths/RedactedRoots.
+& (Join-Path $platformRoot "scripts/platform/New-DDDAValidationReport.ps1") @reportArguments | Out-Null
 
 $resultJson = Join-Path $reportRoot "result.json"
 $resultMarkdown = Join-Path $reportRoot "result.md"
