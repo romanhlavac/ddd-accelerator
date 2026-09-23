@@ -8,6 +8,8 @@ $initialHead=(git rev-parse HEAD).Trim()
 python scripts/remediation/Remediate-CR155-WP14.py
 if($LASTEXITCODE -ne 0){throw 'CR155 transformation failed'}
 
+python -m pip install --disable-pip-version-check "pytest>=8,<9"
+if($LASTEXITCODE -ne 0){throw 'pytest bootstrap failed'}
 python -m pytest -q runtime/platform/tests/test_project_backlog_delivery_governance.py runtime/platform/tests/test_project_backlog_presentation_governance.py
 if($LASTEXITCODE -ne 0){throw 'CR155 governance regression suite failed'}
 
