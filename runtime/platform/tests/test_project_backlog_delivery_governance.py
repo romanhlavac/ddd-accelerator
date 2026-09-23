@@ -314,7 +314,7 @@ def test_release_train_milestone_and_project_target_contract():
     assert meta[98]["Impact"] == "HIGH"
     dependencies = {entry["blocked"]: entry["blocked_by"] for entry in cfg["dependencies"]}
     assert dependencies[75] == [96, 98]
-    assert "unparented_items: [16, 42, 44, 45, 49, 65, 66, 67, 68, 69, 70, 73, 75, 85, 88, 94, 96, 98, 113, 125, 131, 132]" in POLICY.read_text(encoding="utf-8")
+    assert "unparented_items: [16, 42, 44, 45, 49, 65, 66, 67, 68, 69, 70, 73, 75, 85, 88, 94, 96, 98, 113, 125, 131, 132, 155]" in POLICY.read_text(encoding="utf-8")
     assert meta[75]["Item Type"] == "Enabler"
     assert meta[85]["Work Package"] == "Other"
     assert meta[85]["Target Release"] == "0.1.2"
@@ -573,3 +573,16 @@ def test_delivery_runtime_does_not_treat_project_blocked_as_authority():
     assert 'blocked = current.get("Blocked") == "Yes"' not in core_text
     assert "derive_delivery_projection" in wrapper
     assert "active_dependency_projection" in wrapper
+
+
+def test_wp14_governance_contract_is_canonical_and_milestone_neutral():
+    cfg=json.loads(BOOTSTRAP.read_text(encoding="utf-8-sig"))
+    wp=next(x for x in cfg["fields"] if x["name"]=="Work Package")
+    assert [x["name"] for x in wp["options"]].count("WP-14")==1
+    h={int(x["parent"]):x["children"] for x in cfg["hierarchy"]}; assert h[148]==[149,150,151,152,153,154]
+    deps={int(x["blocked"]):x["blocked_by"] for x in cfg["dependencies"]}; assert deps[150]==[149] and deps[153]==[149,150,151,152] and deps[154]==[150,153]
+    meta={int(n):g.get("metadata",{}) for g in cfg["item_groups"] if g.get("kind")=="issue" for n in g.get("numbers",[])}
+    assert set(range(148,156)).issubset(meta) and all("Priority" not in meta[n] for n in range(148,156))
+    assert all(set(range(148,156)).isdisjoint(set(m.get("issues",[]))) for m in cfg["milestones"])
+    m=next(x for x in cfg["milestones"] if x["title"]=="DDDA 0.1.1"); assert m["issues"]==[9,12,67,68,70,96,98]
+    assert "WP-14-multi-model-workbench-git-sync.md" in (ROOT/"docs/roadmap/README.md").read_text(encoding="utf-8")
