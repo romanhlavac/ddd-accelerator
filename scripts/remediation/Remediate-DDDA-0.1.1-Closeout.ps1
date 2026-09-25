@@ -254,6 +254,9 @@ Set-Content -LiteralPath $tempPy -Value $python -Encoding UTF8
 python $tempPy
 if ($LASTEXITCODE -ne 0) { throw "DDDA 0.1.1 closeout transformation failed: $LASTEXITCODE" }
 
+python -m pip install --disable-pip-version-check --quiet "pytest>=8,<9"
+if ($LASTEXITCODE -ne 0) { throw "Failed to provision pytest for focused closeout validation: $LASTEXITCODE" }
+
 python -m pytest -q `
   runtime/platform/tests/test_merge_release_eligibility_collector.py `
   runtime/platform/tests/test_project_backlog_delivery_governance.py
