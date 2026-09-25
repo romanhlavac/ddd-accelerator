@@ -135,11 +135,9 @@ write(policy_path, policy)
 # multiple markers still fail closed.
 collector_path = "scripts/platform/Test-DDDAMergeReleaseEligibility.py"
 collector = read(collector_path)
-collector = exactly_once(
-    collector,
+collector = collector.replace(
     "POLICY_ACTIVE_MILESTONE_RE",
     "POLICY_MARKED_MILESTONE_RE",
-    collector_path,
 )
 old_state_pattern = '    r"(?:(?!^[ \\t]*-[ \\t]+name:).)*?^[ \\t]+state:[ \\t]*open[ \\t]*\\r?$"'
 new_state_pattern = '    r"(?:(?!^[ \\t]*-[ \\t]+name:).)*?^[ \\t]+state:[ \\t]*(?P<state>open|closed)[ \\t]*\\r?$"'
