@@ -32,14 +32,14 @@ from release_governance import evaluate_merge_release_eligibility  # noqa: E402
 
 API_ROOT = "https://api.github.com"
 MILESTONE_RE = re.compile(r"^DDDA (?P<version>(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*))$")
-POLICY_ACTIVE_MILESTONE_RE = re.compile(
+POLICY_MARKED_MILESTONE_RE = re.compile(
     r"(?ms)^[ \t]*-[ \t]+name:[ \t]*DDDA[ \t]+"
     r"(?P<version>(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*))[ \t]*\r?$"
-    r"(?:(?!^[ \t]*-[ \t]+name:).)*?^[ \t]+state:[ \t]*open[ \t]*\r?$"
+    r"(?:(?!^[ \t]*-[ \t]+name:).)*?^[ \t]+state:[ \t]*(?P<state>open|closed)[ \t]*\r?$"
     r"(?:(?!^[ \t]*-[ \t]+name:).)*?^[ \t]+pre_release_prerequisites:[ \t]*\[[^\]]+\][ \t]*\r?$"
 )
 
-LEGACY_POLICY_ACTIVE_MILESTONE_RE = re.compile(
+LEGACY_POLICY_MARKED_MILESTONE_RE = re.compile(
     r"(?m)^[ \t]*-[ \t]+name:[ \t]*DDDA[ \t]+"
     r"(?P<version>(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*))[ \t]*\r?$"
     r"\n^[ \t]+state:[ \t]*open[ \t]*\r?$"
@@ -155,18 +155,21 @@ def pages(path: str, token: str) -> list[Any]:
 
 def configured_active_release(backlog_policy: str) -> str | None:
     policy = backlog_policy or ""
-    marked = POLICY_ACTIVE_MILESTONE_RE.findall(policy)
+    marked = POLICY_MARKED_MILESTONE_RE.findall(policy)
     if "release_train:" in policy:
         if len(marked) != 1:
             raise GitHubReadError(
-                "Expected exactly one marker-designated active DDDA release train, "
+                "Expected exactly one marker-designated DDDA release train, "
                 f"found {sorted(marked)}"
             )
-        return marked[0]
+        version, state = marked[0]
+        if state == "closed":
+            return None
+        return version
 
     # Older policy layouts predate release-train planning. Preserve their
     # single-open-train contract, but never use it when release_train exists.
-    legacy = LEGACY_POLICY_ACTIVE_MILESTONE_RE.findall(policy)
+    legacy = LEGACY_POLICY_MARKED_MILESTONE_RE.findall(policy)
     if not legacy:
         return None
     if len(legacy) != 1:

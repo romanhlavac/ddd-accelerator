@@ -6,6 +6,20 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 ## [Unreleased]
 
+### Changed
+
+- release-train governance now permits the single marker-designated train to be explicitly closed after publication without implicitly activating any planned future milestone; a later train requires a separate versioned/human planning decision.
+
+### Fixed
+
+- controlled promotion now accepts only the already revalidated exact
+  validation-report/package/Release-Scope-Gate evidence for its frozen PR SHA;
+  ordinary merge-first promotion still requires direct GitHub check-runs.
+
+- post-release closeout now projects the canonical DDDA 0.1.1 release cut back to `main` and closes its versioned release-train state without changing the released tag, GitHub Release, canonical assets or release scope.
+
+## [0.1.1] - 2026-09-16
+
 ### Added
 
 - controlled candidate selection accepts only the canonical release-source branch or an explicit numbered superseding generation (`-vN`, `N >= 2`), preserving exact-SHA and marker checks while allowing governed candidate reconstruction without mutating the superseded PR;
@@ -29,10 +43,6 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 - governed implementation merge používá po aktivaci #70 merge commit jako canonical default; HIGH/BREAKING a neklasifikované PR nesmějí squash/rebase, LOW/MEDIUM squash vyžaduje explicitní human exception a canonical merge ověřuje validated PR HEAD server-side jako parent/ancestor výsledného main state.
 
 ### Fixed
-- controlled promotion now accepts only the already revalidated exact
-  validation-report/package/Release-Scope-Gate evidence for its frozen PR SHA;
-  ordinary merge-first promotion still requires direct GitHub check-runs.
-
 - Release Scope Gate now rejects recovered/metadata commit-role overlap, and controlled no-merge promotion uses an explicit `ConfirmPromotion` authorization boundary instead of merge authorization.
 
 - Controlled release-candidate validation now binds the selected exact SHA through an identified cross-job output; it cannot silently validate `main` instead of the candidate.
