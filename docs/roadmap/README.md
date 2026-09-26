@@ -14,6 +14,7 @@ Versioned long-term product roadmap. GitHub Issues remain authoritative for deta
 | 4 | P3 | WP-13 | Multi-agent orchestration & evidence synthesis | backlog | TBD |
 | — | existing project priority | WP-09 | Strategy, portfolio & program lifecycle | backlog | TBD |
 | — | existing project priority | WP-10 | Enterprise ingestion | backlog | TBD |
+| — | unset — human decision pending | WP-14 | Multi-Model Workbench & Git-backed Model Synchronization | planned | proposed 0.2.0 |
 
 The numbered order above is the recommended default sequence requested for the newly restructured streams. WP-12 may overlap WP-11 after the relevant PR8 Miro baseline is stable. This ordering is represented by Project `Priority`; it is not an artificial native blocked-by chain between sibling Work Packages.
 
@@ -47,4 +48,5 @@ WP-11 does not require WP-13 for its base workshop flow. WP-13 may later provide
 - [WP-11 — EventStorming methodology & workshop runtime](work-packages/WP-11-eventstorming-methodology-workshop-runtime.md)
 - [WP-12 — Miro platform environments & lifecycle](work-packages/WP-12-miro-platform-environments-lifecycle.md)
 - [WP-13 — Multi-agent orchestration & evidence synthesis](work-packages/WP-13-multi-agent-orchestration-evidence-synthesis.md)
+- [WP-14 — Multi-Model Workbench & Git-backed Model Synchronization](work-packages/WP-14-multi-model-workbench-git-sync.md)
 - [GitHub backlog index](backlog-index.md)
