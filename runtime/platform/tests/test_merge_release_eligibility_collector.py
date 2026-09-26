@@ -287,6 +287,27 @@ milestones:
     assert COLLECTOR.active_release(milestones, backlog_policy) == {"version": "0.1.1"}
 
 
+def test_active_release_allows_closed_marker_without_activating_future_train() -> None:
+    backlog_policy = """
+milestones:
+  release_train:
+    - name: DDDA 0.1.1
+      state: closed
+      issues: [9]
+      pulls: []
+      pre_release_prerequisites: [44]
+    - name: DDDA 0.1.2
+      state: open
+      issues: [16]
+      pulls: []
+"""
+    milestones = [
+        {"title": "DDDA 0.1.1", "state": "closed"},
+        {"title": "DDDA 0.1.2", "state": "open"},
+    ]
+    assert COLLECTOR.active_release(milestones, backlog_policy) is None
+
+
 def test_active_release_fails_closed_when_release_train_has_no_marker() -> None:
     backlog_policy = """
 milestones:
