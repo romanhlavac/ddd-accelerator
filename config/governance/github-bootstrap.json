@@ -1145,12 +1145,7 @@
     },
     {
       "kind": "issue",
-      "numbers": [
-        65,
-        69,
-        73,
-        85
-      ],
+      "numbers": [65, 69, 73, 85],
       "metadata": {
         "Status": "Backlog",
         "Work Package": "Other",
@@ -1162,9 +1157,7 @@
     },
     {
       "kind": "issue",
-      "numbers": [
-        66
-      ],
+      "numbers": [66],
       "metadata": {
         "Status": "Backlog",
         "Work Package": "Other",
@@ -1176,10 +1169,7 @@
     },
     {
       "kind": "issue",
-      "numbers": [
-        47,
-        46
-      ],
+      "numbers": [47, 46],
       "metadata": {
         "Status": "Backlog",
         "Work Package": "WP-11",
@@ -1191,9 +1181,7 @@
     },
     {
       "kind": "issue",
-      "numbers": [
-        94
-      ],
+      "numbers": [94],
       "metadata": {
         "Status": "Backlog",
         "Work Package": "Other",
@@ -1205,9 +1193,7 @@
     },
     {
       "kind": "issue",
-      "numbers": [
-        113
-      ],
+      "numbers": [113],
       "metadata": {
         "Status": "Backlog",
         "Priority": "P2",
@@ -1223,9 +1209,7 @@
     },
     {
       "kind": "issue",
-      "numbers": [
-        125
-      ],
+      "numbers": [125],
       "metadata": {
         "Status": "Backlog",
         "Priority": "P1",
@@ -1241,9 +1225,7 @@
     },
     {
       "kind": "issue",
-      "numbers": [
-        131
-      ],
+      "numbers": [131],
       "metadata": {
         "Status": "Backlog",
         "Priority": "P1",
@@ -1259,9 +1241,7 @@
     },
     {
       "kind": "issue",
-      "numbers": [
-        132
-      ],
+      "numbers": [132],
       "metadata": {
         "Status": "Backlog",
         "Priority": "P2",
@@ -1480,92 +1460,42 @@
       "title": "DDDA 0.1.2",
       "state": "open",
       "description": "Governance consolidation after DDDA 0.1.1: backlog authority, branch lifecycle, release history, mandatory-gate semantics, terminology and planning/delivery separation. Milestone membership is release scope, not release approval.",
-      "issues": [
-        16,
-        65,
-        69,
-        73,
-        85,
-        94,
-        113,
-        125,
-        131,
-        132
-      ],
+      "issues": [16, 65, 69, 73, 85, 94, 113, 125, 131, 132],
       "pulls": []
     },
     {
       "title": "DDDA 0.2.0",
       "state": "open",
       "description": "EventStorming MVP: executable session, facilitation guidance, Miro/Git round-trip, DDD Starter templates and methodology. Milestone membership is release scope, not release approval.",
-      "issues": [
-        34,
-        35,
-        48,
-        52,
-        66
-      ],
+      "issues": [34, 35, 48, 52, 66],
       "pulls": []
     },
     {
       "title": "DDDA 0.3.0",
       "state": "open",
       "description": "Enterprise ingestion and EventStorming evidence integration: manifest core, security, adapters, traceability, corpus, governed workshop round-trip, E2E acceptance and first-user explanation. Milestone membership is release scope, not release approval.",
-      "issues": [
-        27,
-        28,
-        29,
-        30,
-        31,
-        32,
-        33,
-        47,
-        62,
-        46
-      ],
+      "issues": [27, 28, 29, 30, 31, 32, 33, 47, 62, 46],
       "pulls": []
     },
     {
       "title": "DDDA 0.3.1",
       "state": "open",
       "description": "Miro platform lifecycle: Platform Lab, Example Project lifecycle, project identity UX, corporate rebinding and legacy-token fallback removal. Milestone membership is release scope, not release approval.",
-      "issues": [
-        53,
-        54,
-        55,
-        56,
-        57
-      ],
+      "issues": [53, 54, 55, 56, 57],
       "pulls": []
     },
     {
       "title": "DDDA 0.4.0",
       "state": "open",
       "description": "Strategy and portfolio capability: P0-P10 lifecycle, intake, Wardley mapping, investment decisions, traceability, roadmap, benefits and package-first acceptance. Milestone membership is release scope, not release approval.",
-      "issues": [
-        21,
-        22,
-        23,
-        24,
-        25,
-        50,
-        26,
-        51
-      ],
+      "issues": [21, 22, 23, 24, 25, 50, 26, 51],
       "pulls": []
     },
     {
       "title": "DDDA 0.5.0",
       "state": "open",
       "description": "Multi-agent orchestration: capability contract, bounded fan-out/fan-in, human checkpoints, resilience, observability and package-first acceptance. Milestone membership is release scope, not release approval.",
-      "issues": [
-        36,
-        37,
-        38,
-        39,
-        40,
-        41
-      ],
+      "issues": [36, 37, 38, 39, 40, 41],
       "pulls": []
     }
   ]
