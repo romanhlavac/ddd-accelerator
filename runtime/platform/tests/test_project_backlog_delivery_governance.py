@@ -280,8 +280,11 @@ def test_release_train_milestone_and_project_target_contract():
     assert specs["DDDA 0.1.0"]["pulls"] == [8]
     for title, issues in expected.items():
         assert specs[title]["issues"] == issues
-        if title != "DDDA 0.1.0":
+        if title in {"DDDA 0.1.0", "DDDA 0.1.1"}:
+            assert specs[title]["state"] == "closed"
+        else:
             assert specs[title]["state"] == "open"
+        if title != "DDDA 0.1.0":
             assert specs[title]["pulls"] == []
 
     meta = {}

@@ -1443,7 +1443,7 @@
     },
     {
       "title": "DDDA 0.1.1",
-      "state": "open",
+      "state": "closed",
       "description": "Approved stabilization release scope from #75 plus P0 release-readiness blockers #96 and #98. Milestone membership is release scope, not release approval.",
       "issues": [
         9,
