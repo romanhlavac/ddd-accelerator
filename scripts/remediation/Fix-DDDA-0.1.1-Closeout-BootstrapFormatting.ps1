@@ -48,17 +48,17 @@ $changed = @(git diff --name-only)
 if (($changed.Count -ne 1) -or ($changed[0] -ne $TargetPath)) {
     throw "Unexpected bootstrap-format diff: $($changed -join ', ')"
 }
-$stat = (git diff --numstat -- $TargetPath | Out-String).Trim()
+
+# Validate the intended final PR projection against the frozen main baseline,
+# not against the intermediate formatted HEAD that this remediation replaces.
+$stat = (git diff --numstat $BaseSha -- $TargetPath | Out-String).Trim()
 if ($LASTEXITCODE -ne 0) { throw 'Failed to inspect bootstrap-format diff.' }
 if ($stat -notmatch '^1\s+1\s+config/governance/github-bootstrap\.json$') {
-    throw "Bootstrap-format correction must be exactly one-line state replacement; numstat='$stat'."
+    throw "Bootstrap-format correction must be exactly one-line state replacement versus frozen base; numstat='$stat'."
 }
-$diff = (git diff -- $TargetPath | Out-String)
-if (($diff -notmatch '^-\s+"state": "open",') -or ($diff -notmatch '^\+\s+"state": "closed",')) {
-    throw "Bootstrap-format diff does not contain the expected state-only replacement.`n$diff"
-}
-if (($diff -match 'DDDA 0\.1\.2') -or ($diff -match 'DDDA 0\.2\.0')) {
-    throw 'Bootstrap-format correction unexpectedly touched a future milestone.'
+$diff = (git diff $BaseSha -- $TargetPath | Out-String)
+if (($diff -notmatch '(?m)^-\s+"state": "open",\r?$') -or ($diff -notmatch '(?m)^\+\s+"state": "closed",\r?$')) {
+    throw "Bootstrap-format diff does not contain the expected state-only replacement versus frozen base.`n$diff"
 }
 
 git rm -- $SelfPath
