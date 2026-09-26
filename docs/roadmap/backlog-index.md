@@ -75,6 +75,20 @@ Children: #36, #37, #38, #39, #40, #41.
 #36 + #37 + #38 + #39 + #40 → #41
 ```
 
+## WP-14 — #148 Multi-Model Workbench & Git-backed Model Synchronization
+
+Children: #149, #150, #151, #152, #153, #154.
+
+```text
+#149 → #150
+#149 → #151
+#149 → #152
+#149 + #150 + #151 + #152 → #153
+#150 + #153 → #154
+```
+
+Proposed target 0.2.0 is planning metadata only; #148–#154 remain outside Milestones and Project priority/order remains unset until separate human decisions.
+
 ## Cross-cutting
 
 - #16 — GitHub-native backlog governance;
@@ -84,6 +98,8 @@ Children: #36, #37, #38, #39, #40, #41.
 - #125 — historical DDDA 0.1.0 GitHub Release publication backfill (`Other`, primary `RELEASE`), P1 and planned for DDDA 0.1.2.
 - #131 — canonical release-candidate PR identity (`Other`, primary `RELEASE`), P1 and planned for DDDA 0.1.2; visible through title, labels, branch and versioned body marker.
 - #132 — canonical GitHub artifact naming convention (`Other`, primary `SECURITY-GOVERNANCE`), P2 and planned for DDDA 0.1.2; consumes #65 branch ownership and #131 release-candidate specialization.
+
+- #155 — WP-14 canonical backlog/Project governance enablement (`Other`, proposed 0.1.2); priority and Milestone membership remain unset.
 
 ## Boundary invariant
 

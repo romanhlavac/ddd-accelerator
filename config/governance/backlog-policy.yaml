@@ -68,7 +68,7 @@ project:
       values: [P0, P1, P2, P3]
     work_package:
       type: single_select
-      values: [WP-08, WP-09, WP-10, WP-11, WP-12, WP-13, Other]
+      values: [WP-08, WP-09, WP-10, WP-11, WP-12, WP-13, WP-14, Other]
     item_type:
       type: single_select
       values: [GAP, Work Package, Change Request, Defect, Risk, Enabler]
@@ -164,8 +164,11 @@ native_sub_issue_mapping:
   WP-13:
     parent_issue: 61
     children: [36, 37, 38, 39, 40, 41]
+  WP-14:
+    parent_issue: 148
+    children: [149, 150, 151, 152, 153, 154]
   Other:
-    unparented_items: [16, 42, 44, 45, 49, 65, 66, 67, 68, 69, 70, 73, 75, 85, 88, 94, 96, 98, 113, 125, 131, 132]
+    unparented_items: [16, 42, 44, 45, 49, 65, 66, 67, 68, 69, 70, 73, 75, 85, 88, 94, 96, 98, 113, 125, 131, 132, 155]
 
 dependency_edges:
   WP-08:
@@ -296,6 +299,25 @@ dependency_edges:
       blocked: 41
     - blocking: 40
       blocked: 41
+  WP-14:
+    - blocking: 149
+      blocked: 150
+    - blocking: 149
+      blocked: 151
+    - blocking: 149
+      blocked: 152
+    - blocking: 149
+      blocked: 153
+    - blocking: 150
+      blocked: 153
+    - blocking: 151
+      blocked: 153
+    - blocking: 152
+      blocked: 153
+    - blocking: 150
+      blocked: 154
+    - blocking: 153
+      blocked: 154
   Other:
     - blocking: 16
       blocked: 49
@@ -451,3 +473,9 @@ work_packages:
     state: backlog
     target_release: TBD
     outcome_summary: Bounded capabilities, fan-out/fan-in, human checkpoints, recovery and package-first multi-agent acceptance.
+
+  WP-14:
+    title: Multi-Model Workbench & Git-backed Model Synchronization
+    state: backlog
+    target_release: 0.2.0
+    outcome_summary: Provider-neutral workshop, DDD and architecture model providers coordinated through one Git-backed synchronization contract.
