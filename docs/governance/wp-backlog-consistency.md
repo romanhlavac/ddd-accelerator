@@ -82,6 +82,7 @@ Další analytické view mohou existovat pouze jako odvozené pohledy; nesmějí
 ### Project contract
 
 - Project title je přesně `DDDA Platform Backlog & Delivery`.
+- Privileged reconciler před item projection mechanicky normalizuje canonical `SINGLE_SELECT` options podle verzovaného `github-bootstrap.json`, zachová live option IDs pro shodné canonical hodnoty a fresh read-back musí prokázat přesnou dostupnost všech canonical options.
 - Planning view je `Plánování a Backlog`, `TABLE`, filter `is:issue`.
 - Delivery view je `Implementace a Delivery`, `TABLE`, filter `is:pr is:open`.
 - Pre-read-back může při remediation najít chyby; ty se uloží jako evidence.
@@ -125,6 +126,7 @@ Za governance failure se považuje zejména:
 - otevřený Change Request s unresolved blockerem nemá `Status = Blocked` (`PLANNING_BLOCKED_STATUS_MISMATCH`);
 - Change Request bez unresolved blockeru zůstal ve `Status = Blocked` (`PLANNING_STALE_BLOCKED_STATUS`);
 - Project title nebo některá kanonická view/filter projekce neodpovídá kontraktu;
+- canonical `SINGLE_SELECT` option z verzovaného Project contractu po reconciliation chybí (`MISSING_PROJECT_FIELD_OPTIONS`);
 - nezdůvodněná legacy výjimka;
 - libovolný nevysvětlený post-change mismatch.
 

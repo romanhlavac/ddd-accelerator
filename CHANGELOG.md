@@ -12,6 +12,8 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 ### Fixed
 
+- privileged backlog reconciliation now materializes missing canonical GitHub Project single-select options from the versioned contract before item projection and verifies them on fresh read-back, preventing a newly versioned Work Package such as `WP-14` from failing at the first item update.
+
 - controlled promotion now accepts only the already revalidated exact
   validation-report/package/Release-Scope-Gate evidence for its frozen PR SHA;
   ordinary merge-first promotion still requires direct GitHub check-runs.

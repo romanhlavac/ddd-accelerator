@@ -203,6 +203,58 @@ def create_view(project_id, name, filter_value):
     return update_view(created["id"], name, filter_value)
 
 
+def project_option_input(option):
+    item = {
+        "name": option["name"],
+        "color": option.get("color") or "GRAY",
+        "description": option.get("description") or "",
+    }
+    if option.get("id"):
+        item["id"] = option["id"]
+    return item
+
+
+def reconcile_configured_project_options(cfg, project_number, fields, repairs):
+    changed = False
+    q = """mutation($fieldId:ID!,$options:[ProjectV2SingleSelectFieldOptionInput!]!){updateProjectV2Field(input:{fieldId:$fieldId,singleSelectOptions:$options}){projectV2Field{... on ProjectV2FieldCommon{id name}}}}"""
+    for definition in cfg.get("fields", []):
+        if definition.get("type") != "SINGLE_SELECT":
+            continue
+        field_name = definition["name"]
+        field = fields.get(field_name)
+        if not field:
+            continue
+        existing = {
+            option.get("name"): option.get("id")
+            for option in field.get("options") or []
+        }
+        missing = [
+            option
+            for option in definition.get("options", [])
+            if option.get("name") not in existing
+        ]
+        if not missing:
+            continue
+        options = []
+        for option in definition.get("options", []):
+            item = project_option_input(option)
+            existing_id = existing.get(option.get("name"))
+            if existing_id:
+                item["id"] = existing_id
+            options.append(item)
+        gql(q, {"fieldId": field["id"], "options": options})
+        repairs.append(
+            {
+                "project": project_number,
+                "action": "ADD_PROJECT_FIELD_OPTIONS",
+                "field": field_name,
+                "value": [option["name"] for option in missing],
+            }
+        )
+        changed = True
+    return changed
+
+
 def resolve_project(repairs):
     projects = gh("project", "list", "--owner", OWNER, "--limit", "100", "--format", "json", json_out=True)
     match = next(
@@ -222,6 +274,10 @@ def resolve_project(repairs):
         repairs.append({"project": number, "action": "RENAME_PROJECT", "value": PROJECT_TITLE})
         p = gql(Q_PROJECT, {"login": OWNER, "number": number})["data"]["user"]["projectV2"]
     fields = {x.get("name"): x for x in p["fields"]["nodes"] if x.get("name")}
+    cfg = json.loads(CFG_PATH.read_text(encoding="utf-8-sig"))
+    if reconcile_configured_project_options(cfg, number, fields, repairs):
+        p = gql(Q_PROJECT, {"login": OWNER, "number": number})["data"]["user"]["projectV2"]
+        fields = {x.get("name"): x for x in p["fields"]["nodes"] if x.get("name")}
     return number, p["id"], fields, p["views"]["nodes"]
 
 
@@ -446,6 +502,30 @@ def verify_project_contract(project_number):
     problems = []
     if p["title"] != PROJECT_TITLE:
         problems.append({"result": "PROJECT_TITLE_MISMATCH", "actual": p["title"], "expected": PROJECT_TITLE})
+    fields = {x.get("name"): x for x in p["fields"]["nodes"] if x.get("name")}
+    cfg = json.loads(CFG_PATH.read_text(encoding="utf-8-sig"))
+    for definition in cfg.get("fields", []):
+        if definition.get("type") != "SINGLE_SELECT":
+            continue
+        field_name = definition["name"]
+        field = fields.get(field_name)
+        if not field:
+            problems.append({"result": "MISSING_PROJECT_FIELD", "field": field_name})
+            continue
+        actual = {option.get("name") for option in field.get("options", [])}
+        missing = [
+            option["name"]
+            for option in definition.get("options", [])
+            if option.get("name") not in actual
+        ]
+        if missing:
+            problems.append(
+                {
+                    "result": "MISSING_PROJECT_FIELD_OPTIONS",
+                    "field": field_name,
+                    "missing": missing,
+                }
+            )
     by_name = {v["name"]: v for v in p["views"]["nodes"]}
     expected_views = {PLANNING_VIEW: "is:issue", DELIVERY_VIEW: "is:pr is:open"}
     for name, filter_value in expected_views.items():

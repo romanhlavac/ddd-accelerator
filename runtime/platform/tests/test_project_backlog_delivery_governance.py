@@ -87,6 +87,8 @@ def test_reconciler_enforces_delivery_membership_mapping_and_readback():
         "DELIVERY_BLOCKED_FLAG_MISMATCH",
         "DELIVERY_AUTHORITY_CHANGED_DURING_RECONCILIATION",
         "PRESENTATION_WP_MISMATCH",
+        "ADD_PROJECT_FIELD_OPTIONS",
+        "MISSING_PROJECT_FIELD_OPTIONS",
         '"remaining_count": 0',
         'REPORT_DIR = Path(".reports/cr-delivery-audit-v6")',
         "active_dependency_projection",
@@ -162,6 +164,104 @@ def test_active_dependency_projection_covers_all_governed_items_and_rejects_unkn
         assert "outside governed Change Request set" in str(exc)
     else:
         raise AssertionError("unknown dependency endpoint must fail closed")
+
+
+def test_reconciler_materializes_missing_configured_project_options_and_normalizes_to_versioned_contract():
+    ns = runpy.run_path(
+        str(RECONCILER_CORE),
+        run_name="ddda_project_option_reconcile_contract_test",
+    )
+    calls = []
+
+    def fake_gql(query, variables=None):
+        calls.append((query, variables or {}))
+        return {
+            "data": {
+                "updateProjectV2Field": {
+                    "projectV2Field": {"id": "FIELD-1", "name": "Work Package"}
+                }
+            }
+        }
+
+    ns["reconcile_configured_project_options"].__globals__["gql"] = fake_gql
+    fields = {
+        "Work Package": {
+            "id": "FIELD-1",
+            "name": "Work Package",
+            "dataType": "SINGLE_SELECT",
+            "options": [
+                {"id": "OPT-08", "name": "WP-08", "color": "BLUE", "description": "foundation"},
+                {"id": "OPT-LEGACY", "name": "Legacy", "color": "GRAY", "description": "preserve"},
+            ],
+        }
+    }
+    cfg = {
+        "fields": [
+            {
+                "name": "Work Package",
+                "type": "SINGLE_SELECT",
+                "options": [
+                    {"name": "WP-08", "color": "BLUE", "description": "foundation"},
+                    {"name": "WP-14", "color": "GREEN", "description": "workbench"},
+                ],
+            }
+        ]
+    }
+    repairs = []
+
+    changed = ns["reconcile_configured_project_options"](cfg, 7, fields, repairs)
+
+    assert changed is True
+    assert len(calls) == 1
+    mutation, variables = calls[0]
+    assert "updateProjectV2Field" in mutation
+    assert variables["fieldId"] == "FIELD-1"
+    assert [option["name"] for option in variables["options"]] == ["WP-08", "WP-14"]
+    assert variables["options"][0]["id"] == "OPT-08"
+    assert "id" not in variables["options"][1]
+    assert repairs == [
+        {
+            "project": 7,
+            "action": "ADD_PROJECT_FIELD_OPTIONS",
+            "field": "Work Package",
+            "value": ["WP-14"],
+        }
+    ]
+
+
+def test_reconciler_does_not_mutate_project_options_when_contract_is_already_satisfied():
+    ns = runpy.run_path(
+        str(RECONCILER_CORE),
+        run_name="ddda_project_option_reconcile_noop_contract_test",
+    )
+    calls = []
+    ns["reconcile_configured_project_options"].__globals__["gql"] = lambda *args, **kwargs: calls.append((args, kwargs))
+    fields = {
+        "Work Package": {
+            "id": "FIELD-1",
+            "options": [
+                {"id": "OPT-14", "name": "WP-14", "color": "GREEN", "description": "workbench"}
+            ],
+        }
+    }
+    cfg = {
+        "fields": [
+            {
+                "name": "Work Package",
+                "type": "SINGLE_SELECT",
+                "options": [
+                    {"name": "WP-14", "color": "GREEN", "description": "workbench"}
+                ],
+            }
+        ]
+    }
+    repairs = []
+
+    changed = ns["reconcile_configured_project_options"](cfg, 7, fields, repairs)
+
+    assert changed is False
+    assert calls == []
+    assert repairs == []
 
 
 def test_project_view_creation_uses_supported_graphql_contract():
