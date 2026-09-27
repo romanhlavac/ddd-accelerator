@@ -7,6 +7,20 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+function Replace-ExactlyOnce {
+    param(
+        [Parameter(Mandatory = $true)][string]$Text,
+        [Parameter(Mandatory = $true)][string]$Old,
+        [Parameter(Mandatory = $true)][string]$New,
+        [Parameter(Mandatory = $true)][string]$Label
+    )
+    $count = [regex]::Matches($Text, [regex]::Escape($Old)).Count
+    if ($count -ne 1) {
+        throw "Expected exactly one '$Label' replacement, found $count."
+    }
+    return $Text.Replace($Old, $New)
+}
+
 $root = (Resolve-Path -LiteralPath $RepositoryRoot).Path
 $gitRoot = (& git -C $root rev-parse --show-toplevel).Trim()
 if ([System.IO.Path]::GetFullPath($gitRoot) -ne [System.IO.Path]::GetFullPath($root)) {
@@ -32,19 +46,84 @@ try {
         throw "Staged remediation script is missing: $childRelative"
     }
 
-    # The staged child predates the broker parameter contract and has one
-    # PowerShell StrictMode null-output edge in its clean-tree guard. Execute a
-    # temporary, byte-equivalent copy with only that guard made array-safe; the
-    # governed implementation diff remains unchanged and both staging scripts
-    # are removed before the validated commit.
     $childText = Get-Content -LiteralPath $child -Raw -Encoding UTF8
-    $oldGuard = 'if ((& git status --porcelain).Count -ne 0) {'
-    $newGuard = 'if (@(& git status --porcelain).Count -ne 0) {'
-    if (($childText.Split($oldGuard).Count - 1) -ne 1) {
-        throw "Expected exactly one child clean-tree guard to adapt."
-    }
+
+    $childText = Replace-ExactlyOnce -Text $childText `
+        -Old 'if ((& git status --porcelain).Count -ne 0) {' `
+        -New 'if (@(& git status --porcelain).Count -ne 0) {' `
+        -Label 'array-safe clean-tree guard'
+
+    $oldCore = @'
+        existing = list(field.get("options") or [])
+        existing_names = {x.get("name") for x in existing}
+        missing = [
+            option
+            for option in definition.get("options", [])
+            if option.get("name") not in existing_names
+        ]
+        if not missing:
+            continue
+        options = [project_option_input(option) for option in existing]
+        options.extend(project_option_input(option) for option in missing)
+        gql(q, {"fieldId": field["id"], "options": options})
+'@
+    $newCore = @'
+        existing = {
+            option.get("name"): option.get("id")
+            for option in field.get("options") or []
+        }
+        missing = [
+            option
+            for option in definition.get("options", [])
+            if option.get("name") not in existing
+        ]
+        if not missing:
+            continue
+        options = []
+        for option in definition.get("options", []):
+            item = project_option_input(option)
+            existing_id = existing.get(option.get("name"))
+            if existing_id:
+                item["id"] = existing_id
+            options.append(item)
+        gql(q, {"fieldId": field["id"], "options": options})
+'@
+    $childText = Replace-ExactlyOnce -Text $childText -Old $oldCore -New $newCore -Label 'canonical option normalization'
+
+    $childText = Replace-ExactlyOnce -Text $childText `
+        -Old 'def test_reconciler_materializes_missing_configured_project_options_without_dropping_existing_options():' `
+        -New 'def test_reconciler_materializes_missing_configured_project_options_and_normalizes_to_versioned_contract():' `
+        -Label 'test name'
+
+    $childText = Replace-ExactlyOnce -Text $childText `
+        -Old '    ns["gql"] = fake_gql' `
+        -New '    ns["reconcile_configured_project_options"].__globals__["gql"] = fake_gql' `
+        -Label 'first gql monkeypatch'
+
+    $childText = Replace-ExactlyOnce -Text $childText `
+        -Old '    ns["gql"] = lambda *args, **kwargs: calls.append((args, kwargs))' `
+        -New '    ns["reconcile_configured_project_options"].__globals__["gql"] = lambda *args, **kwargs: calls.append((args, kwargs))' `
+        -Label 'second gql monkeypatch'
+
+    $oldAssertions = @'
+    assert [option["name"] for option in variables["options"]] == ["WP-08", "Legacy", "WP-14"]
+    assert variables["options"][0]["id"] == "OPT-08"
+    assert variables["options"][1]["id"] == "OPT-LEGACY"
+    assert "id" not in variables["options"][2]
+'@
+    $newAssertions = @'
+    assert [option["name"] for option in variables["options"]] == ["WP-08", "WP-14"]
+    assert variables["options"][0]["id"] == "OPT-08"
+    assert "id" not in variables["options"][1]
+'@
+    $childText = Replace-ExactlyOnce -Text $childText -Old $oldAssertions -New $newAssertions -Label 'canonical option test assertions'
+
+    $oldDoc = '- Privileged reconciler před item projection mechanicky doplní chybějící canonical `SINGLE_SELECT` options z verzovaného `github-bootstrap.json`, zachová existující live option IDs i případné další live options a fresh read-back musí prokázat přítomnost všech canonical options.'
+    $newDoc = '- Privileged reconciler před item projection mechanicky normalizuje canonical `SINGLE_SELECT` options podle verzovaného `github-bootstrap.json`, zachová live option IDs pro shodné canonical hodnoty a fresh read-back musí prokázat přesnou dostupnost všech canonical options.'
+    $childText = Replace-ExactlyOnce -Text $childText -Old $oldDoc -New $newDoc -Label 'governance documentation semantics'
+
     $tempChild = Join-Path ([System.IO.Path]::GetTempPath()) ("ddda-project-field-option-" + [Guid]::NewGuid().ToString("N") + ".ps1")
-    [System.IO.File]::WriteAllText($tempChild, $childText.Replace($oldGuard, $newGuard), (New-Object System.Text.UTF8Encoding($false)))
+    [System.IO.File]::WriteAllText($tempChild, $childText, (New-Object System.Text.UTF8Encoding($false)))
     try {
         & $tempChild
         if (-not $?) {
