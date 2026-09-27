@@ -33,6 +33,8 @@ Zakázaná rozhraní pro změnu platformy:
 
 GitHub Actions je autoritativní execution plane pro shell, build, testy, candidate package a package-first validation.
 
+V explicitně ohraničeném a autorizovaném rozsahu vývoje platformy Work autonomně pokračuje přes mechanickou orchestraci až k další skutečné hranici lidského review, rozhodnutí nebo autorizace. Člověk neslouží jako plánovač workflow, čtenář CI logů ani ruční koordinátor bounded remediation, opakovaných běhů a Project reconciliation.
+
 ### Rozdělení odpovědností
 
 | Oblast | Chat | Work | GitHub Actions | Člověk |
@@ -52,7 +54,7 @@ Work musí:
 2. zapisovat jen do deklarované platformní PR branche a allowed paths;
 3. nikdy nepoužít `main` jako write target;
 4. nepřenášet secrets do chatu, commitů, logů nebo argumentů;
-5. při nedostupném konektoru nebo boardu zastavit a omezení explicitně oznámit;
+5. při nedostupném požadovaném konektoru nebo zdroji nejprve ověřit schválenou alternativní execution plane a použít ji pro tutéž mechanickou odpovědnost; zastavit pouze bez dostupné schválené alternativy k povinné schopnosti, omezení explicitně oznámit a nikdy netvrdit, že neprovedený read-back či review proběhl;
 6. po změně vyžadovat standardní CI nad výsledným SHA;
 7. nerozšiřovat autorizaci na merge, release, tag, promotion nebo force-push.
 

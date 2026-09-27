@@ -129,12 +129,12 @@ CI/test pipeline
 20. Secrets never enter Chat or Work context; secret-bearing operations stay in GitHub Actions or source-system secret stores.
 21. A Work or Chat-atomic write must be followed by standard CI against the resulting exact SHA.
 22. Chat direct multi-file Contents API writes are prohibited; Chat implementation must use one atomic Git tree commit with exact-base and fast-forward guards.
-23. Missing connector access, missing board visibility or insufficient permissions are blocking conditions that must be reported explicitly.
+23. If a required connector or resource is unavailable, check for an approved alternative execution plane first. Stop and report a blocker only when the capability is mandatory and no approved alternative can fulfill it. Never claim a read-back or review that did not occur.
 24. Structural Miro validation cannot satisfy human visual acceptance.
-25. When a human delegates a bounded FAST-LOOP or remediation workflow, Chat/Work owns the mechanical orchestration end to end and must not ask for confirmation of each mechanically resolvable step.
-26. Human interaction is requested only for judgment or authorization that cannot be automated, such as HVR, an explicit gate/merge/promotion/release/tag decision, or a true hard blocker with no approved alternate execution path.
-27. Chat/Work must never imply that work continues after a response unless a real external workflow or automation is actually running; otherwise it must state the exact checkpoint and provide a ready-to-copy continuation trigger.
-28. A quota or outage in an optional/local tool channel is not a hard blocker while an approved alternative execution plane can complete the same mechanical step; use the approved alternative before escalating to the human.
+25. For every bounded DDDA platform-development assignment, unless the human explicitly requests analysis or planning only, Chat/Work owns mechanical execution and orchestration end to end through the next genuine human boundary. Autonomous-by-default applies to implementation, governance, validation, remediation, FAST-LOOP, release preparation and other bounded platform-development work inside authorized scope.
+26. Chat/Work must not ask whether to perform a mechanically required or resolvable next step inside authorized scope: fresh read-back, branch/PR preparation, CI polling, log inspection, bounded diagnosis and correction, regression coverage, reruns, Project reconciliation, evidence materialization and continuation to READY FOR HUMAN REVIEW are orchestration responsibilities.
+27. Request human interaction only for Human Review/HVR, legitimate architecture/product/methodology/risk choices, explicit merge or release/promotion/tag authorization, material scope expansion, an unavailable mandatory capability without an approved alternative, or unresolved authoritative ambiguity that changes meaning. Human judgment and authorization are never inferred from a technical PASS or an earlier gate.
+28. A technical failure, quota or outage in one optional/local channel is not a human stop boundary. Inspect evidence, diagnose the cause, try an approved alternative plane, make a bounded corrective commit instead of rewriting shared history when justified, rerun exact-SHA validation, read back and continue. Escalate only for judgment, scope expansion or a mandatory capability without an approved alternative.
 29. A governed implementation PR may be merged after exact-SHA technical evidence, Human Review and explicit merge authorization without evaluating release-scope completeness and without creating a release or tag.
 30. HRDR and Release Scope Gate apply to the actual release candidate boundary, after included implementation work has been integrated/terminal; `promote-pr` is a release command, not the general implementation-PR merge command.
 31. Merge, promotion, release and tag are never inferred from technical PASS, Human Review, FAST-LOOP completion or one another.
@@ -477,6 +477,9 @@ GitHub Actions for authoritative execution.
 Secrets stay outside Chat and Work.
 Automated first.
 Manual only for judgment.
+Autonomous by default inside bounded authorized scope.
+The human is a decision/authorization boundary, not the workflow engine.
+Technical failure triggers autonomous diagnosis and bounded remediation.
 PR is the unit of change.
 Remediation is controlled transport, not approval.
 Release package is the unit of distribution.
@@ -484,35 +487,31 @@ Example workspace proves usability.
 Exact-SHA evidence proves what was validated.
 ```
 
-## 16. Autonomous FAST-LOOP orchestration and truthful execution state
+## 16. Autonomous-by-default platform-development orchestration and truthful execution state
 
-When the human delegates a bounded platform-development or remediation loop and the repository, branch, allowed write scope and governance guardrails are known, **Chat/Work owns the mechanical orchestration of that loop**. The human is not the workflow engine.
+For every bounded DDDA platform-development assignment, unless the human explicitly requested analysis or planning only, autonomous orchestration is the default inside the authorized scope. This covers standard implementation, governance and backlog work, validation, remediation, FAST-LOOP and release preparation. The human is a decision/authorization boundary, not the workflow engine.
 
-Default corrective flow:
+Normal mechanical flow:
 
 ```text
-review finding / technical failure
-→ root-cause analysis
-→ remediation
-→ regression coverage
-→ one scoped corrective commit
-→ exact-SHA CI
-→ package-first validation
-→ online acceptance when required
-→ Platform Lab reconcile/read-back when required
-→ HVR materialization when required
-→ human judgment
+fresh authoritative read-back
+→ exact-SHA skill/policy preflight
+→ branch / PR / governance preparation
+→ implementation
+→ exact-SHA CI and package-first validation
+→ failure/evidence inspection and bounded correction when justified
+→ rerun and reconciliation
+→ fresh server-side read-back
+→ READY FOR HUMAN REVIEW or the next genuine human boundary
 ```
 
-Operating rules:
+Work does not ask the human to schedule a workflow, poll CI, read logs, run tests, fix a scoped technical failure, create a corrective commit, rerun validation, perform fresh read-back, reconcile Project state or trigger routine continuation. These are mechanical orchestration responsibilities.
 
-1. Continue automatically through every mechanically resolvable step inside the authorized scope. Do not ask the human to approve routine transitions such as “run tests?”, “inspect CI?”, “retry after a fix?”, “materialize HVR?” or equivalent.
-2. If a mechanical step fails and the cause can be diagnosed and corrected inside the existing authorization, analyze it, create a corrective commit rather than rewriting shared history, rerun the required exact-SHA evidence and continue the loop.
-3. Ask the human only when a human decision or action is genuinely required: HVR or other judgment-heavy review, explicit merge/promotion/release/tag authorization, unresolved ambiguity that changes approved scope, or a credential/permission/resource blocker for which no approved alternative plane exists.
-4. Optional tooling does not define the critical path. For example, Miro MCP quota or connector unavailability must not stop REST/GitHub-Actions validation when those approved planes remain available.
-5. A technical PASS never substitutes for HVR or another human gate. The autonomous loop stops at the human boundary and reports the exact evidence and review target.
-6. Implementation merge and release promotion are separate side-effect boundaries. Neither may be inferred from a successful FAST-LOOP or from the other authorization.
-7. Merge, promotion, release and tag are never inferred from technical PASS, Human Review, FAST-LOOP completion or one another.
+**TECHNICAL FAILURE != HUMAN STOP BOUNDARY.** On failure, inspect authoritative evidence, find the root cause, make a bounded correction with regression coverage and a corrective commit when justified, rerun exact-SHA validation, read back and continue. Try an approved alternative execution plane when an optional channel fails; Miro MCP quota does not stop an approved REST/GitHub-Actions path. Never claim an unavailable review or read-back occurred. The normal implementation stop point is READY FOR HUMAN REVIEW, or another explicit lifecycle human boundary, not the first CI/test failure.
+
+Avoid endless narrow patching: after the first defect in a capability, use bounded remediation; after a second related defect, review root cause and scenario/contract; at a third related remediation signal, stop narrow patching and assess simplification or redesign. Continue autonomously if one design follows mechanically from current authority. Ask the human when legitimate architecture or risk alternatives require judgment. This heuristic is not a new CI gate.
+
+Genuine human boundaries are Human Review/HVR; architecture, product, methodology or risk judgment; explicit merge authorization; separate release/promotion/tag authorization; material scope expansion; an unavailable mandatory capability without an approved alternate; and unresolved semantic authority conflict. Technical PASS cannot imply Human Review PASS; Human Review cannot imply merge authorization; merge cannot imply release; release cannot imply tag; FAST-LOOP cannot authorize irreversible side effects. Keep exact-SHA and single canonical candidate-package identity across evidence and gates.
 
 ### 16.1 Truthful execution-state reporting
 
