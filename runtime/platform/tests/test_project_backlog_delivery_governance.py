@@ -367,7 +367,7 @@ def test_release_train_milestone_and_project_target_contract():
     expected = {
         "DDDA 0.1.0": [10, 11, 13, 14],
         "DDDA 0.1.1": [9, 12, 67, 68, 70, 96, 98],
-        "DDDA 0.1.2": [16, 65, 69, 73, 85, 94, 113, 125, 131, 132],
+        "DDDA 0.1.2": [16, 65, 69, 73, 85, 94, 113, 125, 131, 132, 171, 172, 173, 174],
         "DDDA 0.2.0": [34, 35, 48, 52, 66],
         "DDDA 0.3.0": [27, 28, 29, 30, 31, 32, 33, 47, 62, 46],
         "DDDA 0.3.1": [53, 54, 55, 56, 57],
@@ -417,7 +417,17 @@ def test_release_train_milestone_and_project_target_contract():
     assert meta[98]["Impact"] == "HIGH"
     dependencies = {entry["blocked"]: entry["blocked_by"] for entry in cfg["dependencies"]}
     assert dependencies[75] == [96, 98]
-    assert "unparented_items: [16, 42, 44, 45, 49, 65, 66, 67, 68, 69, 70, 73, 75, 85, 88, 94, 96, 98, 113, 125, 131, 132, 155]" in POLICY.read_text(encoding="utf-8")
+    assert dependencies[172] == [171]
+    assert dependencies[173] == [171]
+    assert dependencies[174] == [172, 173]
+    assert dependencies[69] == [173]
+    assert dependencies[73] == [171, 173]
+    assert dependencies[85] == [174]
+    assert dependencies[94] == [173]
+    assert dependencies[113] == [174]
+    assert dependencies[131] == [171, 172]
+    assert dependencies[132] == [65, 131]
+    assert "unparented_items: [16, 42, 44, 45, 49, 65, 66, 67, 68, 69, 70, 73, 75, 85, 88, 94, 96, 98, 113, 125, 131, 132, 155, 171, 172, 173, 174]" in POLICY.read_text(encoding="utf-8")
     assert meta[75]["Item Type"] == "Enabler"
     assert meta[85]["Work Package"] == "Other"
     assert meta[85]["Target Release"] == "0.1.2"
@@ -432,7 +442,7 @@ def test_release_train_milestone_and_project_target_contract():
     assert meta[113]["Impact"] == "LOW"
     assert meta[113]["Target Release"] == "0.1.2"
     assert meta[113]["Status"] == "Backlog"
-    assert meta[113]["Blocked"] == "No"
+    assert meta[113]["Blocked"] == "Yes"
     assert meta[113]["Human Review"] == "Pending"
     assert meta[113]["Outcome summary"] == (
         "Expose the canonical DDDA operating model in entry-point documentation: "
@@ -461,7 +471,7 @@ def test_release_train_milestone_and_project_target_contract():
     assert meta[131]["Impact"] == "HIGH"
     assert meta[131]["Target Release"] == "0.1.2"
     assert meta[131]["Status"] == "Backlog"
-    assert meta[131]["Blocked"] == "No"
+    assert meta[131]["Blocked"] == "Yes"
     assert meta[131]["Human Review"] == "Pending"
     assert meta[131]["Outcome summary"] == (
         "Make every DDDA release-candidate PR human-recognizable and machine-verifiable "
@@ -475,13 +485,23 @@ def test_release_train_milestone_and_project_target_contract():
     assert meta[132]["Impact"] == "MEDIUM"
     assert meta[132]["Target Release"] == "0.1.2"
     assert meta[132]["Status"] == "Backlog"
-    assert meta[132]["Blocked"] == "No"
+    assert meta[132]["Blocked"] == "Yes"
     assert meta[132]["Human Review"] == "Pending"
     assert meta[132]["Outcome summary"] == (
         "Define one canonical naming contract for DDDA GitHub Issues, PRs, branches, labels, "
         "markers, milestones, tags, Releases, workflows and evidence artifacts while "
         "preserving #65 and #131 ownership boundaries."
     )
+    assert meta[16]["Priority"] == "P0"
+    assert meta[65]["Priority"] == "P1" and meta[65]["Blocked"] == "No"
+    assert meta[69]["Priority"] == "P2" and meta[69]["Blocked"] == "Yes"
+    assert meta[73]["Priority"] == "P1" and meta[73]["Blocked"] == "Yes"
+    assert meta[85]["Priority"] == "P2" and meta[85]["Blocked"] == "Yes"
+    assert meta[94]["Priority"] == "P1" and meta[94]["Blocked"] == "Yes"
+    assert meta[171]["Priority"] == "P0" and meta[171]["Blocked"] == "No"
+    assert meta[172]["Priority"] == "P1" and meta[172]["Blocked"] == "Yes"
+    assert meta[173]["Priority"] == "P1" and meta[173]["Blocked"] == "Yes"
+    assert meta[174]["Priority"] == "P1" and meta[174]["Blocked"] == "Yes"
     assert meta[88]["Item Type"] == "Enabler"
     assert meta[88]["Work Package"] == "Other"
     assert meta[88]["Target Release"] == "TBD"

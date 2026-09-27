@@ -302,6 +302,70 @@
       ]
     },
     {
+      "blocked": 69,
+      "blocked_by": [
+        173
+      ]
+    },
+    {
+      "blocked": 73,
+      "blocked_by": [
+        171,
+        173
+      ]
+    },
+    {
+      "blocked": 85,
+      "blocked_by": [
+        174
+      ]
+    },
+    {
+      "blocked": 94,
+      "blocked_by": [
+        173
+      ]
+    },
+    {
+      "blocked": 113,
+      "blocked_by": [
+        174
+      ]
+    },
+    {
+      "blocked": 131,
+      "blocked_by": [
+        171,
+        172
+      ]
+    },
+    {
+      "blocked": 132,
+      "blocked_by": [
+        65,
+        131
+      ]
+    },
+    {
+      "blocked": 172,
+      "blocked_by": [
+        171
+      ]
+    },
+    {
+      "blocked": 173,
+      "blocked_by": [
+        171
+      ]
+    },
+    {
+      "blocked": 174,
+      "blocked_by": [
+        172,
+        173
+      ]
+    },
+    {
       "blocked": 150,
       "blocked_by": [
         149
@@ -833,11 +897,15 @@
       ],
       "metadata": {
         "Status": "In progress",
+        "Priority": "P0",
         "Work Package": "Other",
         "Item Type": "Change Request",
+        "Platform Area": "SECURITY-GOVERNANCE",
+        "Impact": "MEDIUM",
         "Target Release": "0.1.2",
         "Blocked": "No",
-        "Human Review": "Pending"
+        "Human Review": "Pending",
+        "Outcome summary": "Keep the GitHub-native backlog, milestone, roadmap and Project planning contract singular, versioned and reconciled while DDDA 0.1.2 is rebaselined."
       }
     },
     {
@@ -1196,18 +1264,73 @@
     {
       "kind": "issue",
       "numbers": [
-        65,
-        69,
-        73,
+        65
+      ],
+      "metadata": {
+        "Status": "Backlog",
+        "Priority": "P1",
+        "Work Package": "Other",
+        "Item Type": "Change Request",
+        "Platform Area": "SECURITY-GOVERNANCE",
+        "Impact": "MEDIUM",
+        "Target Release": "0.1.2",
+        "Blocked": "No",
+        "Human Review": "Pending",
+        "Outcome summary": "Define the canonical branch taxonomy, lifecycle and cleanup contract while leaving release-candidate specialization to #131."
+      }
+    },
+    {
+      "kind": "issue",
+      "numbers": [
+        69
+      ],
+      "metadata": {
+        "Status": "Backlog",
+        "Priority": "P2",
+        "Work Package": "Other",
+        "Item Type": "Change Request",
+        "Platform Area": "RELEASE",
+        "Impact": "MEDIUM",
+        "Target Release": "0.1.2",
+        "Blocked": "Yes",
+        "Human Review": "Pending",
+        "Outcome summary": "Project an auditable release and delivery history from canonical evidence without making GitHub Project a release authority."
+      }
+    },
+    {
+      "kind": "issue",
+      "numbers": [
+        73
+      ],
+      "metadata": {
+        "Status": "Backlog",
+        "Priority": "P1",
+        "Work Package": "Other",
+        "Item Type": "Change Request",
+        "Platform Area": "SECURITY-GOVERNANCE",
+        "Impact": "HIGH",
+        "Target Release": "0.1.2",
+        "Blocked": "Yes",
+        "Human Review": "Pending",
+        "Outcome summary": "Evaluate every mandatory gate through one explicit-success exact-SHA contract shared by all lifecycle consumers."
+      }
+    },
+    {
+      "kind": "issue",
+      "numbers": [
         85
       ],
       "metadata": {
         "Status": "Backlog",
+        "Priority": "P2",
         "Work Package": "Other",
         "Item Type": "Change Request",
+        "Platform Area": "DOC",
+        "Impact": "LOW",
         "Target Release": "0.1.2",
-        "Blocked": "No",
-        "Human Review": "Pending"
+        "Blocked": "Yes",
+        "Human Review": "Pending",
+        "Outcome summary": "Normalize Human Review and Human Validation Review terminology without changing their decision semantics."
       }
     },
     {
@@ -1246,11 +1369,15 @@
       ],
       "metadata": {
         "Status": "Backlog",
+        "Priority": "P1",
         "Work Package": "Other",
         "Item Type": "Defect",
+        "Platform Area": "ORCHESTRATION",
+        "Impact": "HIGH",
         "Target Release": "0.1.2",
-        "Blocked": "No",
-        "Human Review": "Pending"
+        "Blocked": "Yes",
+        "Human Review": "Pending",
+        "Outcome summary": "Reject or repair a planning Issue left in Backlog while an unblocked primary implementation PR is active."
       }
     },
     {
@@ -1266,7 +1393,7 @@
         "Platform Area": "DOC",
         "Impact": "LOW",
         "Target Release": "0.1.2",
-        "Blocked": "No",
+        "Blocked": "Yes",
         "Human Review": "Pending",
         "Outcome summary": "Expose the canonical DDDA operating model in entry-point documentation: Work as development/governance control plane, GitHub as canonical system of record, GitHub Actions as authoritative technical execution plane, and Cursor as the current reference project runtime."
       }
@@ -1302,7 +1429,7 @@
         "Platform Area": "RELEASE",
         "Impact": "HIGH",
         "Target Release": "0.1.2",
-        "Blocked": "No",
+        "Blocked": "Yes",
         "Human Review": "Pending",
         "Outcome summary": "Make every DDDA release-candidate PR human-recognizable and machine-verifiable through consistent title, labels, branch and versioned body marker, with explicit normal versus controlled-recovery semantics."
       }
@@ -1320,9 +1447,81 @@
         "Platform Area": "SECURITY-GOVERNANCE",
         "Impact": "MEDIUM",
         "Target Release": "0.1.2",
-        "Blocked": "No",
+        "Blocked": "Yes",
         "Human Review": "Pending",
         "Outcome summary": "Define one canonical naming contract for DDDA GitHub Issues, PRs, branches, labels, markers, milestones, tags, Releases, workflows and evidence artifacts while preserving #65 and #131 ownership boundaries."
+      }
+    },
+    {
+      "kind": "issue",
+      "numbers": [
+        171
+      ],
+      "metadata": {
+        "Status": "Backlog",
+        "Priority": "P0",
+        "Work Package": "Other",
+        "Item Type": "Change Request",
+        "Platform Area": "RELEASE",
+        "Impact": "HIGH",
+        "Target Release": "0.1.2",
+        "Blocked": "No",
+        "Human Review": "Pending",
+        "Outcome summary": "Consolidate release governance into one versioned Candidate Context and one pure Governance Kernel without implementing downstream capability scope in this planning Work."
+      }
+    },
+    {
+      "kind": "issue",
+      "numbers": [
+        172
+      ],
+      "metadata": {
+        "Status": "Backlog",
+        "Priority": "P1",
+        "Work Package": "Other",
+        "Item Type": "Change Request",
+        "Platform Area": "RELEASE",
+        "Impact": "HIGH",
+        "Target Release": "0.1.2",
+        "Blocked": "Yes",
+        "Human Review": "Pending",
+        "Outcome summary": "Isolate controlled recovery behind an explicit emergency-only compatibility flow while preserving historical 0.1.1 evidence."
+      }
+    },
+    {
+      "kind": "issue",
+      "numbers": [
+        173
+      ],
+      "metadata": {
+        "Status": "Backlog",
+        "Priority": "P1",
+        "Work Package": "Other",
+        "Item Type": "Change Request",
+        "Platform Area": "SECURITY-GOVERNANCE",
+        "Impact": "HIGH",
+        "Target Release": "0.1.2",
+        "Blocked": "Yes",
+        "Human Review": "Pending",
+        "Outcome summary": "Separate safety-blocking decisions from governance-projection and presentation health while preserving zero-mismatch reconciliation for mutations."
+      }
+    },
+    {
+      "kind": "issue",
+      "numbers": [
+        174
+      ],
+      "metadata": {
+        "Status": "Backlog",
+        "Priority": "P1",
+        "Work Package": "Other",
+        "Item Type": "Change Request",
+        "Platform Area": "TESTING",
+        "Impact": "HIGH",
+        "Target Release": "0.1.2",
+        "Blocked": "Yes",
+        "Human Review": "Pending",
+        "Outcome summary": "Characterize current behavior, introduce scenario-first invariant tests and simplify methodology without duplicating PR #170 semantics."
       }
     },
     {
@@ -1656,7 +1855,7 @@
     {
       "title": "DDDA 0.1.2",
       "state": "open",
-      "description": "Governance consolidation after DDDA 0.1.1: backlog authority, branch lifecycle, release history, mandatory-gate semantics, terminology and planning/delivery separation. Milestone membership is release scope, not release approval.",
+      "description": "Governance Simplification & Stabilization. Consolidate governance and simplify release/control-plane behavior while preserving backlog authority, branch lifecycle, release history, mandatory gate semantics, terminology, and planning/delivery separation; reduce duplicated governance implementations. The 2026-09-30 due date is a planning target only and does not authorize bypassing Human Review, CI, merge gates, release gates, promotion or tag authorization.",
       "issues": [
         16,
         65,
@@ -1667,7 +1866,11 @@
         113,
         125,
         131,
-        132
+        132,
+        171,
+        172,
+        173,
+        174
       ],
       "pulls": []
     },
