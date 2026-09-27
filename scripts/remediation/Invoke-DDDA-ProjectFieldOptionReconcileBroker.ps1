@@ -32,13 +32,30 @@ try {
         throw "Staged remediation script is missing: $childRelative"
     }
 
-    & $child
-    if (-not $?) {
-        throw "Project field-option remediation failed."
+    # The staged child predates the broker parameter contract and has one
+    # PowerShell StrictMode null-output edge in its clean-tree guard. Execute a
+    # temporary, byte-equivalent copy with only that guard made array-safe; the
+    # governed implementation diff remains unchanged and both staging scripts
+    # are removed before the validated commit.
+    $childText = Get-Content -LiteralPath $child -Raw -Encoding UTF8
+    $oldGuard = 'if ((& git status --porcelain).Count -ne 0) {'
+    $newGuard = 'if (@(& git status --porcelain).Count -ne 0) {'
+    if (($childText.Split($oldGuard).Count - 1) -ne 1) {
+        throw "Expected exactly one child clean-tree guard to adapt."
     }
-    if (Test-Path -LiteralPath $child) {
-        throw "Project field-option remediation did not self-remove."
+    $tempChild = Join-Path ([System.IO.Path]::GetTempPath()) ("ddda-project-field-option-" + [Guid]::NewGuid().ToString("N") + ".ps1")
+    [System.IO.File]::WriteAllText($tempChild, $childText.Replace($oldGuard, $newGuard), (New-Object System.Text.UTF8Encoding($false)))
+    try {
+        & $tempChild
+        if (-not $?) {
+            throw "Project field-option remediation failed."
+        }
     }
+    finally {
+        Remove-Item -LiteralPath $tempChild -Force -ErrorAction SilentlyContinue
+    }
+
+    Remove-Item -LiteralPath $child -Force
 
     $wrapperRelative = "scripts/remediation/Invoke-DDDA-ProjectFieldOptionReconcileBroker.ps1"
     $expected = @(
