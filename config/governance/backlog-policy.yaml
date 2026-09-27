@@ -168,7 +168,7 @@ native_sub_issue_mapping:
     parent_issue: 148
     children: [149, 150, 151, 152, 153, 154]
   Other:
-    unparented_items: [16, 42, 44, 45, 49, 65, 66, 67, 68, 69, 70, 73, 75, 85, 88, 94, 96, 98, 113, 125, 131, 132, 155]
+    unparented_items: [16, 42, 44, 45, 49, 65, 66, 67, 68, 69, 70, 73, 75, 85, 88, 94, 96, 98, 113, 125, 131, 132, 155, 171, 172, 173, 174]
 
 dependency_edges:
   WP-08:
@@ -327,6 +327,38 @@ dependency_edges:
       blocked: 49
     - blocking: 53
       blocked: 49
+    - blocking: 171
+      blocked: 172
+      rationale: the shared Candidate Context and Governance Kernel precede emergency-flow isolation
+    - blocking: 171
+      blocked: 173
+      rationale: safety/projection classification consumes the singular governance kernel
+    - blocking: 172
+      blocked: 174
+      rationale: methodology finalization follows controlled-recovery isolation
+    - blocking: 173
+      blocked: 174
+      rationale: methodology finalization follows the mismatch taxonomy
+    - blocking: 173
+      blocked: 69
+    - blocking: 171
+      blocked: 73
+    - blocking: 173
+      blocked: 73
+    - blocking: 174
+      blocked: 85
+    - blocking: 173
+      blocked: 94
+    - blocking: 174
+      blocked: 113
+    - blocking: 171
+      blocked: 131
+    - blocking: 172
+      blocked: 131
+    - blocking: 65
+      blocked: 132
+    - blocking: 131
+      blocked: 132
 
 baseline_compatibility:
   PR8:
@@ -360,9 +392,9 @@ milestones:
       pre_release_prerequisites: [44]
     - name: DDDA 0.1.2
       state: open
-      issues: [16, 65, 69, 73, 85, 94, 113, 125, 131, 132]
+      issues: [16, 65, 69, 73, 85, 94, 113, 125, 131, 132, 171, 172, 173, 174]
       pulls: []
-      outcome: governance consolidation after the first controlled release
+      outcome: governance simplification and stabilization after the first controlled release
     - name: DDDA 0.2.0
       state: open
       issues: [34, 35, 48, 52, 66]

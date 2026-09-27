@@ -8,6 +8,8 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 ### Changed
 
+- DDDA 0.1.2 planning is rebaselined as governance simplification and stabilization with canonical S1-S4 authorities (#171-#174), explicit residual scope for the existing milestone items, an acyclic native dependency contract and a non-authorizing 2026-09-30 planning target; no S1-S4 capability implementation is included.
+
 - platform-development skill and Work operating model now make autonomous mechanical orchestration the default for every bounded authorized assignment through the next genuine human boundary; technical failures trigger bounded diagnosis, alternative approved execution and exact-SHA reruns while review, merge and release authorizations remain separate.
 
 - release-train governance now permits the single marker-designated train to be explicitly closed after publication without implicitly activating any planned future milestone; a later train requires a separate versioned/human planning decision.
