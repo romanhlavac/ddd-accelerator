@@ -1,0 +1,259 @@
+{
+  "schema_version": 1,
+  "contract": "ddda-governance-characterization",
+  "purpose": "Characterize current governance behavior before the S1-S4 authority migration; this fixture is test input, not a release decision engine.",
+  "required_coverage": {
+    "candidate_kind": ["NORMAL", "RECOVERY"],
+    "pr_state": ["Draft", "Ready", "merged/closed"],
+    "identity": ["exact SHA", "stale SHA"],
+    "generation": ["first", "superseding"],
+    "package": ["exact", "absent", "duplicate", "wrong hash", "wrong source SHA"],
+    "actions": ["one page", "paginated", "old success + newer fail", "old fail + authoritative rerun success", "queued", "in-progress", "missing"],
+    "human_review": ["missing", "PASS", "CHANGES_REQUIRED"],
+    "hrdr": ["missing", "pending", "GO", "NO_GO"],
+    "scope": ["exact", "extra shipping CR", "missing shipping CR", "missing primary CR", "ambiguous primary CR"],
+    "project": ["exact", "safety-authority mismatch", "stale projection", "presentation-only mismatch"],
+    "operation": ["validate", "merge dry-run", "merge", "release-scope validation", "promotion dry-run", "release"],
+    "recovery": ["historical controlled recovery", "standard release"]
+  },
+  "scenarios": [
+    {
+      "id": "recovery-validate-draft-first-exact",
+      "adapter": "controlled_candidate",
+      "dimensions": {"candidate_kind": "RECOVERY", "pr_state": "Draft", "identity": "exact SHA", "generation": "first", "operation": "validate", "recovery": "historical controlled recovery"},
+      "input": {},
+      "expected": {"status": "PASS", "failure_codes": []}
+    },
+    {
+      "id": "recovery-validate-ready-blocked",
+      "adapter": "controlled_candidate",
+      "dimensions": {"candidate_kind": "RECOVERY", "pr_state": "Ready", "operation": "validate"},
+      "input": {"pr.draft": false},
+      "expected": {"status": "FAIL", "failure_codes": ["CONTROLLED_CANDIDATE_MUST_REMAIN_OPEN_DRAFT"]}
+    },
+    {
+      "id": "recovery-validate-closed-blocked",
+      "adapter": "controlled_candidate",
+      "dimensions": {"candidate_kind": "RECOVERY", "pr_state": "merged/closed", "operation": "validate"},
+      "input": {"pr.state": "closed"},
+      "expected": {"status": "FAIL", "failure_codes": ["CONTROLLED_CANDIDATE_MUST_REMAIN_OPEN"]}
+    },
+    {
+      "id": "recovery-stale-sha-blocked",
+      "adapter": "controlled_candidate",
+      "dimensions": {"candidate_kind": "RECOVERY", "identity": "stale SHA", "operation": "validate"},
+      "input": {"context.source_sha": "cccccccccccccccccccccccccccccccccccccccc"},
+      "expected": {"status": "FAIL", "failure_codes": ["CONTROLLED_CANDIDATE_HEAD_SHA_MISMATCH"]}
+    },
+    {
+      "id": "recovery-superseding-generation-exact",
+      "adapter": "controlled_candidate",
+      "dimensions": {"candidate_kind": "RECOVERY", "generation": "superseding", "identity": "exact SHA", "operation": "validate"},
+      "input": {"pr.head.ref": "release/0.1.1-controlled-recovery-source-v2"},
+      "expected": {"status": "PASS", "failure_codes": []}
+    },
+    {
+      "id": "recovery-release-scope-ready",
+      "adapter": "controlled_candidate",
+      "dimensions": {"candidate_kind": "RECOVERY", "pr_state": "Ready", "operation": "release-scope validation"},
+      "input": {"pr.draft": false, "context.operation": "release_scope_dry_run"},
+      "expected": {"status": "PASS", "failure_codes": []}
+    },
+    {
+      "id": "recovery-promotion-dry-run-ready",
+      "adapter": "controlled_candidate",
+      "dimensions": {"candidate_kind": "RECOVERY", "pr_state": "Ready", "operation": "promotion dry-run"},
+      "input": {"pr.draft": false, "context.operation": "promotion_dry_run"},
+      "expected": {"status": "PASS", "failure_codes": []}
+    },
+    {
+      "id": "package-exact",
+      "adapter": "package_evidence",
+      "dimensions": {"package": "exact", "identity": "exact SHA", "operation": "validate"},
+      "input": {},
+      "expected": {"status": "PASS", "failure_codes": []}
+    },
+    {
+      "id": "package-absent",
+      "adapter": "package_evidence",
+      "dimensions": {"package": "absent", "operation": "validate"},
+      "input": {"package_present": false},
+      "expected": {"status": "FAIL", "failure_codes": ["CONTROLLED_CANDIDATE_PACKAGE_MISSING"]}
+    },
+    {
+      "id": "package-wrong-hash",
+      "adapter": "package_evidence",
+      "dimensions": {"package": "wrong hash", "operation": "validate"},
+      "input": {"report.package.sha256": "0000000000000000000000000000000000000000000000000000000000000000"},
+      "expected": {"status": "FAIL", "failure_codes": ["CONTROLLED_CANDIDATE_PACKAGE_HASH_MISMATCH"]}
+    },
+    {
+      "id": "package-wrong-source-sha",
+      "adapter": "package_evidence",
+      "dimensions": {"package": "wrong source SHA", "identity": "stale SHA", "operation": "validate"},
+      "input": {"report.source.commit": "cccccccccccccccccccccccccccccccccccccccc"},
+      "expected": {"status": "FAIL", "failure_codes": ["CONTROLLED_CANDIDATE_VALIDATION_SHA_MISMATCH"]}
+    },
+    {
+      "id": "package-duplicate-selection",
+      "adapter": "workflow_guard",
+      "dimensions": {"package": "duplicate", "operation": "validate"},
+      "input": {"file": ".github/workflows/controlled-release-candidate-validation.yml", "required_text": "Expected exactly one unexpired exact validation artifact"},
+      "expected": {"status": "FAIL", "failure_codes": ["EXACT_PACKAGE_CARDINALITY"]}
+    },
+    {
+      "id": "human-review-missing",
+      "adapter": "human_review_contract",
+      "dimensions": {"human_review": "missing", "operation": "merge dry-run"},
+      "input": {"marker_count": 0, "verdict": null},
+      "expected": {"status": "FAIL", "failure_codes": ["HUMAN_REVIEW_CARDINALITY"]}
+    },
+    {
+      "id": "human-review-pass",
+      "adapter": "human_review_contract",
+      "dimensions": {"human_review": "PASS", "operation": "merge"},
+      "input": {"marker_count": 1, "verdict": "pass"},
+      "expected": {"status": "PASS", "failure_codes": []}
+    },
+    {
+      "id": "human-review-changes-required",
+      "adapter": "human_review_contract",
+      "dimensions": {"human_review": "CHANGES_REQUIRED", "operation": "merge"},
+      "input": {"marker_count": 1, "verdict": "changes_required"},
+      "expected": {"status": "FAIL", "failure_codes": ["HUMAN_REVIEW_NOT_PASS"]}
+    },
+    {
+      "id": "hrdr-missing",
+      "adapter": "hrdr_comments",
+      "dimensions": {"hrdr": "missing", "operation": "release-scope validation"},
+      "input": {"records": []},
+      "expected": {"status": "FAIL", "failure_codes": ["HRDR_CARDINALITY"]}
+    },
+    {
+      "id": "hrdr-pending",
+      "adapter": "release_scope",
+      "dimensions": {"hrdr": "pending", "operation": "release-scope validation"},
+      "input": {"record.decision": "pending", "record.decided_at": null},
+      "expected": {"status": "FAIL", "failure_codes": ["HUMAN_RELEASE_DECISION_NOT_POSITIVE"]}
+    },
+    {
+      "id": "hrdr-go",
+      "adapter": "release_scope",
+      "dimensions": {"hrdr": "GO", "operation": "release"},
+      "input": {},
+      "expected": {"status": "PASS", "failure_codes": []}
+    },
+    {
+      "id": "hrdr-no-go",
+      "adapter": "release_scope",
+      "dimensions": {"hrdr": "NO_GO", "operation": "release"},
+      "input": {"record.decision": "no_go"},
+      "expected": {"status": "FAIL", "failure_codes": ["HUMAN_RELEASE_DECISION_NOT_POSITIVE"]}
+    },
+    {
+      "id": "standard-release-exact-scope",
+      "adapter": "release_scope",
+      "dimensions": {"candidate_kind": "NORMAL", "scope": "exact", "project": "exact", "operation": "release", "recovery": "standard release"},
+      "input": {},
+      "expected": {"status": "PASS", "failure_codes": []}
+    },
+    {
+      "id": "scope-extra-shipping-cr",
+      "adapter": "release_scope_case",
+      "dimensions": {"scope": "extra shipping CR", "operation": "release"},
+      "input": {"case": "extra_shipping_cr"},
+      "expected": {"status": "FAIL", "failure_codes": ["PHYSICAL_SCOPE_OUT_OF_SCOPE_PRIMARY_CR:PR#99:#999", "RECOVERY_DECISION_REQUIRED"]}
+    },
+    {
+      "id": "scope-missing-shipping-cr",
+      "adapter": "release_scope_case",
+      "dimensions": {"scope": "missing shipping CR", "operation": "release"},
+      "input": {"case": "missing_shipping_cr"},
+      "expected": {"status": "FAIL", "failure_codes": ["PHYSICAL_SCOPE_DECLARED_CR_NOT_SHIPPED:#12"]}
+    },
+    {
+      "id": "scope-missing-primary-cr",
+      "adapter": "merge_eligibility",
+      "dimensions": {"scope": "missing primary CR", "operation": "merge dry-run"},
+      "input": {"primary_crs": []},
+      "expected": {"status": "FAIL", "failure_codes": ["MERGE_ELIGIBILITY_PRIMARY_CR_AMBIGUOUS"]}
+    },
+    {
+      "id": "scope-ambiguous-primary-cr",
+      "adapter": "merge_eligibility",
+      "dimensions": {"scope": "ambiguous primary CR", "operation": "merge"},
+      "input": {"primary_crs": [171, 174]},
+      "expected": {"status": "FAIL", "failure_codes": ["MERGE_ELIGIBILITY_PRIMARY_CR_AMBIGUOUS"]}
+    },
+    {
+      "id": "project-safety-authority-mismatch",
+      "adapter": "merge_eligibility",
+      "dimensions": {"project": "safety-authority mismatch", "operation": "merge"},
+      "input": {"primary_cr.milestone": null, "primary_cr.target_release": "TBD"},
+      "expected": {"status": "FAIL", "failure_codes": ["MERGE_ELIGIBILITY_OUTSIDE_ACTIVE_RELEASE:#174", "MERGE_ELIGIBILITY_TARGET_RELEASE_MISMATCH:#174"]}
+    },
+    {
+      "id": "project-stale-projection",
+      "adapter": "release_scope",
+      "dimensions": {"project": "stale projection", "operation": "release-scope validation"},
+      "input": {"snapshot.project_rows.12.Status": "Blocked"},
+      "expected": {"status": "FAIL", "failure_codes": ["SCOPE_ITEM_PROJECT_STATUS:#12"]}
+    },
+    {
+      "id": "project-presentation-only-mismatch-currently-blocks",
+      "adapter": "release_scope",
+      "dimensions": {"project": "presentation-only mismatch", "operation": "release-scope validation"},
+      "input": {"snapshot.project.planning_view_filter": "is:open"},
+      "expected": {"status": "FAIL", "failure_codes": ["PROJECT_PLANNING_VIEW_MISMATCH"]}
+    },
+    {
+      "id": "actions-one-page-success",
+      "adapter": "check_runs",
+      "dimensions": {"actions": "one page", "operation": "merge dry-run"},
+      "input": {"pages": [[{"name": "Platform validation", "id": 101, "started_at": "2026-09-01T08:00:00Z", "status": "completed", "conclusion": "success"}]]},
+      "expected": {"status": "PASS", "failure_codes": []}
+    },
+    {
+      "id": "actions-paginated-success",
+      "adapter": "check_runs",
+      "dimensions": {"actions": "paginated", "operation": "merge dry-run"},
+      "input": {"pages": [[{"name": "Platform validation", "id": 201, "started_at": "2026-09-01T08:00:00Z", "status": "completed", "conclusion": "success"}], [{"name": "reconcile", "id": 202, "started_at": "2026-09-01T08:01:00Z", "status": "completed", "conclusion": "success"}]]},
+      "expected": {"status": "PASS", "failure_codes": []}
+    },
+    {
+      "id": "actions-old-success-newer-fail",
+      "adapter": "check_runs",
+      "dimensions": {"actions": "old success + newer fail", "operation": "merge"},
+      "input": {"pages": [[{"name": "reconcile", "id": 301, "started_at": "2026-09-01T08:00:00Z", "status": "completed", "conclusion": "success"}, {"name": "reconcile", "id": 302, "started_at": "2026-09-01T08:05:00Z", "status": "completed", "conclusion": "failure"}]]},
+      "expected": {"status": "FAIL", "failure_codes": ["LATEST_CHECK_NOT_PASS"]}
+    },
+    {
+      "id": "actions-old-fail-authoritative-rerun-success",
+      "adapter": "check_runs",
+      "dimensions": {"actions": "old fail + authoritative rerun success", "operation": "merge"},
+      "input": {"pages": [[{"name": "reconcile", "id": 401, "started_at": "2026-09-01T08:00:00Z", "status": "completed", "conclusion": "failure"}, {"name": "reconcile", "id": 402, "started_at": "2026-09-01T08:05:00Z", "status": "completed", "conclusion": "success"}]]},
+      "expected": {"status": "PASS", "failure_codes": []}
+    },
+    {
+      "id": "actions-queued",
+      "adapter": "check_runs",
+      "dimensions": {"actions": "queued", "operation": "merge dry-run"},
+      "input": {"pages": [[{"name": "Platform validation", "id": 501, "started_at": "2026-09-01T08:00:00Z", "status": "queued", "conclusion": null}]]},
+      "expected": {"status": "FAIL", "failure_codes": ["LATEST_CHECK_NOT_PASS"]}
+    },
+    {
+      "id": "actions-in-progress",
+      "adapter": "check_runs",
+      "dimensions": {"actions": "in-progress", "operation": "merge dry-run"},
+      "input": {"pages": [[{"name": "Platform validation", "id": 502, "started_at": "2026-09-01T08:01:00Z", "status": "in_progress", "conclusion": null}]]},
+      "expected": {"status": "FAIL", "failure_codes": ["LATEST_CHECK_NOT_PASS"]}
+    },
+    {
+      "id": "actions-missing",
+      "adapter": "check_runs",
+      "dimensions": {"actions": "missing", "operation": "merge dry-run"},
+      "input": {"pages": []},
+      "expected": {"status": "FAIL", "failure_codes": ["LATEST_CHECK_NOT_PASS"]}
+    }
+  ]
+}
