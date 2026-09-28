@@ -106,7 +106,11 @@ def restore_candidate_evidence(
         }
     package = report.get("package") if isinstance(report.get("package"), dict) else {}
     package_name = Path(str(package.get("path") or "")).name
-    if not package_name:
+    expected_prefix = f"ddda-candidate-pr-{pr_number}-{source_sha[:12]}-"
+    if (
+        not package_name.startswith(expected_prefix)
+        or not package_name.lower().endswith(".zip")
+    ):
         return {
             "status": "FAIL",
             "repository": repository,

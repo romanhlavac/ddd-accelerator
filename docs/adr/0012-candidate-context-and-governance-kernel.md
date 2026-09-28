@@ -62,6 +62,11 @@ explicit human-authorization comparison, while report/package cardinality,
 source binding and physical package verification are no longer reimplemented
 in workflow YAML.
 
+Controlled validation's HRDR-scaffold and release-scope/promotion dry-run
+consumers use the same restore adapter. Canonical candidate filename identity
+is enforced in the shared collector so the YAML migration preserves the
+existing fail-closed artifact contract.
+
 Candidate Context v1 does not rewrite historical 0.1.1 evidence. Legacy
 controlled-recovery evidence remains readable through its existing adapter;
 the later #172 slice will isolate that adapter behind explicit

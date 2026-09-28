@@ -29,7 +29,7 @@ def report(package: Path) -> dict:
 
 
 def test_shared_collector_validates_explicit_report_and_package(tmp_path):
-    package = tmp_path / "candidate.zip"
+    package = tmp_path / f"ddda-candidate-pr-{PR}-{SHA[:12]}-unit.zip"
     package.write_bytes(b"exact candidate")
     result = validate_candidate_evidence(
         report(package),
@@ -43,7 +43,7 @@ def test_shared_collector_validates_explicit_report_and_package(tmp_path):
 
 
 def test_shared_collector_submits_normalized_binding_to_kernel(tmp_path, monkeypatch):
-    package = tmp_path / "candidate.zip"
+    package = tmp_path / f"ddda-candidate-pr-{PR}-{SHA[:12]}-kernel.zip"
     package.write_bytes(b"exact candidate")
     observed = {}
 
@@ -71,7 +71,7 @@ def test_shared_collector_submits_normalized_binding_to_kernel(tmp_path, monkeyp
 
 
 def test_restore_finds_exactly_one_report_bound_package(tmp_path):
-    package = tmp_path / "candidate.zip"
+    package = tmp_path / f"ddda-candidate-pr-{PR}-{SHA[:12]}-restore.zip"
     package.write_bytes(b"exact candidate")
     nested = tmp_path / "validation-reports" / "run"
     nested.mkdir(parents=True)
@@ -95,7 +95,7 @@ def test_restore_rejects_report_and_package_cardinality(tmp_path):
     )
     assert no_report["failures"] == ["CANDIDATE_EVIDENCE_REPORT_CARDINALITY"]
 
-    package = tmp_path / "candidate.zip"
+    package = tmp_path / f"ddda-candidate-pr-{PR}-{SHA[:12]}-duplicate.zip"
     package.write_bytes(b"exact candidate")
     (tmp_path / "result.json").write_text(json.dumps(report(package)), encoding="utf-8")
     duplicate = tmp_path / "duplicate"
@@ -111,7 +111,7 @@ def test_restore_rejects_report_and_package_cardinality(tmp_path):
 
 
 def test_restore_rejects_report_bound_hash_drift(tmp_path):
-    package = tmp_path / "candidate.zip"
+    package = tmp_path / f"ddda-candidate-pr-{PR}-{SHA[:12]}-drift.zip"
     package.write_bytes(b"changed candidate")
     evidence = report(package)
     evidence["package"]["sha256"] = "0" * 64
