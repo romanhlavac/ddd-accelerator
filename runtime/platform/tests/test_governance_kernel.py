@@ -134,6 +134,7 @@ def test_controlled_recovery_context_is_explicit_and_valid_for_validation():
     candidate = context("validate")
     candidate["candidate_kind"] = "RECOVERY"
     candidate["release_mode"] = "CONTROLLED_RECOVERY"
+    candidate["source_branch"] = "release/0.1.2-controlled-recovery-source"
     candidate["pr_state"] = "DRAFT"
     assert evaluate_candidate_context(candidate).status == "PASS"
 
