@@ -1,0 +1,185 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/romanhlavac/ddd-accelerator/schemas/candidate-context.schema.json",
+  "title": "DDDA Candidate Context v1",
+  "description": "Normalized, provenance-bound input for the pure DDDA Governance Kernel. Collection and side effects remain outside this contract.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "context_kind",
+    "candidate_kind",
+    "release_mode",
+    "operation",
+    "repository",
+    "pr",
+    "base_branch",
+    "source_branch",
+    "source_sha",
+    "version",
+    "generation",
+    "pr_state",
+    "validation_evidence",
+    "authoritative_check_summary",
+    "human_review_reference",
+    "hrdr_reference",
+    "physical_scope_reference",
+    "project_evidence_reference"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "context_kind": {"const": "ddda_candidate_context"},
+    "candidate_kind": {"enum": ["NORMAL", "RECOVERY"]},
+    "release_mode": {"enum": ["STANDARD", "CONTROLLED_RECOVERY"]},
+    "operation": {
+      "enum": [
+        "validate",
+        "merge_dry_run",
+        "merge",
+        "release_scope_validation",
+        "promotion_dry_run",
+        "release"
+      ]
+    },
+    "repository": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+    },
+    "pr": {"type": "integer", "minimum": 1},
+    "base_branch": {"type": "string", "minLength": 1},
+    "source_branch": {"type": "string", "minLength": 1},
+    "source_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "version": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
+    },
+    "generation": {"type": "integer", "minimum": 1},
+    "pr_state": {"enum": ["DRAFT", "READY", "MERGED_CLOSED"]},
+    "validation_evidence": {"$ref": "#/$defs/validationEvidence"},
+    "authoritative_check_summary": {"$ref": "#/$defs/checkSummary"},
+    "human_review_reference": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/humanReviewReference"}
+      ]
+    },
+    "hrdr_reference": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/hrdrReference"}
+      ]
+    },
+    "physical_scope_reference": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/evidenceReference"}
+      ]
+    },
+    "project_evidence_reference": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/evidenceReference"}
+      ]
+    }
+  },
+  "$defs": {
+    "sha40": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "validationEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "source_sha", "package_sha256", "artifact_name", "workflow_run_id"],
+      "properties": {
+        "status": {"enum": ["PASS", "FAIL", "MISSING"]},
+        "source_sha": {"$ref": "#/$defs/sha40"},
+        "package_sha256": {"$ref": "#/$defs/sha256"},
+        "artifact_name": {"type": "string", "minLength": 1},
+        "workflow_run_id": {"type": "integer", "minimum": 1}
+      }
+    },
+    "checkSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "required_checks", "latest_results"],
+      "properties": {
+        "status": {"enum": ["PASS", "FAIL", "PENDING", "MISSING"]},
+        "required_checks": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        },
+        "latest_results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "status", "conclusion", "run_id"],
+            "properties": {
+              "name": {"type": "string", "minLength": 1},
+              "status": {"enum": ["QUEUED", "IN_PROGRESS", "COMPLETED"]},
+              "conclusion": {
+                "type": ["string", "null"],
+                "enum": ["SUCCESS", "FAILURE", "CANCELLED", "SKIPPED", null]
+              },
+              "run_id": {"type": "integer", "minimum": 1}
+            }
+          }
+        }
+      }
+    },
+    "humanReviewReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "verdict",
+        "reviewed_sha",
+        "candidate_package_sha256",
+        "reviewer",
+        "reviewed_at",
+        "provenance_verified"
+      ],
+      "properties": {
+        "verdict": {"enum": ["PASS", "CHANGES_REQUIRED"]},
+        "reviewed_sha": {"$ref": "#/$defs/sha40"},
+        "candidate_package_sha256": {"$ref": "#/$defs/sha256"},
+        "reviewer": {"type": "string", "minLength": 1},
+        "reviewed_at": {"type": "string", "format": "date-time"},
+        "provenance_verified": {"type": "boolean"}
+      }
+    },
+    "hrdrReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision",
+        "source_sha",
+        "candidate_package_sha256",
+        "version",
+        "decision_owner",
+        "decided_at",
+        "provenance_verified"
+      ],
+      "properties": {
+        "decision": {"enum": ["PENDING", "GO", "GO_WITH_ACCEPTED_RISKS", "NO_GO"]},
+        "source_sha": {"$ref": "#/$defs/sha40"},
+        "candidate_package_sha256": {"$ref": "#/$defs/sha256"},
+        "version": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
+        },
+        "decision_owner": {"type": "string", "minLength": 1},
+        "decided_at": {"type": ["string", "null"], "format": "date-time"},
+        "provenance_verified": {"type": "boolean"}
+      }
+    },
+    "evidenceReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "evidence_id"],
+      "properties": {
+        "status": {"enum": ["PASS", "FAIL", "MISSING"]},
+        "evidence_id": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

@@ -8,6 +8,11 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 ### Changed
 
+- governance consolidation now has an inactive, versioned Candidate Context v1
+  contract and a pure Governance Kernel foundation (#171); the kernel binds
+  exact candidate, package, check and human-decision identities while never
+  inferring or executing merge/release authorization.
+
 - governance simplification now starts from a versioned, executable scenario
   matrix and a repository-wide semantic-owner inventory (#174); the baseline
   characterizes current exact-SHA, package, human-decision, CI, scope and
