@@ -8,6 +8,11 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 ### Changed
 
+- controlled recovery now enters release-scope evaluation only through an
+  explicit `EmergencyRecovery` intent and a separate compatibility evaluator;
+  the standard release runtime no longer imports or applies recovery internals,
+  while historical recovery-ledger schema v1 remains readable (#172).
+
 - Human Review and HRDR repository/PR root identity now belongs to Candidate
   Context v1 and the Governance Kernel; collectors only normalize records and
   the legacy release-scope surface preserves its public diagnostics (#171).

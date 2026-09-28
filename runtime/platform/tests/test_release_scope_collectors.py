@@ -81,6 +81,23 @@ def test_physical_scope_inventory_keeps_unmapped_commit_and_exact_primary_relati
     ]
 
 
+def test_standard_scope_never_reads_recovery_ledger():
+    ns = _scope_namespace()
+    ns.previous_release_tag = lambda *_: {"tag": "v0.1.0", "sha": "a" * 40}
+    ns.compare_commits = lambda *_: ("ahead", [{"sha": "b" * 40}])
+    ns.recovery_ledger_at_source = lambda *_: (_ for _ in ()).throw(
+        AssertionError("standard path must not read recovery evidence")
+    )
+    ns.rest_pages = lambda *_: []
+
+    actual = ns.physical_scope_snapshot(
+        "owner/repo", "0.1.1", "b" * 40, "token", {}
+    )
+
+    assert actual["recovery_ledger"] is None
+    assert actual["unmapped_commit_shas"] == ["b" * 40]
+
+
 def test_merge_collector_recognizes_one_open_release_train_and_tbd_target():
     spec = importlib.util.spec_from_file_location("ddda_merge_eligibility_collector_test", MERGE_COLLECTOR)
     assert spec and spec.loader
@@ -134,7 +151,8 @@ def test_physical_scope_preserves_candidate_source_sha_and_derives_metadata_tip(
     }
 
     actual = ns.physical_scope_snapshot(
-        "owner/repo", "0.1.1", candidate_sha, "token", {96: {"Target Release": "0.1.1"}}
+        "owner/repo", "0.1.1", candidate_sha, "token", {96: {"Target Release": "0.1.1"}},
+        emergency_recovery=True,
     )
 
     assert actual["release_source_sha"] == candidate_sha
@@ -156,7 +174,8 @@ def test_physical_scope_does_not_classify_non_metadata_candidate_tip():
     ns.rest_pages = lambda *_: []
 
     actual = ns.physical_scope_snapshot(
-        "owner/repo", "0.1.1", candidate_sha, "token", {}
+        "owner/repo", "0.1.1", candidate_sha, "token", {},
+        emergency_recovery=True,
     )
 
     assert actual["recovery_ledger"]["metadata_commit_shas"] == []
@@ -241,7 +260,8 @@ def test_physical_scope_v2_classifies_only_release_cut_and_ledger_tip_as_metadat
     }
 
     actual = ns.physical_scope_snapshot(
-        "owner/repo", "0.1.1", ledger_tip, "token", {96: {"Target Release": "0.1.1"}}
+        "owner/repo", "0.1.1", ledger_tip, "token", {96: {"Target Release": "0.1.1"}},
+        emergency_recovery=True,
     )
 
     assert actual["recovery_ledger"]["metadata_commit_shas"] == [release_cut, ledger_tip]

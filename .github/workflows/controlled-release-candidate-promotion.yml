@@ -161,6 +161,7 @@ jobs:
             -Version $env:VERSION `
             -ValidationReportPath $env:VALIDATION_REPORT `
             -PackagePath $env:CANDIDATE_PACKAGE `
+            -EmergencyRecovery `
             -DryRun `
             -NonInteractive
 
@@ -237,6 +238,7 @@ jobs:
             -Version $env:VERSION `
             -ValidationReportPath $env:VALIDATION_REPORT `
             -PackagePath $env:CANDIDATE_PACKAGE `
+            -EmergencyRecovery `
             -ConfirmPromotion `
             -NonInteractive
 

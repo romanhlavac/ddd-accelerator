@@ -1,4 +1,4 @@
-from runtime.platform.release_governance import evaluate_recovery_ledger
+from runtime.platform.recovery_governance import evaluate_recovery_ledger
 
 import pytest
 

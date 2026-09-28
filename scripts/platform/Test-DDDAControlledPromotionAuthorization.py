@@ -104,7 +104,14 @@ def validate_authorization(
         }
         observed_side_effects = authorization.get("authorized_side_effects_after_canonical_pass")
         observed_side_effects = set(observed_side_effects) if isinstance(observed_side_effects, list) else set()
-        expected_command = f"promote-pr -Pr {pr_number} -Version {version} -ConfirmPromotion"
+        expected_commands = {
+            f"promote-pr -Pr {pr_number} -Version {version} "
+            "-EmergencyRecovery -ConfirmPromotion"
+        }
+        if version == "0.1.1":
+            expected_commands.add(
+                f"promote-pr -Pr {pr_number} -Version {version} -ConfirmPromotion"
+            )
         checks = {
             "CONTROLLED_PROMOTION_AUTHORIZATION_SCHEMA_INVALID": authorization.get("schema_version") == 1,
             "CONTROLLED_PROMOTION_AUTHORIZATION_REPOSITORY_MISMATCH": str(authorization.get("repository") or "") == repository,
@@ -114,7 +121,7 @@ def validate_authorization(
             "CONTROLLED_PROMOTION_AUTHORIZATION_VERSION_MISMATCH": str(authorization.get("version") or "") == version,
             "CONTROLLED_PROMOTION_AUTHORIZATION_ACTOR_MISMATCH": str(authorization.get("authorizer") or "") == actor,
             "CONTROLLED_PROMOTION_AUTHORIZATION_DECISION_INVALID": str(authorization.get("decision") or "").lower() == "approve",
-            "CONTROLLED_PROMOTION_AUTHORIZATION_COMMAND_MISMATCH": str(authorization.get("authorized_command") or "") == expected_command,
+            "CONTROLLED_PROMOTION_AUTHORIZATION_COMMAND_MISMATCH": str(authorization.get("authorized_command") or "") in expected_commands,
             "CONTROLLED_PROMOTION_AUTHORIZATION_MODE_INVALID": str(authorization.get("release_source_mode") or "") == "CONTROLLED_EXACT_PR_SHA",
             "CONTROLLED_PROMOTION_AUTHORIZATION_MERGE_BOUNDARY_INVALID": authorization.get("candidate_merge_allowed") is False,
             "CONTROLLED_PROMOTION_AUTHORIZATION_SIDE_EFFECTS_INVALID": observed_side_effects == expected_side_effects,

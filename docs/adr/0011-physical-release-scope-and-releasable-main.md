@@ -45,6 +45,13 @@ metadata-only ledger commit je povolen; jeho identita se odvozuje z physical
 inventory, nikoli ze self-referential hodnoty uvnitř ledgeru. Ledger je evidence, nikoli mechanismus
 pro změnu release scope nebo human rozhodnutí.
 
+Controlled recovery je compatibility flow, nikoli varianta vybraná standardním
+release evaluatorem. Standardní runtime neimportuje recovery transformaci ani
+nečte ledger; veřejná a governed hranice musí obdržet explicitní
+`EmergencyRecovery` intent. Teprve potom samostatný emergency evaluator načte a
+ověří versioned ledger. Absence intentu nebo ledgeru selže bez heuristické
+aktivace podle branch, title či obsahu PR.
+
 Dokud existuje právě jeden otevřený Milestone `DDDA X.Y.Z`, governed
 implementation merge smí do `main` pouze PR s jediným primary CR v tomto
 Milestone. Tím se nová kontaminace zastaví před merge. Guard je read-only a
