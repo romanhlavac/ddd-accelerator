@@ -8,6 +8,10 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 ### Changed
 
+- governed promotion now collects the Human Release Decision Record through
+  one shared parser/provenance adapter and delegates positive decision plus
+  exact SHA, package and version binding to the Governance Kernel (#171).
+
 - governed implementation merge now collects Human Review through one shared
   parser/provenance adapter and delegates exact SHA, candidate package and
   verdict binding to the Governance Kernel instead of duplicating those

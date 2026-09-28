@@ -323,6 +323,19 @@ def evaluate_human_review_binding(context: dict[str, Any]) -> KernelDecision:
     )
 
 
+def evaluate_hrdr_binding(context: dict[str, Any]) -> KernelDecision:
+    """Evaluate one normalized HRDR against exact release-candidate identity."""
+    operation = str(context.get("operation") or "promotion_dry_run")
+    failures = sorted(set(_hrdr_failures(context)))
+    return KernelDecision(
+        status="PASS" if not failures else "FAIL",
+        operation=operation,
+        failure_codes=tuple(failures),
+        authorization_required=False,
+        side_effects_allowed=False,
+    )
+
+
 def evaluate_candidate_context(context: dict[str, Any]) -> KernelDecision:
     """Evaluate normalized evidence without collecting it or authorizing effects."""
     operation = str(context.get("operation") or "")

@@ -11,9 +11,15 @@ SPEC.loader.exec_module(MODULE)
 
 def comment(*, decision="pending", reviewer="romanhlavac", author="github-actions[bot]"):
     return {
-        "user": {"login": author},
+        "user": {"login": author, "type": "Bot" if author.endswith("[bot]") else "User"},
         "body": "<!-- ddda:human-release-decision:v1 -->\n```json\n"
-        + '{"schema_version":1,"decision":"' + decision + '","reviewer":"' + reviewer + '"}\n```',
+        + '{"schema_version":1,"decision":"'
+        + decision
+        + '","reviewer":"'
+        + reviewer
+        + '","decision_owner":"'
+        + reviewer
+        + '"}\n```',
     }
 
 

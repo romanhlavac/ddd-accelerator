@@ -5,31 +5,22 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 from pathlib import Path
+import sys
 from typing import Any
 
-MARKER = "<!-- ddda:human-release-decision:v1 -->"
-JSON_RE = re.compile(r"(?s)```json\s*(?P<json>\{.*?\})\s*```")
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from runtime.platform.hrdr_evidence import collect_hrdr_evidence
 
 
 def extract_hrdr(comments: list[dict[str, Any]]) -> dict[str, Any]:
-    matches = [row for row in comments if MARKER in str(row.get("body") or "")]
-    if len(matches) != 1:
-        raise ValueError("Expected exactly one authoritative HRDR comment")
-    comment = matches[0]
-    match = JSON_RE.search(str(comment.get("body") or ""))
-    if not match:
-        raise ValueError("Authoritative HRDR comment has no fenced JSON record")
-    record = json.loads(match.group("json"))
-    if not isinstance(record, dict) or record.get("schema_version") != 1:
-        raise ValueError("Authoritative HRDR record has an unsupported schema")
-    author = str(((comment.get("user") or {}).get("login")) or "")
-    if not author:
-        raise ValueError("Authoritative HRDR comment has no GitHub author")
-    if record.get("decision") != "pending" and author != str(record.get("reviewer") or ""):
-        raise ValueError("Positive/negative HRDR must have human reviewer provenance")
-    return record
+    result = collect_hrdr_evidence(comments)
+    if result["status"] != "PASS":
+        raise ValueError(", ".join(result["failures"]))
+    return result["record"]
 
 
 def main() -> int:
