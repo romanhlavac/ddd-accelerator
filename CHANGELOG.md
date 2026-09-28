@@ -8,6 +8,10 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 ### Changed
 
+- governed merge, review and promotion now delegate local validation-report and
+  package binding to the shared candidate-evidence process adapter instead of
+  maintaining a second PowerShell semantic implementation (#171).
+
 - controlled validation HRDR-scaffold and governed dry-run consumers now use
   the shared candidate-evidence restore adapter, including centralized
   canonical candidate filename validation (#171).

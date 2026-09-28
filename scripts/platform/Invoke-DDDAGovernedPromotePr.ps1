@@ -44,6 +44,7 @@ if ($headSha -notmatch '^[0-9a-f]{40}$') {
 }
 
 $validation = Get-DDDACandidateValidationEvidence `
+    -RepositorySlug $repositorySlug `
     -Pr $Pr `
     -HeadSha $headSha `
     -ValidationReportPath $ValidationReportPath `

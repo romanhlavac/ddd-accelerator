@@ -81,6 +81,7 @@ if ($minimumApprovals -gt 0) {
 }
 
 $validationArguments = @{
+    RepositorySlug = $repositorySlug
     Pr = $Pr
     HeadSha = $headSha
 }
