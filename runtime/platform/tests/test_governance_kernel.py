@@ -1,0 +1,208 @@
+import json
+from pathlib import Path
+
+import pytest
+
+from runtime.platform.governance_kernel import evaluate_candidate_context
+
+
+SHA = "a" * 40
+PACKAGE = "b" * 64
+ROOT = Path(__file__).resolve().parents[3]
+MATRIX = json.loads(
+    (ROOT / "tests/fixtures/governance/scenario-matrix-v1.json").read_text(encoding="utf-8")
+)
+
+
+def context(operation: str = "merge_dry_run") -> dict:
+    return {
+        "schema_version": 1,
+        "context_kind": "ddda_candidate_context",
+        "candidate_kind": "NORMAL",
+        "release_mode": "STANDARD",
+        "operation": operation,
+        "repository": "romanhlavac/ddd-accelerator",
+        "pr": 176,
+        "base_branch": "main",
+        "source_branch": "test/174-governance-characterization",
+        "source_sha": SHA,
+        "version": "0.1.2",
+        "generation": 1,
+        "pr_state": "READY",
+        "validation_evidence": {
+            "status": "PASS",
+            "source_sha": SHA,
+            "package_sha256": PACKAGE,
+            "artifact_name": f"ddda-candidate-{SHA}",
+            "workflow_run_id": 36355784058,
+        },
+        "authoritative_check_summary": {
+            "status": "PASS",
+            "required_checks": ["Platform validation", "One-command PR validation"],
+            "latest_results": [
+                {
+                    "name": "Platform validation",
+                    "status": "COMPLETED",
+                    "conclusion": "SUCCESS",
+                    "run_id": 36355784058,
+                },
+                {
+                    "name": "One-command PR validation",
+                    "status": "COMPLETED",
+                    "conclusion": "SUCCESS",
+                    "run_id": 36355784058,
+                },
+            ],
+        },
+        "human_review_reference": {
+            "verdict": "PASS",
+            "reviewed_sha": SHA,
+            "candidate_package_sha256": PACKAGE,
+            "reviewer": "romanhlavac",
+            "reviewed_at": "2026-09-28T07:54:55Z",
+            "provenance_verified": True,
+        },
+        "hrdr_reference": None,
+        "physical_scope_reference": None,
+        "project_evidence_reference": None,
+    }
+
+
+def test_merge_dry_run_passes_exact_ready_context_without_authorizing_side_effects():
+    result = evaluate_candidate_context(context())
+    assert result.status == "PASS"
+    assert result.authorization_required is False
+    assert result.side_effects_allowed is False
+
+
+def test_merge_readiness_still_requires_separate_authorization():
+    result = evaluate_candidate_context(context("merge"))
+    assert result.status == "PASS"
+    assert result.authorization_required is True
+    assert result.side_effects_allowed is False
+
+
+@pytest.mark.parametrize(
+    ("mutate", "failure"),
+    [
+        (lambda value: value.update(pr_state="DRAFT"), "MERGE_OPERATION_REQUIRES_READY"),
+        (
+            lambda value: value["validation_evidence"].update(source_sha="c" * 40),
+            "VALIDATION_SOURCE_SHA_MISMATCH",
+        ),
+        (
+            lambda value: value["human_review_reference"].update(reviewed_sha="c" * 40),
+            "HUMAN_REVIEW_SOURCE_SHA_MISMATCH",
+        ),
+        (
+            lambda value: value["human_review_reference"].update(candidate_package_sha256="c" * 64),
+            "HUMAN_REVIEW_PACKAGE_SHA256_MISMATCH",
+        ),
+        (
+            lambda value: value["authoritative_check_summary"].update(status="FAIL"),
+            "AUTHORITATIVE_CHECKS_NOT_PASS",
+        ),
+    ],
+)
+def test_characterized_merge_failures_remain_fail_closed(mutate, failure):
+    candidate = context()
+    mutate(candidate)
+    result = evaluate_candidate_context(candidate)
+    assert result.status == "FAIL"
+    assert failure in result.failure_codes
+    assert result.side_effects_allowed is False
+
+
+def test_latest_required_check_must_be_present_and_successful():
+    candidate = context()
+    candidate["authoritative_check_summary"]["latest_results"].pop()
+    result = evaluate_candidate_context(candidate)
+    assert "AUTHORITATIVE_CHECK_MISSING:One-command PR validation" in result.failure_codes
+
+
+def test_recovery_kind_requires_explicit_controlled_recovery_mode():
+    candidate = context("validate")
+    candidate["candidate_kind"] = "RECOVERY"
+    result = evaluate_candidate_context(candidate)
+    assert "CANDIDATE_KIND_RELEASE_MODE_MISMATCH" in result.failure_codes
+
+
+def test_controlled_recovery_context_is_explicit_and_valid_for_validation():
+    candidate = context("validate")
+    candidate["candidate_kind"] = "RECOVERY"
+    candidate["release_mode"] = "CONTROLLED_RECOVERY"
+    candidate["pr_state"] = "DRAFT"
+    assert evaluate_candidate_context(candidate).status == "PASS"
+
+
+def test_controlled_recovery_validation_preserves_characterized_draft_boundary():
+    candidate = context("validate")
+    candidate["candidate_kind"] = "RECOVERY"
+    candidate["release_mode"] = "CONTROLLED_RECOVERY"
+    result = evaluate_candidate_context(candidate)
+    assert result.status == "FAIL"
+    assert "RECOVERY_VALIDATION_REQUIRES_DRAFT" in result.failure_codes
+
+
+def test_kernel_parity_suite_is_bound_to_characterization_v1_scenarios():
+    scenarios = {scenario["id"]: scenario for scenario in MATRIX["scenarios"]}
+    expected = {
+        "recovery-validate-draft-first-exact": "PASS",
+        "recovery-validate-ready-blocked": "FAIL",
+        "recovery-validate-closed-blocked": "FAIL",
+        "recovery-stale-sha-blocked": "FAIL",
+        "human-review-missing": "FAIL",
+        "human-review-pass": "PASS",
+        "human-review-changes-required": "FAIL",
+        "actions-queued": "FAIL",
+        "actions-in-progress": "FAIL",
+        "actions-missing": "FAIL",
+    }
+    assert {name: scenarios[name]["expected"]["status"] for name in expected} == expected
+
+
+def test_unversioned_context_extension_fails_closed_in_kernel():
+    candidate = context()
+    candidate["implicit_authorization"] = True
+    result = evaluate_candidate_context(candidate)
+    assert result.status == "FAIL"
+    assert "CONTEXT_FIELD_UNKNOWN:implicit_authorization" in result.failure_codes
+
+
+def test_release_requires_exact_positive_hrdr_and_referenced_evidence():
+    candidate = context("release")
+    candidate["human_review_reference"] = None
+    candidate["hrdr_reference"] = {
+        "decision": "GO",
+        "source_sha": SHA,
+        "candidate_package_sha256": PACKAGE,
+        "version": "0.1.2",
+        "decision_owner": "romanhlavac",
+        "decided_at": "2026-09-28T08:30:00Z",
+        "provenance_verified": True,
+    }
+    candidate["physical_scope_reference"] = {"status": "PASS", "evidence_id": "scope-1"}
+    candidate["project_evidence_reference"] = {"status": "PASS", "evidence_id": "project-1"}
+    result = evaluate_candidate_context(candidate)
+    assert result.status == "PASS"
+    assert result.authorization_required is True
+    assert result.side_effects_allowed is False
+
+
+def test_release_rejects_stale_hrdr_and_missing_project_evidence():
+    candidate = context("promotion_dry_run")
+    candidate["hrdr_reference"] = {
+        "decision": "GO",
+        "source_sha": "c" * 40,
+        "candidate_package_sha256": PACKAGE,
+        "version": "0.1.1",
+        "decision_owner": "romanhlavac",
+        "decided_at": "2026-09-28T08:30:00Z",
+        "provenance_verified": True,
+    }
+    candidate["physical_scope_reference"] = {"status": "PASS", "evidence_id": "scope-1"}
+    result = evaluate_candidate_context(candidate)
+    assert result.status == "FAIL"
+    assert "HRDR_SOURCE_SHA_MISMATCH" in result.failure_codes
+    assert "HRDR_VERSION_MISMATCH" in result.failure_codes
+    assert "PROJECT_EVIDENCE_NOT_PASS" in result.failure_codes
