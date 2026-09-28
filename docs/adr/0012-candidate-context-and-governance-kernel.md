@@ -49,6 +49,13 @@ calculation remain adapter responsibilities; they are evidence acquisition,
 not alternative decisions. Legacy reports without artifact/run metadata are
 normalized by the compatibility adapter without rewriting historical evidence.
 
+The shared `runtime/platform/candidate_evidence.py` collector and
+`Restore-DDDACandidateEvidence.py` process adapter define the reusable restore
+contract. They enforce report/package cardinality, calculate physical hashes
+and submit normalized binding evidence to the kernel. Workflow migrations may
+therefore remove copied report/package decision blocks without moving file or
+network access into the kernel.
+
 Candidate Context v1 does not rewrite historical 0.1.1 evidence. Legacy
 controlled-recovery evidence remains readable through its existing adapter;
 the later #172 slice will isolate that adapter behind explicit

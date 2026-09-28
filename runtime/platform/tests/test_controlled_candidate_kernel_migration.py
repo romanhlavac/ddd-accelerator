@@ -114,23 +114,26 @@ def test_ready_dry_run_and_closed_candidate_preserve_characterized_results():
     assert closed["failures"] == ["CONTROLLED_CANDIDATE_MUST_REMAIN_OPEN"]
 
 
-def test_validation_package_binding_calls_shared_kernel(tmp_path):
+def test_validation_package_binding_calls_shared_collector(tmp_path):
     module = load_module()
     package = tmp_path / "candidate.zip"
     package.write_bytes(b"one physical candidate")
     package_sha = hashlib.sha256(package.read_bytes()).hexdigest()
     observed = {}
 
-    def fake_kernel(context):
-        observed.update(context)
-        return KernelDecision(
-            status="FAIL",
-            operation="validate",
-            failure_codes=("CANDIDATE_PACKAGE_SHA256_MISMATCH",),
-            authorization_required=False,
-        )
+    def fake_collector(report, **arguments):
+        observed["report"] = report
+        observed.update(arguments)
+        return {
+            "status": "FAIL",
+            "repository": arguments["repository"],
+            "pr": arguments["pr_number"],
+            "source_sha": arguments["source_sha"],
+            "candidate_package_sha256": package_sha,
+            "failures": ["CONTROLLED_CANDIDATE_PACKAGE_HASH_MISMATCH"],
+        }
 
-    module.evaluate_candidate_package_binding = fake_kernel
+    module.validate_candidate_evidence = fake_collector
     result = module.validate_validation_evidence(
         {
             "status": "PASS",
@@ -146,7 +149,7 @@ def test_validation_package_binding_calls_shared_kernel(tmp_path):
         source_sha="a" * 40,
         package_path=package,
     )
-    evidence = observed["validation_evidence"]
-    assert evidence["package_present"] is True
-    assert evidence["observed_package_sha256"] == package_sha
+    assert observed["repository"] == "romanhlavac/ddd-accelerator"
+    assert observed["pr_number"] == 103
+    assert observed["package_path"] == package
     assert result["failures"] == ["CONTROLLED_CANDIDATE_PACKAGE_HASH_MISMATCH"]
