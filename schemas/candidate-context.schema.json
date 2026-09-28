@@ -34,6 +34,7 @@
     "operation": {
       "enum": [
         "validate",
+        "publish_hrdr_scaffold",
         "merge_dry_run",
         "merge",
         "release_scope_validation",

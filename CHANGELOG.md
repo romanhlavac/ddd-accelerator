@@ -8,6 +8,11 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 ### Changed
 
+- controlled release-candidate selection now delegates recovery kind, stable
+  version, branch generation and Draft/Ready semantics to Candidate Context v1
+  and the shared Governance Kernel while preserving its public failure codes
+  and physical evidence checks (#171).
+
 - governance consolidation now has an inactive, versioned Candidate Context v1
   contract and a pure Governance Kernel foundation (#171); the kernel binds
   exact candidate, package, check and human-decision identities while never
