@@ -130,35 +130,14 @@ if ([string]$mergeEligibility.status -ne "PASS" -or -not [bool]$mergeEligibility
     throw "Releasable-main merge eligibility FAIL:`n$($failures -join "`n")"
 }
 
-$reviewComments = @(Get-DDDAHumanPrReviewComments -RepositorySlug $repositorySlug -Pr $Pr -Token $githubAuth.Token)
-if ($reviewComments.Count -ne 1) {
-    throw "Governed implementation merge vyžaduje právě jeden authoritativní Human Review marker. Nalezeno: $($reviewComments.Count)."
-}
-$reviewComment = $reviewComments[0]
-$review = ConvertFrom-DDDAHumanPrReviewComment -Comment $reviewComment
-if ([int]$review.schema_version -ne 1 -or [string]$review.kind -ne "implementation_pr_review") {
-    throw "Human Review má nepodporovaný contract."
-}
-if ([int]$review.pr -ne $Pr) {
-    throw "Human Review PR identity neodpovídá PR #$Pr."
-}
-if ([string]$review.reviewed_sha -ne $headSha) {
-    throw "Human Review SHA '$([string]$review.reviewed_sha)' neodpovídá current PR head '$headSha'."
-}
-if ([string]$review.candidate_package_sha256 -ne [string]$validation.PackageSha256) {
-    throw "Human Review candidate package hash neodpovídá exact-SHA validate-pr evidence."
-}
-$commentAuthor = Assert-DDDAHumanPrReviewCommentProvenance -Comment $reviewComment -Review $review
-if ([string]$review.verdict -ne "pass") {
-    throw "Human Review není PASS. verdict=$([string]$review.verdict)"
-}
-if ([string]::IsNullOrWhiteSpace([string]$review.reviewed_at)) {
-    throw "Human Review neobsahuje reviewed_at."
-}
-$reviewedAt = [DateTimeOffset]::MinValue
-if (-not [DateTimeOffset]::TryParse([string]$review.reviewed_at, [ref]$reviewedAt)) {
-    throw "Human Review reviewed_at není platný timestamp."
-}
+$humanReview = Get-DDDAHumanPrReviewEvidence `
+    -RepositorySlug $repositorySlug `
+    -Pr $Pr `
+    -HeadSha $headSha `
+    -CandidatePackageSha256 ([string]$validation.PackageSha256) `
+    -Token $githubAuth.Token
+$review = $humanReview.review
+$commentAuthor = [string]$review.reviewer
 
 foreach ($relative in @($policy.required_documents)) {
     $contentsPath = "repos/{0}/contents/{1}?ref={2}" -f $repositorySlug, $relative, $headSha

@@ -2,7 +2,6 @@
 $ErrorActionPreference = "Stop"
 
 $script:DDDAHrdrMarker = "<!-- ddda:human-release-decision:v1 -->"
-$script:DDDAHumanPrReviewMarker = "<!-- ddda:human-pr-review:v1 -->"
 
 function Test-DDDAControlledReleaseSourceBranch {
     param(
@@ -173,67 +172,62 @@ function Get-DDDAHrdrComments {
     return @($matches)
 }
 
-function Get-DDDAHumanPrReviewComments {
+function Get-DDDAHumanPrReviewEvidence {
     param(
         [Parameter(Mandatory = $true)][string]$RepositorySlug,
         [Parameter(Mandatory = $true)][int]$Pr,
+        [Parameter(Mandatory = $true)][string]$HeadSha,
+        [Parameter(Mandatory = $true)][string]$CandidatePackageSha256,
         [Parameter(Mandatory = $true)][string]$Token
     )
 
-    $matches = [System.Collections.Generic.List[object]]::new()
+    $comments = [System.Collections.Generic.List[object]]::new()
     for ($page = 1; ; $page++) {
-        # Invoke-RestMethod intentionally returns a JSON array as one pipeline
-        # object. Assign it first and only then materialize its items; wrapping
-        # the command directly in @() preserves a nested Object[] and causes
-        # PowerShell member enumeration to concatenate all comment authors.
         $response = Invoke-DDDAGitHubApi -Method GET -Path "repos/$RepositorySlug/issues/$Pr/comments?per_page=100&page=$page" -Token $Token
         $batch = @($response)
         foreach ($comment in $batch) {
-            if ([string]$comment.body -like "*$script:DDDAHumanPrReviewMarker*") {
-                $matches.Add($comment)
-            }
+            $comments.Add($comment)
         }
         if ($batch.Count -lt 100) { break }
     }
-    return @($matches)
-}
-
-function Assert-DDDAHumanPrReviewCommentProvenance {
-    param(
-        [Parameter(Mandatory = $true)][object]$Comment,
-        [Parameter(Mandatory = $true)][object]$Review
-    )
-
-    $users = @($Comment.user)
-    if ($users.Count -ne 1) {
-        throw "Human Review comment nemá právě jednu GitHub user identity."
+    $adapter = Join-Path $PSScriptRoot "Evaluate-DDDAHumanPrReview.py"
+    if (-not (Test-Path -LiteralPath $adapter -PathType Leaf)) {
+        throw "Shared Human Review adapter neexistuje: $adapter"
     }
-
-    $logins = @($users[0].login)
-    if ($logins.Count -ne 1 -or [string]::IsNullOrWhiteSpace([string]$logins[0])) {
-        throw "Human Review comment nemá právě jeden neprázdný canonical GitHub user.login."
+    $inputPath = Join-Path ([System.IO.Path]::GetTempPath()) ("ddda-human-review-comments-" + [guid]::NewGuid().ToString("N") + ".json")
+    $outputPath = Join-Path ([System.IO.Path]::GetTempPath()) ("ddda-human-review-result-" + [guid]::NewGuid().ToString("N") + ".json")
+    Write-DDDAPlatformJson -Path $inputPath -Depth 30 -Value @($comments)
+    $adapterError = $null
+    try {
+        $python = Get-DDDAPlatformPythonCommand
+        try {
+            Invoke-DDDAPlatformNative -Command $python -Arguments @(
+                $adapter,
+                "--comments", $inputPath,
+                "--repository", $RepositorySlug,
+                "--pr", [string]$Pr,
+                "--source-sha", $HeadSha,
+                "--candidate-package-sha256", $CandidatePackageSha256,
+                "--output", $outputPath
+            ) | Out-Null
+        }
+        catch {
+            $adapterError = $_.Exception.Message
+        }
+        if (-not (Test-Path -LiteralPath $outputPath -PathType Leaf)) {
+            if ($null -ne $adapterError) { throw $adapterError }
+            throw "Shared Human Review adapter nevytvořil rozhodnutí."
+        }
+        $result = Get-Content -LiteralPath $outputPath -Raw -Encoding UTF8 | ConvertFrom-Json
     }
-    $commentAuthor = [string]$logins[0]
-
-    $authorTypes = @($users[0].type)
-    if (
-        $authorTypes.Count -ne 1 -or
-        [string]::IsNullOrWhiteSpace([string]$authorTypes[0]) -or
-        [string]$authorTypes[0] -eq "Bot" -or
-        $commentAuthor -match '\[bot\]$'
-    ) {
-        throw "Human Review musí mít lidskou GitHub provenance."
+    finally {
+        Remove-Item -LiteralPath $inputPath -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $outputPath -Force -ErrorAction SilentlyContinue
     }
-
-    $reviewers = @($Review.reviewer)
-    if ($reviewers.Count -ne 1 -or [string]::IsNullOrWhiteSpace([string]$reviewers[0])) {
-        throw "Human Review nemá právě jednoho neprázdného reviewer login."
+    if ([string]$result.status -ne "PASS") {
+        throw "Human Review adapter odmítl evidence: $(@($result.failures) -join ', ')"
     }
-    if ([string]$reviewers[0] -ne $commentAuthor) {
-        throw "Human Review reviewer '$([string]$reviewers[0])' neodpovídá human comment authorovi '$commentAuthor'."
-    }
-
-    return $commentAuthor
+    return $result
 }
 
 function ConvertFrom-DDDAHrdrComment {
@@ -250,24 +244,6 @@ function ConvertFrom-DDDAHrdrComment {
     }
     catch {
         throw "Authoritativní HRDR JSON nelze parse: $($_.Exception.Message)"
-    }
-    return $record
-}
-
-function ConvertFrom-DDDAHumanPrReviewComment {
-    param([Parameter(Mandatory = $true)][object]$Comment)
-
-    $body = [string]$Comment.body
-    $pattern = '(?s)```json\s*(?<json>\{.*?\})\s*```'
-    $match = [regex]::Match($body, $pattern, [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)
-    if (-not $match.Success) {
-        throw "Authoritativní Human Review comment neobsahuje očekávaný fenced JSON objekt."
-    }
-    try {
-        $record = $match.Groups["json"].Value | ConvertFrom-Json
-    }
-    catch {
-        throw "Authoritativní Human Review JSON nelze parse: $($_.Exception.Message)"
     }
     return $record
 }
