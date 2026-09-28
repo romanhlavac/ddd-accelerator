@@ -72,6 +72,9 @@ also submit explicit or locally discovered report/package pairs through that
 process adapter. PowerShell remains responsible for state-directory discovery
 and consumer-specific return shaping, but no longer decides report source
 identity, canonical package identity or declared-versus-observed hash binding.
+The canonical release executor reuses that same resolver at its execution
+boundary, preserving defense-in-depth revalidation without reintroducing a
+second semantic implementation.
 
 Candidate Context v1 does not rewrite historical 0.1.1 evidence. Legacy
 controlled-recovery evidence remains readable through its existing adapter;

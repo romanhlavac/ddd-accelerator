@@ -8,6 +8,10 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 ### Changed
 
+- the canonical release executor now revalidates its candidate evidence through
+  the same shared resolver as governed merge/review/promotion, removing its
+  remaining local report-selection and package-hash decision copy (#171).
+
 - governed merge, review and promotion now delegate local validation-report and
   package binding to the shared candidate-evidence process adapter instead of
   maintaining a second PowerShell semantic implementation (#171).

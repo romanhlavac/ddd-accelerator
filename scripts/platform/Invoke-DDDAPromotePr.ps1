@@ -116,54 +116,26 @@ if ($minimumApprovals -gt 0) {
     }
 }
 
-$validationRoot = Join-Path (Get-DDDAPlatformStateRoot) ("validation-reports/pr-$Pr-$headSha")
-$validationReports = @()
+$validationArguments = @{
+    RepositorySlug = $repositorySlug
+    Pr = $Pr
+    HeadSha = $headSha
+}
 if ($ControlledReleaseSource) {
-    $validationReports = @((Get-Item -LiteralPath $ValidationReportPath))
+    $validationArguments["ValidationReportPath"] = $ValidationReportPath
+    $validationArguments["PackagePath"] = $PackagePath
 }
-elseif (Test-Path -LiteralPath $validationRoot) {
-    $validationReports = @(
-        Get-ChildItem -LiteralPath $validationRoot -Filter "result.json" -File -Recurse -ErrorAction SilentlyContinue |
-            Sort-Object LastWriteTimeUtc -Descending
-    )
-}
-if ($validationReports.Count -eq 0) {
-    throw "Nenalezen PASS validate-pr report pro PR #$Pr a SHA $headSha. Spusť .\ddda.ps1 validate-pr -Pr $Pr."
-}
-
-$validationReportPath = $null
-$validationReport = $null
-foreach ($candidate in $validationReports) {
-    $candidateReport = Get-Content -LiteralPath $candidate.FullName -Raw -Encoding UTF8 | ConvertFrom-Json
-    if (
-        $candidateReport.status -eq "PASS" -and
-        $candidateReport.source.repository -eq $repositorySlug -and
-        $candidateReport.source.commit -eq $headSha -and
-        $candidateReport.source.pr -eq $Pr -and
-        $null -ne $candidateReport.package
-    ) {
-        $validationReportPath = $candidate.FullName
-        $validationReport = $candidateReport
-        break
-    }
-}
-if ($null -eq $validationReport) {
-    throw "Žádný validation report nemá PASS pro aktuální PR head SHA $headSha a existující candidate package."
-}
+$validation = Get-DDDACandidateValidationEvidence @validationArguments
+$validationReportPath = [string]$validation.ReportPath
+$validationReport = $validation.Report
 if ($WithMiro) {
     $miroProperty = $validationReport.PSObject.Properties["miro"]
     if ($null -eq $miroProperty -or [string]$miroProperty.Value.status -ne "PASS") {
         throw "Promotion s -WithMiro vyžaduje PASS strukturovanou Miro evidence ve validate-pr reportu pro exact SHA."
     }
 }
-$candidatePackagePath = if ($ControlledReleaseSource) { (Resolve-Path -LiteralPath $PackagePath).Path } else { [string]$validationReport.package.path }
-if (-not (Test-Path -LiteralPath $candidatePackagePath -PathType Leaf)) {
-    throw "Candidate package z validation reportu neexistuje: $candidatePackagePath"
-}
-$actualCandidateHash = Get-DDDAPlatformFileHash -Path $candidatePackagePath
-if ($actualCandidateHash -ne [string]$validationReport.package.sha256) {
-    throw "Candidate package hash neodpovídá validation reportu."
-}
+$candidatePackagePath = [string]$validation.PackagePath
+$actualCandidateHash = [string]$validation.PackageSha256
 if ($ControlledReleaseSource -and $actualCandidateHash -ne [string]$controlledGate.candidate_package_sha256) {
     throw "Candidate package hash neodpovídá exact Release Scope Gate evidence."
 }
