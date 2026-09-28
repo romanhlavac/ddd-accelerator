@@ -42,8 +42,12 @@ no two active semantic authorities remain.
 
 The first activation slice routes controlled release-candidate kind, version,
 branch generation and Draft/Ready selection semantics through the kernel.
-GitHub response-shape collection and physical package hashing remain adapter
-responsibilities; they are evidence acquisition, not alternative decisions.
+The next activation slice routes validation-report repository/PR/SHA identity
+and declared-versus-observed candidate-package binding through the same kernel.
+GitHub response-shape collection, package presence and physical SHA-256
+calculation remain adapter responsibilities; they are evidence acquisition,
+not alternative decisions. Legacy reports without artifact/run metadata are
+normalized by the compatibility adapter without rewriting historical evidence.
 
 Candidate Context v1 does not rewrite historical 0.1.1 evidence. Legacy
 controlled-recovery evidence remains readable through its existing adapter;

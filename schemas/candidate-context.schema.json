@@ -89,11 +89,33 @@
     "validationEvidence": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["status", "source_sha", "package_sha256", "artifact_name", "workflow_run_id"],
+      "required": [
+        "status",
+        "repository",
+        "pr",
+        "source_sha",
+        "package_sha256",
+        "package_present",
+        "observed_package_sha256",
+        "artifact_name",
+        "workflow_run_id"
+      ],
       "properties": {
         "status": {"enum": ["PASS", "FAIL", "MISSING"]},
+        "repository": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+        },
+        "pr": {"type": "integer", "minimum": 1},
         "source_sha": {"$ref": "#/$defs/sha40"},
         "package_sha256": {"$ref": "#/$defs/sha256"},
+        "package_present": {"type": "boolean"},
+        "observed_package_sha256": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/sha256"}
+          ]
+        },
         "artifact_name": {"type": "string", "minLength": 1},
         "workflow_run_id": {"type": "integer", "minimum": 1}
       }

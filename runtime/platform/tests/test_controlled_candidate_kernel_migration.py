@@ -1,5 +1,6 @@
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
+import hashlib
 
 from runtime.platform.governance_kernel import KernelDecision
 
@@ -111,3 +112,41 @@ def test_ready_dry_run_and_closed_candidate_preserve_characterized_results():
     )
     assert ready["status"] == "PASS"
     assert closed["failures"] == ["CONTROLLED_CANDIDATE_MUST_REMAIN_OPEN"]
+
+
+def test_validation_package_binding_calls_shared_kernel(tmp_path):
+    module = load_module()
+    package = tmp_path / "candidate.zip"
+    package.write_bytes(b"one physical candidate")
+    package_sha = hashlib.sha256(package.read_bytes()).hexdigest()
+    observed = {}
+
+    def fake_kernel(context):
+        observed.update(context)
+        return KernelDecision(
+            status="FAIL",
+            operation="validate",
+            failure_codes=("CANDIDATE_PACKAGE_SHA256_MISMATCH",),
+            authorization_required=False,
+        )
+
+    module.evaluate_candidate_package_binding = fake_kernel
+    result = module.validate_validation_evidence(
+        {
+            "status": "PASS",
+            "source": {
+                "repository": "romanhlavac/ddd-accelerator",
+                "pr": 103,
+                "commit": "a" * 40,
+            },
+            "package": {"sha256": package_sha},
+        },
+        repository="romanhlavac/ddd-accelerator",
+        pr_number=103,
+        source_sha="a" * 40,
+        package_path=package,
+    )
+    evidence = observed["validation_evidence"]
+    assert evidence["package_present"] is True
+    assert evidence["observed_package_sha256"] == package_sha
+    assert result["failures"] == ["CONTROLLED_CANDIDATE_PACKAGE_HASH_MISMATCH"]

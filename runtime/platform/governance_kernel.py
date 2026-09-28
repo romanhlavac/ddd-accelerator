@@ -181,10 +181,25 @@ def _validation_failures(context: dict[str, Any]) -> list[str]:
         return ["VALIDATION_EVIDENCE_MISSING"]
     if evidence.get("status") != "PASS":
         failures.append("VALIDATION_NOT_PASS")
+    if evidence.get("repository") != context.get("repository"):
+        failures.append("VALIDATION_REPOSITORY_MISMATCH")
+    try:
+        if int(evidence.get("pr", 0)) != int(context.get("pr", 0)):
+            failures.append("VALIDATION_PR_MISMATCH")
+    except (TypeError, ValueError):
+        failures.append("VALIDATION_PR_MISMATCH")
     if evidence.get("source_sha") != context.get("source_sha"):
         failures.append("VALIDATION_SOURCE_SHA_MISMATCH")
-    if not SHA256.fullmatch(str(evidence.get("package_sha256") or "")):
+    expected_package_sha = str(evidence.get("package_sha256") or "")
+    observed_package_sha = str(evidence.get("observed_package_sha256") or "")
+    if not SHA256.fullmatch(expected_package_sha):
         failures.append("VALIDATION_PACKAGE_SHA256_INVALID")
+    if evidence.get("package_present") is not True:
+        failures.append("CANDIDATE_PACKAGE_MISSING")
+    elif not SHA256.fullmatch(observed_package_sha):
+        failures.append("CANDIDATE_PACKAGE_SHA256_INVALID")
+    elif expected_package_sha != observed_package_sha:
+        failures.append("CANDIDATE_PACKAGE_SHA256_MISMATCH")
     if not str(evidence.get("artifact_name") or "").strip():
         failures.append("VALIDATION_ARTIFACT_INVALID")
     try:
@@ -278,6 +293,19 @@ def evaluate_candidate_identity(context: dict[str, Any]) -> KernelDecision:
         operation=operation,
         failure_codes=tuple(failures),
         authorization_required=operation in {"merge", "release"},
+        side_effects_allowed=False,
+    )
+
+
+def evaluate_candidate_package_binding(context: dict[str, Any]) -> KernelDecision:
+    """Evaluate normalized validation/package identity after physical collection."""
+    operation = str(context.get("operation") or "validate")
+    failures = sorted(set(_validation_failures(context)))
+    return KernelDecision(
+        status="PASS" if not failures else "FAIL",
+        operation=operation,
+        failure_codes=tuple(failures),
+        authorization_required=False,
         side_effects_allowed=False,
     )
 

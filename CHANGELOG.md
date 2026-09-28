@@ -8,6 +8,11 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 ### Changed
 
+- controlled candidate validation now delegates report repository/PR/SHA and
+  declared-versus-observed package binding to the shared Governance Kernel;
+  the adapter retains only physical file collection and SHA-256 calculation
+  while preserving historical 0.1.1 report compatibility (#171).
+
 - controlled release-candidate selection now delegates recovery kind, stable
   version, branch generation and Draft/Ready semantics to Candidate Context v1
   and the shared Governance Kernel while preserving its public failure codes
