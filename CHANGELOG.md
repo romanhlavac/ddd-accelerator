@@ -8,6 +8,11 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 ### Changed
 
+- governance simplification now starts from a versioned, executable scenario
+  matrix and a repository-wide semantic-owner inventory (#174); the baseline
+  characterizes current exact-SHA, package, human-decision, CI, scope and
+  Project behavior without changing production authority.
+
 - DDDA 0.1.2 planning is rebaselined as governance simplification and stabilization with canonical S1-S4 authorities (#171-#174), explicit residual scope for the existing milestone items, an acyclic native dependency contract and a non-authorizing 2026-09-30 planning target; no S1-S4 capability implementation is included.
 
 - platform-development skill and Work operating model now make autonomous mechanical orchestration the default for every bounded authorized assignment through the next genuine human boundary; technical failures trigger bounded diagnosis, alternative approved execution and exact-SHA reruns while review, merge and release authorizations remain separate.
