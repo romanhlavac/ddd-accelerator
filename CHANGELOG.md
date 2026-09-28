@@ -8,6 +8,10 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 ### Changed
 
+- controlled promotion and controlled release recovery now use the shared
+  candidate-evidence restore adapter instead of duplicating report identity,
+  package cardinality and physical hash checks in workflow YAML (#171).
+
 - candidate evidence restoration now has one reusable collector and process
   adapter for report/package cardinality, physical hashing and Governance
   Kernel submission, ready for controlled workflow migrations (#171).
