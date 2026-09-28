@@ -33,7 +33,7 @@ def authorization_comment(**overrides):
   "version": "{VERSION}",
   "authorizer": "{ACTOR}",
   "decision": "approve",
-  "authorized_command": "promote-pr -Pr {PR} -Version {VERSION} -EmergencyRecovery -ConfirmPromotion",
+  "authorized_command": "recover-release -Pr {PR} -Version {VERSION} -ConfirmPromotion",
   "release_source_mode": "CONTROLLED_EXACT_PR_SHA",
   "candidate_merge_allowed": false,
   "authorized_side_effects_after_canonical_pass": [
@@ -75,7 +75,7 @@ def test_exact_human_authorization_is_accepted():
 
 def test_historical_011_authorization_record_remains_readable():
     legacy = authorization_comment()
-    legacy["body"] = legacy["body"].replace(" -EmergencyRecovery", "")
+    legacy["body"] = legacy["body"].replace("recover-release", "promote-pr")
     result = validate([[legacy]])
     assert result["status"] == "PASS"
 
@@ -143,9 +143,11 @@ def test_production_workflow_requires_fresh_dry_run_before_confirmed_promotion()
     dry_run_block = text[dry_run:verify]
     confirm_block = text[confirm:post]
     assert "-DryRun" in dry_run_block
-    assert "-EmergencyRecovery" in dry_run_block
+    assert "ddda.ps1 recover-release" in dry_run_block
+    assert "-EmergencyRecovery" not in dry_run_block
     assert "-ConfirmPromotion" in confirm_block
-    assert "-EmergencyRecovery" in confirm_block
+    assert "ddda.ps1 recover-release" in confirm_block
+    assert "-EmergencyRecovery" not in confirm_block
     assert "-ConfirmMerge" not in text
     assert "gh auth setup-git" in text
 

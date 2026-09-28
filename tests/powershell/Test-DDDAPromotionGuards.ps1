@@ -93,7 +93,7 @@ $gateSchema = Get-Content -LiteralPath $gateSchemaPath -Raw -Encoding UTF8
 . $releaseGovernanceSupportPath
 
 # Issue #9: root CLI must expose separate implementation merge and release promotion boundaries.
-Assert-True -Condition ($entry -match 'ValidateSet\("doctor",\s*"test",\s*"validate-pr",\s*"merge-pr",\s*"review-pr",\s*"promote-pr"\)') -Message "Root CLI nepublikuje oddělený merge-pr + review-pr + promote-pr contract."
+Assert-True -Condition ($entry -match 'ValidateSet\("doctor",\s*"test",\s*"validate-pr",\s*"merge-pr",\s*"review-pr",\s*"promote-pr",\s*"recover-release"\)') -Message "Root CLI nepublikuje oddělený merge-pr + review-pr + promote-pr + recover-release contract."
 Assert-True -Condition ($entry -match 'Invoke-DDDAGovernedMergePr\.ps1') -Message "Root CLI neroutuje merge-pr přes governed implementation merge."
 Assert-True -Condition ($entry -match 'Invoke-DDDAGovernedPromotePr\.ps1') -Message "Root CLI obchází governed release promotion wrapper."
 Assert-True -Condition ($entry -match '\[switch\]\$ConfirmMerge') -Message "Root CLI nemá explicitní ConfirmMerge."
@@ -237,7 +237,9 @@ Assert-True -Condition ($promotion -match 'Copy-Item[\s\S]+releasePackagePath' -
 Assert-True -Condition ($recoveryLedgerSchema -match '"schema_version"\s*:\s*\{"enum"\s*:\s*\[1,\s*2\]' -and $recoveryLedgerSchema -match '"release_cut"') -Message "Recovery ledger schema nemá versioned release-cut v2 contract."
 Assert-True -Condition ($recoveryGovernanceRuntime -match 'RECOVERY_LEDGER_RELEASE_CUT_PATHS_MISMATCH' -and $recoveryGovernanceRuntime -match 'RECOVERY_LEDGER_RELEASE_CUT_RESULT_BLOB_MISMATCH' -and $recoveryGovernanceRuntime -match 'RECOVERY_LEDGER_RELEASE_CUT_SEQUENCE_INVALID') -Message "Emergency Recovery Scope Gate nevyhodnocuje one-file release-cut path/blob/sequence evidence."
 Assert-True -Condition ($recoveryGovernanceRuntime -match 'recovered\s*&\s*metadata' -and $recoveryGovernanceRuntime -match 'RECOVERY_LEDGER_COMMIT_ROLE_OVERLAP') -Message "Emergency Recovery Scope Gate neodmítá překryv recovered a metadata commit rolí."
-Assert-True -Condition ($entry -match '\[switch\]\$EmergencyRecovery' -and $governedPromotion -match '\[switch\]\$EmergencyRecovery') -Message "Controlled recovery nemá explicitní emergency intent na veřejné ani governed hranici."
+Assert-True -Condition ($entry -notmatch '\[switch\]\$EmergencyRecovery' -and $entry -match '"recover-release"\s*\{' -and $entry -match '\$arguments\s*=\s*@\([\s\S]{0,300}?"-EmergencyRecovery"') -Message "Public CLI neodděluje recovery entry point od interního emergency intentu."
+Assert-True -Condition ($governedPromotion -match '\[switch\]\$EmergencyRecovery') -Message "Governed recovery boundary nemá explicitní emergency intent."
+Assert-True -Condition ($entry -match 'Příkaz promote-pr nepřijímá -ConfirmPromotion' -and $entry -match 'Příkaz recover-release nepřijímá -ConfirmMerge') -Message "Veřejné standard a recovery authorization boundary nejsou fail-closed oddělené."
 Assert-True -Condition ($governedPromotion -match '\[switch\]\$ConfirmPromotion') -Message "Governed controlled promotion nemá explicitní ConfirmPromotion boundary."
 Assert-True -Condition ($governedPromotion -match 'Controlled no-merge promotion nepřijímá -ConfirmMerge' -and $governedPromotion -match 'if\s*\(\$ConfirmPromotion\)\s*\{\s*\$arguments\s*\+=\s*"-ConfirmPromotion"') -Message "Governed controlled promotion neodmítá merge authorization nebo nepředává promotion authorization."
 Assert-True -Condition ($promotion -match '\[switch\]\$ConfirmPromotion') -Message "Controlled promotion executor nemá explicitní ConfirmPromotion boundary."
