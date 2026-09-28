@@ -19,12 +19,20 @@ SEMVER = re.compile(
     r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
     r"(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$"
 )
+STABLE_VERSION = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
 REPOSITORY = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 
 OPERATIONS = {
     "validate",
+    "publish_hrdr_scaffold",
     "merge_dry_run",
     "merge",
+    "release_scope_validation",
+    "promotion_dry_run",
+    "release",
+}
+RECOVERY_DRAFT_OPERATIONS = {"validate", "publish_hrdr_scaffold"}
+RECOVERY_READY_OPERATIONS = {
     "release_scope_validation",
     "promotion_dry_run",
     "release",
@@ -137,6 +145,35 @@ def _base_failures(context: dict[str, Any]) -> list[str]:
     return failures
 
 
+def _candidate_identity_failures(context: dict[str, Any]) -> list[str]:
+    failures = _base_failures(context)
+    if context.get("candidate_kind") != "RECOVERY":
+        return failures
+
+    version = str(context.get("version") or "")
+    if not STABLE_VERSION.fullmatch(version):
+        failures.append("RECOVERY_VERSION_INVALID")
+
+    try:
+        generation = int(context.get("generation", 0))
+    except (TypeError, ValueError):
+        generation = 0
+    suffix = "" if generation == 1 else f"-v{generation}"
+    expected_branch = f"release/{version}-controlled-recovery-source{suffix}"
+    if generation <= 0 or context.get("source_branch") != expected_branch:
+        failures.append("RECOVERY_BRANCH_INVALID")
+
+    operation = context.get("operation")
+    pr_state = context.get("pr_state")
+    if pr_state == "MERGED_CLOSED":
+        failures.append("CANDIDATE_MUST_BE_OPEN")
+    elif operation in RECOVERY_DRAFT_OPERATIONS and pr_state != "DRAFT":
+        failures.append("RECOVERY_PREPARATION_REQUIRES_DRAFT")
+    elif operation in RECOVERY_READY_OPERATIONS and pr_state != "READY":
+        failures.append("RECOVERY_DRY_RUN_REQUIRES_READY")
+    return failures
+
+
 def _validation_failures(context: dict[str, Any]) -> list[str]:
     evidence = _mapping(context.get("validation_evidence"))
     failures: list[str] = []
@@ -232,21 +269,27 @@ def _referenced_evidence_failure(context: dict[str, Any], field: str, code: str)
     return []
 
 
+def evaluate_candidate_identity(context: dict[str, Any]) -> KernelDecision:
+    """Evaluate normalized candidate identity before evidence restoration."""
+    operation = str(context.get("operation") or "")
+    failures = sorted(set(_candidate_identity_failures(context)))
+    return KernelDecision(
+        status="PASS" if not failures else "FAIL",
+        operation=operation,
+        failure_codes=tuple(failures),
+        authorization_required=operation in {"merge", "release"},
+        side_effects_allowed=False,
+    )
+
+
 def evaluate_candidate_context(context: dict[str, Any]) -> KernelDecision:
     """Evaluate normalized evidence without collecting it or authorizing effects."""
     operation = str(context.get("operation") or "")
-    failures = _base_failures(context)
+    failures = _candidate_identity_failures(context)
 
     if operation in OPERATIONS:
         failures.extend(_validation_failures(context))
         failures.extend(_check_failures(context))
-
-    if (
-        operation == "validate"
-        and context.get("candidate_kind") == "RECOVERY"
-        and context.get("pr_state") != "DRAFT"
-    ):
-        failures.append("RECOVERY_VALIDATION_REQUIRES_DRAFT")
 
     if operation in MERGE_OPERATIONS:
         if context.get("pr_state") != "READY":

@@ -8,7 +8,14 @@ import hashlib
 import json
 import re
 from pathlib import Path
+import sys
 from typing import Any
+
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from runtime.platform.governance_kernel import evaluate_candidate_identity
 
 SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 VERSION_RE = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
@@ -21,45 +28,89 @@ def validate_request(
     pr: dict[str, Any], *, repository: str, pr_number: int, source_sha: str, version: str, operation: str
 ) -> dict[str, Any]:
     failures: list[str] = []
-    if operation not in OPERATIONS:
-        failures.append("CONTROLLED_CANDIDATE_OPERATION_INVALID")
-    if not VERSION_RE.fullmatch(version):
-        failures.append("CONTROLLED_CANDIDATE_VERSION_INVALID")
-    if not SHA_RE.fullmatch(source_sha):
-        failures.append("CONTROLLED_CANDIDATE_SOURCE_SHA_INVALID")
     head = pr.get("head") if isinstance(pr.get("head"), dict) else {}
     base = pr.get("base") if isinstance(pr.get("base"), dict) else {}
     head_repo = head.get("repo") if isinstance(head.get("repo"), dict) else {}
     expected_ref = f"release/{version}-controlled-recovery-source"
     actual_ref = str(head.get("ref") or "")
-    ref_match = re.fullmatch(
-        rf"{re.escape(expected_ref)}(?:-v(?P<generation>[1-9]\d*))?",
-        actual_ref,
-    )
-    valid_ref = ref_match is not None and (
-        ref_match.group("generation") is None
-        or int(ref_match.group("generation")) >= 2
-    )
+    generation_match = re.search(r"-v(?P<generation>[1-9]\d*)$", actual_ref)
+    generation = int(generation_match.group("generation")) if generation_match else 1
+    if pr.get("state") != "open":
+        pr_state = "MERGED_CLOSED"
+    elif pr.get("draft") is True:
+        pr_state = "DRAFT"
+    elif pr.get("draft") is False:
+        pr_state = "READY"
+    else:
+        pr_state = "UNKNOWN"
+
+    kernel_operation = {
+        "technical_validation": "validate",
+        "publish_hrdr_scaffold": "publish_hrdr_scaffold",
+        "release_scope_dry_run": "release_scope_validation",
+        "promotion_dry_run": "promotion_dry_run",
+    }.get(operation, operation)
+    normalized_sha = source_sha if SHA_RE.fullmatch(source_sha) else "0" * 40
+    candidate_context = {
+        "schema_version": 1,
+        "context_kind": "ddda_candidate_context",
+        "candidate_kind": "RECOVERY",
+        "release_mode": "CONTROLLED_RECOVERY",
+        "operation": kernel_operation,
+        "repository": repository,
+        "pr": pr_number,
+        "base_branch": str(base.get("ref") or ""),
+        "source_branch": actual_ref,
+        "source_sha": source_sha,
+        "version": version,
+        "generation": generation,
+        "pr_state": pr_state,
+        "validation_evidence": {
+            "status": "MISSING",
+            "source_sha": normalized_sha,
+            "package_sha256": "0" * 64,
+            "artifact_name": "not-restored",
+            "workflow_run_id": 1,
+        },
+        "authoritative_check_summary": {
+            "status": "MISSING",
+            "required_checks": [],
+            "latest_results": [],
+        },
+        "human_review_reference": None,
+        "hrdr_reference": None,
+        "physical_scope_reference": None,
+        "project_evidence_reference": None,
+    }
+    decision = evaluate_candidate_identity(candidate_context)
+    failure_map = {
+        "OPERATION_INVALID": "CONTROLLED_CANDIDATE_OPERATION_INVALID",
+        "VERSION_INVALID": "CONTROLLED_CANDIDATE_VERSION_INVALID",
+        "RECOVERY_VERSION_INVALID": "CONTROLLED_CANDIDATE_VERSION_INVALID",
+        "SOURCE_SHA_INVALID": "CONTROLLED_CANDIDATE_SOURCE_SHA_INVALID",
+        "BASE_BRANCH_INVALID": "CONTROLLED_CANDIDATE_BASE_INVALID",
+        "SOURCE_BRANCH_INVALID": "CONTROLLED_CANDIDATE_BRANCH_INVALID",
+        "RECOVERY_BRANCH_INVALID": "CONTROLLED_CANDIDATE_BRANCH_INVALID",
+        "CANDIDATE_MUST_BE_OPEN": "CONTROLLED_CANDIDATE_MUST_REMAIN_OPEN",
+        "RECOVERY_PREPARATION_REQUIRES_DRAFT": "CONTROLLED_CANDIDATE_MUST_REMAIN_OPEN_DRAFT",
+        "RECOVERY_DRY_RUN_REQUIRES_READY": "CONTROLLED_CANDIDATE_SCOPE_DRY_RUN_REQUIRES_READY",
+    }
+    for code in decision.failure_codes:
+        mapped = failure_map.get(code)
+        if mapped:
+            failures.append(mapped)
+        elif code == "PR_STATE_INVALID":
+            failures.append(
+                "CONTROLLED_CANDIDATE_SCOPE_DRY_RUN_REQUIRES_READY"
+                if operation in {"release_scope_dry_run", "promotion_dry_run"}
+                else "CONTROLLED_CANDIDATE_MUST_REMAIN_OPEN_DRAFT"
+            )
     if int(pr.get("number") or -1) != pr_number:
         failures.append("CONTROLLED_CANDIDATE_PR_IDENTITY_INVALID")
-    if pr.get("state") != "open":
-        failures.append("CONTROLLED_CANDIDATE_MUST_REMAIN_OPEN")
-    elif operation in {"release_scope_dry_run", "promotion_dry_run"}:
-        # Governance dry-runs are evaluated only after the explicit Human
-        # Release Decision on the Ready candidate. They do not authorize
-        # promotion, tag creation, or GitHub Release publication.
-        if pr.get("draft") is not False:
-            failures.append("CONTROLLED_CANDIDATE_SCOPE_DRY_RUN_REQUIRES_READY")
-    elif pr.get("draft") is not True:
-        failures.append("CONTROLLED_CANDIDATE_MUST_REMAIN_OPEN_DRAFT")
     if str(head.get("sha") or "") != source_sha:
         failures.append("CONTROLLED_CANDIDATE_HEAD_SHA_MISMATCH")
-    if not valid_ref:
-        failures.append("CONTROLLED_CANDIDATE_BRANCH_INVALID")
     if str(head_repo.get("full_name") or "") != repository:
         failures.append("CONTROLLED_CANDIDATE_HEAD_REPOSITORY_INVALID")
-    if str(base.get("ref") or "") != "main":
-        failures.append("CONTROLLED_CANDIDATE_BASE_INVALID")
     body = str(pr.get("body") or "")
     if f"Controlled release-source candidate — DDDA {version}" not in body:
         failures.append("CONTROLLED_CANDIDATE_MARKER_INVALID")

@@ -40,6 +40,11 @@ Each migration must prove parity against the #174 scenario matrix. The old
 decision copy is removed in the same slice that activates its replacement, so
 no two active semantic authorities remain.
 
+The first activation slice routes controlled release-candidate kind, version,
+branch generation and Draft/Ready selection semantics through the kernel.
+GitHub response-shape collection and physical package hashing remain adapter
+responsibilities; they are evidence acquisition, not alternative decisions.
+
 Candidate Context v1 does not rewrite historical 0.1.1 evidence. Legacy
 controlled-recovery evidence remains readable through its existing adapter;
 the later #172 slice will isolate that adapter behind explicit

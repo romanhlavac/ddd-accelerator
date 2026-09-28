@@ -3,7 +3,10 @@ from pathlib import Path
 
 import pytest
 
-from runtime.platform.governance_kernel import evaluate_candidate_context
+from runtime.platform.governance_kernel import (
+    evaluate_candidate_context,
+    evaluate_candidate_identity,
+)
 
 
 SHA = "a" * 40
@@ -141,7 +144,33 @@ def test_controlled_recovery_validation_preserves_characterized_draft_boundary()
     candidate["release_mode"] = "CONTROLLED_RECOVERY"
     result = evaluate_candidate_context(candidate)
     assert result.status == "FAIL"
-    assert "RECOVERY_VALIDATION_REQUIRES_DRAFT" in result.failure_codes
+    assert "RECOVERY_PREPARATION_REQUIRES_DRAFT" in result.failure_codes
+
+
+def test_candidate_identity_can_be_evaluated_before_package_restore():
+    candidate = context("publish_hrdr_scaffold")
+    candidate["candidate_kind"] = "RECOVERY"
+    candidate["release_mode"] = "CONTROLLED_RECOVERY"
+    candidate["source_branch"] = "release/0.1.2-controlled-recovery-source-v2"
+    candidate["generation"] = 2
+    candidate["pr_state"] = "DRAFT"
+    candidate["validation_evidence"]["status"] = "MISSING"
+    candidate["authoritative_check_summary"]["status"] = "MISSING"
+    result = evaluate_candidate_identity(candidate)
+    assert result.status == "PASS"
+    assert result.side_effects_allowed is False
+
+
+def test_recovery_branch_and_generation_are_one_kernel_invariant():
+    candidate = context("validate")
+    candidate["candidate_kind"] = "RECOVERY"
+    candidate["release_mode"] = "CONTROLLED_RECOVERY"
+    candidate["source_branch"] = "release/0.1.2-controlled-recovery-source-v2"
+    candidate["generation"] = 1
+    candidate["pr_state"] = "DRAFT"
+    result = evaluate_candidate_identity(candidate)
+    assert result.status == "FAIL"
+    assert "RECOVERY_BRANCH_INVALID" in result.failure_codes
 
 
 def test_kernel_parity_suite_is_bound_to_characterization_v1_scenarios():
