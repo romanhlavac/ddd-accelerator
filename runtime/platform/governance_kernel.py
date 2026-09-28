@@ -287,6 +287,98 @@ def _referenced_evidence_failure(context: dict[str, Any], field: str, code: str)
     return []
 
 
+def _release_value(value: Any) -> str:
+    return str(value or "").strip().removeprefix("DDDA ")
+
+
+def evaluate_physical_scope_binding(
+    physical: Any,
+    *,
+    expected_source_sha: str,
+    expected_version: str,
+    declared_scope: list[int] | set[int] | tuple[int, ...],
+) -> KernelDecision:
+    """Evaluate normalized standard physical scope without recovery internals."""
+    failures: list[str] = []
+    if not isinstance(physical, dict):
+        return KernelDecision(
+            status="FAIL",
+            operation="release_scope_validation",
+            failure_codes=("PHYSICAL_SCOPE_EVIDENCE_MISSING",),
+            authorization_required=False,
+            side_effects_allowed=False,
+        )
+
+    if physical.get("release_source_sha") != expected_source_sha:
+        failures.append("PHYSICAL_SCOPE_SOURCE_SHA_MISMATCH")
+    if not str(physical.get("previous_release_tag") or "").strip():
+        failures.append("PHYSICAL_SCOPE_PREVIOUS_TAG_MISSING")
+    if not SHA40.fullmatch(str(physical.get("previous_release_sha") or "")):
+        failures.append("PHYSICAL_SCOPE_PREVIOUS_TAG_SHA_INVALID")
+    if physical.get("compare_status") not in {"ahead", "identical"}:
+        failures.append("PHYSICAL_SCOPE_ANCESTRY_INVALID")
+
+    try:
+        scope = {int(value) for value in declared_scope}
+    except (TypeError, ValueError):
+        scope = set()
+        failures.append("PHYSICAL_SCOPE_DECLARED_SCOPE_INVALID")
+    for sha in sorted(
+        {str(value) for value in physical.get("unmapped_commit_shas", []) if str(value)}
+    ):
+        failures.append(f"PHYSICAL_SCOPE_UNMAPPED_COMMIT:{sha}")
+
+    shipping = physical.get("shipping_prs")
+    if not isinstance(shipping, list):
+        failures.append("PHYSICAL_SCOPE_SHIPPING_PR_EVIDENCE_MISSING")
+        shipping = []
+    seen_prs: set[int] = set()
+    shipping_crs: set[int] = set()
+    for row in shipping:
+        if not isinstance(row, dict):
+            failures.append("PHYSICAL_SCOPE_SHIPPING_PR_SHAPE")
+            continue
+        try:
+            number = int(row.get("number", 0))
+        except (TypeError, ValueError):
+            number = 0
+        if number <= 0 or number in seen_prs:
+            failures.append("PHYSICAL_SCOPE_SHIPPING_PR_IDENTITY")
+            continue
+        seen_prs.add(number)
+        if row.get("merged") is not True:
+            failures.append(f"PHYSICAL_SCOPE_PR_NOT_MERGED:PR#{number}")
+        primary = row.get("primary_crs")
+        if not isinstance(primary, list) or len(primary) != 1:
+            failures.append(f"PHYSICAL_SCOPE_PRIMARY_CR_AMBIGUOUS:PR#{number}")
+            continue
+        try:
+            cr = int(primary[0])
+        except (TypeError, ValueError):
+            failures.append(f"PHYSICAL_SCOPE_PRIMARY_CR_AMBIGUOUS:PR#{number}")
+            continue
+        shipping_crs.add(cr)
+        if cr not in scope:
+            failures.append(f"PHYSICAL_SCOPE_OUT_OF_SCOPE_PRIMARY_CR:PR#{number}:#{cr}")
+            failures.append("RECOVERY_DECISION_REQUIRED")
+        if _release_value(row.get("target_release")) != expected_version:
+            failures.append(f"PHYSICAL_SCOPE_TARGET_RELEASE_MISMATCH:PR#{number}:#{cr}")
+        if row.get("milestone") != f"DDDA {expected_version}":
+            failures.append(f"PHYSICAL_SCOPE_MILESTONE_MISMATCH:PR#{number}:#{cr}")
+
+    for cr in sorted(scope - shipping_crs):
+        failures.append(f"PHYSICAL_SCOPE_DECLARED_CR_NOT_SHIPPED:#{cr}")
+
+    normalized = sorted(set(failures))
+    return KernelDecision(
+        status="PASS" if not normalized else "FAIL",
+        operation="release_scope_validation",
+        failure_codes=tuple(normalized),
+        authorization_required=False,
+        side_effects_allowed=False,
+    )
+
+
 def evaluate_candidate_identity(context: dict[str, Any]) -> KernelDecision:
     """Evaluate normalized candidate identity before evidence restoration."""
     operation = str(context.get("operation") or "")

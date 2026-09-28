@@ -10,6 +10,7 @@ from runtime.platform.governance_kernel import (
     evaluate_authoritative_checks,
     evaluate_hrdr_binding,
     evaluate_human_review_binding,
+    evaluate_physical_scope_binding,
 )
 
 
@@ -242,6 +243,63 @@ def test_hrdr_binding_rejects_stale_candidate_identity():
     assert result.status == "FAIL"
     assert "HRDR_SOURCE_SHA_MISMATCH" in result.failure_codes
     assert "HRDR_VERSION_MISMATCH" in result.failure_codes
+
+
+def test_physical_scope_binding_is_a_pure_kernel_decision():
+    physical = {
+        "previous_release_tag": "v0.1.1",
+        "previous_release_sha": "c" * 40,
+        "release_source_sha": SHA,
+        "compare_status": "ahead",
+        "unmapped_commit_shas": [],
+        "shipping_prs": [
+            {
+                "number": 187,
+                "merged": True,
+                "primary_crs": [171],
+                "milestone": "DDDA 0.1.2",
+                "target_release": "0.1.2",
+            }
+        ],
+    }
+    result = evaluate_physical_scope_binding(
+        physical,
+        expected_source_sha=SHA,
+        expected_version="0.1.2",
+        declared_scope=[171],
+    )
+    assert result.status == "PASS"
+    assert result.authorization_required is False
+    assert result.side_effects_allowed is False
+
+
+def test_physical_scope_binding_requires_explicit_recovery_for_extra_cr():
+    physical = {
+        "previous_release_tag": "v0.1.1",
+        "previous_release_sha": "c" * 40,
+        "release_source_sha": SHA,
+        "compare_status": "ahead",
+        "unmapped_commit_shas": [],
+        "shipping_prs": [
+            {
+                "number": 187,
+                "merged": True,
+                "primary_crs": [999],
+                "milestone": "DDDA 0.1.2",
+                "target_release": "0.1.2",
+            }
+        ],
+    }
+    result = evaluate_physical_scope_binding(
+        physical,
+        expected_source_sha=SHA,
+        expected_version="0.1.2",
+        declared_scope=[171],
+    )
+    assert result.status == "FAIL"
+    assert "PHYSICAL_SCOPE_OUT_OF_SCOPE_PRIMARY_CR:PR#187:#999" in result.failure_codes
+    assert "PHYSICAL_SCOPE_DECLARED_CR_NOT_SHIPPED:#171" in result.failure_codes
+    assert "RECOVERY_DECISION_REQUIRED" in result.failure_codes
 
 
 @pytest.mark.parametrize(

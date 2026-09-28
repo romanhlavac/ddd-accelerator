@@ -43,6 +43,7 @@ $remoteBrokerPath = Join-Path $platformRoot ".github/workflows/assistant-command
 $releaseScopeCollectorPath = Join-Path $platformRoot "scripts/platform/Test-DDDAReleaseScope.py"
 $mergeEligibilityCollectorPath = Join-Path $platformRoot "scripts/platform/Test-DDDAMergeReleaseEligibility.py"
 $releaseGovernanceRuntimePath = Join-Path $platformRoot "runtime/platform/release_governance.py"
+$governanceKernelPath = Join-Path $platformRoot "runtime/platform/governance_kernel.py"
 $hrdrSchemaPath = Join-Path $platformRoot "schemas/human-release-decision.schema.json"
 $recoveryLedgerSchemaPath = Join-Path $platformRoot "schemas/release-source-recovery-ledger.schema.json"
 $githubSupportPath = Join-Path $platformRoot "scripts/platform/DDDAGitHubSupport.ps1"
@@ -54,7 +55,7 @@ $gateCommandPath = Join-Path $platformRoot "scripts/Complete-DDDALifecycleStep.p
 $enginePath = Join-Path $platformRoot "runtime/steering/ddda_steering/engine.py"
 $gateSchemaPath = Join-Path $platformRoot "schemas/gate-status.schema.json"
 
-foreach ($path in @($entryPath, $governedMergePath, $governedPromotionPath, $promotionPath, $releaseGovernanceSupportPath, $humanReviewAdapterPath, $checkAdapterPath, $validatePrPath, $validationReportPath, $platformCiPath, $secondaryCiPath, $remoteBrokerPath, $releaseScopeCollectorPath, $mergeEligibilityCollectorPath, $releaseGovernanceRuntimePath, $hrdrSchemaPath, $recoveryLedgerSchemaPath, $githubSupportPath, $platformSupportPath, $changelogPath, $policyPath, $acceptancePath, $gateCommandPath, $enginePath, $gateSchemaPath)) {
+foreach ($path in @($entryPath, $governedMergePath, $governedPromotionPath, $promotionPath, $releaseGovernanceSupportPath, $humanReviewAdapterPath, $checkAdapterPath, $validatePrPath, $validationReportPath, $platformCiPath, $secondaryCiPath, $remoteBrokerPath, $releaseScopeCollectorPath, $mergeEligibilityCollectorPath, $releaseGovernanceRuntimePath, $governanceKernelPath, $hrdrSchemaPath, $recoveryLedgerSchemaPath, $githubSupportPath, $platformSupportPath, $changelogPath, $policyPath, $acceptancePath, $gateCommandPath, $enginePath, $gateSchemaPath)) {
     Assert-True -Condition (Test-Path -LiteralPath $path -PathType Leaf) -Message "Chybí merge/promotion nebo gate kontrakt: $path"
 }
 
@@ -73,6 +74,7 @@ $remoteBroker = Get-Content -LiteralPath $remoteBrokerPath -Raw -Encoding UTF8
 $releaseScopeCollector = Get-Content -LiteralPath $releaseScopeCollectorPath -Raw -Encoding UTF8
 $mergeEligibilityCollector = Get-Content -LiteralPath $mergeEligibilityCollectorPath -Raw -Encoding UTF8
 $releaseGovernanceRuntime = Get-Content -LiteralPath $releaseGovernanceRuntimePath -Raw -Encoding UTF8
+$governanceKernel = Get-Content -LiteralPath $governanceKernelPath -Raw -Encoding UTF8
 $hrdrSchema = Get-Content -LiteralPath $hrdrSchemaPath -Raw -Encoding UTF8
 $recoveryLedgerSchema = Get-Content -LiteralPath $recoveryLedgerSchemaPath -Raw -Encoding UTF8
 $githubSupport = Get-Content -LiteralPath $githubSupportPath -Raw -Encoding UTF8
@@ -208,7 +210,8 @@ Assert-True -Condition ($releaseScopeCollector -match 'dependencies/blocked_by')
 Assert-True -Condition ($releaseScopeCollector -match 'Project V2') -Message "Release Scope collector neobsahuje Project V2 read-back."
 Assert-True -Condition ($releaseScopeCollector -match 'previous_release_tag' -and $releaseScopeCollector -match 'compare/') -Message "Release Scope collector neodvozuje physical source od předchozího release tagu."
 Assert-True -Condition ($releaseScopeCollector -match 'commits/.+/pulls' -and $releaseScopeCollector -match 'primary_change_requests') -Message "Release Scope collector nemapuje shipping commity na primary CR."
-Assert-True -Condition ($releaseGovernanceRuntime -match 'RECOVERY_DECISION_REQUIRED') -Message "Physical scope mismatch nemá explicitní human recovery boundary."
+Assert-True -Condition ($governanceKernel -match 'RECOVERY_DECISION_REQUIRED') -Message "Physical scope mismatch nemá explicitní human recovery boundary v Governance Kernelu."
+Assert-True -Condition ($releaseGovernanceRuntime -match 'evaluate_physical_scope_binding') -Message "Release Scope Gate nedeleguje standard physical scope do Governance Kernelu."
 Assert-True -Condition ($governedMerge -match 'Test-DDDAMergeReleaseEligibility\.py') -Message "Governed merge nevolá releasable-main eligibility guard."
 Assert-True -Condition ($releaseGovernanceRuntime -match 'MERGE_ELIGIBILITY_OUTSIDE_ACTIVE_RELEASE') -Message "Merge eligibility guard neblokuje PR mimo aktivní release train."
 Assert-True -Condition ($governedPromotion -match 'CONTROLLED_EXACT_PR_SHA') -Message "Governed promotion neoznačuje controlled exact-SHA release-source mode."
