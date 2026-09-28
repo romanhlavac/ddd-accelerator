@@ -11,6 +11,7 @@ from runtime.platform.governance_kernel import (
     evaluate_hrdr_binding,
     evaluate_human_review_binding,
     evaluate_physical_scope_binding,
+    evaluate_promotion_readiness,
 )
 
 
@@ -300,6 +301,30 @@ def test_physical_scope_binding_requires_explicit_recovery_for_extra_cr():
     assert "PHYSICAL_SCOPE_OUT_OF_SCOPE_PRIMARY_CR:PR#187:#999" in result.failure_codes
     assert "PHYSICAL_SCOPE_DECLARED_CR_NOT_SHIPPED:#171" in result.failure_codes
     assert "RECOVERY_DECISION_REQUIRED" in result.failure_codes
+
+
+def test_promotion_readiness_composes_failures_without_authorizing_effects():
+    result = evaluate_promotion_readiness(
+        ["PROJECT_EVIDENCE_NOT_PASS", "HRDR_NOT_POSITIVE"],
+        operation="promotion_dry_run",
+    )
+    assert result.status == "FAIL"
+    assert result.failure_codes == ("HRDR_NOT_POSITIVE", "PROJECT_EVIDENCE_NOT_PASS")
+    assert result.authorization_required is False
+    assert result.side_effects_allowed is False
+
+
+def test_release_readiness_pass_still_requires_separate_authorization():
+    result = evaluate_promotion_readiness([], operation="release")
+    assert result.status == "PASS"
+    assert result.authorization_required is True
+    assert result.side_effects_allowed is False
+
+
+def test_promotion_readiness_rejects_malformed_failure_evidence():
+    result = evaluate_promotion_readiness(["", None])
+    assert result.status == "FAIL"
+    assert result.failure_codes == ("PROMOTION_READINESS_EVIDENCE_INVALID",)
 
 
 @pytest.mark.parametrize(

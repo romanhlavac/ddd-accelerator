@@ -110,6 +110,13 @@ evaluates ancestry, unmapped commits and equality between declared and
 physical CR scope. Historical controlled-recovery ledger validation remains a
 separate compatibility adapter for the subsequent #172 isolation slice.
 
+The final release-domain failure set is composed by
+`evaluate_promotion_readiness`. Its technical PASS never sets
+`side_effects_allowed`; release authorization remains a separate executor
+input. The Release Scope adapter exposes a compatibility execution-eligibility
+boolean only after kernel PASS so existing dry-run and executor read-backs
+remain fail-closed without turning technical readiness into authorization.
+
 Candidate Context v1 does not rewrite historical 0.1.1 evidence. Legacy
 controlled-recovery evidence remains readable through its existing adapter;
 the later #172 slice will isolate that adapter behind explicit

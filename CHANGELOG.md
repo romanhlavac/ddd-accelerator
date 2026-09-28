@@ -8,6 +8,11 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 ### Changed
 
+- final promotion-readiness PASS/FAIL composition now belongs to the Governance
+  Kernel, which never authorizes side effects; the Release Scope adapter keeps
+  only compatibility execution eligibility and explicit authorization remains
+  an executor concern (#171).
+
 - standard physical release-scope ancestry and declared-versus-shipping CR
   equality now delegate to the Governance Kernel; recovery-ledger validation
   remains an explicit compatibility adapter for #172 (#171).

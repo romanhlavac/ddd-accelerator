@@ -379,6 +379,37 @@ def evaluate_physical_scope_binding(
     )
 
 
+def evaluate_promotion_readiness(
+    failure_codes: Any,
+    *,
+    operation: str = "release_scope_validation",
+) -> KernelDecision:
+    """Compose normalized release-domain failures into final technical readiness."""
+    if not isinstance(failure_codes, (list, tuple, set)):
+        normalized = ["PROMOTION_READINESS_EVIDENCE_INVALID"]
+    else:
+        normalized = sorted(
+            {
+                str(code).strip()
+                for code in failure_codes
+                if isinstance(code, str) and str(code).strip()
+            }
+        )
+        if len(normalized) != len(failure_codes):
+            normalized.append("PROMOTION_READINESS_EVIDENCE_INVALID")
+            normalized = sorted(set(normalized))
+    if operation not in {"release_scope_validation", "promotion_dry_run", "release"}:
+        normalized.append("PROMOTION_READINESS_OPERATION_INVALID")
+        normalized = sorted(set(normalized))
+    return KernelDecision(
+        status="PASS" if not normalized else "FAIL",
+        operation=operation,
+        failure_codes=tuple(normalized),
+        authorization_required=operation == "release",
+        side_effects_allowed=False,
+    )
+
+
 def evaluate_candidate_identity(context: dict[str, Any]) -> KernelDecision:
     """Evaluate normalized candidate identity before evidence restoration."""
     operation = str(context.get("operation") or "")
