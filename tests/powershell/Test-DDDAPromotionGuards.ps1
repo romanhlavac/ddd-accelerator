@@ -202,7 +202,10 @@ if (-not $PrePromotionCandidate) {
     Assert-True -Condition ($validationReport -match 'PackageArtifactName' -and $validationReport -match 'WorkflowRunId') -Message "Validation report neuchovává canonical artifact/run identity."
     Assert-True -Condition ($validationReport -match 'PortablePaths') -Message "Validation report neumí odstranit runner-local cesty z publikované evidence."
     Assert-True -Condition ($releaseGovernanceSupport -match '\[string\]\$ValidationReportPath' -and $releaseGovernanceSupport -match '\[string\]\$PackagePath') -Message "Merge evidence resolver neumí explicitní artifact/report z čistého runneru."
-    $candidateEvidenceResolver = $releaseGovernanceSupport.Split('function Get-DDDACandidateValidationEvidence', 2)[1].Split('function Get-DDDAReleaseMilestoneScope', 2)[0]
+    $candidateEvidenceResolverStart = $releaseGovernanceSupport.IndexOf('function Get-DDDACandidateValidationEvidence', [System.StringComparison]::Ordinal)
+    $candidateEvidenceResolverEnd = $releaseGovernanceSupport.IndexOf('function Get-DDDAReleaseMilestoneScope', $candidateEvidenceResolverStart, [System.StringComparison]::Ordinal)
+    Assert-True -Condition ($candidateEvidenceResolverStart -ge 0 -and $candidateEvidenceResolverEnd -gt $candidateEvidenceResolverStart) -Message "Candidate evidence resolver block nelze vymezit."
+    $candidateEvidenceResolver = $releaseGovernanceSupport.Substring($candidateEvidenceResolverStart, $candidateEvidenceResolverEnd - $candidateEvidenceResolverStart)
     Assert-True -Condition ($candidateEvidenceResolver -match 'Restore-DDDACandidateEvidence\.py' -and $candidateEvidenceResolver -match '--validation-report') -Message "PowerShell evidence resolver nepoužívá shared candidate-evidence process adapter."
     Assert-True -Condition ($candidateEvidenceResolver -notmatch 'Get-DDDAPlatformFileHash' -and $candidateEvidenceResolver -notmatch 'candidateReport\.source') -Message "PowerShell evidence resolver stále duplikuje report/package semantic authority."
     Assert-True -Condition ($governedMerge -match 'RepositorySlug\s*=\s*\$repositorySlug') -Message "merge-pr nepředává repository identity do shared evidence adapteru."
