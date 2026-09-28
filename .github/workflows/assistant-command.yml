@@ -67,6 +67,11 @@ jobs:
           "remediation_script=$($authorization.remediation_script)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           "miro_team_id=$($authorization.miro_team_id)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
+      - name: Set up trusted governance Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
       - name: Require successful exact-SHA checks before secret-bearing validation
         if: steps.authorization.outputs.action == 'validate-pr'
         shell: pwsh
@@ -75,14 +80,15 @@ jobs:
           HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
         run: |
           $ErrorActionPreference = 'Stop'
-          $checks = gh api -H 'Accept: application/vnd.github+json' "repos/$env:REPOSITORY/commits/$env:HEAD_SHA/check-runs?per_page=100" | ConvertFrom-Json
-          $required = @('Platform validation', 'One-command PR validation')
-          foreach ($name in $required) {
-            $match = @($checks.check_runs | Where-Object { $_.name -eq $name -and $_.conclusion -eq 'success' })
-            if ($match.Count -eq 0) {
-              throw "Required successful check '$name' is missing for exact SHA $env:HEAD_SHA."
-            }
-          }
+          $output = Join-Path $env:RUNNER_TEMP 'mandatory-check-evidence.json'
+          python .\scripts\platform\Evaluate-DDDACheckRuns.py `
+            --repository $env:REPOSITORY `
+            --commit $env:HEAD_SHA `
+            --token-env GH_TOKEN `
+            --required-check 'Platform validation' `
+            --required-check 'One-command PR validation' `
+            --accepted-conclusion success `
+            --output $output
 
       - name: Checkout exact PR branch without write credentials
         uses: actions/checkout@v4

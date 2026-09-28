@@ -218,10 +218,13 @@ def _check_failures(context: dict[str, Any]) -> list[str]:
         return ["AUTHORITATIVE_CHECKS_NOT_PASS"]
     required = checks.get("required_checks")
     results = checks.get("latest_results")
+    accepted = checks.get("accepted_conclusions", ["SUCCESS"])
     if not isinstance(required, list) or not required:
         return ["AUTHORITATIVE_REQUIRED_CHECKS_MISSING"]
     if not isinstance(results, list):
         return ["AUTHORITATIVE_CHECK_RESULTS_MISSING"]
+    if not isinstance(accepted, list) or not accepted:
+        return ["AUTHORITATIVE_ACCEPTED_CONCLUSIONS_MISSING"]
     latest = {
         str(row.get("name")): row
         for row in results
@@ -232,7 +235,7 @@ def _check_failures(context: dict[str, Any]) -> list[str]:
         row = latest.get(str(name))
         if not row:
             failures.append(f"AUTHORITATIVE_CHECK_MISSING:{name}")
-        elif row.get("status") != "COMPLETED" or row.get("conclusion") != "SUCCESS":
+        elif row.get("status") != "COMPLETED" or row.get("conclusion") not in accepted:
             failures.append(f"AUTHORITATIVE_CHECK_NOT_SUCCESS:{name}")
     return failures
 
@@ -314,6 +317,19 @@ def evaluate_human_review_binding(context: dict[str, Any]) -> KernelDecision:
     """Evaluate one normalized Human Review against exact candidate identity."""
     operation = str(context.get("operation") or "merge_dry_run")
     failures = sorted(set(_human_review_failures(context)))
+    return KernelDecision(
+        status="PASS" if not failures else "FAIL",
+        operation=operation,
+        failure_codes=tuple(failures),
+        authorization_required=False,
+        side_effects_allowed=False,
+    )
+
+
+def evaluate_authoritative_checks(context: dict[str, Any]) -> KernelDecision:
+    """Evaluate one normalized latest-by-name mandatory-check summary."""
+    operation = str(context.get("operation") or "merge_dry_run")
+    failures = sorted(set(_check_failures(context)))
     return KernelDecision(
         status="PASS" if not failures else "FAIL",
         operation=operation,

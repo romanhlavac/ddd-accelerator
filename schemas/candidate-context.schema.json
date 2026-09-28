@@ -131,6 +131,12 @@
           "items": {"type": "string", "minLength": 1},
           "uniqueItems": true
         },
+        "accepted_conclusions": {
+          "type": "array",
+          "items": {"enum": ["SUCCESS", "NEUTRAL", "SKIPPED"]},
+          "minItems": 1,
+          "uniqueItems": true
+        },
         "latest_results": {
           "type": "array",
           "items": {
@@ -142,7 +148,18 @@
               "status": {"enum": ["QUEUED", "IN_PROGRESS", "COMPLETED"]},
               "conclusion": {
                 "type": ["string", "null"],
-                "enum": ["SUCCESS", "FAILURE", "CANCELLED", "SKIPPED", null]
+                "enum": [
+                  "SUCCESS",
+                  "FAILURE",
+                  "CANCELLED",
+                  "NEUTRAL",
+                  "SKIPPED",
+                  "TIMED_OUT",
+                  "ACTION_REQUIRED",
+                  "STALE",
+                  "STARTUP_FAILURE",
+                  null
+                ]
               },
               "run_id": {"type": "integer", "minimum": 1}
             }

@@ -34,6 +34,7 @@ $governedPromotionPath = Join-Path $platformRoot "scripts/platform/Invoke-DDDAGo
 $promotionPath = Join-Path $platformRoot "scripts/platform/Invoke-DDDAPromotePr.ps1"
 $releaseGovernanceSupportPath = Join-Path $platformRoot "scripts/platform/DDDAReleaseGovernanceSupport.ps1"
 $humanReviewAdapterPath = Join-Path $platformRoot "scripts/platform/Evaluate-DDDAHumanPrReview.py"
+$checkAdapterPath = Join-Path $platformRoot "scripts/platform/Evaluate-DDDACheckRuns.py"
 $validatePrPath = Join-Path $platformRoot "scripts/platform/Invoke-DDDAValidatePr.ps1"
 $validationReportPath = Join-Path $platformRoot "scripts/platform/New-DDDAValidationReport.ps1"
 $platformCiPath = Join-Path $platformRoot ".github/workflows/platform-ci.yml"
@@ -53,7 +54,7 @@ $gateCommandPath = Join-Path $platformRoot "scripts/Complete-DDDALifecycleStep.p
 $enginePath = Join-Path $platformRoot "runtime/steering/ddda_steering/engine.py"
 $gateSchemaPath = Join-Path $platformRoot "schemas/gate-status.schema.json"
 
-foreach ($path in @($entryPath, $governedMergePath, $governedPromotionPath, $promotionPath, $releaseGovernanceSupportPath, $humanReviewAdapterPath, $validatePrPath, $validationReportPath, $platformCiPath, $secondaryCiPath, $remoteBrokerPath, $releaseScopeCollectorPath, $mergeEligibilityCollectorPath, $releaseGovernanceRuntimePath, $hrdrSchemaPath, $recoveryLedgerSchemaPath, $githubSupportPath, $platformSupportPath, $changelogPath, $policyPath, $acceptancePath, $gateCommandPath, $enginePath, $gateSchemaPath)) {
+foreach ($path in @($entryPath, $governedMergePath, $governedPromotionPath, $promotionPath, $releaseGovernanceSupportPath, $humanReviewAdapterPath, $checkAdapterPath, $validatePrPath, $validationReportPath, $platformCiPath, $secondaryCiPath, $remoteBrokerPath, $releaseScopeCollectorPath, $mergeEligibilityCollectorPath, $releaseGovernanceRuntimePath, $hrdrSchemaPath, $recoveryLedgerSchemaPath, $githubSupportPath, $platformSupportPath, $changelogPath, $policyPath, $acceptancePath, $gateCommandPath, $enginePath, $gateSchemaPath)) {
     Assert-True -Condition (Test-Path -LiteralPath $path -PathType Leaf) -Message "Chybí merge/promotion nebo gate kontrakt: $path"
 }
 
@@ -63,6 +64,7 @@ $governedPromotion = Get-Content -LiteralPath $governedPromotionPath -Raw -Encod
 $promotion = Get-Content -LiteralPath $promotionPath -Raw -Encoding UTF8
 $releaseGovernanceSupport = Get-Content -LiteralPath $releaseGovernanceSupportPath -Raw -Encoding UTF8
 $humanReviewAdapter = Get-Content -LiteralPath $humanReviewAdapterPath -Raw -Encoding UTF8
+$checkAdapter = Get-Content -LiteralPath $checkAdapterPath -Raw -Encoding UTF8
 $validatePr = Get-Content -LiteralPath $validatePrPath -Raw -Encoding UTF8
 $validationReport = Get-Content -LiteralPath $validationReportPath -Raw -Encoding UTF8
 $platformCi = Get-Content -LiteralPath $platformCiPath -Raw -Encoding UTF8
@@ -157,6 +159,9 @@ if (-not $PrePromotionCandidate) {
     Assert-True -Condition ($platformCi -match '-PackagePath \$packages\[0\]\.FullName') -Message "CI nepředává stažený canonical package do validate-pr."
     Assert-True -Condition ($platformCi -match '\$version = ''candidate\.''' -and $platformCi -notmatch '\$version = ''ci\.''' ) -Message "Candidate metadata není stabilně odvozeno pouze z exact SHA."
     Assert-True -Condition ($secondaryCi -notmatch 'New-DDDAPlatformPackage\.ps1') -Message "Sekundární CI workflow nesmí vytvářet nezávislý candidate package."
+    Assert-True -Condition ($githubSupport -match 'Evaluate-DDDACheckRuns\.py') -Message "Governed PowerShell nepoužívá shared mandatory-check adapter."
+    Assert-True -Condition ($platformCi -match 'Evaluate-DDDACheckRuns\.py' -and $remoteBroker -match 'Evaluate-DDDACheckRuns\.py') -Message "Secret-bearing workflow stále duplikuje mandatory-check rozhodnutí."
+    Assert-True -Condition ($platformCi -notmatch 'states=\{name:' -and $remoteBroker -notmatch '\$checks\.check_runs') -Message "Workflow YAML stále obsahuje duplicate check-run evaluator."
     $workflowCandidateBuilders = @(
         Get-ChildItem -LiteralPath (Join-Path $platformRoot '.github/workflows') -Filter '*.yml' -File |
             Select-String -Pattern 'New-DDDAPlatformPackage\.ps1'

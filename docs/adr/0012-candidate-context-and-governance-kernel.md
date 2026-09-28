@@ -93,6 +93,16 @@ no longer reimplements HRDR parsing, positive-decision, identity or
 decision-owner/author binding decisions. Pending automation scaffolds remain
 readable but cannot satisfy a promotion decision.
 
+Mandatory GitHub checks are normalized through
+`runtime/platform/check_evidence.py` and the
+`Evaluate-DDDACheckRuns.py` process adapter. That adapter is the single owner
+of pagination, latest-run selection and Check Run/legacy Commit Status
+normalization. Operation adapters declare only their required names and
+accepted conclusions; the Governance Kernel evaluates presence and terminal
+outcomes. Governed merge preserves its characterized acceptance of success,
+neutral and skipped latest results, while secret-bearing workflows explicitly
+require success for their named checks.
+
 Candidate Context v1 does not rewrite historical 0.1.1 evidence. Legacy
 controlled-recovery evidence remains readable through its existing adapter;
 the later #172 slice will isolate that adapter behind explicit
