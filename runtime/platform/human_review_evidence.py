@@ -71,13 +71,6 @@ def collect_human_review_evidence(
     failures: list[str] = []
     if record.get("schema_version") != 1 or record.get("kind") != "implementation_pr_review":
         failures.append("HUMAN_REVIEW_CONTRACT_INVALID")
-    if record.get("repository") != repository:
-        failures.append("HUMAN_REVIEW_REPOSITORY_MISMATCH")
-    try:
-        if int(record.get("pr", 0)) != pr_number:
-            failures.append("HUMAN_REVIEW_PR_MISMATCH")
-    except (TypeError, ValueError):
-        failures.append("HUMAN_REVIEW_PR_MISMATCH")
 
     user = comment.get("user")
     login = user.get("login") if isinstance(user, dict) else None
@@ -100,6 +93,8 @@ def collect_human_review_evidence(
         return _failure(*failures)
 
     review = {
+        "repository": record.get("repository"),
+        "pr": record.get("pr"),
         "verdict": str(record.get("verdict") or "").upper(),
         "reviewed_sha": record.get("reviewed_sha"),
         "candidate_package_sha256": record.get("candidate_package_sha256"),
@@ -109,6 +104,8 @@ def collect_human_review_evidence(
     }
     context = {
         "operation": "merge_dry_run",
+        "repository": repository,
+        "pr": pr_number,
         "source_sha": source_sha,
         "validation_evidence": {"package_sha256": candidate_package_sha256},
         "human_review_reference": review,

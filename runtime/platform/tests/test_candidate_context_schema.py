@@ -51,6 +51,8 @@ def context() -> dict:
             ],
         },
         "human_review_reference": {
+            "repository": "romanhlavac/ddd-accelerator",
+            "pr": 176,
             "verdict": "PASS",
             "reviewed_sha": source_sha,
             "candidate_package_sha256": package_sha,

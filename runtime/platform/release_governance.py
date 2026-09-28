@@ -13,10 +13,18 @@ import re
 
 try:
     from .recovery_transformation import apply_recovery_transformation_decision
-    from .governance_kernel import evaluate_physical_scope_binding, evaluate_promotion_readiness
+    from .governance_kernel import (
+        evaluate_hrdr_binding,
+        evaluate_physical_scope_binding,
+        evaluate_promotion_readiness,
+    )
 except ImportError:  # direct script/runtime path import
     from recovery_transformation import apply_recovery_transformation_decision
-    from governance_kernel import evaluate_physical_scope_binding, evaluate_promotion_readiness
+    from governance_kernel import (
+        evaluate_hrdr_binding,
+        evaluate_physical_scope_binding,
+        evaluate_promotion_readiness,
+    )
 
 SHA40 = re.compile(r"^[0-9a-f]{40}$")
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
@@ -384,23 +392,43 @@ def evaluate_release_scope(
 ) -> GovernanceResult:
     failures = validate_hrdr_shape(record)
 
-    if record.get("repository") != expected_repository:
-        failures.append("IDENTITY_REPOSITORY_MISMATCH")
-    if int(record.get("pr", 0) or 0) != int(expected_pr):
-        failures.append("IDENTITY_PR_MISMATCH")
-    if record.get("source_sha") != expected_source_sha:
-        failures.append("IDENTITY_SOURCE_SHA_MISMATCH")
-    if record.get("candidate_package_sha256") != expected_package_sha256:
-        failures.append("IDENTITY_PACKAGE_SHA256_MISMATCH")
-    if record.get("version") != expected_version:
-        failures.append("IDENTITY_VERSION_MISMATCH")
+    hrdr_context = {
+        "operation": "release_scope_validation",
+        "repository": expected_repository,
+        "pr": expected_pr,
+        "source_sha": expected_source_sha,
+        "version": expected_version,
+        "validation_evidence": {"package_sha256": expected_package_sha256},
+        "hrdr_reference": {
+            "repository": record.get("repository"),
+            "pr": record.get("pr"),
+            "decision": str(record.get("decision") or "").upper(),
+            "source_sha": record.get("source_sha"),
+            "candidate_package_sha256": record.get("candidate_package_sha256"),
+            "version": record.get("version"),
+            "decision_owner": record.get("decision_owner"),
+            "decided_at": record.get("decided_at"),
+            # The upstream collector verifies comment provenance; this pure
+            # compatibility evaluator receives only the parsed record.
+            "provenance_verified": True,
+        },
+    }
+    compatibility_codes = {
+        "HRDR_REPOSITORY_MISMATCH": "IDENTITY_REPOSITORY_MISMATCH",
+        "HRDR_PR_MISMATCH": "IDENTITY_PR_MISMATCH",
+        "HRDR_SOURCE_SHA_MISMATCH": "IDENTITY_SOURCE_SHA_MISMATCH",
+        "HRDR_PACKAGE_SHA256_MISMATCH": "IDENTITY_PACKAGE_SHA256_MISMATCH",
+        "HRDR_VERSION_MISMATCH": "IDENTITY_VERSION_MISMATCH",
+        "HRDR_NOT_POSITIVE": "HUMAN_RELEASE_DECISION_NOT_POSITIVE",
+    }
+    failures.extend(
+        compatibility_codes.get(code, code)
+        for code in evaluate_hrdr_binding(hrdr_context).failure_codes
+    )
     if snapshot.get("current_pr_head") != expected_source_sha:
         failures.append("LIVE_PR_HEAD_MISMATCH")
 
     decision = str(record.get("decision", "")).lower()
-    if decision not in POSITIVE_DECISIONS:
-        failures.append("HUMAN_RELEASE_DECISION_NOT_POSITIVE")
-
     if any(str(x.get("severity", "")).lower() == "red" for x in record.get("findings", []) if isinstance(x, dict)):
         failures.append("RED_FINDING_PRESENT")
 

@@ -68,6 +68,8 @@ def context(operation: str = "merge_dry_run") -> dict:
             ],
         },
         "human_review_reference": {
+            "repository": "romanhlavac/ddd-accelerator",
+            "pr": 176,
             "verdict": "PASS",
             "reviewed_sha": SHA,
             "candidate_package_sha256": PACKAGE,
@@ -215,6 +217,8 @@ def test_human_review_binding_rejects_stale_candidate_identity():
 def test_hrdr_binding_is_a_pure_kernel_decision():
     candidate = context("promotion_dry_run")
     candidate["hrdr_reference"] = {
+        "repository": "romanhlavac/ddd-accelerator",
+        "pr": 176,
         "decision": "GO",
         "source_sha": SHA,
         "candidate_package_sha256": PACKAGE,
@@ -232,6 +236,8 @@ def test_hrdr_binding_is_a_pure_kernel_decision():
 def test_hrdr_binding_rejects_stale_candidate_identity():
     candidate = context("promotion_dry_run")
     candidate["hrdr_reference"] = {
+        "repository": "romanhlavac/ddd-accelerator",
+        "pr": 176,
         "decision": "GO",
         "source_sha": "c" * 40,
         "candidate_package_sha256": PACKAGE,
@@ -244,6 +250,47 @@ def test_hrdr_binding_rejects_stale_candidate_identity():
     assert result.status == "FAIL"
     assert "HRDR_SOURCE_SHA_MISMATCH" in result.failure_codes
     assert "HRDR_VERSION_MISMATCH" in result.failure_codes
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "failure"),
+    [
+        ("repository", "wrong/repository", "HUMAN_REVIEW_REPOSITORY_MISMATCH"),
+        ("pr", 999, "HUMAN_REVIEW_PR_MISMATCH"),
+    ],
+)
+def test_human_review_root_identity_is_a_kernel_invariant(field, value, failure):
+    candidate = context("merge_dry_run")
+    candidate["human_review_reference"][field] = value
+    result = evaluate_human_review_binding(candidate)
+    assert result.status == "FAIL"
+    assert failure in result.failure_codes
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "failure"),
+    [
+        ("repository", "wrong/repository", "HRDR_REPOSITORY_MISMATCH"),
+        ("pr", 999, "HRDR_PR_MISMATCH"),
+    ],
+)
+def test_hrdr_root_identity_is_a_kernel_invariant(field, value, failure):
+    candidate = context("promotion_dry_run")
+    candidate["hrdr_reference"] = {
+        "repository": "romanhlavac/ddd-accelerator",
+        "pr": 176,
+        "decision": "GO",
+        "source_sha": SHA,
+        "candidate_package_sha256": PACKAGE,
+        "version": "0.1.2",
+        "decision_owner": "romanhlavac",
+        "decided_at": "2026-09-28T08:30:00Z",
+        "provenance_verified": True,
+    }
+    candidate["hrdr_reference"][field] = value
+    result = evaluate_hrdr_binding(candidate)
+    assert result.status == "FAIL"
+    assert failure in result.failure_codes
 
 
 def test_physical_scope_binding_is_a_pure_kernel_decision():
@@ -388,6 +435,8 @@ def test_release_requires_exact_positive_hrdr_and_referenced_evidence():
     candidate = context("release")
     candidate["human_review_reference"] = None
     candidate["hrdr_reference"] = {
+        "repository": "romanhlavac/ddd-accelerator",
+        "pr": 176,
         "decision": "GO",
         "source_sha": SHA,
         "candidate_package_sha256": PACKAGE,
@@ -407,6 +456,8 @@ def test_release_requires_exact_positive_hrdr_and_referenced_evidence():
 def test_release_rejects_stale_hrdr_and_missing_project_evidence():
     candidate = context("promotion_dry_run")
     candidate["hrdr_reference"] = {
+        "repository": "romanhlavac/ddd-accelerator",
+        "pr": 176,
         "decision": "GO",
         "source_sha": "c" * 40,
         "candidate_package_sha256": PACKAGE,

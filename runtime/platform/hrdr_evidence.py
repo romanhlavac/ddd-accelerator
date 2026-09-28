@@ -97,6 +97,8 @@ def collect_hrdr_evidence(
         if any(value is None for value in expected):
             return _result("FAIL", failures=["HRDR_EXPECTED_IDENTITY_INCOMPLETE"])
         reference = {
+            "repository": record.get("repository"),
+            "pr": record.get("pr"),
             "decision": decision.upper(),
             "source_sha": record.get("source_sha"),
             "candidate_package_sha256": record.get("candidate_package_sha256"),
@@ -107,6 +109,8 @@ def collect_hrdr_evidence(
         }
         context = {
             "operation": "promotion_dry_run",
+            "repository": expected_repository,
+            "pr": expected_pr,
             "source_sha": expected_source_sha,
             "version": expected_version,
             "validation_evidence": {"package_sha256": expected_package_sha256},
@@ -114,13 +118,6 @@ def collect_hrdr_evidence(
         }
         decision_result = evaluate_hrdr_binding(context)
         kernel_failures = list(decision_result.failure_codes)
-        if record.get("repository") != expected_repository:
-            kernel_failures.append("HRDR_REPOSITORY_MISMATCH")
-        try:
-            if int(record.get("pr", 0)) != int(expected_pr):
-                kernel_failures.append("HRDR_PR_MISMATCH")
-        except (TypeError, ValueError):
-            kernel_failures.append("HRDR_PR_MISMATCH")
         if kernel_failures:
             return _result("FAIL", failures=kernel_failures)
 
