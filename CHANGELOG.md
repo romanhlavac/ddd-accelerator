@@ -8,6 +8,11 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 ### Changed
 
+- governed implementation merge now collects Human Review through one shared
+  parser/provenance adapter and delegates exact SHA, candidate package and
+  verdict binding to the Governance Kernel instead of duplicating those
+  decisions in PowerShell (#171).
+
 - the canonical release executor now revalidates its candidate evidence through
   the same shared resolver as governed merge/review/promotion, removing its
   remaining local report-selection and package-hash decision copy (#171).

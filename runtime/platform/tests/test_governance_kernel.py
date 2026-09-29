@@ -7,6 +7,7 @@ from runtime.platform.governance_kernel import (
     evaluate_candidate_context,
     evaluate_candidate_identity,
     evaluate_candidate_package_binding,
+    evaluate_human_review_binding,
 )
 
 
@@ -173,6 +174,22 @@ def test_candidate_package_binding_is_a_pure_kernel_decision():
     assert result.status == "PASS"
     assert result.authorization_required is False
     assert result.side_effects_allowed is False
+
+
+def test_human_review_binding_is_a_pure_kernel_decision():
+    candidate = context("merge_dry_run")
+    result = evaluate_human_review_binding(candidate)
+    assert result.status == "PASS"
+    assert result.authorization_required is False
+    assert result.side_effects_allowed is False
+
+
+def test_human_review_binding_rejects_stale_candidate_identity():
+    candidate = context("merge_dry_run")
+    candidate["human_review_reference"]["reviewed_sha"] = "c" * 40
+    result = evaluate_human_review_binding(candidate)
+    assert result.status == "FAIL"
+    assert "HUMAN_REVIEW_SOURCE_SHA_MISMATCH" in result.failure_codes
 
 
 @pytest.mark.parametrize(
