@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import re
 from pathlib import Path
@@ -15,10 +14,8 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from runtime.platform.governance_kernel import (
-    evaluate_candidate_identity,
-    evaluate_candidate_package_binding,
-)
+from runtime.platform.candidate_evidence import validate_candidate_evidence
+from runtime.platform.governance_kernel import evaluate_candidate_identity
 
 SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 VERSION_RE = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
@@ -136,55 +133,14 @@ def validate_request(
 def validate_validation_evidence(
     report: dict[str, Any], *, repository: str, pr_number: int, source_sha: str, package_path: Path
 ) -> dict[str, Any]:
-    """Bind a reusable candidate package to one exact controlled candidate."""
-    source = report.get("source") if isinstance(report.get("source"), dict) else {}
-    package = report.get("package") if isinstance(report.get("package"), dict) else {}
-    expected_hash = str(package.get("sha256") or "").lower()
-    package_present = package_path.is_file()
-    observed_hash = hashlib.sha256(package_path.read_bytes()).hexdigest() if package_present else None
-    try:
-        workflow_run_id = int(package.get("workflow_run_id") or 1)
-        if workflow_run_id <= 0:
-            workflow_run_id = 1
-    except (TypeError, ValueError):
-        workflow_run_id = 1
-    candidate_context = {
-        "operation": "validate",
-        "repository": repository,
-        "pr": pr_number,
-        "source_sha": source_sha,
-        "validation_evidence": {
-            "status": report.get("status"),
-            "repository": str(source.get("repository") or ""),
-            "pr": source.get("pr"),
-            "source_sha": str(source.get("commit") or ""),
-            "package_sha256": expected_hash,
-            "package_present": package_present,
-            "observed_package_sha256": observed_hash,
-            "artifact_name": str(package.get("artifact_name") or "legacy-candidate-package"),
-            "workflow_run_id": workflow_run_id,
-        },
-    }
-    decision = evaluate_candidate_package_binding(candidate_context)
-    failure_map = {
-        "VALIDATION_NOT_PASS": "CONTROLLED_CANDIDATE_VALIDATION_NOT_PASS",
-        "VALIDATION_REPOSITORY_MISMATCH": "CONTROLLED_CANDIDATE_VALIDATION_REPOSITORY_MISMATCH",
-        "VALIDATION_PR_MISMATCH": "CONTROLLED_CANDIDATE_VALIDATION_PR_MISMATCH",
-        "VALIDATION_SOURCE_SHA_MISMATCH": "CONTROLLED_CANDIDATE_VALIDATION_SHA_MISMATCH",
-        "VALIDATION_PACKAGE_SHA256_INVALID": "CONTROLLED_CANDIDATE_VALIDATION_PACKAGE_HASH_INVALID",
-        "CANDIDATE_PACKAGE_MISSING": "CONTROLLED_CANDIDATE_PACKAGE_MISSING",
-        "CANDIDATE_PACKAGE_SHA256_INVALID": "CONTROLLED_CANDIDATE_PACKAGE_HASH_MISMATCH",
-        "CANDIDATE_PACKAGE_SHA256_MISMATCH": "CONTROLLED_CANDIDATE_PACKAGE_HASH_MISMATCH",
-    }
-    failures = [failure_map[code] for code in decision.failure_codes if code in failure_map]
-    return {
-        "status": "PASS" if not failures else "FAIL",
-        "repository": repository,
-        "pr": pr_number,
-        "source_sha": source_sha,
-        "candidate_package_sha256": expected_hash,
-        "failures": sorted(set(failures)),
-    }
+    """Compatibility wrapper for the shared candidate-evidence collector."""
+    return validate_candidate_evidence(
+        report,
+        repository=repository,
+        pr_number=pr_number,
+        source_sha=source_sha,
+        package_path=package_path,
+    )
 
 
 def main() -> int:

@@ -8,6 +8,10 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 ### Changed
 
+- candidate evidence restoration now has one reusable collector and process
+  adapter for report/package cardinality, physical hashing and Governance
+  Kernel submission, ready for controlled workflow migrations (#171).
+
 - controlled candidate validation now delegates report repository/PR/SHA and
   declared-versus-observed package binding to the shared Governance Kernel;
   the adapter retains only physical file collection and SHA-256 calculation
