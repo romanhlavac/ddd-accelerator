@@ -33,6 +33,7 @@ $governedMergePath = Join-Path $platformRoot "scripts/platform/Invoke-DDDAGovern
 $governedPromotionPath = Join-Path $platformRoot "scripts/platform/Invoke-DDDAGovernedPromotePr.ps1"
 $promotionPath = Join-Path $platformRoot "scripts/platform/Invoke-DDDAPromotePr.ps1"
 $releaseGovernanceSupportPath = Join-Path $platformRoot "scripts/platform/DDDAReleaseGovernanceSupport.ps1"
+$humanReviewAdapterPath = Join-Path $platformRoot "scripts/platform/Evaluate-DDDAHumanPrReview.py"
 $validatePrPath = Join-Path $platformRoot "scripts/platform/Invoke-DDDAValidatePr.ps1"
 $validationReportPath = Join-Path $platformRoot "scripts/platform/New-DDDAValidationReport.ps1"
 $platformCiPath = Join-Path $platformRoot ".github/workflows/platform-ci.yml"
@@ -52,7 +53,7 @@ $gateCommandPath = Join-Path $platformRoot "scripts/Complete-DDDALifecycleStep.p
 $enginePath = Join-Path $platformRoot "runtime/steering/ddda_steering/engine.py"
 $gateSchemaPath = Join-Path $platformRoot "schemas/gate-status.schema.json"
 
-foreach ($path in @($entryPath, $governedMergePath, $governedPromotionPath, $promotionPath, $releaseGovernanceSupportPath, $validatePrPath, $validationReportPath, $platformCiPath, $secondaryCiPath, $remoteBrokerPath, $releaseScopeCollectorPath, $mergeEligibilityCollectorPath, $releaseGovernanceRuntimePath, $hrdrSchemaPath, $recoveryLedgerSchemaPath, $githubSupportPath, $platformSupportPath, $changelogPath, $policyPath, $acceptancePath, $gateCommandPath, $enginePath, $gateSchemaPath)) {
+foreach ($path in @($entryPath, $governedMergePath, $governedPromotionPath, $promotionPath, $releaseGovernanceSupportPath, $humanReviewAdapterPath, $validatePrPath, $validationReportPath, $platformCiPath, $secondaryCiPath, $remoteBrokerPath, $releaseScopeCollectorPath, $mergeEligibilityCollectorPath, $releaseGovernanceRuntimePath, $hrdrSchemaPath, $recoveryLedgerSchemaPath, $githubSupportPath, $platformSupportPath, $changelogPath, $policyPath, $acceptancePath, $gateCommandPath, $enginePath, $gateSchemaPath)) {
     Assert-True -Condition (Test-Path -LiteralPath $path -PathType Leaf) -Message "Chybí merge/promotion nebo gate kontrakt: $path"
 }
 
@@ -61,6 +62,7 @@ $governedMerge = Get-Content -LiteralPath $governedMergePath -Raw -Encoding UTF8
 $governedPromotion = Get-Content -LiteralPath $governedPromotionPath -Raw -Encoding UTF8
 $promotion = Get-Content -LiteralPath $promotionPath -Raw -Encoding UTF8
 $releaseGovernanceSupport = Get-Content -LiteralPath $releaseGovernanceSupportPath -Raw -Encoding UTF8
+$humanReviewAdapter = Get-Content -LiteralPath $humanReviewAdapterPath -Raw -Encoding UTF8
 $validatePr = Get-Content -LiteralPath $validatePrPath -Raw -Encoding UTF8
 $validationReport = Get-Content -LiteralPath $validationReportPath -Raw -Encoding UTF8
 $platformCi = Get-Content -LiteralPath $platformCiPath -Raw -Encoding UTF8
@@ -108,10 +110,9 @@ Assert-True -Condition ($mergeDryRunMatch.Index -lt $mergeApiMatch.Index) -Messa
 Assert-True -Condition ($mergeConfirmationMatch.Index -lt $mergeApiMatch.Index) -Message "merge-pr confirmation musí předcházet merge side effectu."
 Assert-True -Condition ($governedMerge -match 'Get-DDDACandidateValidationEvidence') -Message "merge-pr není vázán na exact-SHA validate-pr evidence."
 Assert-True -Condition ($governedMerge -match 'PackageSha256') -Message "merge-pr neověřuje candidate package hash."
-Assert-True -Condition ($governedMerge -match 'Get-DDDAHumanPrReviewComments') -Message "merge-pr nenačítá authoritativní Human Review."
-Assert-True -Condition ($governedMerge -match 'candidate_package_sha256') -Message "merge-pr neváže Human Review na candidate package hash."
-Assert-True -Condition ($governedMerge -match 'reviewed_sha') -Message "merge-pr neváže Human Review na exact PR SHA."
-Assert-True -Condition ($governedMerge -match 'verdict[^\r\n]+pass') -Message "merge-pr nevyžaduje Human Review PASS."
+Assert-True -Condition ($governedMerge -match 'Get-DDDAHumanPrReviewEvidence') -Message "merge-pr nenačítá authoritativní Human Review přes shared adapter."
+Assert-True -Condition ($governedMerge -match 'CandidatePackageSha256') -Message "merge-pr nepředává candidate package hash Human Review adapteru."
+Assert-True -Condition ($governedMerge -match 'HeadSha') -Message "merge-pr nepředává exact PR SHA Human Review adapteru."
 Assert-True -Condition ($governedMerge -match '"repos/\{0\}/contents/\{1\}\?ref=\{2\}"\s+-f\s+\$repositorySlug,\s*\$relative,\s*\$headSha') -Message "merge-pr musí sestavit contents API URL bez PowerShell variable-name ambiguity."
 Assert-True -Condition ($governedMerge -notmatch '\$relative\?ref') -Message "merge-pr nesmí interpretovat query delimiter jako součást názvu proměnné."
 Assert-True -Condition ($governedMerge -match '-HeadSha\s+\$headSha') -Message "merge-pr nechrání GitHub merge exact head SHA."
@@ -122,76 +123,16 @@ Assert-True -Condition ($governedMerge -notmatch 'Invoke-DDDAPromotePr\.ps1') -M
 Assert-True -Condition ($governedMerge -notmatch 'New-DDDAPlatformPackage') -Message "merge-pr nesmí vytvářet release package."
 Assert-True -Condition ($governedMerge -notmatch 'release-workspace') -Message "merge-pr nesmí vytvářet release validation workspace."
 Assert-True -Condition ($governedMerge -notmatch '@\("tag"') -Message "merge-pr nesmí vytvářet Git tag."
-Assert-True -Condition ($releaseGovernanceSupport -match 'ddda:human-pr-review:v1') -Message "Governance support nemá stabilní Human Review marker."
-Assert-True -Condition ($releaseGovernanceSupport -match 'Get-DDDAHumanPrReviewComments') -Message "Governance support neumí načíst Human Review evidence."
+Assert-True -Condition ($humanReviewAdapter -match 'collect_human_review_evidence') -Message "Human Review process adapter nepoužívá shared collector."
+Assert-True -Condition ($releaseGovernanceSupport -match 'Get-DDDAHumanPrReviewEvidence' -and $releaseGovernanceSupport -match 'Evaluate-DDDAHumanPrReview\.py') -Message "Governance support neroutuje Human Review přes shared process adapter."
+Assert-True -Condition ($releaseGovernanceSupport -notmatch 'ConvertFrom-DDDAHumanPrReviewComment' -and $releaseGovernanceSupport -notmatch 'Assert-DDDAHumanPrReviewCommentProvenance') -Message "PowerShell stále obsahuje duplicitní Human Review parser nebo provenance rozhodnutí."
 Assert-True -Condition ($releaseGovernanceSupport -notmatch 'Set-DDDAHumanPrReview') -Message "Automation support nesmí publikovat Human Review PASS setter."
 
 # Cross-stream integration assertions require the canonical main CI surface. A controlled
 # recovery candidate proves its own source before promotion, without requiring unrelated
 # future-release infrastructure.
 if (-not $PrePromotionCandidate) {
-    # Issue #88 regression: REST JSON arrays must be materialized before marker and
-    # author extraction; only user.login is canonical and display name is ignored.
-    $humanComment = [pscustomobject]@{
-        body = '<!-- ddda:human-pr-review:v1 -->'
-        user = [pscustomobject]@{
-            login = 'romanhlavac'
-            name = 'romanhlavac'
-            type = 'User'
-        }
-    }
-    $humanReview = [pscustomobject]@{ reviewer = 'romanhlavac' }
-    $canonicalLogin = Assert-DDDAHumanPrReviewCommentProvenance -Comment $humanComment -Review $humanReview
-    Assert-True -Condition ($canonicalLogin -eq 'romanhlavac') -Message "Canonical Human Review author musí být pouze GitHub user.login."
-    Assert-True -Condition ($canonicalLogin -notmatch '\s') -Message "Display name nesmí být concatenován do canonical GitHub loginu."
-
-    $missingLoginComment = [pscustomobject]@{ user = [pscustomobject]@{ name = 'romanhlavac'; type = 'User' } }
-    Assert-Throws -Action {
-        Assert-DDDAHumanPrReviewCommentProvenance -Comment $missingLoginComment -Review $humanReview
-    } -Message "Chybějící Human Review user.login musí failnout closed."
-
-    $ambiguousLoginComment = [pscustomobject]@{
-        user = [pscustomobject]@{ login = @('romanhlavac', 'other-user'); name = 'romanhlavac'; type = 'User' }
-    }
-    Assert-Throws -Action {
-        Assert-DDDAHumanPrReviewCommentProvenance -Comment $ambiguousLoginComment -Review $humanReview
-    } -Message "Víceznačný Human Review user.login musí failnout closed."
-
-    $botComment = [pscustomobject]@{ user = [pscustomobject]@{ login = 'reviewer[bot]'; name = 'Reviewer'; type = 'Bot' } }
-    Assert-Throws -Action {
-        Assert-DDDAHumanPrReviewCommentProvenance -Comment $botComment -Review ([pscustomobject]@{ reviewer = 'reviewer[bot]' })
-    } -Message "Bot Human Review author musí failnout closed."
-
-    Assert-Throws -Action {
-        Assert-DDDAHumanPrReviewCommentProvenance -Comment $humanComment -Review ([pscustomobject]@{ reviewer = 'other-user' })
-    } -Message "Human Review reviewer/user.login mismatch musí failnout closed."
-
-    $reviewMarker = '<!-- ddda:human-pr-review:v1 -->'
-    $script:humanReviewCommentApiResponse = @(
-        $humanComment,
-        [pscustomobject]@{
-            body = '<!-- ddda:human-pr-review-duplicate:v1 --> non-authoritative ddda:human-pr-review:v1'
-            user = [pscustomobject]@{ login = 'romanhlavac'; name = 'romanhlavac'; type = 'User' }
-        },
-        [pscustomobject]@{
-            body = '<!-- ddda:human-pr-review-superseded:v1 --> historical record'
-            user = [pscustomobject]@{ login = 'romanhlavac'; name = 'romanhlavac'; type = 'User' }
-        }
-    )
-    $originalGitHubApi = (Get-Command Invoke-DDDAGitHubApi).ScriptBlock
-    try {
-        Set-Item -Path Function:Invoke-DDDAGitHubApi -Value {
-            param($Method, $Path, $Token, $Body)
-            Write-Output -NoEnumerate $script:humanReviewCommentApiResponse
-        }
-        $selectedHumanComments = @(Get-DDDAHumanPrReviewComments -RepositorySlug 'romanhlavac/ddd-accelerator' -Pr 92 -Token 'test-only')
-    }
-    finally {
-        Set-Item -Path Function:Invoke-DDDAGitHubApi -Value $originalGitHubApi
-    }
-    Assert-True -Condition ($selectedHumanComments.Count -eq 1) -Message "Právě jeden authoritative Human Review marker musí projít selection."
-    Assert-True -Condition ($selectedHumanComments[0].body -eq $reviewMarker) -Message "Duplicate/superseded Human Review marker musí být ignorován."
-    Assert-True -Condition ($releaseGovernanceSupport -match '\$response\s*=\s*Invoke-DDDAGitHubApi[\s\S]+?\$batch\s*=\s*@\(\$response\)') -Message "GitHub Issues Comments REST array musí být materializován před iterací."
+    Assert-True -Condition ($releaseGovernanceSupport -match '\$response\s*=\s*Invoke-DDDAGitHubApi[\s\S]+?\$batch\s*=\s*@\(\$response\)') -Message "GitHub Issues Comments REST array musí být materializován před předáním shared collectoru."
 
     # Issue #88: one exact-SHA validation decision must preserve one canonical candidate identity.
     Assert-True -Condition ($validatePr -match '\[string\]\$PackagePath') -Message "validate-pr nemá řízený PackagePath input."

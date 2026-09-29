@@ -5,6 +5,7 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+. (Join-Path $PlatformPath "scripts/platform/DDDAPlatformSupport.ps1")
 . (Join-Path $PlatformPath "scripts/platform/DDDAGitHubSupport.ps1")
 . (Join-Path $PlatformPath "scripts/platform/DDDAReleaseGovernanceSupport.ps1")
 
@@ -72,6 +73,7 @@ foreach ($scenario in @($matrix.scenarios | Where-Object { $_.adapter -eq "human
         $record = [ordered]@{
             schema_version = 1
             kind = "implementation_pr_review"
+            repository = "romanhlavac/ddd-accelerator"
             pr = 174
             reviewed_sha = ("a" * 40)
             candidate_package_sha256 = ("b" * 64)
@@ -86,22 +88,22 @@ foreach ($scenario in @($matrix.scenarios | Where-Object { $_.adapter -eq "human
         }
     }
 
-    $failureCodes = [System.Collections.Generic.List[string]]::new()
-    $comments = @(Get-DDDAHumanPrReviewComments -RepositorySlug "romanhlavac/ddd-accelerator" -Pr 174 -Token "test-only")
-    if ($comments.Count -ne 1) {
-        $failureCodes.Add("HUMAN_REVIEW_CARDINALITY")
+    $failureMessage = ""
+    try {
+        Get-DDDAHumanPrReviewEvidence `
+            -RepositorySlug "romanhlavac/ddd-accelerator" `
+            -Pr 174 `
+            -HeadSha ("a" * 40) `
+            -CandidatePackageSha256 ("b" * 64) `
+            -Token "test-only" | Out-Null
     }
-    else {
-        $review = ConvertFrom-DDDAHumanPrReviewComment -Comment $comments[0]
-        $null = Assert-DDDAHumanPrReviewCommentProvenance -Comment $comments[0] -Review $review
-        if ([string]$review.verdict -ne "pass") {
-            $failureCodes.Add("HUMAN_REVIEW_NOT_PASS")
-        }
+    catch {
+        $failureMessage = $_.Exception.Message
     }
-    $actual = if ($failureCodes.Count -eq 0) { "PASS" } else { "FAIL" }
+    $actual = if ([string]::IsNullOrWhiteSpace($failureMessage)) { "PASS" } else { "FAIL" }
     Assert-True -Condition ($actual -eq [string]$scenario.expected.status) -Message "Scenario '$($scenario.id)' expected $($scenario.expected.status), got $actual."
     foreach ($expectedCode in @($scenario.expected.failure_codes)) {
-        Assert-True -Condition ($failureCodes.Contains([string]$expectedCode)) -Message "Scenario '$($scenario.id)' is missing failure '$expectedCode'."
+        Assert-True -Condition ($failureMessage -match [regex]::Escape([string]$expectedCode)) -Message "Scenario '$($scenario.id)' is missing failure '$expectedCode'."
     }
 }
 
