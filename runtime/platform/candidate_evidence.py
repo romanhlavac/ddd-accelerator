@@ -26,6 +26,37 @@ FAILURE_MAP = {
 }
 
 
+def _restore_failure(
+    code: str, *, repository: str, pr_number: int, source_sha: str
+) -> dict[str, Any]:
+    return {
+        "status": "FAIL",
+        "repository": repository,
+        "pr": pr_number,
+        "source_sha": source_sha,
+        "failures": [code],
+    }
+
+
+def _read_report(report_path: Path) -> dict[str, Any] | None:
+    try:
+        report = json.loads(report_path.read_text(encoding="utf-8-sig"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return None
+    return report if isinstance(report, dict) else None
+
+
+def _canonical_package_name(
+    report: dict[str, Any], *, pr_number: int, source_sha: str
+) -> str | None:
+    package = report.get("package") if isinstance(report.get("package"), dict) else {}
+    package_name = Path(str(package.get("path") or "")).name
+    expected_prefix = f"ddda-candidate-pr-{pr_number}-{source_sha[:12]}-"
+    if package_name.startswith(expected_prefix) and package_name.lower().endswith(".zip"):
+        return package_name
+    return None
+
+
 def validate_candidate_evidence(
     report: dict[str, Any],
     *,
@@ -86,47 +117,39 @@ def restore_candidate_evidence(
     """Restore exactly one report-bound package from an unpacked artifact."""
     reports = sorted(path for path in artifact_root.rglob("result.json") if path.is_file())
     if len(reports) != 1:
-        return {
-            "status": "FAIL",
-            "repository": repository,
-            "pr": pr_number,
-            "source_sha": source_sha,
-            "failures": ["CANDIDATE_EVIDENCE_REPORT_CARDINALITY"],
-        }
+        return _restore_failure(
+            "CANDIDATE_EVIDENCE_REPORT_CARDINALITY",
+            repository=repository,
+            pr_number=pr_number,
+            source_sha=source_sha,
+        )
     report_path = reports[0]
-    try:
-        report = json.loads(report_path.read_text(encoding="utf-8-sig"))
-    except (OSError, UnicodeError, json.JSONDecodeError):
-        return {
-            "status": "FAIL",
-            "repository": repository,
-            "pr": pr_number,
-            "source_sha": source_sha,
-            "failures": ["CANDIDATE_EVIDENCE_REPORT_INVALID"],
-        }
-    package = report.get("package") if isinstance(report.get("package"), dict) else {}
-    package_name = Path(str(package.get("path") or "")).name
-    expected_prefix = f"ddda-candidate-pr-{pr_number}-{source_sha[:12]}-"
-    if (
-        not package_name.startswith(expected_prefix)
-        or not package_name.lower().endswith(".zip")
-    ):
-        return {
-            "status": "FAIL",
-            "repository": repository,
-            "pr": pr_number,
-            "source_sha": source_sha,
-            "failures": ["CANDIDATE_EVIDENCE_PACKAGE_IDENTITY_INVALID"],
-        }
+    report = _read_report(report_path)
+    if report is None:
+        return _restore_failure(
+            "CANDIDATE_EVIDENCE_REPORT_INVALID",
+            repository=repository,
+            pr_number=pr_number,
+            source_sha=source_sha,
+        )
+    package_name = _canonical_package_name(
+        report, pr_number=pr_number, source_sha=source_sha
+    )
+    if package_name is None:
+        return _restore_failure(
+            "CANDIDATE_EVIDENCE_PACKAGE_IDENTITY_INVALID",
+            repository=repository,
+            pr_number=pr_number,
+            source_sha=source_sha,
+        )
     packages = sorted(path for path in artifact_root.rglob(package_name) if path.is_file())
     if len(packages) != 1:
-        return {
-            "status": "FAIL",
-            "repository": repository,
-            "pr": pr_number,
-            "source_sha": source_sha,
-            "failures": ["CANDIDATE_EVIDENCE_PACKAGE_CARDINALITY"],
-        }
+        return _restore_failure(
+            "CANDIDATE_EVIDENCE_PACKAGE_CARDINALITY",
+            repository=repository,
+            pr_number=pr_number,
+            source_sha=source_sha,
+        )
     result = validate_candidate_evidence(
         report,
         repository=repository,
@@ -136,4 +159,51 @@ def restore_candidate_evidence(
     )
     result["validation_report_path"] = str(report_path.resolve())
     result["candidate_package_path"] = str(packages[0].resolve())
+    return result
+
+
+def restore_candidate_evidence_paths(
+    validation_report_path: Path,
+    *,
+    repository: str,
+    pr_number: int,
+    source_sha: str,
+    candidate_package_path: Path | None = None,
+) -> dict[str, Any]:
+    """Restore one explicit report and its report-bound candidate package."""
+    report = _read_report(validation_report_path)
+    if report is None:
+        return _restore_failure(
+            "CANDIDATE_EVIDENCE_REPORT_INVALID",
+            repository=repository,
+            pr_number=pr_number,
+            source_sha=source_sha,
+        )
+    package_name = _canonical_package_name(
+        report, pr_number=pr_number, source_sha=source_sha
+    )
+    if package_name is None:
+        return _restore_failure(
+            "CANDIDATE_EVIDENCE_PACKAGE_IDENTITY_INVALID",
+            repository=repository,
+            pr_number=pr_number,
+            source_sha=source_sha,
+        )
+    package_path = candidate_package_path or validation_report_path.parent / package_name
+    if package_path.name != package_name:
+        return _restore_failure(
+            "CANDIDATE_EVIDENCE_PACKAGE_IDENTITY_INVALID",
+            repository=repository,
+            pr_number=pr_number,
+            source_sha=source_sha,
+        )
+    result = validate_candidate_evidence(
+        report,
+        repository=repository,
+        pr_number=pr_number,
+        source_sha=source_sha,
+        package_path=package_path,
+    )
+    result["validation_report_path"] = str(validation_report_path.resolve())
+    result["candidate_package_path"] = str(package_path.resolve())
     return result

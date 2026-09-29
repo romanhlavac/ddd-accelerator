@@ -67,6 +67,12 @@ consumers use the same restore adapter. Canonical candidate filename identity
 is enforced in the shared collector so the YAML migration preserves the
 existing fail-closed artifact contract.
 
+The governed merge, human-review scaffold and governed promotion entry points
+also submit explicit or locally discovered report/package pairs through that
+process adapter. PowerShell remains responsible for state-directory discovery
+and consumer-specific return shaping, but no longer decides report source
+identity, canonical package identity or declared-versus-observed hash binding.
+
 Candidate Context v1 does not rewrite historical 0.1.1 evidence. Legacy
 controlled-recovery evidence remains readable through its existing adapter;
 the later #172 slice will isolate that adapter behind explicit

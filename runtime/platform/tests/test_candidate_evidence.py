@@ -5,6 +5,7 @@ from pathlib import Path
 import runtime.platform.candidate_evidence as candidate_evidence
 from runtime.platform.candidate_evidence import (
     restore_candidate_evidence,
+    restore_candidate_evidence_paths,
     validate_candidate_evidence,
 )
 from runtime.platform.governance_kernel import KernelDecision
@@ -124,3 +125,36 @@ def test_restore_rejects_report_bound_hash_drift(tmp_path):
     )
     assert result["status"] == "FAIL"
     assert result["failures"] == ["CONTROLLED_CANDIDATE_PACKAGE_HASH_MISMATCH"]
+
+
+def test_explicit_restore_uses_report_bound_package(tmp_path):
+    package = tmp_path / f"ddda-candidate-pr-{PR}-{SHA[:12]}-explicit.zip"
+    package.write_bytes(b"exact candidate")
+    report_path = tmp_path / "result.json"
+    report_path.write_text(json.dumps(report(package)), encoding="utf-8")
+    result = restore_candidate_evidence_paths(
+        report_path,
+        repository=REPOSITORY,
+        pr_number=PR,
+        source_sha=SHA,
+        candidate_package_path=package,
+    )
+    assert result["status"] == "PASS"
+    assert Path(result["candidate_package_path"]).name == package.name
+
+
+def test_explicit_restore_rejects_different_package_name(tmp_path):
+    package = tmp_path / f"ddda-candidate-pr-{PR}-{SHA[:12]}-explicit.zip"
+    package.write_bytes(b"exact candidate")
+    report_path = tmp_path / "result.json"
+    report_path.write_text(json.dumps(report(package)), encoding="utf-8")
+    other = tmp_path / f"ddda-candidate-pr-{PR}-{SHA[:12]}-other.zip"
+    other.write_bytes(package.read_bytes())
+    result = restore_candidate_evidence_paths(
+        report_path,
+        repository=REPOSITORY,
+        pr_number=PR,
+        source_sha=SHA,
+        candidate_package_path=other,
+    )
+    assert result["failures"] == ["CANDIDATE_EVIDENCE_PACKAGE_IDENTITY_INVALID"]

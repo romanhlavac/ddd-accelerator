@@ -202,6 +202,14 @@ if (-not $PrePromotionCandidate) {
     Assert-True -Condition ($validationReport -match 'PackageArtifactName' -and $validationReport -match 'WorkflowRunId') -Message "Validation report neuchovává canonical artifact/run identity."
     Assert-True -Condition ($validationReport -match 'PortablePaths') -Message "Validation report neumí odstranit runner-local cesty z publikované evidence."
     Assert-True -Condition ($releaseGovernanceSupport -match '\[string\]\$ValidationReportPath' -and $releaseGovernanceSupport -match '\[string\]\$PackagePath') -Message "Merge evidence resolver neumí explicitní artifact/report z čistého runneru."
+    $candidateEvidenceResolverStart = $releaseGovernanceSupport.IndexOf('function Get-DDDACandidateValidationEvidence', [System.StringComparison]::Ordinal)
+    $candidateEvidenceResolverEnd = $releaseGovernanceSupport.IndexOf('function Get-DDDAReleaseMilestoneScope', $candidateEvidenceResolverStart, [System.StringComparison]::Ordinal)
+    Assert-True -Condition ($candidateEvidenceResolverStart -ge 0 -and $candidateEvidenceResolverEnd -gt $candidateEvidenceResolverStart) -Message "Candidate evidence resolver block nelze vymezit."
+    $candidateEvidenceResolver = $releaseGovernanceSupport.Substring($candidateEvidenceResolverStart, $candidateEvidenceResolverEnd - $candidateEvidenceResolverStart)
+    Assert-True -Condition ($candidateEvidenceResolver -match 'Restore-DDDACandidateEvidence\.py' -and $candidateEvidenceResolver -match '--validation-report') -Message "PowerShell evidence resolver nepoužívá shared candidate-evidence process adapter."
+    Assert-True -Condition ($candidateEvidenceResolver -notmatch 'Get-DDDAPlatformFileHash' -and $candidateEvidenceResolver -notmatch 'candidateReport\.source') -Message "PowerShell evidence resolver stále duplikuje report/package semantic authority."
+    Assert-True -Condition ($governedMerge -match 'RepositorySlug\s*=\s*\$repositorySlug') -Message "merge-pr nepředává repository identity do shared evidence adapteru."
+    Assert-True -Condition ($governedPromotion -match '-RepositorySlug\s+\$repositorySlug') -Message "governed promotion nepředává repository identity do shared evidence adapteru."
     Assert-True -Condition ($governedMerge -match 'ExpectedCommit[^\r\n]+\$headSha' -and $governedMerge -match 'ExpectedKind[^\r\n]+candidate') -Message "merge-pr znovu neověřuje candidate kind/source_commit."
     Assert-True -Condition ($platformCi -match '(?s)validate-pr-command:\s+name: One-command PR validation\s+needs: validate-platform') -Message "validate-pr-command nezávisí na canonical package jobu."
     Assert-True -Condition ($platformCi -match 'Download canonical candidate package') -Message "validate-pr-command nestahuje canonical candidate artifact."
@@ -367,7 +375,7 @@ New-Item -ItemType Directory -Path $evidenceRoot -Force | Out-Null
 try {
     $evidencePr = 88
     $evidenceSha = "1111111111111111111111111111111111111111"
-    $evidencePackage = Join-Path $evidenceRoot "canonical-candidate.zip"
+    $evidencePackage = Join-Path $evidenceRoot "ddda-candidate-pr-$evidencePr-$($evidenceSha.Substring(0, 12))-isolated.zip"
     $evidenceReport = Join-Path $evidenceRoot "result.json"
     Write-DDDAPlatformText -Value "canonical candidate fixture" -Path $evidencePackage
     $evidenceHash = Get-DDDAPlatformFileHash -Path $evidencePackage
@@ -375,10 +383,10 @@ try {
         schema_version = 1
         status = "PASS"
         source = [ordered]@{ repository = "romanhlavac/ddd-accelerator"; pr = $evidencePr; commit = $evidenceSha }
-        package = [ordered]@{ path = "canonical-candidate.zip"; sha256 = $evidenceHash; artifact_name = "ddda-candidate-$evidenceSha"; workflow_run_id = "123456" }
+        package = [ordered]@{ path = [System.IO.Path]::GetFileName($evidencePackage); sha256 = $evidenceHash; artifact_name = "ddda-candidate-$evidenceSha"; workflow_run_id = "123456" }
     })
 
-    $isolatedEvidence = Get-DDDACandidateValidationEvidence -Pr $evidencePr -HeadSha $evidenceSha -ValidationReportPath $evidenceReport -PackagePath $evidencePackage
+    $isolatedEvidence = Get-DDDACandidateValidationEvidence -RepositorySlug "romanhlavac/ddd-accelerator" -Pr $evidencePr -HeadSha $evidenceSha -ValidationReportPath $evidenceReport -PackagePath $evidencePackage
     Assert-True -Condition ($isolatedEvidence.PackageSha256 -eq $evidenceHash) -Message "Isolated evidence resolver neověřil exact candidate hash."
 
     $mismatchReport = Join-Path $evidenceRoot "mismatch.json"
@@ -386,18 +394,18 @@ try {
         schema_version = 1
         status = "PASS"
         source = [ordered]@{ repository = "romanhlavac/ddd-accelerator"; pr = $evidencePr; commit = $evidenceSha }
-        package = [ordered]@{ path = "canonical-candidate.zip"; sha256 = (("0" * 64) -join "") }
+        package = [ordered]@{ path = [System.IO.Path]::GetFileName($evidencePackage); sha256 = (("0" * 64) -join "") }
     })
     $mismatchRejected = $false
-    try { $null = Get-DDDACandidateValidationEvidence -Pr $evidencePr -HeadSha $evidenceSha -ValidationReportPath $mismatchReport -PackagePath $evidencePackage } catch { $mismatchRejected = $true }
+    try { $null = Get-DDDACandidateValidationEvidence -RepositorySlug "romanhlavac/ddd-accelerator" -Pr $evidencePr -HeadSha $evidenceSha -ValidationReportPath $mismatchReport -PackagePath $evidencePackage } catch { $mismatchRejected = $true }
     Assert-True -Condition $mismatchRejected -Message "Artifact/report hash mismatch nebyl fail-closed."
 
     $missingRejected = $false
-    try { $null = Get-DDDACandidateValidationEvidence -Pr $evidencePr -HeadSha $evidenceSha -ValidationReportPath $evidenceReport -PackagePath (Join-Path $evidenceRoot "missing.zip") } catch { $missingRejected = $true }
+    try { $null = Get-DDDACandidateValidationEvidence -RepositorySlug "romanhlavac/ddd-accelerator" -Pr $evidencePr -HeadSha $evidenceSha -ValidationReportPath $evidenceReport -PackagePath (Join-Path $evidenceRoot "missing.zip") } catch { $missingRejected = $true }
     Assert-True -Condition $missingRejected -Message "Chybějící canonical artifact nebyl fail-closed."
 
     $partialInputRejected = $false
-    try { $null = Get-DDDACandidateValidationEvidence -Pr $evidencePr -HeadSha $evidenceSha -ValidationReportPath $evidenceReport } catch { $partialInputRejected = $true }
+    try { $null = Get-DDDACandidateValidationEvidence -RepositorySlug "romanhlavac/ddd-accelerator" -Pr $evidencePr -HeadSha $evidenceSha -ValidationReportPath $evidenceReport } catch { $partialInputRejected = $true }
     Assert-True -Condition $partialInputRejected -Message "Neúplná isolated evidence nebyla fail-closed."
 }
 finally {

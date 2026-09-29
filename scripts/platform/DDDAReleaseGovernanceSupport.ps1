@@ -21,6 +21,7 @@ function Test-DDDAControlledReleaseSourceBranch {
 
 function Get-DDDACandidateValidationEvidence {
     param(
+        [Parameter(Mandatory = $true)][string]$RepositorySlug,
         [Parameter(Mandatory = $true)][int]$Pr,
         [Parameter(Mandatory = $true)][string]$HeadSha,
         [string]$ValidationReportPath,
@@ -57,40 +58,53 @@ function Get-DDDACandidateValidationEvidence {
         throw "Nenalezen PASS validate-pr report pro PR #$Pr a SHA $HeadSha."
     }
 
+    $restoreAdapter = Join-Path $PSScriptRoot "Restore-DDDACandidateEvidence.py"
+    if (-not (Test-Path -LiteralPath $restoreAdapter -PathType Leaf)) {
+        throw "Shared candidate evidence restore adapter neexistuje: $restoreAdapter"
+    }
+    $python = Get-DDDAPlatformPythonCommand
     foreach ($candidate in $validationReports) {
-        $candidateReport = Get-Content -LiteralPath $candidate.FullName -Raw -Encoding UTF8 | ConvertFrom-Json
-        if (
-            [string]$candidateReport.status -ne "PASS" -or
-            [string]$candidateReport.source.commit -ne $HeadSha -or
-            [int]$candidateReport.source.pr -ne $Pr -or
-            $null -eq $candidateReport.package
-        ) {
+        $adapterOutput = Join-Path ([System.IO.Path]::GetTempPath()) ("ddda-candidate-evidence-" + [guid]::NewGuid().ToString("N") + ".json")
+        $adapterArguments = @(
+            $restoreAdapter,
+            "--validation-report", $candidate.FullName,
+            "--repository", $RepositorySlug,
+            "--pr", [string]$Pr,
+            "--source-sha", $HeadSha,
+            "--output", $adapterOutput
+        )
+        if ($hasPackagePath) {
+            $adapterArguments += @("--candidate-package", (Resolve-Path -LiteralPath $PackagePath).Path)
+        }
+        $adapterError = $null
+        try {
+            Invoke-DDDAPlatformNative -Command $python -Arguments $adapterArguments | Out-Null
+        }
+        catch {
+            $adapterError = $_.Exception.Message
+        }
+        if (-not (Test-Path -LiteralPath $adapterOutput -PathType Leaf)) {
+            if ($null -ne $adapterError) { throw $adapterError }
+            throw "Shared candidate evidence adapter nevytvořil rozhodnutí."
+        }
+        try {
+            $restored = Get-Content -LiteralPath $adapterOutput -Raw -Encoding UTF8 | ConvertFrom-Json
+        }
+        finally {
+            Remove-Item -LiteralPath $adapterOutput -Force -ErrorAction SilentlyContinue
+        }
+        if ([string]$restored.status -ne "PASS") {
+            if ($hasPackagePath -or (@($restored.failures) -contains "CONTROLLED_CANDIDATE_PACKAGE_HASH_MISMATCH")) {
+                throw "Candidate evidence adapter odmítl validation report/package: $(@($restored.failures) -join ', ')"
+            }
             continue
         }
-        $candidatePackagePath = if ($hasPackagePath) {
-            (Resolve-Path -LiteralPath $PackagePath).Path
-        }
-        else {
-            $reportedPath = [string]$candidateReport.package.path
-            if ([System.IO.Path]::IsPathRooted($reportedPath)) {
-                $reportedPath
-            }
-            else {
-                Join-Path $candidate.Directory.FullName $reportedPath
-            }
-        }
-        if (-not (Test-Path -LiteralPath $candidatePackagePath -PathType Leaf)) {
-            continue
-        }
-        $actualHash = Get-DDDAPlatformFileHash -Path $candidatePackagePath
-        if ($actualHash -ne [string]$candidateReport.package.sha256) {
-            throw "Canonical candidate package hash neodpovídá validation reportu: $candidatePackagePath"
-        }
+        $candidateReport = Get-Content -LiteralPath ([string]$restored.validation_report_path) -Raw -Encoding UTF8 | ConvertFrom-Json
         return [pscustomobject]@{
-            ReportPath = $candidate.FullName
+            ReportPath = [string]$restored.validation_report_path
             Report = $candidateReport
-            PackagePath = $candidatePackagePath
-            PackageSha256 = $actualHash
+            PackagePath = [string]$restored.candidate_package_path
+            PackageSha256 = [string]$restored.candidate_package_sha256
             ArtifactName = if ($candidateReport.package.PSObject.Properties.Name -contains "artifact_name") { [string]$candidateReport.package.artifact_name } else { "" }
             WorkflowRunId = if ($candidateReport.package.PSObject.Properties.Name -contains "workflow_run_id") { [string]$candidateReport.package.workflow_run_id } else { "" }
         }
