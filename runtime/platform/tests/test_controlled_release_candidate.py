@@ -165,6 +165,19 @@ def test_restored_candidate_evidence_aggregates_paginated_artifact_pages_fail_cl
     assert workflow.count("Expected exactly one unexpired exact validation artifact") == 1
 
 
+def test_restored_candidate_evidence_uses_shared_restore_contract() -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    restore_blocks = workflow.split("      - name: Restore exact technical evidence")[1:]
+
+    assert len(restore_blocks) == 2
+    for block in restore_blocks:
+        block = block.split("      - name: Verify restored exact evidence", 1)[0]
+        assert "Restore-DDDACandidateEvidence.py" in block
+        assert "restored-candidate-evidence.json" in block
+        assert "$reports = @(Get-ChildItem validation-evidence" not in block
+        assert "Get-FileHash -LiteralPath $packages[0].FullName" not in block
+
+
 def test_dry_run_restores_only_the_validation_artifact_bound_by_the_hrdr() -> None:
     workflow = WORKFLOW.read_text(encoding="utf-8")
     dry_run = workflow.split("  release-scope-dry-run:\n", 1)[1]
