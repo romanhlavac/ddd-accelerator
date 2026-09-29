@@ -115,6 +115,12 @@ def test_production_workflow_binds_authorization_candidate_and_hrdr_artifact():
     assert "$validationRun = [long]$hrdr.evidence.validation_workflow_run" in text
     assert 'actions/runs/$validationRun/artifacts?per_page=100' in text
     assert "HRDR-bound validation report package hash does not match the explicit release authorization." in text
+    restore = text.split("      - name: Restore HRDR-bound exact technical evidence", 1)[1]
+    restore = restore.split("      - name: Verify restored exact candidate evidence", 1)[0]
+    assert "Restore-DDDACandidateEvidence.py" in restore
+    assert "restored-candidate-evidence.json" in restore
+    assert "$reports = @(Get-ChildItem validation-evidence" not in restore
+    assert "Get-FileHash -LiteralPath $packages[0].FullName" not in restore
 
 
 def test_production_workflow_requires_fresh_dry_run_before_confirmed_promotion():

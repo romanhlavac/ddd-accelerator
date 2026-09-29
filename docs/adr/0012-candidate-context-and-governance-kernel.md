@@ -56,6 +56,12 @@ and submit normalized binding evidence to the kernel. Workflow migrations may
 therefore remove copied report/package decision blocks without moving file or
 network access into the kernel.
 
+Controlled promotion and controlled release recovery are the first workflow
+consumers of this restore adapter. They retain GitHub artifact download and
+explicit human-authorization comparison, while report/package cardinality,
+source binding and physical package verification are no longer reimplemented
+in workflow YAML.
+
 Candidate Context v1 does not rewrite historical 0.1.1 evidence. Legacy
 controlled-recovery evidence remains readable through its existing adapter;
 the later #172 slice will isolate that adapter behind explicit

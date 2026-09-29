@@ -26,5 +26,7 @@ $workflow = Get-Content -LiteralPath $workflowPath -Raw -Encoding UTF8
 Assert-True -Condition ($workflow -match 'issue_comment:' -and $workflow -match '/ddda recover-controlled ' -and $workflow -match "author_association == 'OWNER'") -Message "Recovery workflow musí být explicitně human-comment triggered s owner provenance."
 Assert-True -Condition ($workflow -match 'Invoke-DDDARebuildReleaseEvidence.ps1' -and $workflow -match 'Invoke-DDDARecoverGitHubRelease.ps1' -and $workflow -match '-ConfirmRecovery') -Message "Recovery workflow musí rebuildnout exact evidence před canonical recovery publication."
 Assert-True -Condition ($workflow -match 'Assert-DDDACanonicalReleaseTagReadBack' -and $workflow -match 'Fresh post-recovery read-back') -Message "Recovery workflow musí před i po publikaci ověřit immutable annotated tag a server state."
+Assert-True -Condition ($workflow -match 'Restore-DDDACandidateEvidence.py' -and $workflow -match 'restored-candidate-evidence.json') -Message "Recovery workflow musí používat shared candidate-evidence restore contract."
+Assert-True -Condition ($workflow -notmatch '\$reports = @\(Get-ChildItem validation-evidence' -and $workflow -notmatch 'Get-FileHash -LiteralPath \$packages\[0\]\.FullName') -Message "Recovery workflow nesmí duplikovat report/package semantic binding mimo shared collector."
 Assert-True -Condition ($workflow -notmatch 'git\s+tag|git\s+push|--delete') -Message "Recovery workflow nesmí vytvářet, přepisovat ani mazat tag."
 Write-Host "DDDA release recovery evidence rebuild: PASS"
