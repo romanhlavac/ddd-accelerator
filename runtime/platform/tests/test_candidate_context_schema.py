@@ -29,8 +29,12 @@ def context() -> dict:
         "pr_state": "READY",
         "validation_evidence": {
             "status": "PASS",
+            "repository": "romanhlavac/ddd-accelerator",
+            "pr": 176,
             "source_sha": source_sha,
             "package_sha256": package_sha,
+            "package_present": True,
+            "observed_package_sha256": package_sha,
             "artifact_name": f"ddda-candidate-{source_sha}",
             "workflow_run_id": 36355784058,
         },

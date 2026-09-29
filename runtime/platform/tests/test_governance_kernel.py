@@ -6,6 +6,7 @@ import pytest
 from runtime.platform.governance_kernel import (
     evaluate_candidate_context,
     evaluate_candidate_identity,
+    evaluate_candidate_package_binding,
 )
 
 
@@ -34,8 +35,12 @@ def context(operation: str = "merge_dry_run") -> dict:
         "pr_state": "READY",
         "validation_evidence": {
             "status": "PASS",
+            "repository": "romanhlavac/ddd-accelerator",
+            "pr": 176,
             "source_sha": SHA,
             "package_sha256": PACKAGE,
+            "package_present": True,
+            "observed_package_sha256": PACKAGE,
             "artifact_name": f"ddda-candidate-{SHA}",
             "workflow_run_id": 36355784058,
         },
@@ -160,6 +165,34 @@ def test_candidate_identity_can_be_evaluated_before_package_restore():
     result = evaluate_candidate_identity(candidate)
     assert result.status == "PASS"
     assert result.side_effects_allowed is False
+
+
+def test_candidate_package_binding_is_a_pure_kernel_decision():
+    candidate = context("validate")
+    result = evaluate_candidate_package_binding(candidate)
+    assert result.status == "PASS"
+    assert result.authorization_required is False
+    assert result.side_effects_allowed is False
+
+
+@pytest.mark.parametrize(
+    ("mutate", "failure"),
+    [
+        (lambda value: value.update(repository="wrong/repository"), "VALIDATION_REPOSITORY_MISMATCH"),
+        (lambda value: value.update(pr=999), "VALIDATION_PR_MISMATCH"),
+        (lambda value: value.update(package_present=False), "CANDIDATE_PACKAGE_MISSING"),
+        (
+            lambda value: value.update(observed_package_sha256="c" * 64),
+            "CANDIDATE_PACKAGE_SHA256_MISMATCH",
+        ),
+    ],
+)
+def test_candidate_package_binding_fails_closed_on_identity_drift(mutate, failure):
+    candidate = context("validate")
+    mutate(candidate["validation_evidence"])
+    result = evaluate_candidate_package_binding(candidate)
+    assert result.status == "FAIL"
+    assert failure in result.failure_codes
 
 
 def test_recovery_branch_and_generation_are_one_kernel_invariant():
