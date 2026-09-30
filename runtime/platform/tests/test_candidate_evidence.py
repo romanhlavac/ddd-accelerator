@@ -87,6 +87,22 @@ def test_restore_finds_exactly_one_report_bound_package(tmp_path):
     assert Path(result["candidate_package_path"]).name == package.name
 
 
+def test_restore_accepts_short_sha_ci_package_with_full_sha_artifact_identity(tmp_path):
+    package = tmp_path / f"ddda-candidate-{SHA[:12]}.zip"
+    package.write_bytes(b"exact CI candidate")
+    (tmp_path / "result.json").write_text(json.dumps(report(package)), encoding="utf-8")
+
+    result = restore_candidate_evidence(
+        tmp_path,
+        repository=REPOSITORY,
+        pr_number=PR,
+        source_sha=SHA,
+    )
+
+    assert result["status"] == "PASS"
+    assert Path(result["candidate_package_path"]).name == package.name
+
+
 def test_restore_rejects_report_and_package_cardinality(tmp_path):
     no_report = restore_candidate_evidence(
         tmp_path,
@@ -157,4 +173,38 @@ def test_explicit_restore_rejects_different_package_name(tmp_path):
         source_sha=SHA,
         candidate_package_path=other,
     )
+    assert result["failures"] == ["CANDIDATE_EVIDENCE_PACKAGE_IDENTITY_INVALID"]
+
+
+def test_restore_rejects_ci_candidate_name_for_different_sha(tmp_path):
+    other_sha = "b" * 40
+    package = tmp_path / f"ddda-candidate-{other_sha}.zip"
+    package.write_bytes(b"different source candidate")
+    evidence = report(package)
+    (tmp_path / "result.json").write_text(json.dumps(evidence), encoding="utf-8")
+
+    result = restore_candidate_evidence(
+        tmp_path,
+        repository=REPOSITORY,
+        pr_number=PR,
+        source_sha=SHA,
+    )
+
+    assert result["failures"] == ["CANDIDATE_EVIDENCE_PACKAGE_IDENTITY_INVALID"]
+
+
+def test_restore_rejects_short_sha_package_with_wrong_artifact_identity(tmp_path):
+    package = tmp_path / f"ddda-candidate-{SHA[:12]}.zip"
+    package.write_bytes(b"candidate with mismatched artifact identity")
+    evidence = report(package)
+    evidence["package"]["artifact_name"] = f"ddda-candidate-{'b' * 40}"
+    (tmp_path / "result.json").write_text(json.dumps(evidence), encoding="utf-8")
+
+    result = restore_candidate_evidence(
+        tmp_path,
+        repository=REPOSITORY,
+        pr_number=PR,
+        source_sha=SHA,
+    )
+
     assert result["failures"] == ["CANDIDATE_EVIDENCE_PACKAGE_IDENTITY_INVALID"]
