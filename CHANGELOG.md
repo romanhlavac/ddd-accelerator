@@ -8,9 +8,9 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 ### Changed
 
-- candidate evidence restoration now accepts the canonical full-SHA CI package
-  name as well as the PR-scoped local validation package name, while retaining
-  exact source-SHA and package-hash binding (#171).
+- candidate evidence restoration now accepts the CI's short-SHA package ZIP
+  only when its artifact name binds the full source SHA, while retaining exact
+  source-SHA and package-hash binding (#171).
 
 - governed implementation merge now collects Human Review through one shared
   parser/provenance adapter and delegates exact SHA, candidate package and
