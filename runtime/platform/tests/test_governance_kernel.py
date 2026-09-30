@@ -7,6 +7,7 @@ from runtime.platform.governance_kernel import (
     evaluate_candidate_context,
     evaluate_candidate_identity,
     evaluate_candidate_package_binding,
+    evaluate_authoritative_checks,
     evaluate_hrdr_binding,
     evaluate_human_review_binding,
 )
@@ -128,6 +129,22 @@ def test_latest_required_check_must_be_present_and_successful():
     candidate["authoritative_check_summary"]["latest_results"].pop()
     result = evaluate_candidate_context(candidate)
     assert "AUTHORITATIVE_CHECK_MISSING:One-command PR validation" in result.failure_codes
+
+
+def test_authoritative_checks_are_a_pure_kernel_decision():
+    candidate = context()
+    candidate["authoritative_check_summary"]["accepted_conclusions"] = [
+        "SUCCESS",
+        "NEUTRAL",
+        "SKIPPED",
+    ]
+    candidate["authoritative_check_summary"]["latest_results"][0][
+        "conclusion"
+    ] = "NEUTRAL"
+    result = evaluate_authoritative_checks(candidate)
+    assert result.status == "PASS"
+    assert result.authorization_required is False
+    assert result.side_effects_allowed is False
 
 
 def test_recovery_kind_requires_explicit_controlled_recovery_mode():

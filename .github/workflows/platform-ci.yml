@@ -640,35 +640,21 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
         run: |
-          @'
-          import json, os, time, urllib.request
-
-          # The Checks API exposes job names, not workflow display names.  Keep
-          # this list exact and fail closed before either mutable Miro profile.
-          required=(
-              'repository-contracts',
-              'windows-powershell-51-compatibility',
-              'miro-runtime-tests',
-              'powershell7-platform-lifecycle',
-              'steering-runtime-tests',
-              'Exact-code Miro image probe',
-          )
-          url=f"https://api.github.com/repos/{os.environ['REPOSITORY']}/commits/{os.environ['SOURCE_SHA']}/check-runs?per_page=100"
-          headers={'Authorization':f"Bearer {os.environ['GH_TOKEN']}",'Accept':'application/vnd.github+json'}
-          for _ in range(120):
-              request=urllib.request.Request(url,headers=headers)
-              with urllib.request.urlopen(request,timeout=30) as response:
-                  rows=json.loads(response.read().decode('utf-8')).get('check_runs',[])
-              states={name:[row for row in rows if row.get('name')==name] for name in required}
-              failed=[name for name,values in states.items() if any(value.get('status')=='completed' and value.get('conclusion')!='success' for value in values)]
-              if failed:
-                  raise SystemExit('exact-SHA technical check failed: '+', '.join(failed))
-              if all(any(value.get('status')=='completed' and value.get('conclusion')=='success' for value in values) for values in states.values()):
-                  break
-              time.sleep(10)
-          else:
-              raise SystemExit('exact-SHA technical-check timeout')
-          '@ | python -
+          $output = Join-Path $env:RUNNER_TEMP 'mandatory-check-evidence.json'
+          python .\scripts\platform\Evaluate-DDDACheckRuns.py `
+            --repository $env:REPOSITORY `
+            --commit $env:SOURCE_SHA `
+            --token-env GH_TOKEN `
+            --required-check repository-contracts `
+            --required-check windows-powershell-51-compatibility `
+            --required-check miro-runtime-tests `
+            --required-check powershell7-platform-lifecycle `
+            --required-check steering-runtime-tests `
+            --required-check 'Exact-code Miro image probe' `
+            --accepted-conclusion success `
+            --wait-seconds 1200 `
+            --poll-seconds 10 `
+            --output $output
 
       - name: Download exact-SHA candidate package
         uses: actions/download-artifact@v4

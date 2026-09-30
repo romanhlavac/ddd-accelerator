@@ -34,36 +34,31 @@ function Invoke-DDDAGitHubApi {
 }
 
 foreach ($scenario in @($matrix.scenarios | Where-Object { $_.adapter -eq "check_runs" })) {
-    $script:checkPages = @($scenario.input.pages | ForEach-Object { ,@($_) })
-
-    # Production pagination advances only after a full GitHub page. Keep the
-    # fixture compact while exercising the real second-page behavior.
-    if ([string]$scenario.dimensions.actions -eq "paginated") {
-        $first = [System.Collections.Generic.List[object]]::new()
-        foreach ($run in @($script:checkPages[0])) { $first.Add($run) }
-        for ($index = $first.Count; $index -lt 100; $index++) {
-            $first.Add([pscustomobject]@{
-                name = "pagination-padding-$index"
-                id = 10000 + $index
-                started_at = "2026-09-01T07:00:00Z"
-                status = "completed"
-                conclusion = "success"
-            })
-        }
-        $script:checkPages[0] = @($first)
+    $runs = [System.Collections.Generic.List[object]]::new()
+    foreach ($page in @($scenario.input.pages)) {
+        foreach ($run in @($page)) { $runs.Add($run) }
     }
-
-    $passed = $true
+    $inputPath = Join-Path ([System.IO.Path]::GetTempPath()) ("ddda-check-matrix-input-" + [guid]::NewGuid().ToString("N") + ".json")
+    $outputPath = Join-Path ([System.IO.Path]::GetTempPath()) ("ddda-check-matrix-output-" + [guid]::NewGuid().ToString("N") + ".json")
+    Write-DDDAPlatformJson -Path $inputPath -Depth 30 -Value @{ check_runs = @($runs); statuses = @() }
     try {
-        Assert-DDDAGitHubChecksPassed `
-            -RepositorySlug "romanhlavac/ddd-accelerator" `
-            -Commit ("a" * 40) `
-            -Token "test-only" | Out-Null
+        $python = Get-DDDAPlatformPythonCommand
+        try {
+            Invoke-DDDAPlatformNative -Command $python -Arguments @(
+                (Join-Path $PlatformPath "scripts/platform/Evaluate-DDDACheckRuns.py"),
+                "--input", $inputPath,
+                "--output", $outputPath
+            ) | Out-Null
+        }
+        catch {
+        }
+        $result = Get-Content -LiteralPath $outputPath -Raw -Encoding UTF8 | ConvertFrom-Json
     }
-    catch {
-        $passed = $false
+    finally {
+        Remove-Item -LiteralPath $inputPath -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $outputPath -Force -ErrorAction SilentlyContinue
     }
-    $actual = if ($passed) { "PASS" } else { "FAIL" }
+    $actual = [string]$result.status
     Assert-True -Condition ($actual -eq [string]$scenario.expected.status) -Message "Scenario '$($scenario.id)' expected $($scenario.expected.status), got $actual."
 }
 

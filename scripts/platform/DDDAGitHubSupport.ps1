@@ -154,42 +154,6 @@ function Get-DDDAGitHubPullRequest {
     return $result
 }
 
-function Get-DDDALatestCheckRunsByName {
-    param([Parameter(Mandatory = $true)][object[]]$CheckRuns)
-
-    $selected = [System.Collections.Generic.List[object]]::new()
-    foreach ($group in @($CheckRuns | Group-Object -Property { [string]$_.name })) {
-        if ([string]::IsNullOrWhiteSpace([string]$group.Name)) {
-            throw "CI check run without a name cannot be evaluated."
-        }
-        $ordered = @(
-            $group.Group | Sort-Object -Property @(
-                @{
-                    Expression = {
-                        $raw = [string]$_.started_at
-                        if ([string]::IsNullOrWhiteSpace($raw)) {
-                            throw "CI check run '$([string]$_.name)' is missing started_at."
-                        }
-                        try {
-                            ([DateTimeOffset]::Parse($raw)).UtcDateTime.Ticks
-                        }
-                        catch {
-                            throw "CI check run '$([string]$_.name)' has an invalid started_at '$raw'."
-                        }
-                    }
-                    Descending = $true
-                },
-                @{
-                    Expression = { [Int64]$_.id }
-                    Descending = $true
-                }
-            )
-        )
-        $selected.Add($ordered[0])
-    }
-    return @($selected)
-}
-
 function Assert-DDDAGitHubChecksPassed {
     param(
         [Parameter(Mandatory = $true)][string]$RepositorySlug,
@@ -198,58 +162,48 @@ function Assert-DDDAGitHubChecksPassed {
         [string[]]$IgnoredCheckRunNames = @()
     )
 
-    $checkRuns = [System.Collections.Generic.List[object]]::new()
-    $page = 1
-    do {
-        $response = Invoke-DDDAGitHubApi -Method GET -Path "repos/$RepositorySlug/commits/$Commit/check-runs?per_page=100&page=$page" -Token $Token
-        $batch = @($response.check_runs)
-        foreach ($checkRun in $batch) {
-            $checkRuns.Add($checkRun)
-        }
-        $page++
-    } while ($batch.Count -eq 100)
-
-    if ($checkRuns.Count -eq 0) {
-        throw "GitHub nevrátil žádné CI check runs pro commit $Commit."
+    $adapter = Join-Path $PSScriptRoot "Evaluate-DDDACheckRuns.py"
+    if (-not (Test-Path -LiteralPath $adapter -PathType Leaf)) {
+        throw "Shared mandatory-check adapter neexistuje: $adapter"
     }
-
-    # Retries leave immutable historical check-runs on the same commit. Evaluate
-    # the newest run per name; a current failure still fails closed.
-    $evaluatedCheckRuns = @(Get-DDDALatestCheckRunsByName -CheckRuns @($checkRuns))
-
-    $allowedConclusions = @("success", "neutral", "skipped")
-    $notPassed = @(
-        $evaluatedCheckRuns |
-            Where-Object {
-                [string]$_.name -notin $IgnoredCheckRunNames -and (
-                [string]$_.status -ne "completed" -or
-                [string]$_.conclusion -notin $allowedConclusions
-                )
-            }
+    $outputPath = Join-Path ([System.IO.Path]::GetTempPath()) ("ddda-check-evidence-" + [guid]::NewGuid().ToString("N") + ".json")
+    $arguments = @(
+        $adapter,
+        "--repository", $RepositorySlug,
+        "--commit", $Commit,
+        "--output", $outputPath
     )
-    if ($notPassed.Count -gt 0) {
-        $details = @(
-            $notPassed |
-                ForEach-Object { "{0}: status={1}; conclusion={2}" -f $_.name, $_.status, $_.conclusion }
-        )
-        throw "CI check runs nejsou všechny PASS:`n$($details -join "`n")"
+    foreach ($name in $IgnoredCheckRunNames) {
+        $arguments += @("--ignored-check", $name)
     }
-
-    $combinedStatus = Invoke-DDDAGitHubApi -Method GET -Path "repos/$RepositorySlug/commits/$Commit/status" -Token $Token
-    $commitStatuses = @($combinedStatus.statuses)
-    if ($commitStatuses.Count -gt 0 -and [string]$combinedStatus.state -ne "success") {
-        $details = @(
-            $commitStatuses |
-                Where-Object { [string]$_.state -ne "success" } |
-                ForEach-Object { "{0}: state={1}" -f $_.context, $_.state }
-        )
-        throw "Commit status checks nejsou všechny PASS:`n$($details -join "`n")"
+    $previousToken = $env:DDDA_CHECKS_GITHUB_TOKEN
+    $adapterError = $null
+    try {
+        $env:DDDA_CHECKS_GITHUB_TOKEN = $Token
+        $python = Get-DDDAPlatformPythonCommand
+        try {
+            Invoke-DDDAPlatformNative -Command $python -Arguments $arguments | Out-Null
+        }
+        catch {
+            $adapterError = $_.Exception.Message
+        }
+        if (-not (Test-Path -LiteralPath $outputPath -PathType Leaf)) {
+            if ($null -ne $adapterError) { throw $adapterError }
+            throw "Shared mandatory-check adapter nevytvořil rozhodnutí."
+        }
+        $result = Get-Content -LiteralPath $outputPath -Raw -Encoding UTF8 | ConvertFrom-Json
     }
-
+    finally {
+        $env:DDDA_CHECKS_GITHUB_TOKEN = $previousToken
+        Remove-Item -LiteralPath $outputPath -Force -ErrorAction SilentlyContinue
+    }
+    if ([string]$result.status -ne "PASS") {
+        throw "Mandatory-check adapter odmítl evidence: $(@($result.failures) -join ', ')"
+    }
     return [pscustomobject]@{
-        CheckRunCount = $checkRuns.Count
-        EvaluatedCheckRunCount = $evaluatedCheckRuns.Count
-        CommitStatusCount = $commitStatuses.Count
+        CheckRunCount = [int]$result.observed_check_run_count
+        EvaluatedCheckRunCount = @($result.summary.latest_results).Count
+        CommitStatusCount = [int]$result.observed_commit_status_count
     }
 }
 
