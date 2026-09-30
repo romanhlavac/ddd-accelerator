@@ -52,6 +52,11 @@ def _canonical_package_name(
     package = report.get("package") if isinstance(report.get("package"), dict) else {}
     package_name = Path(str(package.get("path") or "")).name
     expected_prefix = f"ddda-candidate-pr-{pr_number}-{source_sha[:12]}-"
+    # CI candidate artifacts use the full source SHA in their canonical name.
+    # Local validate-pr runs may instead record a PR-scoped staged package.
+    # Both forms remain bound to the report's exact source SHA and package hash.
+    if package_name == f"ddda-candidate-{source_sha}.zip":
+        return package_name
     if package_name.startswith(expected_prefix) and package_name.lower().endswith(".zip"):
         return package_name
     return None
