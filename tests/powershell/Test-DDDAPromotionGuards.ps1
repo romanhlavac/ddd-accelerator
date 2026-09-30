@@ -212,6 +212,8 @@ Assert-True -Condition ($releaseScopeCollector -match 'previous_release_tag' -an
 Assert-True -Condition ($releaseScopeCollector -match 'commits/.+/pulls' -and $releaseScopeCollector -match 'primary_change_requests') -Message "Release Scope collector nemapuje shipping commity na primary CR."
 Assert-True -Condition ($governanceKernel -match 'RECOVERY_DECISION_REQUIRED') -Message "Physical scope mismatch nemá explicitní human recovery boundary v Governance Kernelu."
 Assert-True -Condition ($releaseGovernanceRuntime -match 'evaluate_physical_scope_binding') -Message "Release Scope Gate nedeleguje standard physical scope do Governance Kernelu."
+Assert-True -Condition ($releaseGovernanceRuntime -match 'evaluate_promotion_readiness') -Message "Release Scope Gate nedeleguje finální promotion readiness do Governance Kernelu."
+Assert-True -Condition ($governanceKernel -match 'def evaluate_promotion_readiness') -Message "Governance Kernel nemá canonical promotion-readiness kompozici."
 Assert-True -Condition ($governedMerge -match 'Test-DDDAMergeReleaseEligibility\.py') -Message "Governed merge nevolá releasable-main eligibility guard."
 Assert-True -Condition ($releaseGovernanceRuntime -match 'MERGE_ELIGIBILITY_OUTSIDE_ACTIVE_RELEASE') -Message "Merge eligibility guard neblokuje PR mimo aktivní release train."
 Assert-True -Condition ($governedPromotion -match 'CONTROLLED_EXACT_PR_SHA') -Message "Governed promotion neoznačuje controlled exact-SHA release-source mode."

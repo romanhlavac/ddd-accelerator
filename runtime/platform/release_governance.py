@@ -13,10 +13,10 @@ import re
 
 try:
     from .recovery_transformation import apply_recovery_transformation_decision
-    from .governance_kernel import evaluate_physical_scope_binding
+    from .governance_kernel import evaluate_physical_scope_binding, evaluate_promotion_readiness
 except ImportError:  # direct script/runtime path import
     from recovery_transformation import apply_recovery_transformation_decision
-    from governance_kernel import evaluate_physical_scope_binding
+    from governance_kernel import evaluate_physical_scope_binding, evaluate_promotion_readiness
 
 SHA40 = re.compile(r"^[0-9a-f]{40}$")
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
@@ -487,7 +487,7 @@ def evaluate_release_scope(
         accepted_risk_issues=tuple(sorted(risk_issues)),
         side_effects_allowed=not failures,
     )
-    return apply_recovery_transformation_decision(
+    transformed = apply_recovery_transformation_decision(
         base_result,
         snapshot,
         expected_repository=expected_repository,
@@ -496,4 +496,18 @@ def evaluate_release_scope(
         expected_package_sha256=expected_package_sha256,
         expected_version=expected_version,
         expected_decision_owner=str(record.get("decision_owner") or ""),
+    )
+    readiness = evaluate_promotion_readiness(
+        transformed.failures,
+        operation="release_scope_validation",
+    )
+    return GovernanceResult(
+        status=readiness.status,
+        failures=readiness.failure_codes,
+        scope_issues=transformed.scope_issues,
+        accepted_risk_issues=transformed.accepted_risk_issues,
+        # This is adapter execution eligibility, not authorization. The kernel
+        # always returns side_effects_allowed=false; ConfirmMerge or
+        # ConfirmPromotion is still proved separately at the executor boundary.
+        side_effects_allowed=readiness.status == "PASS",
     )
