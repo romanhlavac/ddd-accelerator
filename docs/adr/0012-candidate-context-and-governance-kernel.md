@@ -84,6 +84,15 @@ merge submits the normalized reference plus the exact source/package identity
 to the Governance Kernel and no longer reimplements review contract, verdict,
 SHA, package or reviewer/author binding decisions.
 
+Human Release Decision Records use the same boundary. The shared
+`runtime/platform/hrdr_evidence.py` collector owns authoritative marker
+cardinality, fenced-record parsing and human GitHub provenance normalization.
+`Evaluate-DDDAHrdr.py` is the PowerShell process adapter. Governed promotion
+submits the exact source/package/version identity to the Governance Kernel and
+no longer reimplements HRDR parsing, positive-decision, identity or
+decision-owner/author binding decisions. Pending automation scaffolds remain
+readable but cannot satisfy a promotion decision.
+
 Candidate Context v1 does not rewrite historical 0.1.1 evidence. Legacy
 controlled-recovery evidence remains readable through its existing adapter;
 the later #172 slice will isolate that adapter behind explicit

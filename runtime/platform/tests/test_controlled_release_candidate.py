@@ -207,7 +207,7 @@ def test_hrdr_scaffold_forwards_report_bound_package_through_public_review_entry
 def test_hrdr_milestone_discovery_materializes_paginated_api_arrays_without_nesting() -> None:
     support = (ROOT / "scripts/platform/DDDAReleaseGovernanceSupport.ps1").read_text(encoding="utf-8-sig")
     start = support.index("function Get-DDDAReleaseMilestoneScope")
-    end = support.index("function Get-DDDAHrdrComments")
+    end = support.index("function Get-DDDAHrdrEvidence")
     scope_reader = support[start:end]
 
     assert '$response = Invoke-DDDAGitHubApi -Method GET -Path "repos/$RepositorySlug/milestones?state=all&per_page=100&page=$page" -Token $Token' in scope_reader

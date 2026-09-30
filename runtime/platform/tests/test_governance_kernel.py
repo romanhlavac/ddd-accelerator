@@ -7,6 +7,7 @@ from runtime.platform.governance_kernel import (
     evaluate_candidate_context,
     evaluate_candidate_identity,
     evaluate_candidate_package_binding,
+    evaluate_hrdr_binding,
     evaluate_human_review_binding,
 )
 
@@ -190,6 +191,40 @@ def test_human_review_binding_rejects_stale_candidate_identity():
     result = evaluate_human_review_binding(candidate)
     assert result.status == "FAIL"
     assert "HUMAN_REVIEW_SOURCE_SHA_MISMATCH" in result.failure_codes
+
+
+def test_hrdr_binding_is_a_pure_kernel_decision():
+    candidate = context("promotion_dry_run")
+    candidate["hrdr_reference"] = {
+        "decision": "GO",
+        "source_sha": SHA,
+        "candidate_package_sha256": PACKAGE,
+        "version": "0.1.2",
+        "decision_owner": "romanhlavac",
+        "decided_at": "2026-09-28T08:30:00Z",
+        "provenance_verified": True,
+    }
+    result = evaluate_hrdr_binding(candidate)
+    assert result.status == "PASS"
+    assert result.authorization_required is False
+    assert result.side_effects_allowed is False
+
+
+def test_hrdr_binding_rejects_stale_candidate_identity():
+    candidate = context("promotion_dry_run")
+    candidate["hrdr_reference"] = {
+        "decision": "GO",
+        "source_sha": "c" * 40,
+        "candidate_package_sha256": PACKAGE,
+        "version": "0.1.1",
+        "decision_owner": "romanhlavac",
+        "decided_at": "2026-09-28T08:30:00Z",
+        "provenance_verified": True,
+    }
+    result = evaluate_hrdr_binding(candidate)
+    assert result.status == "FAIL"
+    assert "HRDR_SOURCE_SHA_MISMATCH" in result.failure_codes
+    assert "HRDR_VERSION_MISMATCH" in result.failure_codes
 
 
 @pytest.mark.parametrize(

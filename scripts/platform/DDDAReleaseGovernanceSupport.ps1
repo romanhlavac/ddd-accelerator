@@ -151,25 +151,72 @@ function Get-DDDAReleaseMilestoneScope {
     }
 }
 
-function Get-DDDAHrdrComments {
+function Get-DDDAHrdrEvidence {
     param(
         [Parameter(Mandatory = $true)][string]$RepositorySlug,
         [Parameter(Mandatory = $true)][int]$Pr,
-        [Parameter(Mandatory = $true)][string]$Token
+        [Parameter(Mandatory = $true)][string]$Token,
+        [string]$HeadSha,
+        [string]$CandidatePackageSha256,
+        [string]$Version,
+        [switch]$AllowMissing
     )
 
-    $matches = [System.Collections.Generic.List[object]]::new()
+    $comments = [System.Collections.Generic.List[object]]::new()
     for ($page = 1; ; $page++) {
         $response = Invoke-DDDAGitHubApi -Method GET -Path "repos/$RepositorySlug/issues/$Pr/comments?per_page=100&page=$page" -Token $Token
         $batch = @($response)
         foreach ($comment in $batch) {
-            if ([string]$comment.body -like "*$script:DDDAHrdrMarker*") {
-                $matches.Add($comment)
-            }
+            $comments.Add($comment)
         }
         if ($batch.Count -lt 100) { break }
     }
-    return @($matches)
+
+    $adapter = Join-Path $PSScriptRoot "Evaluate-DDDAHrdr.py"
+    if (-not (Test-Path -LiteralPath $adapter -PathType Leaf)) {
+        throw "Shared HRDR adapter neexistuje: $adapter"
+    }
+    $inputPath = Join-Path ([System.IO.Path]::GetTempPath()) ("ddda-hrdr-comments-" + [guid]::NewGuid().ToString("N") + ".json")
+    $outputPath = Join-Path ([System.IO.Path]::GetTempPath()) ("ddda-hrdr-result-" + [guid]::NewGuid().ToString("N") + ".json")
+    Write-DDDAPlatformJson -Path $inputPath -Depth 30 -Value @($comments)
+    $arguments = @(
+        $adapter,
+        "--comments", $inputPath,
+        "--output", $outputPath
+    )
+    if ($AllowMissing) { $arguments += "--allow-missing" }
+    if (-not [string]::IsNullOrWhiteSpace($HeadSha)) {
+        $arguments += @(
+            "--repository", $RepositorySlug,
+            "--pr", [string]$Pr,
+            "--source-sha", $HeadSha,
+            "--candidate-package-sha256", $CandidatePackageSha256,
+            "--version", $Version
+        )
+    }
+    $adapterError = $null
+    try {
+        $python = Get-DDDAPlatformPythonCommand
+        try {
+            Invoke-DDDAPlatformNative -Command $python -Arguments $arguments | Out-Null
+        }
+        catch {
+            $adapterError = $_.Exception.Message
+        }
+        if (-not (Test-Path -LiteralPath $outputPath -PathType Leaf)) {
+            if ($null -ne $adapterError) { throw $adapterError }
+            throw "Shared HRDR adapter nevytvořil rozhodnutí."
+        }
+        $result = Get-Content -LiteralPath $outputPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    }
+    finally {
+        Remove-Item -LiteralPath $inputPath -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $outputPath -Force -ErrorAction SilentlyContinue
+    }
+    if ([string]$result.status -eq "FAIL") {
+        throw "HRDR adapter odmítl evidence: $(@($result.failures) -join ', ')"
+    }
+    return $result
 }
 
 function Get-DDDAHumanPrReviewEvidence {
@@ -230,24 +277,6 @@ function Get-DDDAHumanPrReviewEvidence {
     return $result
 }
 
-function ConvertFrom-DDDAHrdrComment {
-    param([Parameter(Mandatory = $true)][object]$Comment)
-
-    $body = [string]$Comment.body
-    $pattern = '(?s)```json\s*(?<json>\{.*?\})\s*```'
-    $match = [regex]::Match($body, $pattern, [System.Text.RegularExpressions.RegexOptions]::CultureInvariant)
-    if (-not $match.Success) {
-        throw "Authoritativní HRDR comment neobsahuje právě očekávaný fenced JSON objekt."
-    }
-    try {
-        $record = $match.Groups["json"].Value | ConvertFrom-Json
-    }
-    catch {
-        throw "Authoritativní HRDR JSON nelze parse: $($_.Exception.Message)"
-    }
-    return $record
-}
-
 function Format-DDDAHrdrComment {
     param(
         [Parameter(Mandatory = $true)][object]$Record,
@@ -275,14 +304,11 @@ function Set-DDDAHrdrComment {
         [Parameter(Mandatory = $true)][object]$Record
     )
 
-    $existing = @(Get-DDDAHrdrComments -RepositorySlug $RepositorySlug -Pr $Pr -Token $Token)
-    if ($existing.Count -gt 1) {
-        throw "PR #$Pr obsahuje více než jeden authoritativní HRDR marker. Fail closed."
-    }
+    $evidence = Get-DDDAHrdrEvidence -RepositorySlug $RepositorySlug -Pr $Pr -Token $Token -AllowMissing
     $body = Format-DDDAHrdrComment -Record $Record
-    if ($existing.Count -eq 0) {
+    if ([string]$evidence.status -eq "MISSING") {
         return Invoke-DDDAGitHubApi -Method POST -Path "repos/$RepositorySlug/issues/$Pr/comments" -Token $Token -Body @{ body = $body }
     }
-    $id = [int64]$existing[0].id
+    $id = [int64]$evidence.comment_id
     return Invoke-DDDAGitHubApi -Method PATCH -Path "repos/$RepositorySlug/issues/comments/$id" -Token $Token -Body @{ body = $body }
 }

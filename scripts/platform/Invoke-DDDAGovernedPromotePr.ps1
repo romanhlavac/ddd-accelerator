@@ -50,24 +50,14 @@ $validation = Get-DDDACandidateValidationEvidence `
     -ValidationReportPath $ValidationReportPath `
     -PackagePath $PackagePath
 
-$comments = @(Get-DDDAHrdrComments -RepositorySlug $repositorySlug -Pr $Pr -Token $githubAuth.Token)
-if ($comments.Count -ne 1) {
-    throw "Promotion vyžaduje právě jeden authoritativní HRDR comment marker. Nalezeno: $($comments.Count)."
-}
-$comment = $comments[0]
-$commentAuthor = [string]$comment.user.login
-$commentAuthorType = [string]$comment.user.type
-if (
-    [string]::IsNullOrWhiteSpace($commentAuthor) -or
-    $commentAuthorType -eq "Bot" -or
-    $commentAuthor -match '\[bot\]$'
-) {
-    throw "Authoritativní HRDR decision musí mít lidskou GitHub provenance."
-}
-$hrdr = ConvertFrom-DDDAHrdrComment -Comment $comment
-if ([string]$hrdr.decision_owner -ne $commentAuthor) {
-    throw "HRDR decision owner '$([string]$hrdr.decision_owner)' neodpovídá human comment authorovi '$commentAuthor'."
-}
+$hrdrEvidence = Get-DDDAHrdrEvidence `
+    -RepositorySlug $repositorySlug `
+    -Pr $Pr `
+    -Token $githubAuth.Token `
+    -HeadSha $headSha `
+    -CandidatePackageSha256 ([string]$validation.PackageSha256) `
+    -Version $Version
+$hrdr = $hrdrEvidence.record
 
 $gateRoot = Join-Path (Get-DDDAPlatformStateRoot) ("release-scope-gates/pr-$Pr-$headSha")
 New-Item -ItemType Directory -Path $gateRoot -Force | Out-Null
