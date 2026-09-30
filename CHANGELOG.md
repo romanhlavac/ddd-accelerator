@@ -8,6 +8,15 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 ### Changed
 
+- candidate evidence restoration now accepts the CI's short-SHA package ZIP
+  only when its artifact name binds the full source SHA, while retaining exact
+  source-SHA and package-hash binding (#171).
+
+- governed implementation merge now collects Human Review through one shared
+  parser/provenance adapter and delegates exact SHA, candidate package and
+  verdict binding to the Governance Kernel instead of duplicating those
+  decisions in PowerShell (#171).
+
 - the canonical release executor now revalidates its candidate evidence through
   the same shared resolver as governed merge/review/promotion, removing its
   remaining local report-selection and package-hash decision copy (#171).
