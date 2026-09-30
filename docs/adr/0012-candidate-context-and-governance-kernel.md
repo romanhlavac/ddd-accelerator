@@ -103,6 +103,13 @@ outcomes. Governed merge preserves its characterized acceptance of success,
 neutral and skipped latest results, while secret-bearing workflows explicitly
 require success for their named checks.
 
+Standard physical release scope now follows the same authority boundary. Git
+and GitHub collectors still inventory the previous release tag, exact source,
+shipping commits and PR-to-primary-CR mappings. The Governance Kernel alone
+evaluates ancestry, unmapped commits and equality between declared and
+physical CR scope. Historical controlled-recovery ledger validation remains a
+separate compatibility adapter for the subsequent #172 isolation slice.
+
 Candidate Context v1 does not rewrite historical 0.1.1 evidence. Legacy
 controlled-recovery evidence remains readable through its existing adapter;
 the later #172 slice will isolate that adapter behind explicit

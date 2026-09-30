@@ -8,6 +8,10 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 ### Changed
 
+- standard physical release-scope ancestry and declared-versus-shipping CR
+  equality now delegate to the Governance Kernel; recovery-ledger validation
+  remains an explicit compatibility adapter for #172 (#171).
+
 - governed merge, promotion and secret-bearing workflows now use one paginated
   latest-by-name GitHub check collector and delegate required-set outcomes to
   the Governance Kernel instead of duplicating PowerShell/YAML decisions (#171).
