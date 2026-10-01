@@ -654,7 +654,6 @@ def test_delivery_authority_fails_closed_for_missing_or_ambiguous_primary_cr():
             [{"number": 107, "title": "fix", "body": "", "draft": True}],
             expected,
         )
-
     with pytest.raises(RuntimeError, match="exactly one primary"):
         core_module.delivery_authority(
             [
@@ -668,6 +667,15 @@ def test_delivery_authority_fails_closed_for_missing_or_ambiguous_primary_cr():
             expected,
         )
 
+
+def test_pr_title_prefix_is_presentation_and_does_not_block_delivery_projection():
+    _, _, _, _, core_module = _delivery_contract()
+    authority = core_module.delivery_authority(
+        [{"number": 113, "title": "[WP-08] implementation", "body": "Implements #16", "draft": True}],
+        {16: "Other"},
+    )
+    assert authority[113]["wp"] == "Other"
+    assert authority[113]["presentation_mismatches"] == ["PRESENTATION_WP_MISMATCH:PR#113"]
 
 def test_delivery_authority_signature_detects_draft_or_head_staleness():
     _, _, _, signature, _ = _delivery_contract()

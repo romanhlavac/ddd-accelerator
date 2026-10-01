@@ -266,6 +266,11 @@ def _verify_delivery_snapshot(authority, project_number, active):
             "authoritative_blockers": wanted_by_pr[n]["authoritative_blockers"],
             "fields": current,
             "result": "PASS" if not rowprobs else "+".join(rowprobs),
+            "presentation_mismatches": rel.get("presentation_mismatches", []),
+            "presentation_mismatch_categories": [
+                core.classify_result(code)[0]
+                for code in rel.get("presentation_mismatches", [])
+            ],
         }
         rows.append(row)
         if rowprobs:

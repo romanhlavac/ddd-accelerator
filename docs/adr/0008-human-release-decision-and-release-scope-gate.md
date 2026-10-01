@@ -110,7 +110,6 @@ Release Scope Gate je read-only a fail-closed. Vyhodnocuje se **pouze na release
 GitHub Milestone / version identity
 + Issue state
 + native unresolved blocked-by
-+ Project planning projection
 + HRDR exact candidate/version identity
 + accepted-risk follow-up Issues
 ```
@@ -121,13 +120,15 @@ Gate `PASS` vyžaduje mimo jiné:
 - current-release Issues přesně odpovídají HRDR scope;
 - všechny current-release Issues jsou terminal;
 - žádný current-release Issue nemá unresolved blocker;
-- Project `Status=Done`, `Blocked=No` pro current-release Issues;
 - deferred accepted-risk Issues jsou mimo current release milestone, otevřené a mají ownera + target/horizon;
 - HRDR nemá RED;
 - risk set je přesně lidsky přijatý set;
 - live release-candidate head, HRDR source SHA, candidate hash a version se shodují.
 
-Nedostupný authoritative read-back je `FAIL`, nikoli warning.
+Nedostupný read-back GitHub Issues, Milestone, PR/SHA nebo HRDR je `FAIL`.
+Project mismatch je samostatný `GOVERNANCE_PROJECTION`: neautorizuje ani
+neblokuje release readiness, ale každá backlog/Project mutace zůstává fail-closed
+a smí skončit pouze repository-wide read-backem `remaining_mismatches = 0`.
 
 ## Canonical invariants
 

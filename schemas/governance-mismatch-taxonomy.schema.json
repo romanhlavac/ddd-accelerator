@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ddda.dev/schemas/governance-mismatch-taxonomy.schema.json",
+  "title": "DDDA governance mismatch taxonomy v1",
+  "type": "object",
+  "required": ["schema_version", "taxonomy", "default_category", "categories", "prefix_categories"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "taxonomy": {"const": "ddda_governance_mismatch"},
+    "default_category": {"enum": ["SAFETY_BLOCKING", "GOVERNANCE_PROJECTION", "PRESENTATION"]},
+    "categories": {"type": "object", "required": ["SAFETY_BLOCKING", "GOVERNANCE_PROJECTION", "PRESENTATION"], "properties": {"SAFETY_BLOCKING": {"$ref": "#/$defs/category"}, "GOVERNANCE_PROJECTION": {"$ref": "#/$defs/category"}, "PRESENTATION": {"$ref": "#/$defs/category"}}, "additionalProperties": false},
+    "prefix_categories": {"type": "object", "additionalProperties": {"enum": ["SAFETY_BLOCKING", "GOVERNANCE_PROJECTION", "PRESENTATION"]}}
+  },
+  "$defs": {"category": {"type": "object", "required": ["authority", "side_effect"], "properties": {"authority": {"type": "string", "minLength": 1}, "side_effect": {"type": "string", "minLength": 1}}, "additionalProperties": false}},
+  "additionalProperties": false
+}

@@ -446,14 +446,14 @@ def test_release_requires_exact_positive_hrdr_and_referenced_evidence():
         "provenance_verified": True,
     }
     candidate["physical_scope_reference"] = {"status": "PASS", "evidence_id": "scope-1"}
-    candidate["project_evidence_reference"] = {"status": "PASS", "evidence_id": "project-1"}
+    candidate["project_evidence_reference"] = {"status": "FAIL", "evidence_id": "projection-drift"}
     result = evaluate_candidate_context(candidate)
     assert result.status == "PASS"
     assert result.authorization_required is True
     assert result.side_effects_allowed is False
 
 
-def test_release_rejects_stale_hrdr_and_missing_project_evidence():
+def test_release_ignores_project_projection_health_but_rejects_stale_hrdr():
     candidate = context("promotion_dry_run")
     candidate["hrdr_reference"] = {
         "repository": "romanhlavac/ddd-accelerator",
@@ -471,4 +471,13 @@ def test_release_rejects_stale_hrdr_and_missing_project_evidence():
     assert result.status == "FAIL"
     assert "HRDR_SOURCE_SHA_MISMATCH" in result.failure_codes
     assert "HRDR_VERSION_MISMATCH" in result.failure_codes
-    assert "PROJECT_EVIDENCE_NOT_PASS" in result.failure_codes
+    assert "PROJECT_EVIDENCE_NOT_PASS" not in result.failure_codes
+
+
+def test_release_readiness_does_not_require_project_evidence():
+    candidate = context("release")
+    candidate["project_evidence_reference"] = None
+    result = evaluate_candidate_context(candidate)
+    assert result.status == "PASS"
+    assert result.authorization_required is True
+    assert result.side_effects_allowed is False

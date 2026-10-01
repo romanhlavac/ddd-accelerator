@@ -112,7 +112,6 @@ def base_result():
         "RECOVERY_LEDGER_PATH_HASH_MISMATCH:PR#97",
         "RECOVERY_LEDGER_PATH_HASH_MISMATCH:PR#111",
         "SCOPE_ITEM_NOT_TERMINAL:#96",
-        "SCOPE_ITEM_PROJECT_STATUS:#96",
     )
     return GovernanceResult(
         status="FAIL",
@@ -141,7 +140,6 @@ def test_exact_pr97_pr111_decision_removes_only_authorized_path_hash_failures():
     assert result.status == "FAIL"
     assert result.failures == (
         "SCOPE_ITEM_NOT_TERMINAL:#96",
-        "SCOPE_ITEM_PROJECT_STATUS:#96",
     )
     assert result.side_effects_allowed is False
 

@@ -3,6 +3,10 @@ import json
 import re
 import subprocess
 from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "runtime/platform"))
+from mismatch_taxonomy import classify_result
 
 OWNER = "romanhlavac"
 REPO = "romanhlavac/ddd-accelerator"
@@ -120,6 +124,7 @@ def inspect(authority):
             "title": title,
             "prefixes": title_prefixes(title),
             "result": "PRESENTATION_WP_MISMATCH" if repair else "PASS",
+            "mismatch_categories": classify_result("PRESENTATION_WP_MISMATCH" if repair else "PASS"),
         }
         rows.append(row)
         if repair:
@@ -140,6 +145,10 @@ def run(mode):
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
     report = {
         "schema_version": 1,
+        "mismatch_taxonomy_version": 1,
+        "mismatch_categories": {
+            "PRESENTATION": "Display-only; never changes backlog authority or release readiness."
+        },
         "mode": mode,
         "authority_count": len(authority),
         "before_count": len(before),

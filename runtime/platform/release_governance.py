@@ -12,6 +12,11 @@ from typing import Any, Iterable
 import re
 
 try:
+    from .mismatch_taxonomy import classify_mismatch
+except ImportError:
+    from mismatch_taxonomy import classify_mismatch
+
+try:
     from .governance_kernel import (
         evaluate_hrdr_binding,
         evaluate_physical_scope_binding,
@@ -40,6 +45,7 @@ class GovernanceResult:
     scope_issues: tuple[int, ...]
     accepted_risk_issues: tuple[int, ...]
     side_effects_allowed: bool
+    projection_mismatches: tuple[str, ...] = ()
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -48,6 +54,10 @@ class GovernanceResult:
             "scope_issues": list(self.scope_issues),
             "accepted_risk_issues": list(self.accepted_risk_issues),
             "side_effects_allowed": self.side_effects_allowed,
+            "mismatch_taxonomy_version": 1,
+            "mismatch_categories": [classify_mismatch(code) for code in self.failures],
+            "projection_mismatches": list(self.projection_mismatches),
+            "projection_mismatch_categories": [classify_mismatch(code) for code in self.projection_mismatches],
         }
 
 
@@ -146,9 +156,6 @@ def evaluate_merge_release_eligibility(snapshot: dict[str, Any]) -> list[str]:
     failures: list[str] = []
     if authority.get("milestone") != f"DDDA {version}":
         failures.append(f"MERGE_ELIGIBILITY_OUTSIDE_ACTIVE_RELEASE:#{cr}")
-    target = _release_value(authority.get("target_release"))
-    if target and target != version:
-        failures.append(f"MERGE_ELIGIBILITY_TARGET_RELEASE_MISMATCH:#{cr}")
     return sorted(set(failures))
 
 
@@ -302,6 +309,7 @@ def evaluate_release_scope(
     issue_states = snapshot.get("issue_states", {})
     blockers = snapshot.get("blockers", {})
     project_rows = snapshot.get("project_rows", {})
+    projection_mismatches: list[str] = []
 
     for issue in sorted(scope_issues):
         if _keyed(issue_states, issue) != "closed":
@@ -309,14 +317,16 @@ def evaluate_release_scope(
         active = _keyed(blockers, issue, []) or []
         if active:
             failures.append(f"SCOPE_ITEM_ACTIVE_BLOCKER:#{issue}")
+        # Canonical Issue state and dependency edges decide safety. Project
+        # row drift is classified and reported, never release authority.
         row = _keyed(project_rows, issue)
         if not isinstance(row, dict):
-            failures.append(f"SCOPE_ITEM_MISSING_PROJECT_ROW:#{issue}")
+            projection_mismatches.append(f"SCOPE_ITEM_MISSING_PROJECT_ROW:#{issue}")
         else:
             if row.get("Status") != "Done":
-                failures.append(f"SCOPE_ITEM_PROJECT_STATUS:#{issue}")
+                projection_mismatches.append(f"SCOPE_ITEM_PROJECT_STATUS:#{issue}")
             if row.get("Blocked") != "No":
-                failures.append(f"SCOPE_ITEM_PROJECT_BLOCKED:#{issue}")
+                projection_mismatches.append(f"SCOPE_ITEM_PROJECT_BLOCKED:#{issue}")
 
     accepted_risks = record.get("accepted_risks", []) if isinstance(record.get("accepted_risks"), list) else []
     risk_issues = {
@@ -352,11 +362,17 @@ def evaluate_release_scope(
 
     project_meta = snapshot.get("project", {})
     if project_meta.get("title") != "DDDA Platform Backlog & Delivery":
-        failures.append("PROJECT_TITLE_MISMATCH")
+        projection_mismatches.append("PROJECT_TITLE_MISMATCH")
     if project_meta.get("planning_view_filter") != "is:issue":
-        failures.append("PROJECT_PLANNING_VIEW_MISMATCH")
+        projection_mismatches.append("PROJECT_PLANNING_VIEW_MISMATCH")
     if project_meta.get("delivery_view_filter") != "is:pr is:open":
-        failures.append("PROJECT_DELIVERY_VIEW_MISMATCH")
+        projection_mismatches.append("PROJECT_DELIVERY_VIEW_MISMATCH")
+
+    physical = snapshot.get("physical_scope") or {}
+    shipping_prs = physical.get("shipping_prs", []) if isinstance(physical, dict) else []
+    for pr in shipping_prs:
+        if isinstance(pr, dict) and pr.get("target_release") and _release_value(pr.get("target_release")) != expected_version:
+            projection_mismatches.append(f"TARGET_RELEASE_MISMATCH:PR#{pr.get('number', 0)}")
 
     failures.extend(
         evaluate_physical_release_scope(
@@ -374,6 +390,7 @@ def evaluate_release_scope(
         scope_issues=tuple(sorted(scope_issues)),
         accepted_risk_issues=tuple(sorted(risk_issues)),
         side_effects_allowed=not failures,
+        projection_mismatches=tuple(sorted(set(projection_mismatches))),
     )
     readiness = evaluate_promotion_readiness(
         base_result.failures,
@@ -388,4 +405,5 @@ def evaluate_release_scope(
         # always returns side_effects_allowed=false; ConfirmMerge or
         # ConfirmPromotion is still proved separately at the executor boundary.
         side_effects_allowed=readiness.status == "PASS",
+        projection_mismatches=base_result.projection_mismatches,
     )

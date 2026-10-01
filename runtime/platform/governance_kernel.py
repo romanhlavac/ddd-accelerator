@@ -375,8 +375,6 @@ def evaluate_physical_scope_binding(
         if cr not in scope:
             failures.append(f"PHYSICAL_SCOPE_OUT_OF_SCOPE_PRIMARY_CR:PR#{number}:#{cr}")
             failures.append("RECOVERY_DECISION_REQUIRED")
-        if _release_value(row.get("target_release")) != expected_version:
-            failures.append(f"PHYSICAL_SCOPE_TARGET_RELEASE_MISMATCH:PR#{number}:#{cr}")
         if row.get("milestone") != f"DDDA {expected_version}":
             failures.append(f"PHYSICAL_SCOPE_MILESTONE_MISMATCH:PR#{number}:#{cr}")
 
@@ -516,13 +514,8 @@ def evaluate_candidate_context(context: dict[str, Any]) -> KernelDecision:
                 "PHYSICAL_SCOPE_EVIDENCE_NOT_PASS",
             )
         )
-        failures.extend(
-            _referenced_evidence_failure(
-                context,
-                "project_evidence_reference",
-                "PROJECT_EVIDENCE_NOT_PASS",
-            )
-        )
+        # Project is a governance/delivery projection, not release authority.
+        # Its health cannot authorize or block release readiness.
 
     failures = sorted(set(failures))
     authorization_required = operation in {"merge", "release"}

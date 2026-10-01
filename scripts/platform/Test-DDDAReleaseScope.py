@@ -601,8 +601,16 @@ def collect_snapshot(
         risk_horizons[issue] = risk_horizon(str(data.get("body") or ""))
 
     owner = repository.split("/", 1)[0]
-    proj_number = project_number(owner, project_token)
-    project_meta, project_rows = project_snapshot(owner, proj_number, project_token)
+    if project_token:
+        try:
+            proj_number = project_number(owner, project_token)
+            project_meta, project_rows = project_snapshot(owner, proj_number, project_token)
+        except GitHubReadError:
+            # Project is an observable projection; inability to read it is
+            # reported as projection health and does not become release authority.
+            proj_number, project_meta, project_rows = None, {}, {}
+    else:
+        proj_number, project_meta, project_rows = None, {}, {}
     physical_scope = physical_scope_snapshot(
         repository,
         version,
@@ -660,9 +668,6 @@ def main() -> int:
     if not api_token:
         print("Release Scope Gate FAIL: GH_TOKEN or GITHUB_TOKEN is required for read-only GitHub evidence.", file=sys.stderr)
         return 2
-    if not project_token:
-        print("Release Scope Gate FAIL: DDDA_GITHUB_PROJECT_TOKEN is required for authoritative Project V2 read-back.", file=sys.stderr)
-        return 2
 
     try:
         record = json.loads(Path(args.hrdr).read_text(encoding="utf-8-sig"))
@@ -704,9 +709,10 @@ def main() -> int:
             ),
             "deferred_items": result.as_dict()["accepted_risk_issues"],
             "unresolved_blockers": snapshot.get("blockers"),
-            "project_mismatches": [
-                failure for failure in result.failures if "PROJECT" in failure
-            ],
+            "project_mismatches": list(result.projection_mismatches),
+            "mismatch_taxonomy_version": 1,
+            "mismatch_categories": result.as_dict()["mismatch_categories"],
+            "projection_mismatch_categories": result.as_dict()["projection_mismatch_categories"],
             "milestone_mismatches": [
                 failure for failure in result.failures if "MILESTONE" in failure
             ],

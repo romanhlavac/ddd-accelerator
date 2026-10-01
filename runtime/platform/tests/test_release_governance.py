@@ -146,12 +146,34 @@ def test_milestone_scope_drift_fails_before_side_effects():
     assert result.side_effects_allowed is False
 
 
-def test_project_projection_drift_fails():
+def test_project_projection_drift_does_not_block_release_safety():
     live = snapshot()
     live["project_rows"]["12"]["Status"] = "Blocked"
+    live["project_rows"].pop("9")
+    live["project"] = {"title": "Wrong projection", "planning_view_filter": "bad", "delivery_view_filter": "bad"}
+    live["physical_scope"]["shipping_prs"][0]["target_release"] = "TBD"
     result = evaluate(live=live)
-    assert result.status == "FAIL"
-    assert "SCOPE_ITEM_PROJECT_STATUS:#12" in result.failures
+    assert result.status == "PASS"
+    assert result.side_effects_allowed is True
+    assert "PROJECT_TITLE_MISMATCH" in result.projection_mismatches
+    assert "SCOPE_ITEM_MISSING_PROJECT_ROW:#9" in result.projection_mismatches
+    assert "SCOPE_ITEM_PROJECT_STATUS:#12" in result.projection_mismatches
+    assert "TARGET_RELEASE_MISMATCH:PR#71" in result.projection_mismatches
+    assert all(
+        item["primary_category"] == "GOVERNANCE_PROJECTION"
+        for item in result.as_dict()["projection_mismatch_categories"]
+    )
+
+
+def test_94_closed_issue_project_lifecycle_drift_is_projection_only():
+    live = snapshot()
+    live["project_rows"]["12"] = {"Status": "In progress", "Blocked": "Yes"}
+    result = evaluate(live=live)
+    assert result.status == "PASS"
+    assert "SCOPE_ITEM_NOT_TERMINAL:#12" not in result.failures
+    assert {"SCOPE_ITEM_PROJECT_STATUS:#12", "SCOPE_ITEM_PROJECT_BLOCKED:#12"}.issubset(
+        set(result.projection_mismatches)
+    )
 
 
 def test_changed_sha_invalidates_human_decision():
@@ -284,8 +306,11 @@ def test_merge_eligibility_allows_only_active_train_authority():
     blocked["primary_cr"] = {"milestone": None, "target_release": "TBD"}
     assert evaluate_merge_release_eligibility(blocked) == [
         "MERGE_ELIGIBILITY_OUTSIDE_ACTIVE_RELEASE:#96",
-        "MERGE_ELIGIBILITY_TARGET_RELEASE_MISMATCH:#96",
     ]
+
+    projection_drift = deepcopy(allowed)
+    projection_drift["primary_cr"]["target_release"] = "TBD"
+    assert evaluate_merge_release_eligibility(projection_drift) == []
 
 
 def test_merge_eligibility_allows_proven_future_release_metadata_only():
