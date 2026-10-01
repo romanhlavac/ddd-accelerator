@@ -38,7 +38,7 @@ function Invoke-DDDAGitHubApi {
         return @([pscustomobject]@{
             id = 42
             user = [pscustomobject]@{ login = "github-actions[bot]"; type = "Bot" }
-            body = $body
+            body = $script:body
         })
     }
     throw "Unexpected test API call: $Method $Path"
