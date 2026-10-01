@@ -125,7 +125,7 @@ Volitelné parametry:
 - `-KeepArtifacts` — zachová promotion workspace;
 - `-NonInteractive` — zakáže secret prompt.
 
-Public `promote-pr` nejdříve fail-closed validuje právě jeden authoritativní human HRDR a Release Scope Gate nad live Milestone, native blockers a GitHub Project V2 projection. Interní release executor se nespustí, dokud gate není `PASS`.
+Public `promote-pr` nejdříve fail-closed validuje právě jeden authoritativní human HRDR a Release Scope Gate nad live Milestone, Issue stavy, native blockers a fyzickým exact-SHA scope. Project V2 je pouze auditovaná governance projekce; její mismatch neautorizuje ani neblokuje release readiness.
 
 `-ConfirmMerge` zde znamená explicitní **release/promotion authorization** pro release candidate. Předchozí implementation `merge-pr -ConfirmMerge` authorization se sem nepřenáší.
 

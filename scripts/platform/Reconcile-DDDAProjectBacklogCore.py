@@ -1,8 +1,12 @@
 import json
 import re
 import subprocess
+import sys
 import time
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "runtime/platform"))
+from mismatch_taxonomy import classify_result
 
 OWNER = "romanhlavac"
 REPO = "romanhlavac/ddd-accelerator"
@@ -424,9 +428,10 @@ def validate_wp_title_prefix(pr, wp):
     title = pr.get("title") or ""
     prefixes = {f"WP-{x}" for x in re.findall(r"\[WP-(\d{2})\]", title, re.I)}
     if not prefixes:
-        return
+        return []
     if wp == "Other" or prefixes != {wp}:
-        raise RuntimeError(f"PRESENTATION_WP_MISMATCH on PR #{pr['number']}: title prefixes={sorted(prefixes)} authoritative={wp}")
+        return [f"PRESENTATION_WP_MISMATCH:PR#{pr['number']}"]
+    return []
 
 
 def delivery_authority(open_prs, expected):
@@ -440,8 +445,8 @@ def delivery_authority(open_prs, expected):
             if cr not in expected:
                 raise RuntimeError(f"Open PR #{n} primary CR #{cr} is outside governed backlog")
             wp = expected[cr]
-        validate_wp_title_prefix(pr, wp)
-        result[n] = {"pr": pr, "primary_cr": cr, "wp": wp}
+        presentation_mismatches = validate_wp_title_prefix(pr, wp)
+        result[n] = {"pr": pr, "primary_cr": cr, "wp": wp, "presentation_mismatches": presentation_mismatches}
     return result
 
 
@@ -565,12 +570,24 @@ def main():
     project_state, project_problems = verify_project_contract(project_number)
     problems = planning_problems + delivery_problems + project_problems
     if problems:
+        for problem in problems:
+            result = problem.get("result", "") if isinstance(problem, dict) else ""
+            problem["mismatch_categories"] = classify_result(result)
         raise RuntimeError("Read-back mismatches: " + json.dumps(problems, ensure_ascii=False))
+
+    for row in planning_rows + delivery_rows:
+        row["mismatch_categories"] = classify_result(row.get("result", ""))
 
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
     source_sha = cmd("git", "rev-parse", "HEAD")
     report = {
         "schema_version": 6,
+        "mismatch_taxonomy_version": 1,
+        "mismatch_categories": {
+            "SAFETY_BLOCKING": "Blocks relevant governed side effect; unknown codes default here.",
+            "GOVERNANCE_PROJECTION": "Project/delivery projection; never release authority; mutations still require zero remaining mismatches.",
+            "PRESENTATION": "Display-only; never changes backlog authority or release readiness.",
+        },
         "source_sha": source_sha,
         "project": {
             "title": PROJECT_TITLE,

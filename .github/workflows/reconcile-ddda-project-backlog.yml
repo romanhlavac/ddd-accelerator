@@ -48,10 +48,17 @@ jobs:
           python -m py_compile scripts/platform/Reconcile-DDDAProjectBacklog.py
           python -m py_compile scripts/platform/Reconcile-DDDAProjectBacklogCore.py
           python -m py_compile scripts/platform/Reconcile-DDDAProjectBacklogPresentation.py
+          python -m py_compile runtime/platform/mismatch_taxonomy.py
           python -m json.tool config/governance/github-bootstrap.json >/dev/null
+          python -m json.tool config/governance/mismatch-taxonomy-v1.json >/dev/null
+          python -m json.tool schemas/governance-mismatch-taxonomy.schema.json >/dev/null
           python -m pytest -q \
             runtime/platform/tests/test_project_backlog_delivery_governance.py \
-            runtime/platform/tests/test_project_backlog_presentation_governance.py
+            runtime/platform/tests/test_project_backlog_presentation_governance.py \
+            runtime/platform/tests/test_mismatch_taxonomy.py \
+            runtime/platform/tests/test_governance_kernel.py \
+            runtime/platform/tests/test_release_governance.py \
+            runtime/platform/tests/test_recovery_transformation_decision.py
 
       - name: Reconcile and read back
         shell: bash
@@ -69,14 +76,27 @@ jobs:
           set -euo pipefail
           git diff --exit-code -- \
             config/governance \
+            schemas/governance-mismatch-taxonomy.schema.json \
             docs/governance \
             docs/adr/0003-github-native-backlog-governance.md \
+            docs/adr/0008-human-release-decision-and-release-scope-gate.md \
+            docs/adr/0011-physical-release-scope-and-releasable-main.md \
+            docs/reference/cli.md \
+            docs/roadmap/README.md \
             scripts/platform/Reconcile-DDDAReleasePlanning.py \
             scripts/platform/Reconcile-DDDAProjectBacklog.py \
             scripts/platform/Reconcile-DDDAProjectBacklogCore.py \
             scripts/platform/Reconcile-DDDAProjectBacklogPresentation.py \
+            scripts/platform/Test-DDDAReleaseScope.py \
+            runtime/platform/governance_kernel.py \
+            runtime/platform/release_governance.py \
+            runtime/platform/tests/test_governance_kernel.py \
+            runtime/platform/tests/test_release_governance.py \
+            runtime/platform/tests/test_recovery_transformation_decision.py \
             runtime/platform/tests/test_project_backlog_delivery_governance.py \
-            runtime/platform/tests/test_project_backlog_presentation_governance.py
+            runtime/platform/tests/test_project_backlog_presentation_governance.py \
+            runtime/platform/tests/test_mismatch_taxonomy.py \
+            runtime/platform/mismatch_taxonomy.py
 
       - name: Assert audit result
         shell: bash

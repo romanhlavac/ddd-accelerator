@@ -43,4 +43,6 @@ Change Request Issue
 
 Před i po strukturální backlog/WP/governance změně se provádí repository-wide read-back. Post-change mismatch count musí být `0`; jinak je technical governance PASS a doporučení Ready/merge blokováno.
 
+Release safety se rozhoduje podle exact candidate identity, Git/SHA/package, canonical Issues/PRs/Milestones/dependencies, lidských rozhodnutí, explicitní authorization a required CI. Project je pouze projekce a jeho health není release authority. Mismatches se klasifikují jako `SAFETY_BLOCKING`, `GOVERNANCE_PROJECTION` nebo `PRESENTATION`; Project/backlog mutation stále vyžaduje po mutaci `remaining_mismatches = 0`.
+
 Detailní pravidla a výjimky jsou v `docs/governance/wp-backlog-consistency.md`.

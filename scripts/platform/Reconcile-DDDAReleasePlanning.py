@@ -3,6 +3,10 @@ import json
 import subprocess
 import time
 from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "runtime/platform"))
+from mismatch_taxonomy import classify_result
 
 REPO = "romanhlavac/ddd-accelerator"
 CFG_PATH = Path("config/governance/github-bootstrap.json")
@@ -177,10 +181,13 @@ def main(argv=None):
     else:
         rows, problems = verify(specs)
         readback_attempts = 1
+    for row in rows + problems:
+        row["mismatch_categories"] = classify_result(row.get("result", ""))
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
     source_sha = cmd("git", "rev-parse", "HEAD")
     report = {
         "schema_version": 1,
+        "mismatch_taxonomy_version": 1,
         "mode": args.mode,
         "source_sha": source_sha,
         "repair_count": len(repairs),

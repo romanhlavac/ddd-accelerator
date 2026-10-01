@@ -11,7 +11,7 @@ Tento dokument určuje, který systém nebo artefakt je autoritativní pro jedno
 | Nápad nebo nalezený GAP | GitHub Issue | problém, očekávaná hodnota, prvotní scope, discovery evidence | implementační diff |
 | Velký roadmap blok | Parent Issue / Work Package | outcome, hranice WP, závislosti, delivery slices, exit criteria | detail jednoho commitu |
 | Dílčí implementační požadavek | Child Issue | konkrétní změna, acceptance criteria, testy, migration impact | dlouhodobá produktová vize |
-| Priorita a pořadí | GitHub Project | status, priorita, pořadí, owner, blocked state, target release | detailní specifikace změny |
+| Backlog authority and operational priority/order | GitHub Issues, PRs, labels, assignees, milestones and dependency links | Project fields, views, status, priority, order, owner, blocked state, target release | detailní specifikace změny |
 | Cílová verze | Milestone | množina issues a PR určená pro release | neurčitý dlouhodobý backlog |
 | Aktuální implementace | Branch + Draft PR | konkrétní Git diff, rozpracovanost, review diskuse | vzdálený plán bez kódu |
 | Architektonické rozhodnutí | ADR v repozitáři | kontext, rozhodnutí, varianty, důsledky, validace | seznam všech backlog položek |

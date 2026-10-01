@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Versioned long-term product roadmap. GitHub Issues remain authoritative for detailed requirements; GitHub Project is authoritative for operational priority/order; Milestones define release scope, not approval.
+Versioned long-term product roadmap. GitHub Issues/PRs, milestones and dependency links are authoritative; GitHub Project is their operational projection for priority/order/status. Milestones define release scope, not approval.
 
 ## Work Packages
 

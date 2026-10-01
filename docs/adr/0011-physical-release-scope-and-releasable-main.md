@@ -21,7 +21,7 @@ previous canonical SemVer tag
 → every physical commit
 → associated merged shipping PR
 → exactly one primary Implements/Closes CR
-→ Milestone + Project Target Release projection
+→ canonical Milestone (Project Target Release is reported projection only)
 ```
 
 Invariant je:
@@ -31,8 +31,10 @@ DECLARED_RELEASE_SCOPE == PHYSICAL_RELEASE_SOURCE_SCOPE
 ```
 
 Chybějící commit→PR vztah, více nebo nula primary CR, non-merged PR, rozdíl
-Milestone/Target Release nebo source ancestry je fail-closed. Gate publikuje
-machine-readable inventory a `RECOVERY_DECISION_REQUIRED`. Automation nikdy
+Milestone identity/scope nebo source ancestry je fail-closed. Project
+`Target Release` mismatch se klasifikuje jako `GOVERNANCE_PROJECTION` a nemění
+release rozhodnutí. Gate publikuje strojově čitelný inventory a
+`RECOVERY_DECISION_REQUIRED`. Automation nikdy
 nevolí human scope expansion, controlled source recovery ani novou
 release-source strategii.
 

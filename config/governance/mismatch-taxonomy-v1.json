@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "taxonomy": "ddda_governance_mismatch",
+  "default_category": "SAFETY_BLOCKING",
+  "categories": {
+    "SAFETY_BLOCKING": {"authority": "Git, exact candidate identity, canonical Issue/PR/Milestone, human decisions, explicit authorization, and required CI", "side_effect": "Block the relevant governed side effect"},
+    "GOVERNANCE_PROJECTION": {"authority": "Canonical Issues, PRs, milestones, dependencies, and their Project projection contract", "side_effect": "Never authorize or initiate release; block backlog/Project mutation until repository-wide read-back is clean"},
+    "PRESENTATION": {"authority": "Canonical backlog and governance records remain unchanged", "side_effect": "Repair or report presentation only; never authorize release or mutate backlog truth"}
+  },
+  "prefix_categories": {
+    "PRESENTATION_": "PRESENTATION",
+    "PROJECT_": "GOVERNANCE_PROJECTION",
+    "MISSING_PROJECT_": "GOVERNANCE_PROJECTION",
+    "MISSING_DELIVERY_PROJECT_": "GOVERNANCE_PROJECTION",
+    "DELIVERY_": "GOVERNANCE_PROJECTION",
+    "PLANNING_": "GOVERNANCE_PROJECTION",
+    "NATIVE_PARENT_": "GOVERNANCE_PROJECTION",
+    "WORK_PACKAGE_MISMATCH": "GOVERNANCE_PROJECTION",
+    "ITEM_TYPE_MISMATCH": "GOVERNANCE_PROJECTION",
+    "TARGET_RELEASE_MISMATCH": "GOVERNANCE_PROJECTION",
+    "CLOSED_ITEM_BLOCKED_FLAG": "GOVERNANCE_PROJECTION",
+    "TERMINAL_STATUS_MISMATCH": "GOVERNANCE_PROJECTION",
+    "SCOPE_ITEM_PROJECT_": "GOVERNANCE_PROJECTION",
+    "SCOPE_ITEM_MISSING_PROJECT_": "GOVERNANCE_PROJECTION"
+  }
+}
