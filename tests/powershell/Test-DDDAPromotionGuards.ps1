@@ -43,6 +43,7 @@ $remoteBrokerPath = Join-Path $platformRoot ".github/workflows/assistant-command
 $releaseScopeCollectorPath = Join-Path $platformRoot "scripts/platform/Test-DDDAReleaseScope.py"
 $mergeEligibilityCollectorPath = Join-Path $platformRoot "scripts/platform/Test-DDDAMergeReleaseEligibility.py"
 $releaseGovernanceRuntimePath = Join-Path $platformRoot "runtime/platform/release_governance.py"
+$recoveryGovernanceRuntimePath = Join-Path $platformRoot "runtime/platform/recovery_governance.py"
 $governanceKernelPath = Join-Path $platformRoot "runtime/platform/governance_kernel.py"
 $hrdrSchemaPath = Join-Path $platformRoot "schemas/human-release-decision.schema.json"
 $recoveryLedgerSchemaPath = Join-Path $platformRoot "schemas/release-source-recovery-ledger.schema.json"
@@ -55,7 +56,7 @@ $gateCommandPath = Join-Path $platformRoot "scripts/Complete-DDDALifecycleStep.p
 $enginePath = Join-Path $platformRoot "runtime/steering/ddda_steering/engine.py"
 $gateSchemaPath = Join-Path $platformRoot "schemas/gate-status.schema.json"
 
-foreach ($path in @($entryPath, $governedMergePath, $governedPromotionPath, $promotionPath, $releaseGovernanceSupportPath, $humanReviewAdapterPath, $checkAdapterPath, $validatePrPath, $validationReportPath, $platformCiPath, $secondaryCiPath, $remoteBrokerPath, $releaseScopeCollectorPath, $mergeEligibilityCollectorPath, $releaseGovernanceRuntimePath, $governanceKernelPath, $hrdrSchemaPath, $recoveryLedgerSchemaPath, $githubSupportPath, $platformSupportPath, $changelogPath, $policyPath, $acceptancePath, $gateCommandPath, $enginePath, $gateSchemaPath)) {
+foreach ($path in @($entryPath, $governedMergePath, $governedPromotionPath, $promotionPath, $releaseGovernanceSupportPath, $humanReviewAdapterPath, $checkAdapterPath, $validatePrPath, $validationReportPath, $platformCiPath, $secondaryCiPath, $remoteBrokerPath, $releaseScopeCollectorPath, $mergeEligibilityCollectorPath, $releaseGovernanceRuntimePath, $recoveryGovernanceRuntimePath, $governanceKernelPath, $hrdrSchemaPath, $recoveryLedgerSchemaPath, $githubSupportPath, $platformSupportPath, $changelogPath, $policyPath, $acceptancePath, $gateCommandPath, $enginePath, $gateSchemaPath)) {
     Assert-True -Condition (Test-Path -LiteralPath $path -PathType Leaf) -Message "Chybí merge/promotion nebo gate kontrakt: $path"
 }
 
@@ -74,6 +75,7 @@ $remoteBroker = Get-Content -LiteralPath $remoteBrokerPath -Raw -Encoding UTF8
 $releaseScopeCollector = Get-Content -LiteralPath $releaseScopeCollectorPath -Raw -Encoding UTF8
 $mergeEligibilityCollector = Get-Content -LiteralPath $mergeEligibilityCollectorPath -Raw -Encoding UTF8
 $releaseGovernanceRuntime = Get-Content -LiteralPath $releaseGovernanceRuntimePath -Raw -Encoding UTF8
+$recoveryGovernanceRuntime = Get-Content -LiteralPath $recoveryGovernanceRuntimePath -Raw -Encoding UTF8
 $governanceKernel = Get-Content -LiteralPath $governanceKernelPath -Raw -Encoding UTF8
 $hrdrSchema = Get-Content -LiteralPath $hrdrSchemaPath -Raw -Encoding UTF8
 $recoveryLedgerSchema = Get-Content -LiteralPath $recoveryLedgerSchemaPath -Raw -Encoding UTF8
@@ -213,6 +215,8 @@ Assert-True -Condition ($releaseScopeCollector -match 'commits/.+/pulls' -and $r
 Assert-True -Condition ($governanceKernel -match 'RECOVERY_DECISION_REQUIRED') -Message "Physical scope mismatch nemá explicitní human recovery boundary v Governance Kernelu."
 Assert-True -Condition ($releaseGovernanceRuntime -match 'evaluate_physical_scope_binding') -Message "Release Scope Gate nedeleguje standard physical scope do Governance Kernelu."
 Assert-True -Condition ($releaseGovernanceRuntime -match 'evaluate_promotion_readiness') -Message "Release Scope Gate nedeleguje finální promotion readiness do Governance Kernelu."
+Assert-True -Condition ($releaseGovernanceRuntime -notmatch 'recovery_transformation|apply_recovery_transformation_decision|evaluate_recovery_ledger') -Message "Standard release runtime stále importuje nebo vyhodnocuje recovery internals."
+Assert-True -Condition ($recoveryGovernanceRuntime -match 'evaluate_emergency_recovery_scope') -Message "Emergency recovery nemá explicitní compatibility evaluator."
 Assert-True -Condition ($governanceKernel -match 'def evaluate_promotion_readiness') -Message "Governance Kernel nemá canonical promotion-readiness kompozici."
 Assert-True -Condition ($governedMerge -match 'Test-DDDAMergeReleaseEligibility\.py') -Message "Governed merge nevolá releasable-main eligibility guard."
 Assert-True -Condition ($releaseGovernanceRuntime -match 'MERGE_ELIGIBILITY_OUTSIDE_ACTIVE_RELEASE') -Message "Merge eligibility guard neblokuje PR mimo aktivní release train."
@@ -231,8 +235,9 @@ Assert-True -Condition ($promotion -match 'checkout"?,\s*"--detach"?,\s*\$releas
 Assert-True -Condition ($promotion -match 'schema_version\s*-ne\s*2') -Message "Executor nerevaliduje schema-v2 gate evidence."
 Assert-True -Condition ($promotion -match 'Copy-Item[\s\S]+releasePackagePath' -and $promotion -match 'if\s*\(\s*-not\s+\$releasePassed') -Message "Canonical release package není materializován až po release validation PASS."
 Assert-True -Condition ($recoveryLedgerSchema -match '"schema_version"\s*:\s*\{"enum"\s*:\s*\[1,\s*2\]' -and $recoveryLedgerSchema -match '"release_cut"') -Message "Recovery ledger schema nemá versioned release-cut v2 contract."
-Assert-True -Condition ($releaseGovernanceRuntime -match 'RECOVERY_LEDGER_RELEASE_CUT_PATHS_MISMATCH' -and $releaseGovernanceRuntime -match 'RECOVERY_LEDGER_RELEASE_CUT_RESULT_BLOB_MISMATCH' -and $releaseGovernanceRuntime -match 'RECOVERY_LEDGER_RELEASE_CUT_SEQUENCE_INVALID') -Message "Release Scope Gate nevyhodnocuje one-file release-cut path/blob/sequence evidence."
-Assert-True -Condition ($releaseGovernanceRuntime -match 'recovered\s*&\s*metadata' -and $releaseGovernanceRuntime -match 'RECOVERY_LEDGER_COMMIT_ROLE_OVERLAP') -Message "Release Scope Gate neodmítá překryv recovered a metadata commit rolí."
+Assert-True -Condition ($recoveryGovernanceRuntime -match 'RECOVERY_LEDGER_RELEASE_CUT_PATHS_MISMATCH' -and $recoveryGovernanceRuntime -match 'RECOVERY_LEDGER_RELEASE_CUT_RESULT_BLOB_MISMATCH' -and $recoveryGovernanceRuntime -match 'RECOVERY_LEDGER_RELEASE_CUT_SEQUENCE_INVALID') -Message "Emergency Recovery Scope Gate nevyhodnocuje one-file release-cut path/blob/sequence evidence."
+Assert-True -Condition ($recoveryGovernanceRuntime -match 'recovered\s*&\s*metadata' -and $recoveryGovernanceRuntime -match 'RECOVERY_LEDGER_COMMIT_ROLE_OVERLAP') -Message "Emergency Recovery Scope Gate neodmítá překryv recovered a metadata commit rolí."
+Assert-True -Condition ($entry -match '\[switch\]\$EmergencyRecovery' -and $governedPromotion -match '\[switch\]\$EmergencyRecovery') -Message "Controlled recovery nemá explicitní emergency intent na veřejné ani governed hranici."
 Assert-True -Condition ($governedPromotion -match '\[switch\]\$ConfirmPromotion') -Message "Governed controlled promotion nemá explicitní ConfirmPromotion boundary."
 Assert-True -Condition ($governedPromotion -match 'Controlled no-merge promotion nepřijímá -ConfirmMerge' -and $governedPromotion -match 'if\s*\(\$ConfirmPromotion\)\s*\{\s*\$arguments\s*\+=\s*"-ConfirmPromotion"') -Message "Governed controlled promotion neodmítá merge authorization nebo nepředává promotion authorization."
 Assert-True -Condition ($promotion -match '\[switch\]\$ConfirmPromotion') -Message "Controlled promotion executor nemá explicitní ConfirmPromotion boundary."

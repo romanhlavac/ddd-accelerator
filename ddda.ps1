@@ -28,6 +28,7 @@ param(
     [switch]$PrePromotionCandidate,
     [switch]$ConfirmMerge,
     [switch]$ConfirmPromotion,
+    [switch]$EmergencyRecovery,
     [switch]$DryRun
 )
 
@@ -149,6 +150,7 @@ switch ($Command) {
         if (-not [string]::IsNullOrWhiteSpace($PackagePath)) { $arguments += @("-PackagePath", $PackagePath) }
         if ($ConfirmMerge) { $arguments += "-ConfirmMerge" }
         if ($ConfirmPromotion) { $arguments += "-ConfirmPromotion" }
+        if ($EmergencyRecovery) { $arguments += "-EmergencyRecovery" }
         if ($WithMiro) { $arguments += "-WithMiro" }
         if ($Full) { $arguments += "-Full" }
         if ($CleanupOnFailure) { $arguments += "-CleanupOnFailure" }

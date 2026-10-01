@@ -187,7 +187,7 @@ Vyžaduje novou samostatnou explicitní human authorization:
 .\ddda.ps1 promote-pr -Pr <RELEASE_PR> -Version <X.Y.Z> -ConfirmMerge
 
 # controlled no-merge recovery source
-.\ddda.ps1 promote-pr -Pr <RECOVERY_PR> -Version <X.Y.Z> -ConfirmPromotion
+.\ddda.ps1 promote-pr -Pr <RECOVERY_PR> -Version <X.Y.Z> -EmergencyRecovery -ConfirmPromotion
 ```
 
 S online Miro release acceptance, je-li relevantní:
@@ -197,7 +197,7 @@ S online Miro release acceptance, je-li relevantní:
 .\ddda.ps1 promote-pr -Pr <RELEASE_PR> -Version <X.Y.Z> -ConfirmMerge -WithMiro -Full -CleanupOnFailure
 
 # controlled no-merge recovery source
-.\ddda.ps1 promote-pr -Pr <RECOVERY_PR> -Version <X.Y.Z> -ConfirmPromotion -WithMiro -Full -CleanupOnFailure
+.\ddda.ps1 promote-pr -Pr <RECOVERY_PR> -Version <X.Y.Z> -EmergencyRecovery -ConfirmPromotion -WithMiro -Full -CleanupOnFailure
 ```
 
 Implementation `merge-pr -ConfirmMerge` authorization nikdy neautorizuje release.

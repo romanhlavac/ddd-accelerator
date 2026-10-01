@@ -375,6 +375,7 @@ jobs:
             --candidate-sha256 $evidence.validation_evidence.candidate_package_sha256 `
             --version $env:VERSION `
             --hrdr hrdr.json `
+            --emergency-recovery `
             --output physical-release-scope.json
 
       - name: Upload scope-gate evidence
@@ -399,6 +400,7 @@ jobs:
             -Version $env:VERSION `
             -ValidationReportPath $env:validation_report `
             -PackagePath $env:candidate_package `
+            -EmergencyRecovery `
             -DryRun `
             -NonInteractive
 

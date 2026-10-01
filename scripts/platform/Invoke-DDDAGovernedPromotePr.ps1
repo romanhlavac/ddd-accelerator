@@ -7,6 +7,7 @@ param(
     [string]$PackagePath,
     [switch]$ConfirmMerge,
     [switch]$ConfirmPromotion,
+    [switch]$EmergencyRecovery,
     [switch]$WithMiro,
     [switch]$Full,
     [switch]$CleanupOnFailure,
@@ -79,7 +80,7 @@ $previousGhToken = $env:GH_TOKEN
 $previousGithubToken = $env:GITHUB_TOKEN
 try {
     $env:GH_TOKEN = $githubAuth.Token
-    $collectorOutput = Invoke-DDDAPlatformNative -Command $python -Arguments @(
+    $collectorArguments = @(
         $collector,
         "--repository", $repositorySlug,
         "--pr", [string]$Pr,
@@ -88,7 +89,9 @@ try {
         "--version", $Version,
         "--hrdr", $hrdrPath,
         "--output", $gatePath
-    ) -WorkingDirectory $platformRoot
+    )
+    if ($EmergencyRecovery) { $collectorArguments += "--emergency-recovery" }
+    $collectorOutput = Invoke-DDDAPlatformNative -Command $python -Arguments $collectorArguments -WorkingDirectory $platformRoot
 }
 finally {
     $env:GH_TOKEN = $previousGhToken
@@ -107,23 +110,27 @@ if ([string]$gate.release_scope_gate_status -ne "PASS" -or -not [bool]$gate.side
 # A schema-v2 recovery ledger is the sole authority for controlled-source
 # promotion. It proves the one-file release cut and keeps the PR itself as the
 # immutable release source instead of treating it as an implementation merge.
-$controlledReleaseSource = $false
+$controlledReleaseSource = [bool]$EmergencyRecovery
 $recoveryLedgerPresent = $false
+$validRecoveryLedger = $false
 $physicalScope = $gate.PSObject.Properties["physical_scope"]
 if ($null -ne $physicalScope -and $null -ne $physicalScope.Value) {
     $ledgerProperty = $physicalScope.Value.PSObject.Properties["recovery_ledger"]
     if ($null -ne $ledgerProperty -and $null -ne $ledgerProperty.Value) {
         $recoveryLedgerPresent = $true
         $ledger = $ledgerProperty.Value
-        $controlledReleaseSource = (
+        $validRecoveryLedger = (
             [int]$ledger.schema_version -eq 2 -and
             $null -ne $ledger.PSObject.Properties["release_cut"] -and
             [string]$ledger.release_cut.commit_sha -match '^[0-9a-f]{40}$'
         )
     }
 }
-if ($recoveryLedgerPresent -and -not $controlledReleaseSource) {
-    throw "Recovery-ledger release source vyžaduje schema v2 a exact one-file release-cut evidence; standard merge promotion není povolena."
+if ($controlledReleaseSource -and (-not $recoveryLedgerPresent -or -not $validRecoveryLedger)) {
+    throw "Explicit emergency recovery vyžaduje schema v2 a exact one-file release-cut evidence."
+}
+if (-not $controlledReleaseSource -and $recoveryLedgerPresent) {
+    throw "Standard release nesmí aktivovat recovery evidence; použij explicitní -EmergencyRecovery intent."
 }
 if ($controlledReleaseSource) {
     $expectedRef = "release/$Version-controlled-recovery-source"

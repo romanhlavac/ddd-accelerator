@@ -110,6 +110,16 @@ Skutečný promotion:
 .\ddda.ps1 promote-pr -Pr <RELEASE_PR> -Version 0.1.1 -ConfirmMerge
 ```
 
+Controlled recovery je oddělený compatibility režim a nikdy se neodvozuje z
+branch, title, PR body ani přítomnosti ledgeru. Každý dry-run i potvrzená
+promotion musí nést explicitní `-EmergencyRecovery`; bez něj standardní
+collector recovery evidence vůbec nečte:
+
+```powershell
+.\ddda.ps1 promote-pr -Pr <RECOVERY_PR> -Version 0.1.1 -EmergencyRecovery -DryRun
+.\ddda.ps1 promote-pr -Pr <RECOVERY_PR> -Version 0.1.1 -EmergencyRecovery -ConfirmPromotion
+```
+
 Volitelné parametry:
 
 - `-WithMiro`, `-Full`, `-CleanupOnFailure` — online release acceptance;
@@ -156,7 +166,7 @@ Read-only governance wrapper pro release `promote-pr`: ověří HRDR human prove
 
 ### `Test-DDDAReleaseScope.py`
 
-Read-only collector/evaluator live GitHub release scope. Používá Milestone/Issue/native dependency evidence a Project V2 read-back. Chybějící/nejednoznačná evidence je FAIL.
+Read-only collector/evaluator live GitHub release scope. Používá Milestone/Issue/native dependency evidence a Project V2 read-back. Chybějící/nejednoznačná evidence je FAIL. Recovery ledger a transformaci načte pouze s explicitním `--emergency-recovery`.
 
 ## Project steering compatibility commands
 

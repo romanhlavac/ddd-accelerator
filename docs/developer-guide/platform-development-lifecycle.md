@@ -312,7 +312,7 @@ Skutečný promotion vyžaduje novou explicitní lidskou autorizaci:
 .\ddda.ps1 promote-pr -Pr <RELEASE_PR> -Version <X.Y.Z> -ConfirmMerge
 
 # controlled no-merge recovery source
-.\ddda.ps1 promote-pr -Pr <RECOVERY_PR> -Version <X.Y.Z> -ConfirmPromotion
+.\ddda.ps1 promote-pr -Pr <RECOVERY_PR> -Version <X.Y.Z> -EmergencyRecovery -ConfirmPromotion
 ```
 
 Implementation merge authorization nikdy neimplikuje release/promotion/tag authorization.

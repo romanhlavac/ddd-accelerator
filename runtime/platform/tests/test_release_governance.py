@@ -5,6 +5,7 @@ from runtime.platform.release_governance import (
     evaluate_release_scope,
     validate_hrdr_shape,
 )
+from runtime.platform.recovery_governance import evaluate_emergency_recovery_scope
 
 REPO = "romanhlavac/ddd-accelerator"
 PR = 71
@@ -94,10 +95,28 @@ def evaluate(record=None, live=None):
     )
 
 
+def evaluate_recovery(record=None, live=None):
+    return evaluate_emergency_recovery_scope(
+        record or hrdr(),
+        live or snapshot(),
+        expected_repository=REPO,
+        expected_pr=PR,
+        expected_source_sha=SHA,
+        expected_package_sha256=PACKAGE,
+        expected_version=VERSION,
+    )
+
+
 def test_valid_release_scope_passes():
     result = evaluate()
     assert result.status == "PASS"
     assert result.side_effects_allowed is True
+
+
+def test_emergency_recovery_requires_explicit_ledger_evidence():
+    result = evaluate_recovery()
+    assert result.status == "FAIL"
+    assert "RECOVERY_LEDGER_REQUIRED" in result.failures
 
 
 def test_open_current_release_issue_fails_before_side_effects():
@@ -386,7 +405,7 @@ def test_recovery_ledger_accepts_only_complete_read_back_provenance():
             ],
         },
     }
-    result = evaluate(live=live)
+    result = evaluate_recovery(live=live)
     assert result.status == "PASS"
 
 
@@ -413,7 +432,7 @@ def test_recovery_ledger_rejects_uncovered_or_tampered_recovery_commit():
             }
         ],
     }
-    result = evaluate(live=live)
+    result = evaluate_recovery(live=live)
     assert result.status == "FAIL"
     assert "RECOVERY_LEDGER_SOURCE_MERGE_SHA_MISMATCH:PR#71" in result.failures
     assert "RECOVERY_LEDGER_PATH_HASH_MISMATCH:PR#71" in result.failures

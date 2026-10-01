@@ -87,7 +87,7 @@ Actual controlled promotion requires the explicit no-merge authorization
 boundary:
 
 ```powershell
-.\ddda.ps1 promote-pr -Pr <RECOVERY_PR> -Version <X.Y.Z> -ConfirmPromotion
+.\ddda.ps1 promote-pr -Pr <RECOVERY_PR> -Version <X.Y.Z> -EmergencyRecovery -ConfirmPromotion
 ```
 
 `-ConfirmMerge` is rejected in controlled mode. It remains the boundary for a

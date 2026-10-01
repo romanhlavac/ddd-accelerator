@@ -26,7 +26,6 @@ if str(PLATFORM_RUNTIME) not in sys.path:
     sys.path.insert(0, str(PLATFORM_RUNTIME))
 
 from release_governance import evaluate_release_scope  # noqa: E402
-from recovery_transformation import augment_recovery_transformation_evidence  # noqa: E402
 
 
 API_ROOT = "https://api.github.com"
@@ -429,10 +428,16 @@ def physical_scope_snapshot(
     source_sha: str,
     token: str,
     project_rows: dict[int, dict[str, Any]],
+    *,
+    emergency_recovery: bool = False,
 ) -> dict[str, Any]:
     previous = previous_release_tag(repository, version, token)
     compare_status, commits = compare_commits(repository, previous["tag"], source_sha, token)
-    ledger = recovery_ledger_at_source(repository, source_sha, token)
+    ledger = (
+        recovery_ledger_at_source(repository, source_sha, token)
+        if emergency_recovery
+        else None
+    )
     ledger_entries = (ledger or {}).get("entries") if isinstance(ledger, dict) else None
     entries_by_commit: dict[str, dict[str, Any]] = {}
     ordered_entries: list[tuple[str, dict[str, Any]]] = []
@@ -557,6 +562,7 @@ def collect_snapshot(
     version: str,
     api_token: str,
     project_token: str,
+    emergency_recovery: bool = False,
 ) -> dict[str, Any]:
     pr_info = rest_get(f"repos/{repository}/pulls/{pr}", api_token)
     current_head = ((pr_info or {}).get("head") or {}).get("sha")
@@ -603,15 +609,19 @@ def collect_snapshot(
         current_head,
         api_token,
         project_rows,
+        emergency_recovery=emergency_recovery,
     )
-    physical_scope = augment_recovery_transformation_evidence(
-        physical_scope,
-        repository=repository,
-        pr=pr,
-        token=api_token,
-        fetch_comments=rest_pages,
-        fetch_commit_path_hashes=commit_path_hashes,
-    )
+    if emergency_recovery:
+        from recovery_transformation import augment_recovery_transformation_evidence
+
+        physical_scope = augment_recovery_transformation_evidence(
+            physical_scope,
+            repository=repository,
+            pr=pr,
+            token=api_token,
+            fetch_comments=rest_pages,
+            fetch_commit_path_hashes=commit_path_hashes,
+        )
 
     return {
         "current_pr_head": current_head,
@@ -638,6 +648,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--candidate-sha256", required=True)
     parser.add_argument("--version", required=True)
     parser.add_argument("--hrdr", required=True)
+    parser.add_argument("--emergency-recovery", action="store_true")
     parser.add_argument("--output")
     return parser.parse_args()
 
@@ -662,8 +673,14 @@ def main() -> int:
             version=args.version,
             api_token=api_token,
             project_token=project_token,
+            emergency_recovery=args.emergency_recovery,
         )
-        result = evaluate_release_scope(
+        evaluator = evaluate_release_scope
+        if args.emergency_recovery:
+            from recovery_governance import evaluate_emergency_recovery_scope
+
+            evaluator = evaluate_emergency_recovery_scope
+        result = evaluator(
             record,
             snapshot,
             expected_repository=args.repository,
