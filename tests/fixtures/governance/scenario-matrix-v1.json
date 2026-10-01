@@ -187,24 +187,27 @@
     },
     {
       "id": "project-safety-authority-mismatch",
+      "migration": {"change_request": 173, "rule": "Project Target Release is projection only; native Milestone remains release scope authority."},
       "adapter": "merge_eligibility",
       "dimensions": {"project": "safety-authority mismatch", "operation": "merge"},
       "input": {"primary_cr.milestone": null, "primary_cr.target_release": "TBD"},
-      "expected": {"status": "FAIL", "failure_codes": ["MERGE_ELIGIBILITY_OUTSIDE_ACTIVE_RELEASE:#174", "MERGE_ELIGIBILITY_TARGET_RELEASE_MISMATCH:#174"]}
+      "expected": {"status": "FAIL", "failure_codes": ["MERGE_ELIGIBILITY_OUTSIDE_ACTIVE_RELEASE:#174"]}
     },
     {
       "id": "project-stale-projection",
+      "migration": {"change_request": 173, "rule": "Project lifecycle drift is classified as GOVERNANCE_PROJECTION and does not block release readiness."},
       "adapter": "release_scope",
       "dimensions": {"project": "stale projection", "operation": "release-scope validation"},
       "input": {"snapshot.project_rows.12.Status": "Blocked"},
-      "expected": {"status": "FAIL", "failure_codes": ["SCOPE_ITEM_PROJECT_STATUS:#12"]}
+      "expected": {"status": "PASS", "failure_codes": [], "projection_mismatches": ["SCOPE_ITEM_PROJECT_STATUS:#12"]}
     },
     {
-      "id": "project-presentation-only-mismatch-currently-blocks",
+      "id": "project-presentation-only-mismatch",
+      "migration": {"change_request": 173, "rule": "Project view drift is classified as GOVERNANCE_PROJECTION and does not block release readiness."},
       "adapter": "release_scope",
       "dimensions": {"project": "presentation-only mismatch", "operation": "release-scope validation"},
       "input": {"snapshot.project.planning_view_filter": "is:open"},
-      "expected": {"status": "FAIL", "failure_codes": ["PROJECT_PLANNING_VIEW_MISMATCH"]}
+      "expected": {"status": "PASS", "failure_codes": [], "projection_mismatches": ["PROJECT_PLANNING_VIEW_MISMATCH"]}
     },
     {
       "id": "actions-one-page-success",

@@ -268,6 +268,27 @@ def test_python_characterization_scenario(scenario: dict[str, Any], tmp_path: Pa
     assert set(scenario["expected"]["failure_codes"]) <= set(failures)
 
 
+def test_s3_projection_scenarios_are_reported_outside_release_failures() -> None:
+    scenarios = [
+        scenario
+        for scenario in PYTHON_SCENARIOS
+        if scenario["expected"].get("projection_mismatches")
+    ]
+    assert scenarios
+    for scenario in scenarios:
+        assert scenario["migration"]["change_request"] == 173
+        evidence = {"record": _release_record(), "snapshot": _release_snapshot()}
+        _apply_overrides(evidence, scenario["input"], ("record.", "snapshot."))
+        result = _release_scope(evidence["record"], evidence["snapshot"])
+        assert result.status == "PASS"
+        assert result.failures == ()
+        assert set(scenario["expected"]["projection_mismatches"]) <= set(result.projection_mismatches)
+        assert all(
+            item["primary_category"] == "GOVERNANCE_PROJECTION"
+            for item in result.as_dict()["projection_mismatch_categories"]
+        )
+
+
 def test_non_python_scenarios_are_owned_by_the_powershell_component_suite() -> None:
     non_python = {scenario["adapter"] for scenario in MATRIX["scenarios"] if scenario["adapter"] not in PYTHON_ADAPTERS}
     assert non_python == {"check_runs", "human_review_contract"}

@@ -476,6 +476,19 @@ def test_release_ignores_project_projection_health_but_rejects_stale_hrdr():
 
 def test_release_readiness_does_not_require_project_evidence():
     candidate = context("release")
+    candidate["human_review_reference"] = None
+    candidate["hrdr_reference"] = {
+        "repository": "romanhlavac/ddd-accelerator",
+        "pr": 176,
+        "decision": "GO",
+        "source_sha": SHA,
+        "candidate_package_sha256": PACKAGE,
+        "version": "0.1.2",
+        "decision_owner": "romanhlavac",
+        "decided_at": "2026-09-28T08:30:00Z",
+        "provenance_verified": True,
+    }
+    candidate["physical_scope_reference"] = {"status": "PASS", "evidence_id": "scope-1"}
     candidate["project_evidence_reference"] = None
     result = evaluate_candidate_context(candidate)
     assert result.status == "PASS"
