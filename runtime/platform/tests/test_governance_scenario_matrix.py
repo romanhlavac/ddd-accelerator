@@ -19,6 +19,7 @@ from runtime.platform.release_governance import (
     evaluate_merge_release_eligibility,
     evaluate_release_scope,
 )
+from runtime.platform.candidate_evidence import restore_candidate_evidence
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -186,11 +187,33 @@ def _execute(scenario: dict[str, Any], tmp_path: Path) -> tuple[str, list[str]]:
         return result["status"], result["failures"]
 
     if adapter == "workflow_guard":
-        source = (ROOT / values["file"]).read_text(encoding="utf-8")
-        assert values["required_text"] in source
-        # The existing workflow rejects this input before invoking a release
-        # evaluator.  The fixture records that observable fail-closed result.
-        return "FAIL", ["EXACT_PACKAGE_CARDINALITY"]
+        # Exercise the shared production evidence-restoration behavior instead
+        # of asserting that a workflow contains a particular sentence.
+        artifact_root = tmp_path / "duplicate-package-artifact"
+        package_name = f"ddda-candidate-{SHA[:12]}.zip"
+        report = {
+            "status": "PASS",
+            "source": {"repository": REPO, "pr": PR, "commit": SHA},
+            "package": {
+                "path": package_name,
+                "artifact_name": f"ddda-candidate-{SHA}",
+                "sha256": PACKAGE_SHA,
+            },
+        }
+        report_path = artifact_root / "metadata" / "result.json"
+        report_path.parent.mkdir(parents=True)
+        report_path.write_text(json.dumps(report), encoding="utf-8")
+        for folder in ("candidate-a", "candidate-b"):
+            package_path = artifact_root / folder / package_name
+            package_path.parent.mkdir(parents=True)
+            package_path.write_bytes(PACKAGE_BYTES)
+        result = restore_candidate_evidence(
+            artifact_root,
+            repository=REPO,
+            pr_number=PR,
+            source_sha=SHA,
+        )
+        return result["status"], result["failures"]
 
     if adapter == "hrdr_comments":
         comments = [
