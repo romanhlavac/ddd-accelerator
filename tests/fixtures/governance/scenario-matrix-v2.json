@@ -4,11 +4,33 @@
   "purpose": "Exercise the post-S1-S3 governance contract through its production decision owners. This matrix is test input and traceability, not a decision engine.",
   "status": "ACTIVE_AFTER_S1_S3",
   "required_coverage": {
-    "flow": ["standard_implementation", "standard_release", "controlled_recovery", "project_reconciliation"],
-    "candidate_kind": ["NORMAL", "RECOVERY"],
-    "operation": ["merge_dry_run", "merge", "validate", "release", "promotion_dry_run", "project_mutation"],
-    "outcome": ["PASS", "FAIL"],
-    "mismatch_category": ["SAFETY_BLOCKING", "GOVERNANCE_PROJECTION", "PRESENTATION"]
+    "flow": [
+      "standard_implementation",
+      "standard_release",
+      "controlled_recovery",
+      "project_reconciliation"
+    ],
+    "candidate_kind": [
+      "NORMAL",
+      "RECOVERY"
+    ],
+    "operation": [
+      "merge_dry_run",
+      "merge",
+      "validate",
+      "release",
+      "promotion_dry_run",
+      "project_mutation"
+    ],
+    "outcome": [
+      "PASS",
+      "FAIL"
+    ],
+    "mismatch_category": [
+      "SAFETY_BLOCKING",
+      "GOVERNANCE_PROJECTION",
+      "PRESENTATION"
+    ]
   },
   "decision_owners": {
     "candidate_context": "runtime.platform.governance_kernel.evaluate_candidate_context",
@@ -17,7 +39,7 @@
     "project_release_projection": "runtime.platform.release_governance.evaluate_release_scope"
   },
   "quality_metrics": {
-    "scenario_count": 13,
+    "scenario_count": 14,
     "declared_decision_domains": 4,
     "duplicate_decision_owners_per_domain": 0,
     "obsolete_workflow_text_assertions_replaced": 1
@@ -30,7 +52,12 @@
       "candidate_kind": "NORMAL",
       "operation": "merge_dry_run",
       "input": [],
-      "expected": {"status": "PASS", "failure_codes": [], "authorization_required": false, "side_effects_allowed": false}
+      "expected": {
+        "status": "PASS",
+        "failure_codes": [],
+        "authorization_required": false,
+        "side_effects_allowed": false
+      }
     },
     {
       "id": "merge-needs-separate-authorization",
@@ -39,7 +66,12 @@
       "candidate_kind": "NORMAL",
       "operation": "merge",
       "input": [],
-      "expected": {"status": "PASS", "failure_codes": [], "authorization_required": true, "side_effects_allowed": false}
+      "expected": {
+        "status": "PASS",
+        "failure_codes": [],
+        "authorization_required": true,
+        "side_effects_allowed": false
+      }
     },
     {
       "id": "stale-human-review-binding-blocks-merge",
@@ -47,8 +79,20 @@
       "flow": "standard_implementation",
       "candidate_kind": "NORMAL",
       "operation": "merge_dry_run",
-      "input": [{"path": "human_review_reference.reviewed_sha", "value": "cccccccccccccccccccccccccccccccccccccccc"}],
-      "expected": {"status": "FAIL", "failure_codes": ["HUMAN_REVIEW_SOURCE_SHA_MISMATCH"], "authorization_required": false, "side_effects_allowed": false}
+      "input": [
+        {
+          "path": "human_review_reference.reviewed_sha",
+          "value": "cccccccccccccccccccccccccccccccccccccccc"
+        }
+      ],
+      "expected": {
+        "status": "FAIL",
+        "failure_codes": [
+          "HUMAN_REVIEW_SOURCE_SHA_MISMATCH"
+        ],
+        "authorization_required": false,
+        "side_effects_allowed": false
+      }
     },
     {
       "id": "explicit-recovery-intent-is-valid",
@@ -57,12 +101,29 @@
       "candidate_kind": "RECOVERY",
       "operation": "validate",
       "input": [
-        {"path": "candidate_kind", "value": "RECOVERY"},
-        {"path": "release_mode", "value": "CONTROLLED_RECOVERY"},
-        {"path": "source_branch", "value": "release/0.1.2-controlled-recovery-source"},
-        {"path": "pr_state", "value": "DRAFT"}
+        {
+          "path": "candidate_kind",
+          "value": "RECOVERY"
+        },
+        {
+          "path": "release_mode",
+          "value": "CONTROLLED_RECOVERY"
+        },
+        {
+          "path": "source_branch",
+          "value": "release/0.1.2-controlled-recovery-source"
+        },
+        {
+          "path": "pr_state",
+          "value": "DRAFT"
+        }
       ],
-      "expected": {"status": "PASS", "failure_codes": [], "authorization_required": false, "side_effects_allowed": false}
+      "expected": {
+        "status": "PASS",
+        "failure_codes": [],
+        "authorization_required": false,
+        "side_effects_allowed": false
+      }
     },
     {
       "id": "recovery-without-explicit-mode-fails-closed",
@@ -71,11 +132,27 @@
       "candidate_kind": "RECOVERY",
       "operation": "validate",
       "input": [
-        {"path": "candidate_kind", "value": "RECOVERY"},
-        {"path": "source_branch", "value": "release/0.1.2-controlled-recovery-source"},
-        {"path": "pr_state", "value": "DRAFT"}
+        {
+          "path": "candidate_kind",
+          "value": "RECOVERY"
+        },
+        {
+          "path": "source_branch",
+          "value": "release/0.1.2-controlled-recovery-source"
+        },
+        {
+          "path": "pr_state",
+          "value": "DRAFT"
+        }
       ],
-      "expected": {"status": "FAIL", "failure_codes": ["CANDIDATE_KIND_RELEASE_MODE_MISMATCH"], "authorization_required": false, "side_effects_allowed": false}
+      "expected": {
+        "status": "FAIL",
+        "failure_codes": [
+          "CANDIDATE_KIND_RELEASE_MODE_MISMATCH"
+        ],
+        "authorization_required": false,
+        "side_effects_allowed": false
+      }
     },
     {
       "id": "promotion-dry-run-remains-technical-only",
@@ -83,8 +160,15 @@
       "flow": "standard_release",
       "candidate_kind": "NORMAL",
       "operation": "promotion_dry_run",
-      "input": {"failure_codes": []},
-      "expected": {"status": "PASS", "failure_codes": [], "authorization_required": false, "side_effects_allowed": false}
+      "input": {
+        "failure_codes": []
+      },
+      "expected": {
+        "status": "PASS",
+        "failure_codes": [],
+        "authorization_required": false,
+        "side_effects_allowed": false
+      }
     },
     {
       "id": "release-needs-human-release-decision",
@@ -92,8 +176,19 @@
       "flow": "standard_release",
       "candidate_kind": "NORMAL",
       "operation": "release",
-      "input": {"failure_codes": ["HRDR_REQUIRED"]},
-      "expected": {"status": "FAIL", "failure_codes": ["HRDR_REQUIRED"], "authorization_required": true, "side_effects_allowed": false}
+      "input": {
+        "failure_codes": [
+          "HRDR_REQUIRED"
+        ]
+      },
+      "expected": {
+        "status": "FAIL",
+        "failure_codes": [
+          "HRDR_REQUIRED"
+        ],
+        "authorization_required": true,
+        "side_effects_allowed": false
+      }
     },
     {
       "id": "release-safety-mismatch-blocks",
@@ -101,8 +196,19 @@
       "flow": "standard_release",
       "candidate_kind": "NORMAL",
       "operation": "release",
-      "input": {"failure_codes": ["MILESTONE_SCOPE_MISMATCH"]},
-      "expected": {"status": "FAIL", "failure_codes": ["MILESTONE_SCOPE_MISMATCH"], "authorization_required": true, "side_effects_allowed": false}
+      "input": {
+        "failure_codes": [
+          "MILESTONE_SCOPE_MISMATCH"
+        ]
+      },
+      "expected": {
+        "status": "FAIL",
+        "failure_codes": [
+          "MILESTONE_SCOPE_MISMATCH"
+        ],
+        "authorization_required": true,
+        "side_effects_allowed": false
+      }
     },
     {
       "id": "project-lifecycle-drift-does-not-block-release-safety",
@@ -110,8 +216,13 @@
       "flow": "standard_release",
       "candidate_kind": "NORMAL",
       "operation": "release",
-      "input": {"mutation": "project_lifecycle_drift"},
-      "expected": {"status": "PASS", "projection_category": "GOVERNANCE_PROJECTION"}
+      "input": {
+        "mutation": "project_lifecycle_drift"
+      },
+      "expected": {
+        "status": "PASS",
+        "projection_category": "GOVERNANCE_PROJECTION"
+      }
     },
     {
       "id": "project-mutation-requires-zero-readback",
@@ -119,8 +230,13 @@
       "flow": "project_reconciliation",
       "candidate_kind": "NORMAL",
       "operation": "project_mutation",
-      "input": {"test": "runtime/platform/tests/test_mismatch_taxonomy.py::test_project_mutation_audit_keeps_zero_mismatch_transaction_gate"},
-      "expected": {"status": "PASS", "remaining_mismatches": 0}
+      "input": {
+        "test": "runtime/platform/tests/test_mismatch_taxonomy.py::test_project_mutation_audit_keeps_zero_mismatch_transaction_gate"
+      },
+      "expected": {
+        "status": "PASS",
+        "remaining_mismatches": 0
+      }
     },
     {
       "id": "unknown-mismatch-defaults-to-safety",
@@ -128,8 +244,13 @@
       "flow": "standard_release",
       "candidate_kind": "NORMAL",
       "operation": "release",
-      "input": {"code": "UNRECOGNIZED_DRIFT"},
-      "expected": {"status": "PASS", "mismatch_category": "SAFETY_BLOCKING"}
+      "input": {
+        "code": "UNRECOGNIZED_DRIFT"
+      },
+      "expected": {
+        "status": "PASS",
+        "mismatch_category": "SAFETY_BLOCKING"
+      }
     },
     {
       "id": "project-drift-is-governance-projection",
@@ -137,8 +258,13 @@
       "flow": "project_reconciliation",
       "candidate_kind": "NORMAL",
       "operation": "project_mutation",
-      "input": {"code": "DELIVERY_STATUS_MISMATCH"},
-      "expected": {"status": "PASS", "mismatch_category": "GOVERNANCE_PROJECTION"}
+      "input": {
+        "code": "DELIVERY_STATUS_MISMATCH"
+      },
+      "expected": {
+        "status": "PASS",
+        "mismatch_category": "GOVERNANCE_PROJECTION"
+      }
     },
     {
       "id": "presentation-drift-does-not-change-authority",
@@ -146,8 +272,13 @@
       "flow": "project_reconciliation",
       "candidate_kind": "NORMAL",
       "operation": "project_mutation",
-      "input": {"code": "PRESENTATION_WP_MISMATCH"},
-      "expected": {"status": "PASS", "mismatch_category": "PRESENTATION"}
+      "input": {
+        "code": "PRESENTATION_WP_MISMATCH"
+      },
+      "expected": {
+        "status": "PASS",
+        "mismatch_category": "PRESENTATION"
+      }
     },
     {
       "id": "normal-kind-stays-distinct-from-recovery",
@@ -155,8 +286,22 @@
       "flow": "standard_implementation",
       "candidate_kind": "NORMAL",
       "operation": "validate",
-      "input": [{"path": "candidate_kind", "value": "NORMAL"}, {"path": "release_mode", "value": "STANDARD"}],
-      "expected": {"status": "PASS", "failure_codes": [], "authorization_required": false, "side_effects_allowed": false}
+      "input": [
+        {
+          "path": "candidate_kind",
+          "value": "NORMAL"
+        },
+        {
+          "path": "release_mode",
+          "value": "STANDARD"
+        }
+      ],
+      "expected": {
+        "status": "PASS",
+        "failure_codes": [],
+        "authorization_required": false,
+        "side_effects_allowed": false
+      }
     }
   ]
 }
