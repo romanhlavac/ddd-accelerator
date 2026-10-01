@@ -18,7 +18,7 @@ Before production promotion:
 - a governed `promotion_dry_run` has passed with `release_scope_gate_status=PASS`, `promotion_preflight_status=PASS`, `side_effect_assertions_status=PASS` and `wrapper_status=PASS`;
 - one explicit human promotion/release authorization is materialized on the controlled PR as `ddda:promotion-release-authorization:v1`.
 
-The authorization record must bind repository, PR, exact source SHA, candidate package SHA-256, version and the exact command `promote-pr -Pr <PR> -Version <VERSION> -EmergencyRecovery -ConfirmPromotion`. It must explicitly prohibit candidate merge and enumerate the release package, release validation, canonical tag and GitHub Release as the only authorized release side effects after canonical PASS.
+The authorization record must bind repository, PR, exact source SHA, candidate package SHA-256, version and the exact command `recover-release -Pr <PR> -Version <VERSION> -ConfirmPromotion`. It must explicitly prohibit candidate merge and enumerate the release package, release validation, canonical tag and GitHub Release as the only authorized release side effects after canonical PASS.
 
 ## Production command comment
 
@@ -39,9 +39,9 @@ The workflow:
 3. validates the frozen Ready controlled candidate identity;
 4. restores only the candidate validation artifact named by the HRDR `validation_workflow_run`;
 5. recalculates the physical candidate-package SHA-256 and compares it with the HRDR and promotion authorization;
-6. executes `promote-pr -DryRun` again immediately before release and requires exact zero-side-effect PASS evidence;
+6. executes `recover-release -DryRun` again immediately before release and requires exact zero-side-effect PASS evidence;
 7. performs a fresh read-back of the default branch, candidate PR and authorization record;
-8. executes the canonical `promote-pr -Pr <PR> -Version <VERSION> -EmergencyRecovery -ConfirmPromotion` path;
+8. executes the canonical `recover-release -Pr <PR> -Version <VERSION> -ConfirmPromotion` path;
 9. runs release validation before any canonical tag is created;
 10. after PASS, materializes the canonical release package, annotated tag and GitHub Release using the existing release publication contract;
 11. performs fresh server-side read-back proving the default branch is unchanged, the controlled PR remains open and unmerged, the tag resolves to the frozen source SHA and the GitHub Release contains the canonical package plus `result.json` and `result.md`;

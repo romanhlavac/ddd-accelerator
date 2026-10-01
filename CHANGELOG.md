@@ -8,6 +8,10 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 ### Changed
 
+- emergency recovery now has a dedicated public `recover-release` command;
+  standard `promote-pr` cannot accept recovery or no-merge promotion intent,
+  while the historical 0.1.1 authorization record remains readable (#172).
+
 - controlled recovery now enters release-scope evaluation only through an
   explicit `EmergencyRecovery` intent and a separate compatibility evaluator;
   the standard release runtime no longer imports or applies recovery internals,

@@ -156,12 +156,11 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          .\control-plane\ddda.ps1 promote-pr `
+          .\control-plane\ddda.ps1 recover-release `
             -Pr ([int]$env:CANDIDATE_PR) `
             -Version $env:VERSION `
             -ValidationReportPath $env:VALIDATION_REPORT `
             -PackagePath $env:CANDIDATE_PACKAGE `
-            -EmergencyRecovery `
             -DryRun `
             -NonInteractive
 
@@ -233,12 +232,11 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          .\control-plane\ddda.ps1 promote-pr `
+          .\control-plane\ddda.ps1 recover-release `
             -Pr ([int]$env:CANDIDATE_PR) `
             -Version $env:VERSION `
             -ValidationReportPath $env:VALIDATION_REPORT `
             -PackagePath $env:CANDIDATE_PACKAGE `
-            -EmergencyRecovery `
             -ConfirmPromotion `
             -NonInteractive
 

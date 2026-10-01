@@ -111,13 +111,12 @@ Skutečný promotion:
 ```
 
 Controlled recovery je oddělený compatibility režim a nikdy se neodvozuje z
-branch, title, PR body ani přítomnosti ledgeru. Každý dry-run i potvrzená
-promotion musí nést explicitní `-EmergencyRecovery`; bez něj standardní
-collector recovery evidence vůbec nečte:
+branch, title, PR body ani přítomnosti ledgeru. Má samostatný veřejný entry
+point `recover-release`; standardní `promote-pr` recovery intent nepřijímá:
 
 ```powershell
-.\ddda.ps1 promote-pr -Pr <RECOVERY_PR> -Version 0.1.1 -EmergencyRecovery -DryRun
-.\ddda.ps1 promote-pr -Pr <RECOVERY_PR> -Version 0.1.1 -EmergencyRecovery -ConfirmPromotion
+.\ddda.ps1 recover-release -Pr <RECOVERY_PR> -Version 0.1.1 -DryRun
+.\ddda.ps1 recover-release -Pr <RECOVERY_PR> -Version 0.1.1 -ConfirmPromotion
 ```
 
 Volitelné parametry:

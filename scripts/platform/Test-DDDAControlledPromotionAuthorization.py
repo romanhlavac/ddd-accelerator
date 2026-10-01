@@ -105,8 +105,7 @@ def validate_authorization(
         observed_side_effects = authorization.get("authorized_side_effects_after_canonical_pass")
         observed_side_effects = set(observed_side_effects) if isinstance(observed_side_effects, list) else set()
         expected_commands = {
-            f"promote-pr -Pr {pr_number} -Version {version} "
-            "-EmergencyRecovery -ConfirmPromotion"
+            f"recover-release -Pr {pr_number} -Version {version} -ConfirmPromotion"
         }
         if version == "0.1.1":
             expected_commands.add(

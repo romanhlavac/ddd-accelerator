@@ -1,7 +1,7 @@
 ﻿[CmdletBinding()]
 param(
     [Parameter(Mandatory = $true, Position = 0)]
-    [ValidateSet("doctor", "test", "validate-pr", "merge-pr", "review-pr", "promote-pr")]
+    [ValidateSet("doctor", "test", "validate-pr", "merge-pr", "review-pr", "promote-pr", "recover-release")]
     [string]$Command,
 
     [ValidateSet("lint", "schema", "unit", "component", "integration", "smoke", "regression", "security", "e2e", "acceptance", "all")]
@@ -28,7 +28,6 @@ param(
     [switch]$PrePromotionCandidate,
     [switch]$ConfirmMerge,
     [switch]$ConfirmPromotion,
-    [switch]$EmergencyRecovery,
     [switch]$DryRun
 )
 
@@ -145,12 +144,42 @@ switch ($Command) {
         if ([string]::IsNullOrWhiteSpace($Version)) {
             throw "Příkaz promote-pr vyžaduje -Version."
         }
+        if ($ConfirmPromotion) {
+            throw "Příkaz promote-pr nepřijímá -ConfirmPromotion; emergency release používá samostatný příkaz recover-release."
+        }
         $arguments = @("-PlatformPath", $platformRoot, "-Pr", [string]$Pr, "-Version", $Version)
         if (-not [string]::IsNullOrWhiteSpace($ValidationReportPath)) { $arguments += @("-ValidationReportPath", $ValidationReportPath) }
         if (-not [string]::IsNullOrWhiteSpace($PackagePath)) { $arguments += @("-PackagePath", $PackagePath) }
         if ($ConfirmMerge) { $arguments += "-ConfirmMerge" }
+        if ($WithMiro) { $arguments += "-WithMiro" }
+        if ($Full) { $arguments += "-Full" }
+        if ($CleanupOnFailure) { $arguments += "-CleanupOnFailure" }
+        if ($KeepArtifacts) { $arguments += "-KeepArtifacts" }
+        if ($KeepReviewBoard) { $arguments += "-KeepReviewBoard" }
+        if (-not [string]::IsNullOrWhiteSpace($MiroTeamId)) { $arguments += @("-MiroTeamId", $MiroTeamId) }
+        if ($NonInteractive) { $arguments += "-NonInteractive" }
+        if ($DryRun) { $arguments += "-DryRun" }
+        Invoke-DDDACommandScript -RelativePath "scripts/platform/Invoke-DDDAGovernedPromotePr.ps1" -Arguments $arguments
+    }
+    "recover-release" {
+        if ($Pr -le 0) {
+            throw "Příkaz recover-release vyžaduje kladné -Pr."
+        }
+        if ([string]::IsNullOrWhiteSpace($Version)) {
+            throw "Příkaz recover-release vyžaduje -Version."
+        }
+        if ($ConfirmMerge) {
+            throw "Příkaz recover-release nepřijímá -ConfirmMerge; no-merge recovery používá -ConfirmPromotion."
+        }
+        $arguments = @(
+            "-PlatformPath", $platformRoot,
+            "-Pr", [string]$Pr,
+            "-Version", $Version,
+            "-EmergencyRecovery"
+        )
+        if (-not [string]::IsNullOrWhiteSpace($ValidationReportPath)) { $arguments += @("-ValidationReportPath", $ValidationReportPath) }
+        if (-not [string]::IsNullOrWhiteSpace($PackagePath)) { $arguments += @("-PackagePath", $PackagePath) }
         if ($ConfirmPromotion) { $arguments += "-ConfirmPromotion" }
-        if ($EmergencyRecovery) { $arguments += "-EmergencyRecovery" }
         if ($WithMiro) { $arguments += "-WithMiro" }
         if ($Full) { $arguments += "-Full" }
         if ($CleanupOnFailure) { $arguments += "-CleanupOnFailure" }
