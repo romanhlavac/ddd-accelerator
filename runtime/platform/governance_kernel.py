@@ -245,6 +245,13 @@ def _human_review_failures(context: dict[str, Any]) -> list[str]:
     if not review:
         return ["HUMAN_REVIEW_REQUIRED"]
     failures: list[str] = []
+    if review.get("repository") != context.get("repository"):
+        failures.append("HUMAN_REVIEW_REPOSITORY_MISMATCH")
+    try:
+        if int(review.get("pr", 0)) != int(context.get("pr", 0)):
+            failures.append("HUMAN_REVIEW_PR_MISMATCH")
+    except (TypeError, ValueError):
+        failures.append("HUMAN_REVIEW_PR_MISMATCH")
     if review.get("verdict") != "PASS":
         failures.append("HUMAN_REVIEW_NOT_PASS")
     if review.get("reviewed_sha") != context.get("source_sha"):
@@ -264,6 +271,13 @@ def _hrdr_failures(context: dict[str, Any]) -> list[str]:
     if not hrdr:
         return ["HRDR_REQUIRED"]
     failures: list[str] = []
+    if hrdr.get("repository") != context.get("repository"):
+        failures.append("HRDR_REPOSITORY_MISMATCH")
+    try:
+        if int(hrdr.get("pr", 0)) != int(context.get("pr", 0)):
+            failures.append("HRDR_PR_MISMATCH")
+    except (TypeError, ValueError):
+        failures.append("HRDR_PR_MISMATCH")
     if hrdr.get("decision") not in POSITIVE_HRDR:
         failures.append("HRDR_NOT_POSITIVE")
     if hrdr.get("source_sha") != context.get("source_sha"):

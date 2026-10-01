@@ -84,6 +84,10 @@
     }
   },
   "$defs": {
+    "repository": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+    },
     "sha40": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
     "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "validationEvidence": {
@@ -171,6 +175,8 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
+        "repository",
+        "pr",
         "verdict",
         "reviewed_sha",
         "candidate_package_sha256",
@@ -179,6 +185,8 @@
         "provenance_verified"
       ],
       "properties": {
+        "repository": {"$ref": "#/$defs/repository"},
+        "pr": {"type": "integer", "minimum": 1},
         "verdict": {"enum": ["PASS", "CHANGES_REQUIRED"]},
         "reviewed_sha": {"$ref": "#/$defs/sha40"},
         "candidate_package_sha256": {"$ref": "#/$defs/sha256"},
@@ -191,6 +199,8 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
+        "repository",
+        "pr",
         "decision",
         "source_sha",
         "candidate_package_sha256",
@@ -200,6 +210,8 @@
         "provenance_verified"
       ],
       "properties": {
+        "repository": {"$ref": "#/$defs/repository"},
+        "pr": {"type": "integer", "minimum": 1},
         "decision": {"enum": ["PENDING", "GO", "GO_WITH_ACCEPTED_RISKS", "NO_GO"]},
         "source_sha": {"$ref": "#/$defs/sha40"},
         "candidate_package_sha256": {"$ref": "#/$defs/sha256"},

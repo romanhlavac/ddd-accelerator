@@ -93,6 +93,12 @@ no longer reimplements HRDR parsing, positive-decision, identity or
 decision-owner/author binding decisions. Pending automation scaffolds remain
 readable but cannot satisfy a promotion decision.
 
+Both normalized human references carry their repository and PR identity in
+Candidate Context v1. The Governance Kernel owns those root comparisons along
+with SHA, package, version and verdict/decision binding; collectors retain only
+record parsing and GitHub-author provenance normalization. The legacy release
+scope evaluator maps kernel failures to its established public diagnostic codes.
+
 Mandatory GitHub checks are normalized through
 `runtime/platform/check_evidence.py` and the
 `Evaluate-DDDACheckRuns.py` process adapter. That adapter is the single owner

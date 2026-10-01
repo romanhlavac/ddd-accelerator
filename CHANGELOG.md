@@ -8,6 +8,10 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 ### Changed
 
+- Human Review and HRDR repository/PR root identity now belongs to Candidate
+  Context v1 and the Governance Kernel; collectors only normalize records and
+  the legacy release-scope surface preserves its public diagnostics (#171).
+
 - final promotion-readiness PASS/FAIL composition now belongs to the Governance
   Kernel, which never authorizes side effects; the Release Scope adapter keeps
   only compatibility execution eligibility and explicit authorization remains
