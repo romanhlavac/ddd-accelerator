@@ -4,7 +4,7 @@ Knowledge soubory se načítají podle typu práce, nikoli všechny současně. 
 
 | Úloha | Runtime | Načíst |
 |---|---|---|
-| **vývoj DDDA platformy** | **Chat / Work** | **`ddda-platform-development-skill.md`, `../docs/developer-guide/chat-work-operating-model.md` a `../docs/governance/wp-backlog-consistency.md`** |
+| **vývoj DDDA platformy** | **Chat / Work** | **`ddda-platform-development-skill.md`, `../docs/developer-guide/chat-work-operating-model.md`, `../docs/governance/wp-backlog-consistency.md` a `../docs/governance/governance-methodology-v2.md`** |
 | **Miro identity, REST/MCP, Platform Lab, HVR a credential governance** | **Chat / Work nebo Cursor podle scope** | **`13-miro-integration-operating-model.md` a `../docs/developer-guide/miro-execution-profiles.md`** |
 | **používání DDDA v konkrétním projektu** | **Cursor** | **projektový status, tailoring, relevantní knowledge/cookbook soubory a `.cursor` runtime assets** |
 | operating model a způsob práce | Cursor project runtime | `01-operating-model.md` |

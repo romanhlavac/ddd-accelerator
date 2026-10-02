@@ -1,3 +1,4 @@
+import importlib.util
 import json
 from pathlib import Path
 
@@ -13,6 +14,7 @@ from runtime.platform.governance_kernel import (
     evaluate_physical_scope_binding,
     evaluate_promotion_readiness,
 )
+from runtime.platform.mismatch_taxonomy import classify_mismatch
 
 
 SHA = "a" * 40
@@ -20,6 +22,9 @@ PACKAGE = "b" * 64
 ROOT = Path(__file__).resolve().parents[3]
 MATRIX = json.loads(
     (ROOT / "tests/fixtures/governance/scenario-matrix-v1.json").read_text(encoding="utf-8")
+)
+MATRIX_V2 = json.loads(
+    (ROOT / "tests/fixtures/governance/scenario-matrix-v2.json").read_text(encoding="utf-8")
 )
 
 
@@ -81,6 +86,14 @@ def context(operation: str = "merge_dry_run") -> dict:
         "physical_scope_reference": None,
         "project_evidence_reference": None,
     }
+
+
+def set_path(target: dict, dotted_path: str, value) -> None:
+    cursor = target
+    parts = dotted_path.split(".")
+    for part in parts[:-1]:
+        cursor = cursor[part]
+    cursor[parts[-1]] = value
 
 
 def test_merge_dry_run_passes_exact_ready_context_without_authorizing_side_effects():
@@ -494,3 +507,88 @@ def test_release_readiness_does_not_require_project_evidence():
     assert result.status == "PASS"
     assert result.authorization_required is True
     assert result.side_effects_allowed is False
+
+
+def test_scenario_matrix_v2_contract_and_quality_metrics_are_consistent():
+    scenarios = MATRIX_V2["scenarios"]
+    identifiers = [scenario["id"] for scenario in scenarios]
+    assert MATRIX_V2["schema_version"] == 2
+    assert MATRIX_V2["contract"] == "ddda-governance-scenario-matrix"
+    assert len(identifiers) == len(set(identifiers))
+    assert len(scenarios) == MATRIX_V2["quality_metrics"]["scenario_count"]
+    assert len(MATRIX_V2["decision_owners"]) == MATRIX_V2["quality_metrics"]["declared_decision_domains"]
+    assert MATRIX_V2["quality_metrics"]["duplicate_decision_owners_per_domain"] == 0
+    assert all(isinstance(owner, str) and owner for owner in MATRIX_V2["decision_owners"].values())
+
+    observed: dict[str, set[str]] = {axis: set() for axis in MATRIX_V2["required_coverage"]}
+    for scenario in scenarios:
+        observed["flow"].add(scenario["flow"])
+        observed["candidate_kind"].add(scenario["candidate_kind"])
+        observed["operation"].add(scenario["operation"])
+        observed["outcome"].add(scenario["expected"]["status"])
+        if "mismatch_category" in scenario["expected"]:
+            observed["mismatch_category"].add(scenario["expected"]["mismatch_category"])
+        elif scenario["adapter"] == "project_release_projection":
+            observed["mismatch_category"].add(scenario["expected"]["projection_category"])
+    for axis, required in MATRIX_V2["required_coverage"].items():
+        assert set(required) <= observed[axis], f"Missing {axis}: {set(required) - observed[axis]}"
+    readback = next(row for row in scenarios if row["adapter"] == "existing_behavior_test")
+    assert "test_mismatch_taxonomy.py::test_project_mutation_audit_keeps_zero_mismatch_transaction_gate" in readback["input"]["test"]
+
+
+KERNEL_SCENARIOS_V2 = [row for row in MATRIX_V2["scenarios"] if row["adapter"] == "candidate_context"]
+
+
+@pytest.mark.parametrize("scenario", KERNEL_SCENARIOS_V2, ids=lambda row: row["id"])
+def test_scenario_matrix_v2_candidate_context_invariants(scenario: dict):
+    candidate = context(scenario["operation"])
+    for mutation in scenario["input"]:
+        set_path(candidate, mutation["path"], mutation["value"])
+    result = evaluate_candidate_context(candidate)
+    expected = scenario["expected"]
+    assert result.status == expected["status"]
+    assert set(expected["failure_codes"]) == set(result.failure_codes)
+    assert result.authorization_required is expected["authorization_required"]
+    assert result.side_effects_allowed is expected["side_effects_allowed"]
+
+
+PROMOTION_SCENARIOS_V2 = [row for row in MATRIX_V2["scenarios"] if row["adapter"] == "promotion_readiness"]
+
+
+@pytest.mark.parametrize("scenario", PROMOTION_SCENARIOS_V2, ids=lambda row: row["id"])
+def test_scenario_matrix_v2_promotion_invariants(scenario: dict):
+    result = evaluate_promotion_readiness(
+        scenario["input"]["failure_codes"],
+        operation=scenario["operation"],
+    )
+    expected = scenario["expected"]
+    assert result.status == expected["status"]
+    assert set(expected["failure_codes"]) == set(result.failure_codes)
+    assert result.authorization_required is expected["authorization_required"]
+    assert result.side_effects_allowed is expected["side_effects_allowed"]
+
+
+MISMATCH_SCENARIOS_V2 = [row for row in MATRIX_V2["scenarios"] if row["adapter"] == "mismatch_taxonomy"]
+
+
+@pytest.mark.parametrize("scenario", MISMATCH_SCENARIOS_V2, ids=lambda row: row["id"])
+def test_scenario_matrix_v2_mismatch_classification(scenario: dict):
+    result = classify_mismatch(scenario["input"]["code"])
+    assert result["primary_category"] == scenario["expected"]["mismatch_category"]
+
+
+def test_scenario_matrix_v2_project_projection_behavior():
+    scenario = next(row for row in MATRIX_V2["scenarios"] if row["adapter"] == "project_release_projection")
+    module_path = ROOT / "runtime/platform/tests/test_release_governance.py"
+    spec = importlib.util.spec_from_file_location("governance_matrix_release_scope", module_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    live = module.snapshot()
+    live["project_rows"]["12"] = {"Status": "In progress", "Blocked": "Yes"}
+    result = module.evaluate(live=live)
+    categories = result.as_dict()["projection_mismatch_categories"]
+    assert result.status == scenario["expected"]["status"]
+    assert categories
+    assert all(item["primary_category"] == scenario["expected"]["projection_category"] for item in categories)

@@ -99,7 +99,7 @@
       "adapter": "workflow_guard",
       "dimensions": {"package": "duplicate", "operation": "validate"},
       "input": {"file": ".github/workflows/controlled-release-candidate-validation.yml", "required_text": "Expected exactly one unexpired exact validation artifact"},
-      "expected": {"status": "FAIL", "failure_codes": ["EXACT_PACKAGE_CARDINALITY"]}
+      "expected": {"status": "FAIL", "failure_codes": ["CANDIDATE_EVIDENCE_PACKAGE_CARDINALITY"]}
     },
     {
       "id": "human-review-missing",

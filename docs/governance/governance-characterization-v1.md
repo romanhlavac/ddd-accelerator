@@ -1,9 +1,14 @@
 # Governance characterization v1
 
-Status: S4-A characterization baseline for #174. This document and
-`tests/fixtures/governance/scenario-matrix-v1.json` describe current behavior
-before S1-S3 move authority. They do not authorize merge or release and they
-are not a second governance evaluator.
+Status: S4-A Characterization Gate PASS before S1. PR #176 (`fe7157efdd0e94c7ede4dfe7e7c71c91f045091f`) ran the versioned baseline, Python and PowerShell characterization, exact-SHA validation and package-first suites successfully. This document and `tests/fixtures/governance/scenario-matrix-v1.json` describe the behavior recorded before S1-S3 moved authority. They do not authorize merge or release and they are not a second governance evaluator.
+
+The baseline remains immutable in behavior. The S4-B/#174 change updates the
+duplicate-package scenario's expected failure code to the canonical code emitted by the
+shared evidence-restoration owner; the observed outcome remains `FAIL`. The
+scenario now exercises duplicate physical evidence instead of asserting a
+workflow sentence. Post-migration behavior is recorded separately in
+`docs/governance/governance-methodology-v2.md` and
+`tests/fixtures/governance/scenario-matrix-v2.json`.
 
 ## How to use the matrix
 
