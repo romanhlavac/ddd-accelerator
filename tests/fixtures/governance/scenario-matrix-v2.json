@@ -37,11 +37,12 @@
     "promotion_readiness": "runtime.platform.governance_kernel.evaluate_promotion_readiness",
     "mismatch_category": "runtime.platform.mismatch_taxonomy.classify_mismatch",
     "project_release_projection": "runtime.platform.release_governance.evaluate_release_scope",
-    "mandatory_checks": "runtime.platform.governance_kernel.evaluate_check_summary"
+    "mandatory_checks": "runtime.platform.governance_kernel.evaluate_check_summary",
+    "planning_projection": "scripts/platform/Reconcile-DDDAProjectBacklog.py:derive_planning_projection"
   },
   "quality_metrics": {
-    "scenario_count": 36,
-    "declared_decision_domains": 5,
+    "scenario_count": 47,
+    "declared_decision_domains": 6,
     "duplicate_decision_owners_per_domain": 0,
     "obsolete_workflow_text_assertions_replaced": 1
   },
@@ -906,6 +907,264 @@
       "expected": {
         "status": "FAIL",
         "gate_result": "FAIL"
+      }
+    },
+    {
+      "id": "planning-94-historical-88-92-backlog",
+      "adapter": "planning_projection",
+      "flow": "project_reconciliation",
+      "candidate_kind": "NORMAL",
+      "operation": "project_mutation",
+      "input": {
+        "issue": {
+          "state": "open"
+        },
+        "draft": true,
+        "blockers": [],
+        "current": {
+          "Status": "Backlog",
+          "Blocked": "No"
+        }
+      },
+      "expected": {
+        "status": "FAIL",
+        "planning_status": "In progress",
+        "mismatch_category": "GOVERNANCE_PROJECTION"
+      }
+    },
+    {
+      "id": "planning-94-ready-planning-keeps-progress",
+      "adapter": "planning_projection",
+      "flow": "project_reconciliation",
+      "candidate_kind": "NORMAL",
+      "operation": "project_mutation",
+      "input": {
+        "issue": {
+          "state": "open"
+        },
+        "draft": false,
+        "blockers": [],
+        "current": {
+          "Status": "In review",
+          "Blocked": "No"
+        }
+      },
+      "expected": {
+        "status": "FAIL",
+        "planning_status": "In progress",
+        "mismatch_category": "GOVERNANCE_PROJECTION"
+      }
+    },
+    {
+      "id": "planning-94-draft-planning-progress",
+      "adapter": "planning_projection",
+      "flow": "project_reconciliation",
+      "candidate_kind": "NORMAL",
+      "operation": "project_mutation",
+      "input": {
+        "issue": {
+          "state": "open"
+        },
+        "draft": true,
+        "blockers": [],
+        "current": {
+          "Status": "In progress",
+          "Blocked": "No"
+        }
+      },
+      "expected": {
+        "status": "PASS",
+        "planning_status": "In progress",
+        "mismatch_category": "GOVERNANCE_PROJECTION"
+      }
+    },
+    {
+      "id": "planning-94-ready-planning-progress",
+      "adapter": "planning_projection",
+      "flow": "project_reconciliation",
+      "candidate_kind": "NORMAL",
+      "operation": "project_mutation",
+      "input": {
+        "issue": {
+          "state": "open"
+        },
+        "draft": false,
+        "blockers": [],
+        "current": {
+          "Status": "In progress",
+          "Blocked": "No"
+        }
+      },
+      "expected": {
+        "status": "PASS",
+        "planning_status": "In progress",
+        "mismatch_category": "GOVERNANCE_PROJECTION"
+      }
+    },
+    {
+      "id": "planning-94-blocked-precedes-entry",
+      "adapter": "planning_projection",
+      "flow": "project_reconciliation",
+      "candidate_kind": "NORMAL",
+      "operation": "project_mutation",
+      "input": {
+        "issue": {
+          "state": "open"
+        },
+        "draft": true,
+        "blockers": [
+          44
+        ],
+        "current": {
+          "Status": "Blocked",
+          "Blocked": "Yes"
+        }
+      },
+      "expected": {
+        "status": "PASS",
+        "planning_status": "Blocked",
+        "mismatch_category": "GOVERNANCE_PROJECTION"
+      }
+    },
+    {
+      "id": "planning-94-unblocked-active-clears-stale-blocked",
+      "adapter": "planning_projection",
+      "flow": "project_reconciliation",
+      "candidate_kind": "NORMAL",
+      "operation": "project_mutation",
+      "input": {
+        "issue": {
+          "state": "open"
+        },
+        "draft": true,
+        "blockers": [],
+        "current": {
+          "Status": "Blocked",
+          "Blocked": "Yes"
+        }
+      },
+      "expected": {
+        "status": "FAIL",
+        "planning_status": "In progress",
+        "mismatch_category": "GOVERNANCE_PROJECTION"
+      }
+    },
+    {
+      "id": "planning-94-completed-release-evidence-preserved",
+      "adapter": "planning_projection",
+      "flow": "project_reconciliation",
+      "candidate_kind": "NORMAL",
+      "operation": "project_mutation",
+      "input": {
+        "issue": {
+          "state": "closed",
+          "state_reason": "completed"
+        },
+        "draft": false,
+        "blockers": [],
+        "current": {
+          "Status": "Done",
+          "Blocked": "No"
+        }
+      },
+      "expected": {
+        "status": "PASS",
+        "planning_status": "Done",
+        "mismatch_category": "GOVERNANCE_PROJECTION"
+      }
+    },
+    {
+      "id": "planning-94-not-planned-cancelled",
+      "adapter": "planning_projection",
+      "flow": "project_reconciliation",
+      "candidate_kind": "NORMAL",
+      "operation": "project_mutation",
+      "input": {
+        "issue": {
+          "state": "closed",
+          "state_reason": "not_planned"
+        },
+        "draft": true,
+        "blockers": [],
+        "current": {
+          "Status": "Cancelled",
+          "Blocked": "No"
+        }
+      },
+      "expected": {
+        "status": "PASS",
+        "planning_status": "Cancelled",
+        "mismatch_category": "GOVERNANCE_PROJECTION"
+      }
+    },
+    {
+      "id": "planning-94-duplicate-cancelled",
+      "adapter": "planning_projection",
+      "flow": "project_reconciliation",
+      "candidate_kind": "NORMAL",
+      "operation": "project_mutation",
+      "input": {
+        "issue": {
+          "state": "closed",
+          "state_reason": "duplicate"
+        },
+        "draft": true,
+        "blockers": [],
+        "current": {
+          "Status": "Cancelled",
+          "Blocked": "No"
+        }
+      },
+      "expected": {
+        "status": "PASS",
+        "planning_status": "Cancelled",
+        "mismatch_category": "GOVERNANCE_PROJECTION"
+      }
+    },
+    {
+      "id": "planning-94-before-entry-backlog",
+      "adapter": "planning_projection",
+      "flow": "project_reconciliation",
+      "candidate_kind": "NORMAL",
+      "operation": "project_mutation",
+      "input": {
+        "issue": {
+          "state": "open"
+        },
+        "draft": null,
+        "blockers": [],
+        "current": {
+          "Status": "Backlog",
+          "Blocked": "No"
+        }
+      },
+      "expected": {
+        "status": "PASS",
+        "planning_status": "Backlog",
+        "mismatch_category": "GOVERNANCE_PROJECTION"
+      }
+    },
+    {
+      "id": "planning-94-closed-pr-does-not-authorize-rollback",
+      "adapter": "planning_projection",
+      "flow": "project_reconciliation",
+      "candidate_kind": "NORMAL",
+      "operation": "project_mutation",
+      "input": {
+        "issue": {
+          "state": "open"
+        },
+        "draft": null,
+        "blockers": [],
+        "current": {
+          "Status": "In progress",
+          "Blocked": "No"
+        }
+      },
+      "expected": {
+        "status": "PASS",
+        "planning_status": "In progress",
+        "mismatch_category": "GOVERNANCE_PROJECTION"
       }
     }
   ]

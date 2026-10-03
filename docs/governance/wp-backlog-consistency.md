@@ -64,6 +64,36 @@ Další analytické view mohou existovat pouze jako odvozené pohledy; nesmějí
 - Otevřený Change Request s alespoň jedním unresolved native blockerem má `Blocked = Yes` a `Status = Blocked`; bez unresolved blockeru má `Blocked = No` a nesmí zůstat ve stale `Status = Blocked`.
 - Repository-wide reconciliation kontroluje a mechanicky čistí aktivní dependency projection pro **všechny** governed Change Requests, nikoli pouze položky právě uvedené na levé straně `dependencies`.
 
+### Planning lifecycle (#94)
+
+Planning Issue je authority, aktivní primary implementation PR je delivery evidence
+a Project Status je projekce. Tentýž reconciler odvozuje i ověřuje tento kontrakt:
+
+| Canonical state | Planning Status | Delivery Status |
+|---|---|---|
+| Open Issue + unblocked active Draft PR | In progress | In progress |
+| Open Issue + unblocked active Ready PR | In progress | In review |
+| Open Issue + unresolved authoritative blocker | Blocked | Blocked |
+| Closed completed | Done | Existing delivery evidence does not reopen planning |
+| Closed not_planned / duplicate | Cancelled | Existing delivery evidence does not reopen planning |
+
+`Backlog` je validní před implementation entry. Aktivní primary PR nemůže
+ponechat planning `Backlog`, `Ready`, `In review` ani jinou stale hodnotu.
+Terminální closure má přednost před PR evidence; historický otevřený release-source
+PR tedy nevrací completed planning Issue do In progress. Bez aktivního PR
+zůstávají předimplementační hodnoty zachovány; odstranění posledního PR samo
+neautorizuje rollback už rozpracovaného planning Issue do Backlog.
+
+`python scripts/platform/Reconcile-DDDAProjectBacklog.py --mode verify` je read-only:
+nemění Issue, dependencies, Project fields/options ani views, uloží FAIL audit
+a vrátí nonzero exit při mismatch. `--mode reconcile` je zpětně kompatibilní default
+a mechanicky opraví jednoznačnou projekci. Oba režimy používají stejnou derivaci.
+`PLANNING_LIFECYCLE_STATUS_MISMATCH` a drift authority jsou
+`GOVERNANCE_PROJECTION` podle S3, nikoli release authority. Evidence obsahuje
+active implementation PRs, expected Status a unresolved blockers. PASS vyžaduje
+fresh state/closure reason/blocker/primary PR/HEAD/Draft-Ready read-back a
+`remaining_mismatches = 0`; druhé reconcile nemá semantické opravy.
+
 ### Delivery
 
 - Každý otevřený platformní PR má právě jednu primární vazbu `Implements #<CR>` nebo `Closes #<CR>`, pokud nejde o explicitní verzovanou legacy výjimku.
@@ -122,6 +152,8 @@ Za governance failure se považuje zejména:
 - uzavřený Change Request má stále aktivní native blocker (`CLOSED_ITEM_ACTIVE_BLOCKER`);
 - uzavřený Change Request má `Blocked != No` (`CLOSED_ITEM_BLOCKED_FLAG`);
 - terminal Project status neodpovídá GitHub closure reason (`TERMINAL_STATUS_MISMATCH`);
+- planning Status odporuje canonical lifecycle (`PLANNING_LIFECYCLE_STATUS_MISMATCH`);
+- planning authority se během read-backu změnila (`PLANNING_AUTHORITY_CHANGED_DURING_RECONCILIATION`);
 - planning `Blocked` neodpovídá unresolved dependency projection (`PLANNING_BLOCKED_FLAG_MISMATCH`);
 - otevřený Change Request s unresolved blockerem nemá `Status = Blocked` (`PLANNING_BLOCKED_STATUS_MISMATCH`);
 - Change Request bez unresolved blockeru zůstal ve `Status = Blocked` (`PLANNING_STALE_BLOCKED_STATUS`);
@@ -167,3 +199,4 @@ Governance/backlog/delivery změna uchovává minimálně:
 - workflow run a audit artifact při privileged live reconciliation.
 
 Technical PASS a Human Review zůstávají oddělené dimenze.
+

@@ -1,3 +1,4 @@
+import argparse
 import json
 import re
 import subprocess
@@ -259,27 +260,22 @@ def reconcile_configured_project_options(cfg, project_number, fields, repairs):
     return changed
 
 
-def resolve_project(repairs):
+def resolve_project(repairs, read_only=False):
     projects = gh("project", "list", "--owner", OWNER, "--limit", "100", "--format", "json", json_out=True)
-    match = next(
-        (
-            x
-            for x in projects.get("projects", [])
-            if x.get("title") in (PROJECT_TITLE, LEGACY_PROJECT_TITLE) and not x.get("closed")
-        ),
-        None,
-    )
-    if not match:
-        raise RuntimeError(f"Project not found: {PROJECT_TITLE} (or legacy {LEGACY_PROJECT_TITLE})")
+    matches = [x for x in projects.get("projects", [])
+               if x.get("title") in (PROJECT_TITLE, LEGACY_PROJECT_TITLE) and not x.get("closed")]
+    if len(matches) != 1:
+        raise RuntimeError(f"Expected exactly one canonical Project, found {len(matches)}")
+    match = matches[0]
     number = int(match["number"])
     p = gql(Q_PROJECT, {"login": OWNER, "number": number})["data"]["user"]["projectV2"]
-    if p["title"] != PROJECT_TITLE:
+    if not read_only and p["title"] != PROJECT_TITLE:
         update_project_title(p["id"])
         repairs.append({"project": number, "action": "RENAME_PROJECT", "value": PROJECT_TITLE})
         p = gql(Q_PROJECT, {"login": OWNER, "number": number})["data"]["user"]["projectV2"]
     fields = {x.get("name"): x for x in p["fields"]["nodes"] if x.get("name")}
     cfg = json.loads(CFG_PATH.read_text(encoding="utf-8-sig"))
-    if reconcile_configured_project_options(cfg, number, fields, repairs):
+    if not read_only and reconcile_configured_project_options(cfg, number, fields, repairs):
         p = gql(Q_PROJECT, {"login": OWNER, "number": number})["data"]["user"]["projectV2"]
         fields = {x.get("name"): x for x in p["fields"]["nodes"] if x.get("name")}
     return number, p["id"], fields, p["views"]["nodes"]
@@ -456,7 +452,7 @@ def reconcile_delivery(authority, project_number, project_id, fields, repairs):
         "run Reconcile-DDDAProjectBacklog.py"
     )
 
-def verify_planning(wp_parent, expected, dependencies, project_number):
+def verify_planning(wp_parent, expected, dependencies, project_number, authority=None):
     items = content_item_map(project_number, "Issue")
     parent_set = set(wp_parent.values())
     rows, problems = [], []
@@ -542,7 +538,10 @@ def verify_project_contract(project_number):
     return p, problems
 
 
-def main():
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="Reconcile or read-only verify DDDA Project projections")
+    parser.add_argument("--mode", choices=("reconcile", "verify"), default="reconcile")
+    mode = parser.parse_args(argv).mode
     cfg, wp_parent, item_meta, expected, dependencies = load_contract()
     discovered = discover_cr_numbers()
     unknown = sorted(discovered - set(expected))
@@ -554,26 +553,28 @@ def main():
     details = {n: issue(n) for n in expected}
     repairs = []
 
-    reconcile_hierarchy(wp_parent, expected, details, repairs)
-    reconcile_dependencies(dependencies, repairs)
-    project_number, project_id, fields, views = resolve_project(repairs)
+    if mode == "reconcile":
+        reconcile_hierarchy(wp_parent, expected, details, repairs)
+        reconcile_dependencies(dependencies, repairs)
+    project_number, project_id, fields, views = resolve_project(repairs, read_only=(mode == "verify"))
     for required in ["Status", "Work Package", "Item Type", "Target Release", "Blocked"]:
         if required not in fields:
             raise RuntimeError(f"Required Project field missing: {required}")
-    reconcile_views(project_number, project_id, views, repairs)
-    reconcile_planning(wp_parent, item_meta, expected, details, project_number, project_id, fields, repairs)
-    reconcile_delivery(authority, project_number, project_id, fields, repairs)
+    if mode == "reconcile":
+        reconcile_views(project_number, project_id, views, repairs)
+        reconcile_planning(wp_parent, item_meta, expected, details, project_number, project_id, fields, repairs)
+        reconcile_delivery(authority, project_number, project_id, fields, repairs)
+        time.sleep(2)
 
-    time.sleep(2)
-    planning_rows, planning_problems = verify_planning(wp_parent, expected, dependencies, project_number)
     delivery_rows, delivery_problems = verify_delivery(authority, project_number)
+    planning_rows, planning_problems = verify_planning(wp_parent, expected, dependencies, project_number, authority=authority)
     project_state, project_problems = verify_project_contract(project_number)
     problems = planning_problems + delivery_problems + project_problems
     if problems:
         for problem in problems:
             result = problem.get("result", "") if isinstance(problem, dict) else ""
             problem["mismatch_categories"] = classify_result(result)
-        raise RuntimeError("Read-back mismatches: " + json.dumps(problems, ensure_ascii=False))
+
 
     for row in planning_rows + delivery_rows:
         row["mismatch_categories"] = classify_result(row.get("result", ""))
@@ -582,6 +583,8 @@ def main():
     source_sha = cmd("git", "rev-parse", "HEAD")
     report = {
         "schema_version": 6,
+        "mode": mode,
+        "status": "FAIL" if problems else "PASS",
         "mismatch_taxonomy_version": 1,
         "mismatch_categories": {
             "SAFETY_BLOCKING": "Blocks relevant governed side effect; unknown codes default here.",
@@ -600,7 +603,9 @@ def main():
         "open_pr_count": len(open_prs),
         "mapped_pr_count": len(authority),
         "repair_count": len(repairs),
-        "remaining_count": 0,
+        "remaining_count": len(problems),
+        "remaining_mismatches": len(problems),
+        "problems": problems,
         "repairs": repairs,
         "planning_final": planning_rows,
         "delivery_final": delivery_rows,
@@ -618,7 +623,7 @@ def main():
         f"- Open PRs: **{len(open_prs)}**",
         f"- Mapped delivery PRs: **{len(authority)}**",
         f"- Repairs: **{len(repairs)}**",
-        "- Remaining mismatches: **0**",
+        f"- Remaining mismatches: **{len(problems)}**",
         "",
         "## Planning",
         "",
@@ -640,10 +645,13 @@ def main():
                 "open_pr": len(open_prs),
                 "mapped_pr": len(authority),
                 "repairs": len(repairs),
-                "remaining": 0,
+                "remaining": len(problems),
             }
         )
     )
+
+    if problems:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

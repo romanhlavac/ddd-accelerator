@@ -66,7 +66,8 @@ jobs:
           set -euo pipefail
           python scripts/platform/Reconcile-DDDAReleasePlanning.py --mode reconcile
           python scripts/platform/Reconcile-DDDAProjectBacklogPresentation.py --mode reconcile
-          python scripts/platform/Reconcile-DDDAProjectBacklog.py
+          python scripts/platform/Reconcile-DDDAProjectBacklog.py --mode reconcile
+          python scripts/platform/Reconcile-DDDAProjectBacklog.py --mode verify
           python scripts/platform/Reconcile-DDDAProjectBacklogPresentation.py --mode verify
           python scripts/platform/Reconcile-DDDAReleasePlanning.py --mode verify
 
@@ -113,6 +114,9 @@ jobs:
           assert audit['source_sha'] == os.environ['GITHUB_SHA']
           assert release_planning['source_sha'] == os.environ['GITHUB_SHA']
           assert audit['remaining_count'] == 0
+          assert audit['remaining_mismatches'] == 0
+          assert audit['mode'] == 'verify'
+          assert audit['repair_count'] == 0
           assert presentation['remaining_count'] == 0
           assert release_planning['remaining_count'] == 0
           print(json.dumps({
@@ -135,3 +139,4 @@ jobs:
           path: .reports/cr-delivery-audit-v6/**
           retention-days: 30
           if-no-files-found: error
+
