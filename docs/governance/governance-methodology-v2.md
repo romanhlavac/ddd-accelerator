@@ -21,6 +21,9 @@ These invariants apply to every implementation and release path:
 - Keep backlog/Project changes transactional: reconcile the complete repository and require `remaining_mismatches = 0` on read-back before accepting the mutation.
 - Require explicit emergency intent for controlled recovery; titles, branches and other presentation signals cannot select it.
 
+The [mandatory check contract](mandatory-check-semantics.md) defines #73 exact-SHA,
+explicit-success and authoritative-attempt semantics in the existing kernel.
+
 ## Standard implementation path
 
 1. Select the owning Change Request and its bounded acceptance criteria.
@@ -54,3 +57,4 @@ If an implementation-shape assertion has no behavior-level meaning, remove it on
 ## Change rule
 
 Add or change a scenario in the same PR that changes its owning behavior. Keep the matrix descriptive: evidence collection remains in adapters, decisions remain in their canonical owner, and side effects remain behind the relevant authorization gate.
+

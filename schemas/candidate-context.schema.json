@@ -127,17 +127,34 @@
     "checkSummary": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["status", "required_checks", "latest_results"],
+      "required": [
+        "status",
+        "required_checks",
+        "latest_results",
+        "source_sha"
+      ],
       "properties": {
-        "status": {"enum": ["PASS", "FAIL", "PENDING", "MISSING"]},
+        "status": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "PENDING",
+            "MISSING"
+          ]
+        },
         "required_checks": {
           "type": "array",
-          "items": {"type": "string", "minLength": 1},
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
           "uniqueItems": true
         },
         "accepted_conclusions": {
           "type": "array",
-          "items": {"enum": ["SUCCESS", "NEUTRAL", "SKIPPED"]},
+          "items": {
+            "const": "SUCCESS"
+          },
           "minItems": 1,
           "uniqueItems": true
         },
@@ -146,28 +163,75 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["name", "status", "conclusion", "run_id"],
+            "required": [
+              "name",
+              "status",
+              "conclusion",
+              "run_id",
+              "source_sha"
+            ],
             "properties": {
-              "name": {"type": "string", "minLength": 1},
-              "status": {"enum": ["QUEUED", "IN_PROGRESS", "COMPLETED"]},
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "status": {
+                "type": "string",
+                "minLength": 1
+              },
               "conclusion": {
-                "type": ["string", "null"],
-                "enum": [
-                  "SUCCESS",
-                  "FAILURE",
-                  "CANCELLED",
-                  "NEUTRAL",
-                  "SKIPPED",
-                  "TIMED_OUT",
-                  "ACTION_REQUIRED",
-                  "STALE",
-                  "STARTUP_FAILURE",
-                  null
+                "type": [
+                  "string",
+                  "null"
                 ]
               },
-              "run_id": {"type": "integer", "minimum": 1}
+              "run_id": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 1
+              },
+              "source_sha": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "pattern": "^[0-9a-f]{40}$"
+              },
+              "app_id": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 1
+              },
+              "classification": {
+                "enum": [
+                  "MANDATORY",
+                  "OPTIONAL",
+                  "NOT_APPLICABLE"
+                ]
+              },
+              "gate_result": {
+                "enum": [
+                  "PASS",
+                  "FAIL",
+                  "NOT_READY",
+                  "NOT_APPLICABLE"
+                ]
+              },
+              "failure_reason": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
             }
           }
+        },
+        "source_sha": {
+          "$ref": "#/$defs/sha40"
         }
       }
     },
@@ -235,3 +299,4 @@
     }
   }
 }
+

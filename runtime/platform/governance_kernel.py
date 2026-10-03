@@ -210,34 +210,119 @@ def _validation_failures(context: dict[str, Any]) -> list[str]:
     return failures
 
 
-def _check_failures(context: dict[str, Any]) -> list[str]:
-    checks = _mapping(context.get("authoritative_check_summary"))
-    if not checks:
-        return ["AUTHORITATIVE_CHECK_SUMMARY_MISSING"]
-    if checks.get("status") != "PASS":
-        return ["AUTHORITATIVE_CHECKS_NOT_PASS"]
-    required = checks.get("required_checks")
-    results = checks.get("latest_results")
-    accepted = checks.get("accepted_conclusions", ["SUCCESS"])
-    if not isinstance(required, list) or not required:
-        return ["AUTHORITATIVE_REQUIRED_CHECKS_MISSING"]
-    if not isinstance(results, list):
-        return ["AUTHORITATIVE_CHECK_RESULTS_MISSING"]
-    if not isinstance(accepted, list) or not accepted:
-        return ["AUTHORITATIVE_ACCEPTED_CONCLUSIONS_MISSING"]
-    latest = {
-        str(row.get("name")): row
-        for row in results
-        if isinstance(row, dict) and str(row.get("name") or "")
-    }
+def evaluate_check_summary(checks: Any, *, source_sha: str) -> dict[str, Any]:
+    """Resolve attempts and explicit-success semantics in the singular kernel.
+
+    GitHub allocates a new check-run/status ID for each newly created attempt.
+    Highest numeric ID wins within the exact name and producer. Start/completion
+    timestamps cannot resurrect an older attempt. Conflicting duplicate IDs or
+    multiple producers are ambiguous and cannot satisfy a mandatory check.
+    """
+    checks = _mapping(checks)
     failures: list[str] = []
-    for name in required:
-        row = latest.get(str(name))
-        if not row:
-            failures.append(f"AUTHORITATIVE_CHECK_MISSING:{name}")
-        elif row.get("status") != "COMPLETED" or row.get("conclusion") not in accepted:
-            failures.append(f"AUTHORITATIVE_CHECK_NOT_SUCCESS:{name}")
-    return failures
+    if not checks:
+        failures.append("AUTHORITATIVE_CHECK_SUMMARY_MISSING")
+    elif checks.get("status") != "PASS":
+        failures.append("AUTHORITATIVE_CHECKS_NOT_PASS")
+    if not SHA40.fullmatch(str(source_sha or "")):
+        failures.append("AUTHORITATIVE_SOURCE_SHA_INVALID")
+    if checks.get("source_sha") != source_sha:
+        failures.append("AUTHORITATIVE_CHECK_SOURCE_SHA_MISMATCH")
+    required = checks.get("required_checks")
+    if (not isinstance(required, list) or not required
+            or any(not isinstance(name, str) or not name for name in required)):
+        failures.append("AUTHORITATIVE_REQUIRED_CHECKS_MISSING")
+        required = []
+    elif len(required) != len(set(required)):
+        failures.append("AUTHORITATIVE_REQUIRED_CHECKS_AMBIGUOUS")
+    if checks.get("accepted_conclusions", ["SUCCESS"]) != ["SUCCESS"]:
+        failures.append("AUTHORITATIVE_ACCEPTED_CONCLUSION_POLICY_INVALID")
+    rows = checks.get("latest_results")
+    if not isinstance(rows, list) or any(not isinstance(row, dict) for row in rows):
+        failures.append("AUTHORITATIVE_CHECK_RESULTS_MISSING")
+        rows = []
+    by_name: dict[str, list[dict[str, Any]]] = {}
+    for row in rows:
+        name = row.get("name")
+        if isinstance(name, str) and name:
+            by_name.setdefault(name, []).append(row)
+    resolved: list[dict[str, Any]] = []
+    for name in sorted(set(required) | set(by_name)):
+        attempts = by_name.get(name, [])
+        mandatory = name in required
+        reason = None
+        selected: dict[str, Any] = {}
+        valid_ids = all(
+            isinstance(row.get("run_id"), int) and not isinstance(row["run_id"], bool)
+            and row["run_id"] > 0
+            and (row.get("app_id") is None or (
+                isinstance(row["app_id"], int) and not isinstance(row["app_id"], bool) and row["app_id"] > 0
+            ))
+            and all(row.get(field) is None or isinstance(row.get(field), str)
+                    for field in ("source_sha", "status", "conclusion", "classification"))
+            for row in attempts
+        )
+        if not attempts:
+            reason = f"AUTHORITATIVE_CHECK_MISSING:{name}"
+        elif not valid_ids:
+            reason = f"AUTHORITATIVE_CHECK_ATTEMPT_INVALID:{name}"
+        else:
+            producers = {row.get("app_id") for row in attempts}
+            latest_id = max(row["run_id"] for row in attempts)
+            winners = [row for row in attempts if row["run_id"] == latest_id]
+            identities = {
+                (row.get("source_sha"), row.get("status"), row.get("conclusion"),
+                 row.get("app_id"), row.get("classification")) for row in winners
+            }
+            if len(producers) != 1 or len(identities) != 1:
+                reason = f"AUTHORITATIVE_CHECK_ATTEMPT_AMBIGUOUS:{name}"
+            else:
+                selected = dict(winners[0])
+        classification = "MANDATORY" if mandatory else (
+            "NOT_APPLICABLE" if selected.get("classification") == "NOT_APPLICABLE" else "OPTIONAL"
+        )
+        pending = False
+        if mandatory and reason is None:
+            if selected.get("classification") == "NOT_APPLICABLE":
+                reason = f"AUTHORITATIVE_REQUIRED_CHECK_IGNORED:{name}"
+            elif selected.get("source_sha") != source_sha:
+                reason = f"AUTHORITATIVE_CHECK_SOURCE_SHA_MISMATCH:{name}"
+            elif selected.get("status") != "COMPLETED" or selected.get("conclusion") != "SUCCESS":
+                reason = f"AUTHORITATIVE_CHECK_NOT_SUCCESS:{name}"
+                pending = selected.get("status") in {"QUEUED", "IN_PROGRESS", "WAITING", "PENDING", "REQUESTED"}
+        gate = ("NOT_READY" if pending or not attempts else "FAIL") if reason else "PASS"
+        if not mandatory:
+            gate = "NOT_APPLICABLE"
+        elif reason:
+            failures.append(reason)
+        resolved.append({
+            "name": name,
+            "source_sha": selected.get("source_sha"),
+            "run_id": selected.get("run_id"),
+            "app_id": selected.get("app_id"),
+            "status": selected.get("status", "MISSING" if not attempts else "UNKNOWN"),
+            "conclusion": selected.get("conclusion"),
+            "classification": classification,
+            "gate_result": gate,
+            "failure_reason": reason,
+        })
+    failures = sorted(set(failures))
+    mandatory_rows = [row for row in resolved if row["classification"] == "MANDATORY"]
+    only_pending = bool(failures) and all(
+        row["gate_result"] in {"PASS", "NOT_READY"} for row in mandatory_rows
+    ) and set(failures) == {row["failure_reason"] for row in mandatory_rows if row["failure_reason"]}
+    return {
+        "status": "FAIL" if failures else "PASS",
+        "gate_result": "NOT_READY" if only_pending else "FAIL" if failures else "PASS",
+        "failures": failures,
+        "latest_results": resolved,
+    }
+
+
+def _check_failures(context: dict[str, Any]) -> list[str]:
+    return evaluate_check_summary(
+        context.get("authoritative_check_summary"), source_sha=context.get("source_sha")
+    )["failures"]
 
 
 def _human_review_failures(context: dict[str, Any]) -> list[str]:
@@ -462,7 +547,7 @@ def evaluate_human_review_binding(context: dict[str, Any]) -> KernelDecision:
 
 
 def evaluate_authoritative_checks(context: dict[str, Any]) -> KernelDecision:
-    """Evaluate one normalized latest-by-name mandatory-check summary."""
+    """Evaluate the singular exact-SHA mandatory-check contract."""
     operation = str(context.get("operation") or "merge_dry_run")
     failures = sorted(set(_check_failures(context)))
     return KernelDecision(
@@ -528,3 +613,4 @@ def evaluate_candidate_context(context: dict[str, Any]) -> KernelDecision:
         # prove explicit human authorization immediately before side effects.
         side_effects_allowed=False,
     )
+

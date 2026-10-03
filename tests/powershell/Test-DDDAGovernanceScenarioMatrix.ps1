@@ -36,19 +36,29 @@ function Invoke-DDDAGitHubApi {
 foreach ($scenario in @($matrix.scenarios | Where-Object { $_.adapter -eq "check_runs" })) {
     $runs = [System.Collections.Generic.List[object]]::new()
     foreach ($page in @($scenario.input.pages)) {
-        foreach ($run in @($page)) { $runs.Add($run) }
+        foreach ($run in @($page)) {
+            # Enrich transport provenance without editing the frozen v1 matrix.
+            $run | Add-Member -NotePropertyName head_sha -NotePropertyValue ("a" * 40) -Force
+            $runs.Add($run)
+        }
     }
     $inputPath = Join-Path ([System.IO.Path]::GetTempPath()) ("ddda-check-matrix-input-" + [guid]::NewGuid().ToString("N") + ".json")
     $outputPath = Join-Path ([System.IO.Path]::GetTempPath()) ("ddda-check-matrix-output-" + [guid]::NewGuid().ToString("N") + ".json")
     Write-DDDAPlatformJson -Path $inputPath -Depth 30 -Value @{ check_runs = @($runs); statuses = @() }
     try {
         $python = Get-DDDAPlatformPythonCommand
+        $requiredArguments = @()
+        foreach ($name in @($runs | ForEach-Object { [string]$_.name } | Sort-Object -Unique)) {
+            $requiredArguments += @("--required-check", $name)
+        }
+        if ($requiredArguments.Count -eq 0) { $requiredArguments = @("--required-check", "Platform validation") }
         try {
-            Invoke-DDDAPlatformNative -Command $python -Arguments @(
+            Invoke-DDDAPlatformNative -Command $python -Arguments (@(
                 (Join-Path $PlatformPath "scripts/platform/Evaluate-DDDACheckRuns.py"),
                 "--input", $inputPath,
+                "--commit", ("a" * 40),
                 "--output", $outputPath
-            ) | Out-Null
+            ) + $requiredArguments) | Out-Null
         }
         catch {
         }
@@ -103,3 +113,4 @@ foreach ($scenario in @($matrix.scenarios | Where-Object { $_.adapter -eq "human
 }
 
 Write-Host "DDDA governance scenario matrix v1: PASS"
+

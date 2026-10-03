@@ -55,17 +55,20 @@ def context(operation: str = "merge_dry_run") -> dict:
             "workflow_run_id": 36355784058,
         },
         "authoritative_check_summary": {
+            "source_sha": SHA,
             "status": "PASS",
             "required_checks": ["Platform validation", "One-command PR validation"],
             "latest_results": [
                 {
                     "name": "Platform validation",
+                    "source_sha": SHA,
                     "status": "COMPLETED",
                     "conclusion": "SUCCESS",
                     "run_id": 36355784058,
                 },
                 {
                     "name": "One-command PR validation",
+                    "source_sha": SHA,
                     "status": "COMPLETED",
                     "conclusion": "SUCCESS",
                     "run_id": 36355784058,
@@ -148,18 +151,13 @@ def test_latest_required_check_must_be_present_and_successful():
     assert "AUTHORITATIVE_CHECK_MISSING:One-command PR validation" in result.failure_codes
 
 
-def test_authoritative_checks_are_a_pure_kernel_decision():
+def test_authoritative_checks_cannot_expand_explicit_success_policy():
     candidate = context()
-    candidate["authoritative_check_summary"]["accepted_conclusions"] = [
-        "SUCCESS",
-        "NEUTRAL",
-        "SKIPPED",
-    ]
-    candidate["authoritative_check_summary"]["latest_results"][0][
-        "conclusion"
-    ] = "NEUTRAL"
+    candidate["authoritative_check_summary"]["accepted_conclusions"] = ["SUCCESS", "NEUTRAL", "SKIPPED"]
+    candidate["authoritative_check_summary"]["latest_results"][0]["conclusion"] = "NEUTRAL"
     result = evaluate_authoritative_checks(candidate)
-    assert result.status == "PASS"
+    assert result.status == "FAIL"
+    assert "AUTHORITATIVE_ACCEPTED_CONCLUSION_POLICY_INVALID" in result.failure_codes
     assert result.authorization_required is False
     assert result.side_effects_allowed is False
 
@@ -592,3 +590,4 @@ def test_scenario_matrix_v2_project_projection_behavior():
     assert result.status == scenario["expected"]["status"]
     assert categories
     assert all(item["primary_category"] == scenario["expected"]["projection_category"] for item in categories)
+

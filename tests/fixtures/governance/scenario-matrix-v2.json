@@ -36,11 +36,12 @@
     "candidate_context": "runtime.platform.governance_kernel.evaluate_candidate_context",
     "promotion_readiness": "runtime.platform.governance_kernel.evaluate_promotion_readiness",
     "mismatch_category": "runtime.platform.mismatch_taxonomy.classify_mismatch",
-    "project_release_projection": "runtime.platform.release_governance.evaluate_release_scope"
+    "project_release_projection": "runtime.platform.release_governance.evaluate_release_scope",
+    "mandatory_checks": "runtime.platform.governance_kernel.evaluate_check_summary"
   },
   "quality_metrics": {
-    "scenario_count": 14,
-    "declared_decision_domains": 4,
+    "scenario_count": 36,
+    "declared_decision_domains": 5,
     "duplicate_decision_owners_per_domain": 0,
     "obsolete_workflow_text_assertions_replaced": 1
   },
@@ -301,6 +302,610 @@
         "failure_codes": [],
         "authorization_required": false,
         "side_effects_allowed": false
+      }
+    },
+    {
+      "id": "cr73-conclusion-success",
+      "owner_issue": 73,
+      "adapter": "mandatory_checks",
+      "flow": "standard_implementation",
+      "candidate_kind": "NORMAL",
+      "operation": "validate",
+      "input": {
+        "rows": [
+          {
+            "name": "validate",
+            "id": 1,
+            "status": "completed",
+            "conclusion": "success",
+            "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "app": {
+              "id": 15368
+            }
+          }
+        ]
+      },
+      "expected": {
+        "status": "PASS",
+        "gate_result": "PASS"
+      }
+    },
+    {
+      "id": "cr73-conclusion-failure",
+      "owner_issue": 73,
+      "adapter": "mandatory_checks",
+      "flow": "standard_implementation",
+      "candidate_kind": "NORMAL",
+      "operation": "validate",
+      "input": {
+        "rows": [
+          {
+            "name": "validate",
+            "id": 1,
+            "status": "completed",
+            "conclusion": "failure",
+            "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "app": {
+              "id": 15368
+            }
+          }
+        ]
+      },
+      "expected": {
+        "status": "FAIL",
+        "gate_result": "FAIL"
+      }
+    },
+    {
+      "id": "cr73-conclusion-skipped",
+      "owner_issue": 73,
+      "adapter": "mandatory_checks",
+      "flow": "standard_implementation",
+      "candidate_kind": "NORMAL",
+      "operation": "validate",
+      "input": {
+        "rows": [
+          {
+            "name": "validate",
+            "id": 1,
+            "status": "completed",
+            "conclusion": "skipped",
+            "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "app": {
+              "id": 15368
+            }
+          }
+        ]
+      },
+      "expected": {
+        "status": "FAIL",
+        "gate_result": "FAIL"
+      }
+    },
+    {
+      "id": "cr73-conclusion-neutral",
+      "owner_issue": 73,
+      "adapter": "mandatory_checks",
+      "flow": "standard_implementation",
+      "candidate_kind": "NORMAL",
+      "operation": "validate",
+      "input": {
+        "rows": [
+          {
+            "name": "validate",
+            "id": 1,
+            "status": "completed",
+            "conclusion": "neutral",
+            "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "app": {
+              "id": 15368
+            }
+          }
+        ]
+      },
+      "expected": {
+        "status": "FAIL",
+        "gate_result": "FAIL"
+      }
+    },
+    {
+      "id": "cr73-conclusion-cancelled",
+      "owner_issue": 73,
+      "adapter": "mandatory_checks",
+      "flow": "standard_implementation",
+      "candidate_kind": "NORMAL",
+      "operation": "validate",
+      "input": {
+        "rows": [
+          {
+            "name": "validate",
+            "id": 1,
+            "status": "completed",
+            "conclusion": "cancelled",
+            "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "app": {
+              "id": 15368
+            }
+          }
+        ]
+      },
+      "expected": {
+        "status": "FAIL",
+        "gate_result": "FAIL"
+      }
+    },
+    {
+      "id": "cr73-conclusion-timed_out",
+      "owner_issue": 73,
+      "adapter": "mandatory_checks",
+      "flow": "standard_implementation",
+      "candidate_kind": "NORMAL",
+      "operation": "validate",
+      "input": {
+        "rows": [
+          {
+            "name": "validate",
+            "id": 1,
+            "status": "completed",
+            "conclusion": "timed_out",
+            "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "app": {
+              "id": 15368
+            }
+          }
+        ]
+      },
+      "expected": {
+        "status": "FAIL",
+        "gate_result": "FAIL"
+      }
+    },
+    {
+      "id": "cr73-conclusion-action_required",
+      "owner_issue": 73,
+      "adapter": "mandatory_checks",
+      "flow": "standard_implementation",
+      "candidate_kind": "NORMAL",
+      "operation": "validate",
+      "input": {
+        "rows": [
+          {
+            "name": "validate",
+            "id": 1,
+            "status": "completed",
+            "conclusion": "action_required",
+            "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "app": {
+              "id": 15368
+            }
+          }
+        ]
+      },
+      "expected": {
+        "status": "FAIL",
+        "gate_result": "FAIL"
+      }
+    },
+    {
+      "id": "cr73-conclusion-stale",
+      "owner_issue": 73,
+      "adapter": "mandatory_checks",
+      "flow": "standard_implementation",
+      "candidate_kind": "NORMAL",
+      "operation": "validate",
+      "input": {
+        "rows": [
+          {
+            "name": "validate",
+            "id": 1,
+            "status": "completed",
+            "conclusion": "stale",
+            "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "app": {
+              "id": 15368
+            }
+          }
+        ]
+      },
+      "expected": {
+        "status": "FAIL",
+        "gate_result": "FAIL"
+      }
+    },
+    {
+      "id": "cr73-conclusion-startup_failure",
+      "owner_issue": 73,
+      "adapter": "mandatory_checks",
+      "flow": "standard_implementation",
+      "candidate_kind": "NORMAL",
+      "operation": "validate",
+      "input": {
+        "rows": [
+          {
+            "name": "validate",
+            "id": 1,
+            "status": "completed",
+            "conclusion": "startup_failure",
+            "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "app": {
+              "id": 15368
+            }
+          }
+        ]
+      },
+      "expected": {
+        "status": "FAIL",
+        "gate_result": "FAIL"
+      }
+    },
+    {
+      "id": "cr73-conclusion-unknown",
+      "owner_issue": 73,
+      "adapter": "mandatory_checks",
+      "flow": "standard_implementation",
+      "candidate_kind": "NORMAL",
+      "operation": "validate",
+      "input": {
+        "rows": [
+          {
+            "name": "validate",
+            "id": 1,
+            "status": "completed",
+            "conclusion": "unknown",
+            "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "app": {
+              "id": 15368
+            }
+          }
+        ]
+      },
+      "expected": {
+        "status": "FAIL",
+        "gate_result": "FAIL"
+      }
+    },
+    {
+      "id": "cr73-conclusion-None",
+      "owner_issue": 73,
+      "adapter": "mandatory_checks",
+      "flow": "standard_implementation",
+      "candidate_kind": "NORMAL",
+      "operation": "validate",
+      "input": {
+        "rows": [
+          {
+            "name": "validate",
+            "id": 1,
+            "status": "completed",
+            "conclusion": null,
+            "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "app": {
+              "id": 15368
+            }
+          }
+        ]
+      },
+      "expected": {
+        "status": "FAIL",
+        "gate_result": "FAIL"
+      }
+    },
+    {
+      "id": "cr73-status-queued",
+      "owner_issue": 73,
+      "adapter": "mandatory_checks",
+      "flow": "standard_implementation",
+      "candidate_kind": "NORMAL",
+      "operation": "validate",
+      "input": {
+        "rows": [
+          {
+            "name": "validate",
+            "id": 1,
+            "status": "queued",
+            "conclusion": null,
+            "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "app": {
+              "id": 15368
+            }
+          }
+        ]
+      },
+      "expected": {
+        "status": "FAIL",
+        "gate_result": "NOT_READY"
+      }
+    },
+    {
+      "id": "cr73-status-in_progress",
+      "owner_issue": 73,
+      "adapter": "mandatory_checks",
+      "flow": "standard_implementation",
+      "candidate_kind": "NORMAL",
+      "operation": "validate",
+      "input": {
+        "rows": [
+          {
+            "name": "validate",
+            "id": 1,
+            "status": "in_progress",
+            "conclusion": null,
+            "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "app": {
+              "id": 15368
+            }
+          }
+        ]
+      },
+      "expected": {
+        "status": "FAIL",
+        "gate_result": "NOT_READY"
+      }
+    },
+    {
+      "id": "cr73-status-waiting",
+      "owner_issue": 73,
+      "adapter": "mandatory_checks",
+      "flow": "standard_implementation",
+      "candidate_kind": "NORMAL",
+      "operation": "validate",
+      "input": {
+        "rows": [
+          {
+            "name": "validate",
+            "id": 1,
+            "status": "waiting",
+            "conclusion": null,
+            "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "app": {
+              "id": 15368
+            }
+          }
+        ]
+      },
+      "expected": {
+        "status": "FAIL",
+        "gate_result": "NOT_READY"
+      }
+    },
+    {
+      "id": "cr73-status-pending",
+      "owner_issue": 73,
+      "adapter": "mandatory_checks",
+      "flow": "standard_implementation",
+      "candidate_kind": "NORMAL",
+      "operation": "validate",
+      "input": {
+        "rows": [
+          {
+            "name": "validate",
+            "id": 1,
+            "status": "pending",
+            "conclusion": null,
+            "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "app": {
+              "id": 15368
+            }
+          }
+        ]
+      },
+      "expected": {
+        "status": "FAIL",
+        "gate_result": "NOT_READY"
+      }
+    },
+    {
+      "id": "cr73-missing",
+      "owner_issue": 73,
+      "adapter": "mandatory_checks",
+      "flow": "standard_implementation",
+      "candidate_kind": "NORMAL",
+      "operation": "validate",
+      "input": {
+        "rows": []
+      },
+      "expected": {
+        "status": "FAIL",
+        "gate_result": "NOT_READY"
+      }
+    },
+    {
+      "id": "cr73-wrong-sha",
+      "owner_issue": 73,
+      "adapter": "mandatory_checks",
+      "flow": "standard_implementation",
+      "candidate_kind": "NORMAL",
+      "operation": "validate",
+      "input": {
+        "rows": [
+          {
+            "name": "validate",
+            "id": 1,
+            "status": "completed",
+            "conclusion": "success",
+            "head_sha": "cccccccccccccccccccccccccccccccccccccccc",
+            "app": {
+              "id": 15368
+            }
+          }
+        ]
+      },
+      "expected": {
+        "status": "FAIL",
+        "gate_result": "FAIL"
+      }
+    },
+    {
+      "id": "cr73-old-success-new-failure",
+      "owner_issue": 73,
+      "adapter": "mandatory_checks",
+      "flow": "standard_implementation",
+      "candidate_kind": "NORMAL",
+      "operation": "validate",
+      "input": {
+        "rows": [
+          {
+            "name": "validate",
+            "id": 1,
+            "status": "completed",
+            "conclusion": "success",
+            "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "app": {
+              "id": 15368
+            }
+          },
+          {
+            "name": "validate",
+            "id": 2,
+            "status": "completed",
+            "conclusion": "failure",
+            "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "app": {
+              "id": 15368
+            }
+          }
+        ]
+      },
+      "expected": {
+        "status": "FAIL",
+        "gate_result": "FAIL"
+      }
+    },
+    {
+      "id": "cr73-old-failure-new-success",
+      "owner_issue": 73,
+      "adapter": "mandatory_checks",
+      "flow": "standard_implementation",
+      "candidate_kind": "NORMAL",
+      "operation": "validate",
+      "input": {
+        "rows": [
+          {
+            "name": "validate",
+            "id": 1,
+            "status": "completed",
+            "conclusion": "failure",
+            "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "app": {
+              "id": 15368
+            }
+          },
+          {
+            "name": "validate",
+            "id": 2,
+            "status": "completed",
+            "conclusion": "success",
+            "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "app": {
+              "id": 15368
+            }
+          }
+        ]
+      },
+      "expected": {
+        "status": "PASS",
+        "gate_result": "PASS"
+      }
+    },
+    {
+      "id": "cr73-duplicate-id-conflict",
+      "owner_issue": 73,
+      "adapter": "mandatory_checks",
+      "flow": "standard_implementation",
+      "candidate_kind": "NORMAL",
+      "operation": "validate",
+      "input": {
+        "rows": [
+          {
+            "name": "validate",
+            "id": 1,
+            "status": "completed",
+            "conclusion": "success",
+            "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "app": {
+              "id": 15368
+            }
+          },
+          {
+            "name": "validate",
+            "id": 1,
+            "status": "completed",
+            "conclusion": "failure",
+            "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "app": {
+              "id": 15368
+            }
+          }
+        ]
+      },
+      "expected": {
+        "status": "FAIL",
+        "gate_result": "FAIL"
+      }
+    },
+    {
+      "id": "cr73-optional-skipped",
+      "owner_issue": 73,
+      "adapter": "mandatory_checks",
+      "flow": "standard_implementation",
+      "candidate_kind": "NORMAL",
+      "operation": "validate",
+      "input": {
+        "rows": [
+          {
+            "name": "validate",
+            "id": 1,
+            "status": "completed",
+            "conclusion": "success",
+            "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "app": {
+              "id": 15368
+            }
+          },
+          {
+            "name": "broker",
+            "id": 2,
+            "status": "completed",
+            "conclusion": "skipped",
+            "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "app": {
+              "id": 15368
+            }
+          }
+        ]
+      },
+      "expected": {
+        "status": "PASS",
+        "gate_result": "PASS"
+      }
+    },
+    {
+      "id": "cr73-required-ignore",
+      "owner_issue": 73,
+      "adapter": "mandatory_checks",
+      "flow": "standard_implementation",
+      "candidate_kind": "NORMAL",
+      "operation": "validate",
+      "input": {
+        "rows": [
+          {
+            "name": "validate",
+            "id": 1,
+            "status": "completed",
+            "conclusion": "success",
+            "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "app": {
+              "id": 15368
+            }
+          }
+        ],
+        "ignored_checks": [
+          "validate"
+        ]
+      },
+      "expected": {
+        "status": "FAIL",
+        "gate_result": "FAIL"
       }
     }
   ]

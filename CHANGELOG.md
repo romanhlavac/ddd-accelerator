@@ -8,6 +8,11 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 ### Changed
 
+- mandatory GitHub checks now require one exact-SHA authoritative completed
+  success in the Governance Kernel; explicit required sets keep optional skips
+  non-gating, newer attempts supersede older results, and ambiguity fails closed
+  with per-check identity and failure evidence (#73).
+
 - emergency recovery now has a dedicated public `recover-release` command;
   standard `promote-pr` cannot accept recovery or no-merge promotion intent,
   while the historical 0.1.1 authorization record remains readable (#172).
@@ -231,3 +236,4 @@ Změny pro další verzi se během vývoje zapisují sem. Před promotion se vš
 - existující workspace a projektové repozitáře nevyžadují automatickou migraci;
 - starší `passed` záznam bez strukturované human provenance není považován za platné schválení a dotčená gate vyžaduje nové lidské review;
 - existující specializované PowerShell skripty zůstávají compatibility entry points.
+

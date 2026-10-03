@@ -166,6 +166,27 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Require explicit-success exact-SHA validation prerequisite
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python .\scripts\platform\Evaluate-DDDACheckRuns.py `
+            --repository '${{ github.repository }}' `
+            --commit $env:SOURCE_SHA `
+            --token-env GH_TOKEN `
+            --required-check 'Platform validation' `
+            --output (Join-Path $env:RUNNER_TEMP 'validate-pr-check-evidence.json')
+          if ($LASTEXITCODE -ne 0) { throw 'Mandatory validate-pr prerequisite is not explicit success.' }
+
+      - name: Upload validate-pr prerequisite evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: validate-pr-check-evidence-${{ env.SOURCE_SHA }}
+          path: ${{ runner.temp }}/validate-pr-check-evidence.json
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Download canonical candidate package
         uses: actions/download-artifact@v4
         with:
@@ -826,3 +847,4 @@ jobs:
             -PackagePath $packages[0].FullName `
             -ValidationReportPath $reports[0].FullName `
             -DryRun
+
