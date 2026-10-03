@@ -198,5 +198,13 @@
       "force-push"
     ],
     "evidence_retention_days": 14
+  },
+  "branch_governance": {
+    "schema_version": 1,
+    "policy": "config/governance/branch-policy.json",
+    "inventory": "docs/governance/branch-inventory-2026-10-03.json",
+    "implementation_pr_rejects_automation": true,
+    "automation_stale_audit_workflow": ".github/workflows/reconcile-ddda-project-backlog.yml"
   }
 }
+

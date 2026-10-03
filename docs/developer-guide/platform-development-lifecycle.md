@@ -153,7 +153,7 @@ Impact je `LOW`, `MEDIUM`, `HIGH` nebo `BREAKING`. Pro governed merge jej lze au
 
 ## 2. Feature branch a implementace
 
-`main` se nemění přímo. Doporučené názvy:
+`main` se nemění přímo. Pro nové implementation branches jsou závazné názvy:
 
 ```text
 feature/<change-id>-<short-name>
@@ -161,6 +161,13 @@ fix/<change-id>-<short-name>
 docs/<change-id>-<short-name>
 release/<version>
 ```
+
+Dočasný control-plane artefakt používá výhradně `automation/<purpose>-<run-id>`
+a nikdy není implementation authority ani standardním PR. Prefixy `feat/`,
+`chore/`, `gov/`, `governance/` a `agent/` jsou pro novou práci zakázány;
+verzované přesné compatibility výjimky pro historické otevřené PR uvádí
+`config/governance/branch-policy.json`. Cleanup a audit popisuje
+[branch lifecycle](../governance/branch-lifecycle.md) a ADR 0018.
 
 Behaviorální změna bez testu je neúplná. Změna kontraktu bez dokumentace a compatibility rozhodnutí je neúplná.
 
@@ -349,3 +356,4 @@ Implementační PR je připraven k merge pouze když:
 - merge nebyl proveden bez explicitní human merge authorization.
 
 Release je připraven pouze když navíc existuje validní release candidate, HRDR, Release Scope Gate PASS, explicitní Human Release Decision a samostatná release/promotion authorization. Technický PASS ani implementační merge sám o sobě release neautorizuje.
+
