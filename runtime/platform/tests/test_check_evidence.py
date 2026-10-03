@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import subprocess
 import sys
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 
@@ -139,11 +140,12 @@ def test_live_collector_pages_all_attempts_and_binds_status_response_sha(monkeyp
         urls.append(url)
         if "/check-runs?" in url:
             assert "filter=all" in url
-            return {"check_runs": [run(run_id=i + 1) for i in range(100)] if "page=1" in url else [run(run_id=101, conclusion="failure")]}
+            return {"check_runs": [run(run_id=i + 1) for i in range(100)] if parse_qs(urlparse(url).query)["page"] == ["1"] else [run(run_id=101, conclusion="failure")]}
         return {"sha": "c" * 40, "statuses": [{"context": "legacy-ci", "id": 3, "state": "success"}]}
     monkeypatch.setattr(module, "_get_json", get)
     rows, statuses = module._collect("owner/repo", SHA, "test-only")
     assert len(rows) == 101
+    assert len(urls) == 3
     assert evaluate(rows)["status"] == "FAIL"
     assert statuses[0]["sha"] == "c" * 40
 
