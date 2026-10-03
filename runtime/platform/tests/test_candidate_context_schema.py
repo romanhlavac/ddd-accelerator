@@ -39,11 +39,13 @@ def context() -> dict:
             "workflow_run_id": 36355784058,
         },
         "authoritative_check_summary": {
+            "source_sha": source_sha,
             "status": "PASS",
             "required_checks": ["Platform validation"],
             "latest_results": [
                 {
                     "name": "Platform validation",
+                    "source_sha": source_sha,
                     "status": "COMPLETED",
                     "conclusion": "SUCCESS",
                     "run_id": 36355784058,
@@ -94,3 +96,4 @@ def test_candidate_context_v1_schema_rejects_unversioned_extension():
     candidate["implicit_authorization"] = True
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(candidate, SCHEMA)
+

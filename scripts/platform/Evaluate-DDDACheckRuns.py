@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Collect GitHub checks and evaluate canonical latest-by-name evidence."""
+"""Collect GitHub checks and evaluate the singular explicit-success contract."""
 
 from __future__ import annotations
 
@@ -38,29 +38,35 @@ def _collect(repository: str, commit: str, token: str) -> tuple[list[Any], list[
     for page in range(1, 101):
         payload = _get_json(
             f"https://api.github.com/repos/{repository}/commits/{commit}/check-runs"
-            f"?per_page=100&page={page}",
+            f"?filter=all&per_page=100&page={page}",
             token,
         )
         batch = payload.get("check_runs", []) if isinstance(payload, dict) else []
         runs.extend(batch)
         if len(batch) < 100:
             break
+    else:
+        raise ValueError("CHECK_RUN_PAGINATION_INCOMPLETE")
     combined = _get_json(
         f"https://api.github.com/repos/{repository}/commits/{commit}/status",
         token,
     )
     statuses = combined.get("statuses", []) if isinstance(combined, dict) else []
+    # Commit statuses omit their SHA on each row. Bind only from the response's
+    # observed SHA, never from the requested URL alone.
+    statuses = [dict(row, sha=combined.get("sha")) for row in statuses if isinstance(row, dict)]
     return runs, statuses
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--repository")
-    parser.add_argument("--commit")
+    parser.add_argument("--commit", required=True)
     parser.add_argument("--input", type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--token-env", default="DDDA_CHECKS_GITHUB_TOKEN")
     parser.add_argument("--required-check", action="append")
+    parser.add_argument("--check-set", default="implementation")
     parser.add_argument("--ignored-check", action="append", default=[])
     parser.add_argument("--accepted-conclusion", action="append")
     parser.add_argument("--wait-seconds", type=int, default=0)
@@ -72,6 +78,12 @@ def main() -> int:
     token = os.environ.get(args.token_env, "")
     if args.input is None and not token:
         raise SystemExit(f"GitHub token environment variable is empty: {args.token_env}")
+    required = args.required_check
+    if required is None:
+        policy = json.loads((ROOT / "config/governance/mandatory-checks-v1.json").read_text(encoding="utf-8"))
+        if policy.get("schema_version") != 1:
+            raise SystemExit("MANDATORY_CHECK_POLICY_VERSION")
+        required = policy["required_check_sets"][args.check_set]
     deadline = time.monotonic() + max(0, args.wait_seconds)
     while True:
         if args.input is not None:
@@ -82,7 +94,8 @@ def main() -> int:
             runs, statuses = _collect(args.repository, args.commit, token)
         kwargs: dict[str, Any] = {
             "commit_statuses": statuses,
-            "required_checks": args.required_check,
+            "required_checks": required,
+            "source_sha": args.commit,
             "ignored_checks": args.ignored_check,
         }
         if args.accepted_conclusion is not None:
@@ -90,14 +103,7 @@ def main() -> int:
         result = evaluate_check_evidence(runs, **kwargs)
         if result["status"] == "PASS" or time.monotonic() >= deadline:
             break
-        required = set(result.get("summary", {}).get("required_checks", []))
-        accepted = set(result.get("summary", {}).get("accepted_conclusions", []))
-        terminal = any(
-            row.get("name") in required
-            and row.get("status") == "COMPLETED"
-            and row.get("conclusion") not in accepted
-            for row in result.get("summary", {}).get("latest_results", [])
-        )
+        terminal = result["gate_result"] == "FAIL"
         if terminal or args.wait_seconds <= 0:
             break
         if args.input is not None:
@@ -112,3 +118,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

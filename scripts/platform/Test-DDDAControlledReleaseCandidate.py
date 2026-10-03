@@ -77,6 +77,7 @@ def validate_request(
             "workflow_run_id": 1,
         },
         "authoritative_check_summary": {
+            "source_sha": normalized_sha,
             "status": "MISSING",
             "required_checks": [],
             "latest_results": [],
@@ -187,3 +188,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

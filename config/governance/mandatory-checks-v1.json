@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "contract": "ddda-mandatory-explicit-success",
+  "required_check_sets": {
+    "implementation": [
+      "Platform validation",
+      "One-command PR validation",
+      "powershell7-platform-lifecycle",
+      "repository-contracts",
+      "steering-runtime-tests",
+      "miro-runtime-tests",
+      "windows-powershell-51-compatibility"
+    ]
+  }
+}

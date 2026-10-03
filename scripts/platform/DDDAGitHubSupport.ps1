@@ -182,7 +182,8 @@ function Assert-DDDAGitHubChecksPassed {
         $env:DDDA_CHECKS_GITHUB_TOKEN = $Token
         $python = Get-DDDAPlatformPythonCommand
         try {
-            Invoke-DDDAPlatformNative -Command $python -Arguments $arguments | Out-Null
+            $checkEvidenceText = Invoke-DDDAPlatformNative -Command $python -Arguments $arguments
+            Write-Host $checkEvidenceText
         }
         catch {
             $adapterError = $_.Exception.Message
@@ -204,6 +205,9 @@ function Assert-DDDAGitHubChecksPassed {
         CheckRunCount = [int]$result.observed_check_run_count
         EvaluatedCheckRunCount = @($result.summary.latest_results).Count
         CommitStatusCount = [int]$result.observed_commit_status_count
+        SourceSha = [string]$result.source_sha
+        RequiredCheckSet = @($result.required_check_set)
+        CheckEvidence = $result.summary
     }
 }
 
@@ -251,3 +255,4 @@ function Merge-DDDAGitHubPullRequest {
     }
     return $result
 }
+
