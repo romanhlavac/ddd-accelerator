@@ -40,10 +40,6 @@ def evaluate_branch(
         return BranchDecision("INVALID", False, "Unknown branch-policy version")
     if name == "main" and pr_number is None:
         return BranchDecision("INTEGRATION", True, "Protected default branch push")
-    if _IMPLEMENTATION.fullmatch(name) or _RELEASE.fullmatch(name):
-        return BranchDecision("PERSISTENT_IMPLEMENTATION", True, "Canonical prospective branch")
-    if parse_automation_name(name) is not None:
-        return BranchDecision("EPHEMERAL_AUTOMATION", False, "Automation cannot host an implementation PR")
     exceptions = policy.get("legacy_exceptions", [])
     if not isinstance(exceptions, list):
         return BranchDecision("INVALID", False, "Malformed exception registry")
@@ -59,6 +55,10 @@ def evaluate_branch(
         ):
             return BranchDecision("LEGACY_COMPATIBILITY", True, "Versioned exact-head PR exception")
         return BranchDecision("INVALID", False, "Legacy exception does not bind this PR and SHA")
+    if _IMPLEMENTATION.fullmatch(name) or _RELEASE.fullmatch(name):
+        return BranchDecision("PERSISTENT_IMPLEMENTATION", True, "Canonical prospective branch")
+    if parse_automation_name(name) is not None:
+        return BranchDecision("EPHEMERAL_AUTOMATION", False, "Automation cannot host an implementation PR")
     prefix = name.split("/", 1)[0]
     if prefix in LEGACY_PREFIXES:
         return BranchDecision("INVALID", False, "Legacy prefix forbidden for new work")
