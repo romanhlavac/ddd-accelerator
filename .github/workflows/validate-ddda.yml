@@ -11,7 +11,6 @@ on:
       - "feature/**"
       - "fix/**"
       - "release/**"
-      - "automation/**"
       - "chore/**"
       - "gov/**"
       - "governance/**"
@@ -206,4 +205,3 @@ jobs:
           name: compatibility-ps51-${{ github.run_id }}
           path: ${{ runner.temp }}/compatibility-ps51.log
           if-no-files-found: error
-
