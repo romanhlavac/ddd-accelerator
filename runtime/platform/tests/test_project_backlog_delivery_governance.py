@@ -89,7 +89,7 @@ def test_reconciler_enforces_delivery_membership_mapping_and_readback():
         "PRESENTATION_WP_MISMATCH",
         "ADD_PROJECT_FIELD_OPTIONS",
         "MISSING_PROJECT_FIELD_OPTIONS",
-        '"remaining_count": 0',
+        '"remaining_count": len(problems)',
         'REPORT_DIR = Path(".reports/cr-delivery-audit-v6")',
         "active_dependency_projection",
         "CLOSED_ITEM_ACTIVE_BLOCKER",
@@ -717,3 +717,161 @@ def test_wp14_governance_contract_is_canonical_and_milestone_neutral():
     assert all(set(range(148,156)).isdisjoint(set(m.get("issues",[]))) for m in cfg["milestones"])
     m=next(x for x in cfg["milestones"] if x["title"]=="DDDA 0.1.1"); assert m["issues"]==[9,12,67,68,70,96,98]
     assert "WP-14-multi-model-workbench-git-sync.md" in (ROOT/"docs/roadmap/README.md").read_text(encoding="utf-8")
+
+
+
+PLANNING_MATRIX = json.loads((ROOT / "tests/fixtures/governance/scenario-matrix-v2.json").read_text(encoding="utf-8"))
+PLANNING_SCENARIOS = [row for row in PLANNING_MATRIX["scenarios"] if row["adapter"] == "planning_projection"]
+
+
+@pytest.mark.parametrize("scenario", PLANNING_SCENARIOS, ids=lambda row: row["id"])
+def test_planning_projection_matrix_uses_the_production_owner(scenario):
+    ns = runpy.run_path(str(RECONCILER))
+    v = scenario["input"]
+    authority = {} if v["draft"] is None else {
+        92: {"primary_cr": 88, "wp": "Other", "pr": {"number": 92, "state": "open", "draft": v["draft"]}}
+    }
+    wanted = ns["derive_planning_projection"]({88: v["issue"]}, {88: set(v["blockers"])}, authority, {88: v["current"]})[88]
+    mismatches = ns["planning_projection_mismatches"](v["current"], wanted)
+    assert wanted["Status"] == scenario["expected"]["planning_status"]
+    assert ("FAIL" if mismatches else "PASS") == scenario["expected"]["status"]
+    for code in mismatches:
+        assert ns["core"].classify_result(code)[0]["primary_category"] == scenario["expected"]["mismatch_category"]
+    repairs = ns["planning_projection_repairs"](v["current"], wanted)
+    fixed = dict(v["current"])
+    for field, _, value in repairs:
+        fixed[field] = value
+    assert ns["planning_projection_repairs"](fixed, wanted) == []
+    assert ns["planning_projection_mismatches"](fixed, wanted) == []
+    if authority and v["issue"]["state"] == "open":
+        delivery = ns["derive_delivery_projection"](authority, {88: set(v["blockers"])})[92]
+        assert delivery["Status"] == ("Blocked" if v["blockers"] else "In progress" if v["draft"] else "In review")
+
+
+def _planning_fixture(monkeypatch):
+    ns = runpy.run_path(str(RECONCILER))
+    gl = ns["verify_planning"].__globals__
+    module = ns["core"]
+    expected = {88: "Other"}
+    details = {88: {"state": "open"}}
+    authority = {92: {"primary_cr": 88, "wp": "Other", "pr": {"number": 92, "state": "open", "draft": True, "head": {"sha": "a" * 40}}}}
+    item = {"id": "ITEM-88", "values": {"Status": "Backlog", "Blocked": "No"}}
+    monkeypatch.setattr(module, "load_contract", lambda: ({}, {}, {}, expected, {}))
+    monkeypatch.setattr(module, "content_item_map", lambda *a: {88: item})
+    monkeypatch.setattr(module, "values", lambda value: dict(value["values"]))
+    monkeypatch.setattr(module, "current_blockers", lambda n: {})
+    monkeypatch.setitem(gl, "_live_details", lambda exp: {n: dict(v) for n,v in details.items()})
+    monkeypatch.setitem(gl, "_fresh_delivery_authority", lambda exp: authority)
+    monkeypatch.setitem(gl, "_base_reconcile_planning", lambda *a: None)
+    monkeypatch.setitem(gl, "_base_verify_planning", lambda *a: ([{"issue":88,"fields":dict(item["values"]),"result":"PASS"}], []))
+    mutations = []
+    def select(project, fields, item_id, field, value):
+        mutations.append((field, value))
+        item["values"][field] = value
+    monkeypatch.setattr(module, "set_select", select)
+    return ns, expected, details, authority, item, mutations
+
+
+def test_historical_88_92_verify_reconcile_readback_and_second_reconcile(monkeypatch):
+    ns, expected, details, authority, item, mutations = _planning_fixture(monkeypatch)
+    rows, problems = ns["verify_planning"]({}, expected, {}, 7)
+    assert mutations == []
+    assert "PLANNING_LIFECYCLE_STATUS_MISMATCH" in rows[0]["result"]
+    assert problems and rows[0]["active_implementation_prs"] == [92]
+    repairs = []
+    ns["reconcile_planning"]({}, {}, expected, details, 7, "PROJECT", {}, repairs)
+    assert item["values"] == {"Status":"In progress","Blocked":"No"}
+    assert repairs == [{"issue":88,"action":"SET_PLANNING_STATUS","value":"In progress"}]
+    rows, problems = ns["verify_planning"]({}, expected, {}, 7)
+    assert problems == [] and rows[0]["result"] == "PASS"
+    second = []
+    ns["reconcile_planning"]({}, {}, expected, details, 7, "PROJECT", {}, second)
+    assert second == [] and len(mutations) == 1
+
+
+def test_planning_verify_rejects_authority_change_during_readback(monkeypatch):
+    ns, expected, details, authority, item, mutations = _planning_fixture(monkeypatch)
+    item["values"]["Status"] = "In progress"
+    calls = []
+    def fresh(exp):
+        calls.append(1)
+        if len(calls) > 1:
+            return {88: {"state":"closed", "state_reason":"completed"}}
+        return details
+    monkeypatch.setitem(ns["verify_planning"].__globals__, "_live_details", fresh)
+    rows, problems = ns["verify_planning"]({}, expected, {}, 7)
+    assert problems[-1]["result"] == "PLANNING_AUTHORITY_CHANGED_DURING_RECONCILIATION"
+    assert mutations == []
+
+
+def test_planning_verify_binds_initial_primary_head_and_draft(monkeypatch):
+    ns, expected, details, authority, item, mutations = _planning_fixture(monkeypatch)
+    from copy import deepcopy
+    stale = deepcopy(authority)
+    stale[92]["pr"]["head"]["sha"] = "b" * 40
+    rows, problems = ns["verify_planning"]({}, expected, {}, 7, authority=stale)
+    assert not rows and problems[0]["result"] == "PLANNING_AUTHORITY_CHANGED_DURING_RECONCILIATION"
+    assert mutations == []
+
+
+def test_planning_unknown_primary_cannot_manufacture_implementation_entry():
+    ns = runpy.run_path(str(RECONCILER))
+    with pytest.raises(RuntimeError, match="outside governed backlog"):
+        ns["derive_planning_projection"]({88:{"state":"open"}}, {88:set()}, {92:{"primary_cr":99,"pr":{}}})
+    with pytest.raises(RuntimeError, match="no authoritative primary"):
+        ns["derive_planning_projection"]({88:{"state":"open"}}, {88:set()}, {92:{"primary_cr":None,"pr":{}}})
+
+
+def test_core_verify_mode_has_no_mutations_and_publishes_fail_audit(monkeypatch, tmp_path):
+    ns = runpy.run_path(str(RECONCILER))
+    module = ns["core"]
+    monkeypatch.setattr(module, "load_contract", lambda: ({},{},{},{88:"Other"},{}))
+    monkeypatch.setattr(module, "discover_cr_numbers", lambda: {88})
+    monkeypatch.setattr(module, "discover_open_prs", lambda: [])
+    monkeypatch.setattr(module, "delivery_authority", lambda *a: {})
+    monkeypatch.setattr(module, "issue", lambda n: {"state":"open"})
+    def prohibited(*a, **kw):
+        raise AssertionError("verify-only attempted a mutation")
+    for name in ["reconcile_hierarchy", "reconcile_dependencies", "reconcile_views", "reconcile_planning", "reconcile_delivery", "set_select", "add_project_item"]:
+        monkeypatch.setattr(module, name, prohibited)
+    def resolve(repairs, read_only=False):
+        assert read_only and repairs == []
+        return 7, "PROJECT", {n:{} for n in ["Status","Work Package","Item Type","Target Release","Blocked"]}, []
+    monkeypatch.setattr(module, "resolve_project", resolve)
+    monkeypatch.setattr(module, "verify_delivery", lambda *a: ([],[]))
+    row={"issue":88,"wp":"Other","parent":None,"result":"PLANNING_LIFECYCLE_STATUS_MISMATCH"}
+    monkeypatch.setattr(module, "verify_planning", lambda *a, **kw: ([row], [row]))
+    monkeypatch.setattr(module, "verify_project_contract", lambda n: ({"views":{"nodes":[]}},[]))
+    monkeypatch.setattr(module, "REPORT_DIR", tmp_path)
+    monkeypatch.setattr(module, "cmd", lambda *a: "a"*40)
+    with pytest.raises(SystemExit) as stop:
+        module.main(["--mode","verify"])
+    assert stop.value.code == 1
+    audit=json.loads((tmp_path/"audit.json").read_text())
+    assert audit["mode"] == "verify" and audit["status"] == "FAIL"
+    assert audit["repair_count"] == 0 and audit["remaining_mismatches"] == 1
+    assert audit["problems"][0]["mismatch_categories"][0]["primary_category"] == "GOVERNANCE_PROJECTION"
+
+
+def test_read_only_project_resolution_does_not_repair_title_or_options(monkeypatch):
+    ns = runpy.run_path(str(RECONCILER_CORE))
+    gl=ns["resolve_project"].__globals__
+    monkeypatch.setitem(gl,"gh",lambda *a, **kw:{"projects":[{"number":7,"title":PROJECT_TITLE}]})
+    monkeypatch.setitem(gl,"gql",lambda *a, **kw:{"data":{"user":{"projectV2":{"id":"P","title":"DDDA Platform Backlog","fields":{"nodes":[]},"views":{"nodes":[]}}}}})
+    def forbidden(*a, **kw): raise AssertionError("read-only resolution mutated Project")
+    monkeypatch.setitem(gl,"update_project_title",forbidden)
+    monkeypatch.setitem(gl,"reconcile_configured_project_options",forbidden)
+    repairs=[]
+    assert ns["resolve_project"](repairs,read_only=True) == (7,"P",{},[])
+    assert repairs == []
+
+
+def test_planning_contract_agrees_with_versioned_projection_rules():
+    cfg=json.loads(BOOTSTRAP.read_text(encoding="utf-8-sig"))["planning_projection"]
+    assert cfg["draft_implementation_status"] == cfg["ready_implementation_status"] == "In progress"
+    assert cfg["closed_completed_status"] == "Done"
+    assert cfg["closed_not_planned_or_duplicate_status"] == "Cancelled"
+    assert cfg["blocked_override"] == "Blocked"
+    assert cfg["backlog_with_active_implementation_forbidden"]
+    assert cfg["verify_only_mutations_forbidden"]
+    assert "planning_projection:" in POLICY.read_text(encoding="utf-8")

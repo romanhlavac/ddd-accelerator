@@ -1,8 +1,7 @@
 """Lifecycle-aware entrypoint for DDDA Project backlog reconciliation.
 
 The stable v6 reconciler core lives in Reconcile-DDDAProjectBacklogCore.py.
-This entrypoint overlays one governance invariant that the original reconciler
-did not model: native ``blocked_by`` is an *active unresolved dependency
+This entrypoint owns the operational planning/delivery projection: native ``blocked_by`` is an *active unresolved dependency
 projection*, not immutable history.
 
 The versioned ``dependencies`` list remains prerequisite/history authority.
@@ -128,6 +127,73 @@ def _unblocked_fallback_status(meta):
     return candidate
 
 
+
+
+def derive_planning_projection(details, active_blockers, authority, current=None, item_meta=None):
+    """Issue owns planning; active primary PRs are delivery evidence only.
+
+    Terminal closure wins, then unresolved blockers, then implementation entry.
+    Project fields never override any of those authoritative facts. Multiple
+    active PRs for one primary Issue are one unambiguous implementation entry.
+    """
+    current, item_meta = current or {}, item_meta or {}
+    implementations = {int(n): [] for n in details}
+    for pr_number, rel in sorted(authority.items()):
+        primary = rel.get("primary_cr")
+        if primary is None:
+            if int(pr_number) not in core.LEGACY_PR_WP:
+                raise RuntimeError(f"Open PR #{pr_number} has no authoritative primary Change Request")
+            continue
+        if primary not in implementations:
+            raise RuntimeError(f"Open PR #{pr_number} primary CR #{primary} is outside governed backlog")
+        if rel["pr"].get("state", "open") == "open":
+            implementations[primary].append(int(pr_number))
+
+    projection = {}
+    for n, data in sorted(details.items()):
+        if data.get("state") not in ("open", "closed") or n not in active_blockers:
+            raise RuntimeError(f"Missing authoritative planning state for Issue #{n}")
+        terminal = _terminal_status(data)
+        blockers = set(active_blockers[n]) if terminal is None else set()
+        if terminal is not None:
+            status = terminal
+        elif blockers:
+            status = "Blocked"
+        elif implementations[n]:
+            status = "In progress"
+        else:
+            observed = current.get(n, {}).get("Status")
+            status = (_unblocked_fallback_status(item_meta.get(n))
+                      if observed in (None, "Done", "Cancelled", "Blocked") else observed)
+        projection[n] = {
+            "Status": status,
+            "Blocked": "Yes" if blockers else "No",
+            "active_implementation_prs": implementations[n],
+            "authoritative_blockers": sorted(blockers),
+        }
+    return projection
+
+
+def planning_projection_repairs(current, wanted):
+    return [(field, "SET_PLANNING_" + field.upper(), wanted[field])
+            for field in ("Blocked", "Status") if current.get(field) != wanted[field]]
+
+
+def planning_projection_mismatches(current, wanted):
+    problems = []
+    if current.get("Blocked") != wanted["Blocked"]:
+        problems.append("PLANNING_BLOCKED_FLAG_MISMATCH")
+    if current.get("Status") != wanted["Status"]:
+        problems.append("PLANNING_LIFECYCLE_STATUS_MISMATCH")
+    return problems
+
+
+def planning_authority_signature(details, active, authority):
+    return {
+        "issues": {n: {"state": d.get("state"), "state_reason": d.get("state_reason"),
+                       "blockers": sorted(active[n])} for n, d in sorted(details.items())},
+        "delivery": delivery_authority_signature(authority),
+    }
 
 
 def derive_delivery_projection(authority, active_blockers):
@@ -350,7 +416,7 @@ def reconcile_planning(
     fields,
     repairs,
 ):
-    """Run base planning reconcile, then align operational blocker lifecycle."""
+    """Align structural fields and the one canonical planning lifecycle."""
     _base_reconcile_planning(
         wp_parent,
         item_meta,
@@ -363,58 +429,30 @@ def reconcile_planning(
     )
 
     _, _, _, _, dependencies = core.load_contract()
-    active = active_dependency_projection(expected, dependencies, details)
+    fresh_details = _live_details(expected)
+    active = active_dependency_projection(expected, dependencies, fresh_details)
+    authority = _fresh_delivery_authority(expected)
     items = core.content_item_map(project_number, "Issue")
+    current = {n: core.values(item) for n, item in items.items()}
+    wanted = derive_planning_projection(fresh_details, active, authority, current, item_meta)
 
     for n in sorted(expected):
         item = items.get(n)
         if not item:
             continue
-        current = core.values(item)
-        item_id = item["id"]
-        terminal = _terminal_status(details[n])
-
-        if terminal is not None:
-            wanted_blocked = "No"
-            wanted_status = terminal
-        elif active[n]:
-            wanted_blocked = "Yes"
-            wanted_status = "Blocked"
-        else:
-            wanted_blocked = "No"
-            wanted_status = (
-                _unblocked_fallback_status(item_meta.get(n))
-                if current.get("Status") in (None, "Done", "Cancelled", "Blocked")
-                else current.get("Status")
-            )
-
-        if current.get("Blocked") != wanted_blocked:
-            core.set_select(
-                project_id, fields, item_id, "Blocked", wanted_blocked
-            )
-            repairs.append(
-                {
-                    "issue": n,
-                    "action": "SET_PLANNING_BLOCKED",
-                    "value": wanted_blocked,
-                }
-            )
-
-        if wanted_status and current.get("Status") != wanted_status:
-            core.set_select(project_id, fields, item_id, "Status", wanted_status)
-            repairs.append(
-                {
-                    "issue": n,
-                    "action": "SET_PLANNING_STATUS",
-                    "value": wanted_status,
-                }
-            )
+        for field, action, value in planning_projection_repairs(current[n], wanted[n]):
+            core.set_select(project_id, fields, item["id"], field, value)
+            repairs.append({"issue": n, "action": action, "value": value})
 
 
-def verify_planning(wp_parent, expected, dependencies, project_number):
-    """Fail closed on dependency, terminal-status and blocked-flag drift."""
+def verify_planning(wp_parent, expected, dependencies, project_number, authority=None):
+    """Read-only verification of structure, lifecycle and stable authority."""
     details = _live_details(expected)
     active = active_dependency_projection(expected, dependencies, details)
+    fresh_authority = _fresh_delivery_authority(expected)
+    if authority is not None and delivery_authority_signature(authority) != delivery_authority_signature(fresh_authority):
+        return [], [{"result": "PLANNING_AUTHORITY_CHANGED_DURING_RECONCILIATION"}]
+    signature = planning_authority_signature(details, active, fresh_authority)
 
     # Reuse the stable structural/project checks, but compare live dependencies
     # against the unresolved projection rather than immutable prerequisite history.
@@ -422,6 +460,9 @@ def verify_planning(wp_parent, expected, dependencies, project_number):
         wp_parent, expected, active, project_number
     )
     items = core.content_item_map(project_number, "Issue")
+    _, _, item_meta, _, _ = core.load_contract()
+    projected = {n: core.values(item) for n, item in items.items()}
+    wanted = derive_planning_projection(details, active, fresh_authority, projected, item_meta)
     problem_issues = {
         int(p["issue"])
         for p in problems
@@ -452,6 +493,10 @@ def verify_planning(wp_parent, expected, dependencies, project_number):
             if not active[n] and values.get("Status") == "Blocked":
                 rowprobs.append("PLANNING_STALE_BLOCKED_STATUS")
 
+        rowprobs.extend(planning_projection_mismatches(values, wanted[n]))
+        row["fields"] = values
+        row["active_implementation_prs"] = wanted[n]["active_implementation_prs"]
+        row["expected_status"] = wanted[n]["Status"]
         row["active_blockers"] = sorted(live_blockers)
         if rowprobs:
             prior = [] if row["result"] == "PASS" else row["result"].split("+")
@@ -459,6 +504,12 @@ def verify_planning(wp_parent, expected, dependencies, project_number):
             if n not in problem_issues:
                 problems.append(row)
                 problem_issues.add(n)
+
+    confirm_details = _live_details(expected)
+    confirm_active = active_dependency_projection(expected, dependencies, confirm_details)
+    confirm_authority = _fresh_delivery_authority(expected)
+    if planning_authority_signature(confirm_details, confirm_active, confirm_authority) != signature:
+        problems.append({"result": "PLANNING_AUTHORITY_CHANGED_DURING_RECONCILIATION"})
 
     return rows, problems
 

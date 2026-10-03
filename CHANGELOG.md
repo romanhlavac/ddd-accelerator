@@ -8,6 +8,10 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 ### Changed
 
+- planning Issues with active primary Draft/Ready implementation PRs now project
+  In progress unless blocked; the canonical reconciler has a read-only verify mode,
+  lifecycle drift evidence, deterministic repair and idempotence coverage (#94).
+
 - mandatory GitHub checks now require one exact-SHA authoritative completed
   success in the Governance Kernel; explicit required sets keep optional skips
   non-gating, newer attempts supersede older results, and ambiguity fails closed
@@ -236,4 +240,5 @@ Změny pro další verzi se během vývoje zapisují sem. Před promotion se vš
 - existující workspace a projektové repozitáře nevyžadují automatickou migraci;
 - starší `passed` záznam bez strukturované human provenance není považován za platné schválení a dotčená gate vyžaduje nové lidské review;
 - existující specializované PowerShell skripty zůstávají compatibility entry points.
+
 

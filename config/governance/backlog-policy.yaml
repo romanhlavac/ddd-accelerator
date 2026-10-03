@@ -115,7 +115,8 @@ project:
     dependency_field_is_projection: true
     exact_dates_must_not_be_invented: true
   status_projection:
-    closed_or_merged: Done
+    closed_completed: Done
+    closed_not_planned_or_duplicate: Cancelled
     reopened: Triaged
     configured_values_are_bootstrap_defaults: true
     closed_item_blocked_value: No
@@ -131,6 +132,16 @@ project:
       name: Implementace a Delivery
       layout: table
       filter: is:pr is:open
+  planning_projection:
+    authority: canonical_issue_state_and_unresolved_dependencies
+    implementation_entry_evidence: active_primary_implementation_pr
+    draft_implementation_status: In progress
+    ready_implementation_status: In progress
+    blocked_override: Blocked
+    project_status_is_projection_only: true
+    backlog_with_active_implementation_forbidden: true
+    verify_only_mutations_forbidden: true
+    fresh_authority_readback_required: true
   delivery_projection:
     open_implementation_pr_membership_required: true
     primary_change_request_relation: Implements_or_Closes
@@ -511,3 +522,4 @@ work_packages:
     state: backlog
     target_release: 0.2.0
     outcome_summary: Provider-neutral workshop, DDD and architecture model providers coordinated through one Git-backed synchronization contract.
+

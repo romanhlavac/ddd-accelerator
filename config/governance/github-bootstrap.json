@@ -1803,6 +1803,19 @@
       "note": "multi-agent orchestration as independent later stream"
     }
   ],
+  "planning_projection": {
+    "authority": "canonical_issue_state_and_unresolved_dependencies",
+    "implementation_entry_evidence": "active_primary_implementation_pr",
+    "draft_implementation_status": "In progress",
+    "ready_implementation_status": "In progress",
+    "blocked_override": "Blocked",
+    "closed_completed_status": "Done",
+    "closed_not_planned_or_duplicate_status": "Cancelled",
+    "project_status_is_projection_only": true,
+    "backlog_with_active_implementation_forbidden": true,
+    "verify_only_mutations_forbidden": true,
+    "fresh_authority_readback_required": true
+  },
   "delivery_projection": {
     "planning_view": {
       "name": "Plánování a Backlog",
@@ -1950,3 +1963,4 @@
     }
   ]
 }
+
