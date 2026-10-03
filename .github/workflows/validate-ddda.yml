@@ -10,6 +10,11 @@ on:
       - "feat/**"
       - "feature/**"
       - "fix/**"
+      - "release/**"
+      - "automation/**"
+      - "chore/**"
+      - "gov/**"
+      - "governance/**"
 
 permissions:
   contents: read
@@ -28,6 +33,23 @@ jobs:
         run: python -m pip install --disable-pip-version-check "ruamel.yaml>=0.18,<0.19" "jsonschema>=4.22,<5" "pytest>=8,<9"
       - name: Validate lint, schemas and security contracts
         run: python runtime/platform/validate_repository.py --root . --suite all
+      - name: Enforce prospective branch policy from trusted main
+        env:
+          DDDA_BRANCH: ${{ github.head_ref || github.ref_name }}
+          DDDA_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          DDDA_PR: ${{ github.event.pull_request.number || '0' }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch --no-tags origin main --depth=1
+            if git show FETCH_HEAD:config/governance/branch-policy.json > "$RUNNER_TEMP/trusted-branch-policy.json" 2>/dev/null; then
+              python scripts/platform/Check-DDDABranchPolicy.py --branch "$DDDA_BRANCH" --sha "$DDDA_SHA" --pr "$DDDA_PR" --policy "$RUNNER_TEMP/trusted-branch-policy.json"
+            else
+              python scripts/platform/Check-DDDABranchPolicy.py --branch "$DDDA_BRANCH" --sha "$DDDA_SHA" --pr "$DDDA_PR" --bootstrap
+            fi
+          else
+            python scripts/platform/Check-DDDABranchPolicy.py --branch "$DDDA_BRANCH" --sha "$DDDA_SHA"
+          fi
       - name: Run platform validator unit tests
         run: python -m pytest -q runtime/platform/tests
 
@@ -184,3 +206,4 @@ jobs:
           name: compatibility-ps51-${{ github.run_id }}
           path: ${{ runner.temp }}/compatibility-ps51.log
           if-no-files-found: error
+

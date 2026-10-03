@@ -196,6 +196,8 @@ change request in Chat or Work
 
 The Human Review and merge authorization are distinct boundaries. A technical PASS cannot create either one. `merge-pr` must not require HRDR or Release Scope Gate and must not call release/tag execution paths.
 
+Prospective branch policy for new DDDA work: `feature/<change-id>-<short-name>`, `fix/<change-id>-<short-name>`, `docs/<change-id>-<short-name>` and `release/<version>` are persistent implementation branches. `automation/<purpose>-<run-id>` is a run-owned ephemeral control-plane branch and cannot be implementation authority or a normal PR. New `feat/`, `chore/`, `gov/`, `governance/` and `agent/` branches are forbidden except a versioned exact-head compatibility exception. Historical branch names alone do not authorize deletion. Consult `config/governance/branch-policy.json`, ADR 0018 and `docs/governance/branch-lifecycle.md` before branch creation or cleanup.
+
 ### 5.2 Release candidate
 
 After all work intended for a release has been integrated and the release-scope Issues are terminal or explicitly deferred outside the release:
@@ -326,7 +328,7 @@ Minimum manifest fields:
   "schema_version": 1,
   "change_id": "issue-14-example",
   "repository": "romanhlavac/ddd-accelerator",
-  "target_branch": "feat/example",
+  "target_branch": "fix/125-example",
   "base_sha": "<40-character SHA>",
   "change_type": "FIX",
   "impact": "HIGH",
@@ -527,3 +529,4 @@ The intent is operationally strict: **autonomous orchestration while execution i
 ## Backlog / Project transactional completion
 
 Pro DDDA platform backlog/delivery governance je GitHub Issue/PR mutation a její `DDDA Platform Backlog & Delivery` projection jedna fail-closed transakce. CR/Defect/Enabler/PR creation, state/relationship change nebo implementation authority change není `Ready`/`Done`/governance `PASS`, dokud canonical Project/Milestone reconciliation a repository-wide read-back nevrátí `remaining_mismatches = 0`. Nedostupná Project mutation surface je blocker k dokončení governance transakce, ne důvod projekci odložit nebo ji přenést na člověka k ruční kontrole.
+
