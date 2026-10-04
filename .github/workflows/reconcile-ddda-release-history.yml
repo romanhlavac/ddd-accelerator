@@ -23,6 +23,8 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -30,7 +32,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git checkout --detach "${{ github.event.pull_request.head.sha }}"
           test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
           python -m py_compile scripts/platform/Reconcile-DDDAReleaseHistory.py
           python scripts/platform/Reconcile-DDDAReleaseHistory.py --mode evidence
