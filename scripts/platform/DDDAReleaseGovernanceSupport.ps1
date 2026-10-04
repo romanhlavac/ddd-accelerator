@@ -3,19 +3,32 @@ $ErrorActionPreference = "Stop"
 
 $script:DDDAHrdrMarker = "<!-- ddda:human-release-decision:v1 -->"
 
-function Test-DDDAControlledReleaseSourceBranch {
+function Assert-DDDAReleaseCandidatePrIdentity {
     param(
-        [Parameter(Mandatory = $true)][string]$Branch,
-        [Parameter(Mandatory = $true)][string]$Version
+        [Parameter(Mandatory = $true)][object]$PrInfo,
+        [Parameter(Mandatory = $true)][string]$RepositorySlug,
+        [Parameter(Mandatory = $true)][int]$Pr,
+        [Parameter(Mandatory = $true)][string]$HeadSha,
+        [Parameter(Mandatory = $true)][string]$Version,
+        [ValidateSet("NORMAL", "RECOVERY")][string]$Kind = "NORMAL",
+        [ValidateSet("validate", "publish_hrdr_scaffold", "release_scope_validation", "promotion_dry_run", "release")]
+        [string]$Operation = "validate"
     )
-
-    $canonicalBranch = "release/$Version-controlled-recovery-source"
-    $pattern = '^' + [regex]::Escape($canonicalBranch) + '(?:-v(?:[2-9]|[1-9]\d+))?$'
-    return [regex]::IsMatch(
-        $Branch,
-        $pattern,
-        [System.Text.RegularExpressions.RegexOptions]::CultureInvariant
-    )
+    $adapter = Join-Path $PSScriptRoot "Test-DDDAReleaseCandidateIdentity.py"
+    $prSnapshot = Join-Path ([System.IO.Path]::GetTempPath()) ("ddda-release-candidate-" + [guid]::NewGuid().ToString("N") + ".json")
+    try {
+        $PrInfo | ConvertTo-Json -Depth 40 | Set-Content -LiteralPath $prSnapshot -Encoding UTF8
+        $python = Get-DDDAPlatformPythonCommand
+        Invoke-DDDAPlatformNative -Command $python -Arguments @(
+            $adapter, "--pr-json", $prSnapshot,
+            "--repository", $RepositorySlug, "--pr", [string]$Pr,
+            "--source-sha", $HeadSha, "--version", $Version,
+            "--kind", $Kind, "--operation", $Operation
+        ) -WorkingDirectory (Get-DDDAPlatformGitRoot -Path (Join-Path $PSScriptRoot "../..")) | Out-Null
+    }
+    finally {
+        Remove-Item -LiteralPath $prSnapshot -Force -ErrorAction SilentlyContinue
+    }
 }
 
 function Get-DDDACandidateValidationEvidence {

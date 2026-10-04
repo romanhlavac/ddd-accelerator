@@ -8,6 +8,11 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 ### Changed
 
+- New release-candidate PRs carry a versioned body record and matching title,
+  labels and branch; S1 Governance Kernel rejects inconsistent normal or
+  controlled-recovery identity before HRDR and promotion (#131).
+
+
 - new implementation branches now follow the versioned `feature/`, `fix/`, `docs/`,
   `release/` taxonomy; `automation/` has exact-run provenance, conservative
   cleanup and a stale audit in the existing Project workflow. Historical

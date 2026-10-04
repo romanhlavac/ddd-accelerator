@@ -66,6 +66,7 @@ $headRepository = if ($null -ne $prInfo.head.repo) { [string]$prInfo.head.repo.f
 if ($headSha -notmatch '^[0-9a-f]{40}$') {
     throw "GitHub nevrátil platný PR head SHA."
 }
+Assert-DDDAReleaseCandidatePrIdentity -PrInfo $prInfo -RepositorySlug $repositorySlug -Pr $Pr -HeadSha $headSha -Version $Version -Kind $(if ($ControlledReleaseSource) { "RECOVERY" } else { "NORMAL" }) -Operation promotion_dry_run
 
 $controlledGate = $null
 if ($ControlledReleaseSource) {
@@ -76,7 +77,6 @@ if ($ControlledReleaseSource) {
     }
     $controlledGate = Get-Content -LiteralPath $GateEvidencePath -Raw -Encoding UTF8 | ConvertFrom-Json
     $ledger = $controlledGate.physical_scope.recovery_ledger
-    $controlledMarker = "Controlled release-source candidate — DDDA $Version"
     $prBody = [string]$prInfo.body
     if (
         [string]$controlledGate.release_scope_gate_status -ne "PASS" -or
@@ -91,9 +91,7 @@ if ($ControlledReleaseSource) {
         [bool]$ledger.release_cut.changed_paths_match -ne $true -or
         [bool]$ledger.release_cut.source_blob_matches -ne $true -or
         [bool]$ledger.release_cut.release_blob_matches -ne $true -or
-        -not (Test-DDDAControlledReleaseSourceBranch -Branch $headRefName -Version $Version) -or
         $headRepository -ne $repositorySlug -or
-        $prBody -notlike "*$controlledMarker*" -or
         $prBody -notmatch '(?i)must not be merged into `?main`?'
     ) {
         throw "Controlled release source gate evidence není exact, PASS schema-v2 release-cut authority."
