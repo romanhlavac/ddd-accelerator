@@ -182,10 +182,11 @@ Priorita není severity. Defekt může mít severity RED, ale jeho delivery prio
 
 ### 4.3 Kanonické Project views
 
-Project má dvě povinné, strojově spravované projekce:
+Project má tři povinné, strojově spravované projekce:
 
 1. **Plánování a Backlog** — Table, filter `is:issue`; plánovací autorita pro WP/CR metadata.
 2. **Implementace a Delivery** — Table, filter `is:pr is:open`; operativní projekce všech otevřených implementačních PR.
+3. **Release & Delivery History** — Table, filter `is:pr is:merged`; release metadata se odvozují výhradně z [history contractu](../../config/governance/release-history.json) a fresh evidence read-backu.
 
 Další analytické pohledy lze vytvářet pouze jako odvozené UI convenience; nesmějí měnit autoritu ani být podmínkou konzistence.
 

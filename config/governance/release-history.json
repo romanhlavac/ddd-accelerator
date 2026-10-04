@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "view": {"name": "Release & Delivery History", "layout": "table", "filter": "is:pr is:merged"},
+  "releases": [
+    {
+      "version": "0.1.0",
+      "source_sha": "64e629dc6dc06c059b0e7569b8401fb726ea9161",
+      "tag": "v0.1.0",
+      "pulls": [8],
+      "status": "Historical evidence incomplete",
+      "decision": "GO_WITH_ACCEPTED_RISKS (historical record; physical package unverified)",
+      "decision_comment_id": 5090375873,
+      "recorded_package_sha256": "228c17ba108d7fd59e7513b9e3d2f1c777d7de0c377baef46095b3442f9a249b",
+      "package_sha256": null,
+      "release_report_sha256": null,
+      "github_release": "absent"
+    },
+    {
+      "version": "0.1.1",
+      "source_sha": "4415c17fcba98298c40b25555a9a0bf5f550f13e",
+      "tag": "v0.1.1",
+      "pulls_from_source_ledger": "config/governance/release-source-recovery-ledger.json",
+      "status": "Released",
+      "decision": "GO",
+      "decision_pr": 146,
+      "decision_comment_id": 5700792056,
+      "candidate_package_sha256": "77879064976116a95ca3e4e96800ddce336ec27b71bfee6ac2da8ec741ba719a",
+      "package_sha256": "2a09d4499b6bca9028d7992a5f507e31237d7dcc4defb378dbff3ad535794370",
+      "release_report_sha256": "20d7990f1f9620de042c759e8dddad503a4188a058e44085a7a88d2fb6b16a4e",
+      "github_release": "published"
+    }
+  ]
+}

@@ -36,7 +36,7 @@ Jakýkoli zbývající mismatch blokuje technical governance PASS a doporučení
 
 ## Kanonické Project projekce
 
-Project se jmenuje `DDDA Platform Backlog & Delivery` a má dvě kanonické strojově spravované projekce:
+Project se jmenuje `DDDA Platform Backlog & Delivery` a má tři kanonické strojově spravované projekce:
 
 ```text
 Plánování a Backlog
@@ -46,7 +46,23 @@ filter: is:issue
 Implementace a Delivery
 layout: Table
 filter: is:pr is:open
+
+Release & Delivery History
+layout: Table
+filter: is:pr is:merged
 ```
+
+History obsahuje merged PR a jejich release metadata. `Release Status` je projekce
+ověřených tagů, balíčků, reportů, lidského release rozhodnutí a publikace. U
+0.1.0 je známý tag/source/PR #8, ale původní fyzický balíček a report nejsou
+dostupné: `Historical evidence incomplete`, hash `Unverified / unavailable`,
+GitHub Release absent. U 0.1.1 pocházejí PR vazby z release-source ledgeru
+v tagovaném zdroji; více PR sdílí stejnou verzi. `Released` vyžaduje fresh
+shodu annotated tagu, SHA zdroje, digestů publikovaných assets, portable PASS
+reportu a exact Human Release Decision. Pouhý merge nebo Project `Status`
+žádný release nevytváří. Historii materializuje
+`Reconcile-DDDAReleaseHistory.py`; jeho verify je read-only a končí
+`remaining_mismatches = 0`. Aktivní delivery zůstává `is:pr is:open`.
 
 Další analytické view mohou existovat pouze jako odvozené pohledy; nesmějí měnit planning nebo delivery authority.
 
@@ -199,4 +215,3 @@ Governance/backlog/delivery změna uchovává minimálně:
 - workflow run a audit artifact při privileged live reconciliation.
 
 Technical PASS a Human Review zůstávají oddělené dimenze.
-

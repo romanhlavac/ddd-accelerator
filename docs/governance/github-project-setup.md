@@ -2,10 +2,11 @@
 
 ## Účel
 
-Tento dokument popisuje administrátorský kontrakt GitHub Projectu pro vývoj DDDA platformy. Project kombinuje dvě odlišné projekce nad jedním společným Projectem:
+Tento dokument popisuje administrátorský kontrakt GitHub Projectu pro vývoj DDDA platformy. Project kombinuje tři odlišné projekce nad jedním společným Projectem:
 
 - **planning projection** — Work Packages a Change Request Issues;
 - **delivery projection** — všechny otevřené implementační Pull Requests.
+- **history projection** — merged PR s evidence-bound release metadaty.
 
 Planning artefakty zůstávají autoritou pro scope, Work Package ownership, prioritu a plán. Pull Request je delivery projection skutečně zahájené implementace, nikoli druhý Change Request ani náhrada backlogu.
 
@@ -95,7 +96,7 @@ PR #8 je dočasná verzovaná legacy výjimka pouze pro primary CR relationship.
 
 ## Kanonické views
 
-Kanonické machine-managed views jsou přesně dvě:
+Kanonické machine-managed views jsou tři:
 
 ### 1. Plánování a Backlog
 
@@ -112,6 +113,19 @@ Filter: is:issue
 Layout: Table
 Filter: is:pr is:open
 ```
+
+### 3. Release & Delivery History
+
+```text
+Layout: Table
+Filter: is:pr is:merged
+```
+
+Historická pole a důkazní hranice jsou definovány v
+[`release-history.json`](../../config/governance/release-history.json) a
+[`wp-backlog-consistency.md`](wp-backlog-consistency.md). Materializace a
+read-back probíhají přes `Reconcile-DDDAReleaseHistory.py` po autoritativním
+Git/release ověření. Project nikdy nevytváří `Released` ze svého `Status`.
 
 Účel: aktuálně otevřené implementační PR, jejich derived WP, delivery status, blocker a Human Review visibility.
 

@@ -20,7 +20,7 @@ This is the single vocabulary for DDDA GitHub artifacts. A name is a human-facin
 | Actions workflow and job | Stable execution/check role | `DDDA platform CI` / `Governed merge dry-run` | Exact run, job/check name, attempt, conclusion and SHA | Do not rename required checks cosmetically; pin changes with migration | #73, CI contract |
 | Actions candidate/report artifact | Exact validation evidence | `ddda-candidate-<40-hex-SHA>` / `validate-pr-<PR>-<40-hex-SHA>` | Physical ZIP digest and validation report from one run | Run and artifact IDs are read-back locators, not name substitutions | candidate context, #73 |
 | Actions reconciliation artifact | Project audit | `ddda-project-backlog-delivery-audit-v6-<40-hex-SHA>` | JSON audit, source SHA, remaining mismatches | Runner-local paths are never stable identity | Project contract |
-| GitHub Project / view | Navigation projection | `DDDA Platform Backlog & Delivery`; `Plánování a Backlog`, `Implementace a Delivery` | Versioned Project projection contract plus fresh read-back | Active delivery filters `is:pr is:open`; history view is owned by #69 | Project contract, #69 |
+| GitHub Project / view | Navigation projection | `DDDA Platform Backlog & Delivery`; `Plánování a Backlog`, `Implementace a Delivery`, `Release & Delivery History` | Versioned Project projection contract plus fresh read-back | Active delivery filters `is:pr is:open`; history filters merged PRs, with release fields only after #69 evidence checks | Project contract, #69 |
 
 The three version surfaces `DDDA X.Y.Z` Milestone, `vX.Y.Z` annotated tag and `DDDA X.Y.Z` GitHub Release share a version string but represent different facts. A Project row, Issue title, tag alone or workflow artifact name cannot assert `Released`.
 

@@ -249,10 +249,11 @@ Create/verify exactly the canonical machine-managed views:
 
 1. `Plánování a Backlog` — table, filter `is:issue`;
 2. `Implementace a Delivery` — table, filter `is:pr is:open`.
+3. `Release & Delivery History` — table, filter `is:pr is:merged`; viz [history contract](../../config/governance/release-history.json).
 
 The planning view contains WP/CR planning items. The delivery view contains all currently open implementation PRs. A PR Project item is a delivery projection, not backlog authority; its `Work Package` is derived from the primary CR and planning `Item Type` remains unset.
 
-Optional analyst views may be created manually, but are not part of the versioned invariant and must not replace these two views.
+Optional analyst views may be created manually, but are not part of the versioned invariant and must not replace these three views.
 
 ## Milestone
 
