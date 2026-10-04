@@ -6,6 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
+        Při založení použij [kanonický GitHub artifact naming guide](../../docs/governance/github-artifact-naming.md); historické aliasy se nepřejmenovávají.
         Work Package je parent Issue pro velký roadmap outcome. Detail implementace patří do Child Issues. Stabilní identita je WP-XX, nikoli číslo budoucího PR.
   - type: input
     id: wp_id
