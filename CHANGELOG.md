@@ -8,6 +8,8 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 ### Changed
 
+- implementation judgment review is now named Human Review (HR), while HVR is reserved for Human Visual Review of a named artifact; current templates disambiguate CR/PR and revision lineage without changing historical evidence or the review marker (#85).
+
 - new implementation branches now follow the versioned `feature/`, `fix/`, `docs/`,
   `release/` taxonomy; `automation/` has exact-run provenance, conservative
   cleanup and a stale audit in the existing Project workflow. Historical
