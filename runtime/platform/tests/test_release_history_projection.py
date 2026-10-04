@@ -36,10 +36,11 @@ def test_release_status_requires_external_evidence_before_project_write(monkeypa
 
 def test_multiple_ledger_prs_share_release_identity(monkeypatch):
     record = CONTRACT["releases"][1]
-    entries = {74: {"source_merge_commit_sha": "a"}, 77: {"source_merge_commit_sha": "b"}}
+    entries = {74: {"source_merge_commit_sha": "a", "primary_cr": 9},
+               77: {"source_merge_commit_sha": "b", "primary_cr": 67}}
     monkeypatch.setattr(history, "tagged_source", lambda r: None)
     monkeypatch.setattr(history, "read_report", lambda r, release: None)
-    monkeypatch.setattr(history, "decision", lambda r: "https://github.com/romanhlavac/ddd-accelerator/pull/146#decision")
+    monkeypatch.setattr(history, "decision", lambda r, scope: "https://github.com/romanhlavac/ddd-accelerator/pull/146#decision")
     monkeypatch.setattr(history, "source_ledger", lambda r: entries)
     def fake_api(path):
         if path.startswith("releases/"):
@@ -70,3 +71,41 @@ def test_new_publication_requires_explicit_versioned_record(monkeypatch):
     ]])
     with pytest.raises(RuntimeError, match="lacks versioned history contract"):
         history.expected_rows(CONTRACT)
+
+
+def test_failed_validation_never_materializes_released(monkeypatch):
+    outcome = {"version": "0.1.2", "source_sha": "a" * 40,
+               "status": "Release validation failed", "failed_run_id": 42,
+               "pulls": [201, 202]}
+    def fake_api(path):
+        if path.startswith("actions/"):
+            return {"head_sha": "a" * 40, "conclusion": "failure",
+                    "repository": {"full_name": history.core.REPO}, "html_url": "https://github.com/run/42"}
+        if path.startswith("git/ref/"):
+            raise RuntimeError("HTTP 404")
+        return {"merged_at": "2026-10-04T00:00:00Z"}
+    monkeypatch.setattr(history, "api", fake_api)
+    rows = history.failed_outcome_rows(outcome)
+    assert set(rows) == {201, 202}
+    assert {fields["Release Status"] for _, fields in rows.values()} == {"Release validation failed"}
+    assert not any(fields["Release Status"] == "Released" for _, fields in rows.values())
+
+
+def test_recovery_requires_annotated_tag_and_absent_release(monkeypatch):
+    outcome = {"version": "0.1.2", "source_sha": "b" * 40,
+               "tag": "v0.1.2", "status": "Recovery required",
+               "failed_run_id": 43, "pulls": [202]}
+    monkeypatch.setattr(history, "tagged_source", lambda record: None)
+    def fake_api(path):
+        if path.startswith("actions/"):
+            return {"head_sha": "b" * 40, "conclusion": "failure",
+                    "repository": {"full_name": history.core.REPO}, "html_url": "https://github.com/run/43"}
+        if path.startswith("releases/"):
+            raise RuntimeError("HTTP 404")
+        return {"merged_at": "2026-10-04T00:00:00Z"}
+    monkeypatch.setattr(history, "api", fake_api)
+    rows = history.failed_outcome_rows(outcome)
+    assert rows[202][1]["Release Status"] == "Recovery required"
+    monkeypatch.setattr(history, "tagged_source", lambda record: (_ for _ in ()).throw(RuntimeError("tag mismatch")))
+    with pytest.raises(RuntimeError, match="tag mismatch"):
+        history.failed_outcome_rows(outcome)

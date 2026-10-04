@@ -1,6 +1,7 @@
 {
   "schema_version": 1,
   "view": {"name": "Release & Delivery History", "layout": "table", "filter": "is:pr is:merged"},
+  "unreleased_outcomes": [],
   "releases": [
     {
       "version": "0.1.0",

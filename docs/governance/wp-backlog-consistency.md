@@ -63,6 +63,10 @@ reportu a exact Human Release Decision. Pouhý merge nebo Project `Status`
 žádný release nevytváří. Historii materializuje
 `Reconcile-DDDAReleaseHistory.py`; jeho verify je read-only a končí
 `remaining_mismatches = 0`. Aktivní delivery zůstává `is:pr is:open`.
+`Release validation failed` a `Recovery required` lze do verzovaného
+`unreleased_outcomes` přidat jen s exact neúspěšným Actions run/source SHA;
+recovery navíc vyžaduje ověřený annotated tag a nepřítomný GitHub Release.
+Tyto stavy nikdy neznamenají `Released`.
 
 Další analytické view mohou existovat pouze jako odvozené pohledy; nesmějí měnit planning nebo delivery authority.
 

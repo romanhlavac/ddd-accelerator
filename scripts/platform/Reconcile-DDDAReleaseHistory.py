@@ -90,7 +90,7 @@ def read_report(record, release):
     return report
 
 
-def decision(record):
+def decision(record, scope_issues):
     comment = api(f"issues/comments/{record['decision_comment_id']}")
     if comment["user"]["login"] != core.OWNER:
         raise RuntimeError("Human Release Decision owner mismatch")
@@ -105,7 +105,9 @@ def decision(record):
             or d.get("source_sha") != record["source_sha"]
             or d.get("version") != record["version"]
             or d.get("candidate_package_sha256") != record["candidate_package_sha256"]
-            or d.get("decision") != "go" or d.get("reviewer") != core.OWNER):
+            or d.get("decision") != "go" or d.get("reviewer") != core.OWNER
+            or d.get("decision_owner") != core.OWNER
+            or set(d.get("scope_issues") or []) != scope_issues):
         raise RuntimeError("Human Release Decision exact identity mismatch")
     return comment["html_url"]
 
@@ -142,8 +144,9 @@ def release_rows(record):
                 or release["target_commitish"] != record["source_sha"]):
             raise RuntimeError(f"{version}: GitHub Release identity mismatch")
         read_report(record, release)
-        evidence = release["html_url"] + " | " + decision(record)
         mapping = source_ledger(record)
+        evidence = release["html_url"] + " | " + decision(
+            record, {entry["primary_cr"] for entry in mapping.values()})
         released_at = release["published_at"]
     rows = {}
     for number, entry in mapping.items():
@@ -163,6 +166,60 @@ def release_rows(record):
             "Release Decision": record["decision"],
             "Package SHA-256": record["package_sha256"] or "Unverified / unavailable",
             "Release Evidence": evidence,
+        })
+    return rows
+
+
+def failed_outcome_rows(record):
+    """Project can show a failed train only with exact failed Actions evidence."""
+    status = record.get("status")
+    if status not in ("Release validation failed", "Recovery required"):
+        raise RuntimeError("Unknown non-release history status")
+    version, source = record["version"], record["source_sha"]
+    if not SHA.fullmatch(source) or not re.fullmatch(r"\d+\.\d+\.\d+", version):
+        raise RuntimeError("Failed outcome identity is incomplete")
+    run = api(f"actions/runs/{record['failed_run_id']}")
+    if (run["head_sha"] != source or run["conclusion"] != "failure"
+            or run["repository"]["full_name"] != core.REPO):
+        raise RuntimeError("Failed Actions run identity mismatch")
+    if status == "Recovery required":
+        if record.get("tag") != f"v{version}":
+            raise RuntimeError("Recovery tag/version disagreement")
+        tagged_source(record)
+        try:
+            api(f"releases/tags/{record['tag']}")
+        except RuntimeError as exc:
+            if "404" not in str(exc):
+                raise
+        else:
+            raise RuntimeError("Recovery record needs fresh publication rebaseline")
+    elif record.get("tag"):
+        raise RuntimeError("Failed validation cannot claim a tag")
+    else:
+        try:
+            api(f"git/ref/tags/v{version}")
+        except RuntimeError as exc:
+            if "404" not in str(exc):
+                raise
+        else:
+            raise RuntimeError("Failed validation has a tag; rebaseline required")
+    pulls = record["pulls"]
+    if not pulls or len(pulls) != len(set(pulls)):
+        raise RuntimeError("Ambiguous failed release PR mapping")
+    rows = {}
+    for number in pulls:
+        pr = api(f"pulls/{number}")
+        if not pr.get("merged_at"):
+            raise RuntimeError(f"#{number}: failed outcome PR is not merged")
+        rows[number] = (pr, {
+            "Released Version": version,
+            "Release Status": status,
+            "Release SHA": source,
+            "Release Tag": record.get("tag") or "",
+            "Released At": "",
+            "Release Decision": "",
+            "Package SHA-256": "Unverified / unavailable",
+            "Release Evidence": run["html_url"],
         })
     return rows
 
@@ -188,6 +245,11 @@ def expected_rows(contract):
         for n, (pr, fields) in release_rows(record).items():
             if n not in merged or n in rows and "Released Version" in rows[n][1]:
                 raise RuntimeError(f"#{n}: ambiguous release-to-PR mapping")
+            rows[n] = (pr, fields)
+    for record in contract.get("unreleased_outcomes", []):
+        for n, (pr, fields) in failed_outcome_rows(record).items():
+            if n not in merged or "Released Version" in rows[n][1]:
+                raise RuntimeError(f"#{n}: ambiguous release outcome mapping")
             rows[n] = (pr, fields)
     return rows
 
