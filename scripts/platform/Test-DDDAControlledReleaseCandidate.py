@@ -122,7 +122,11 @@ def validate_request(
         failures.append("CONTROLLED_CANDIDATE_HEAD_REPOSITORY_INVALID")
     for code in identity_decision.failure_codes:
         if code.startswith("RELEASE_CANDIDATE_"):
-            failures.append("CONTROLLED_CANDIDATE_" + code.removeprefix("RELEASE_CANDIDATE_"))
+            failures.append(
+                "CONTROLLED_CANDIDATE_MUST_REMAIN_OPEN"
+                if code == "RELEASE_CANDIDATE_MUST_BE_OPEN"
+                else "CONTROLLED_CANDIDATE_" + code.removeprefix("RELEASE_CANDIDATE_")
+            )
     return {
         "status": "PASS" if not failures else "FAIL",
         "operation": operation,

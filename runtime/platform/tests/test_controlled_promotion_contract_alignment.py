@@ -9,7 +9,8 @@ def test_controlled_promotion_executor_uses_the_shared_versioned_branch_contract
     text = EXECUTOR.read_text(encoding="utf-8-sig")
 
     assert 'DDDAReleaseGovernanceSupport.ps1' in text
-    assert 'Test-DDDAControlledReleaseSourceBranch -Branch $headRefName -Version $Version' in text
+    assert 'Assert-DDDAReleaseCandidatePrIdentity -PrInfo $prInfo' in text
+    assert 'Test-DDDAControlledReleaseSourceBranch -Branch $headRefName -Version $Version' not in text
     assert '$headRefName -ne $expectedControlledRef' not in text
 
 
