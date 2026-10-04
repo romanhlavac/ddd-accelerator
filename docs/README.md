@@ -24,6 +24,8 @@
 
 ## Developer guide
 
+- [Canonical GitHub artifact naming](governance/github-artifact-naming.md)
+
 - [Operating model: Chat/Work pro platformu, Cursor pro projekt](developer-guide/chat-work-operating-model.md)
 - [Vývojový lifecycle DDDA platformy](developer-guide/platform-development-lifecycle.md)
 - [Testovací strategie DDDA platformy](developer-guide/testing-strategy.md)

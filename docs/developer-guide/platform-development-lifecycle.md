@@ -2,6 +2,8 @@
 
 ## Účel
 
+GitHub artifact naming pro nové Issues, PR, větve, labely a release evidenci shrnuje [kanonický naming guide](../governance/github-artifact-naming.md); branch a release-candidate specializace zůstávají ve svých vlastních kontraktech.
+
 Tento postup platí pro vývoj verzované DDDA platformy. Neplatí pro doménovou práci v klientském projektu.
 
 Rozlišuj:

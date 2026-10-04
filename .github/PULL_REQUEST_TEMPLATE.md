@@ -1,5 +1,7 @@
 # DDDA platform Pull Request
 
+Název běžného implementačního PR a odkazy CR/PR použij podle [kanonického GitHub artifact naming guide](../docs/governance/github-artifact-naming.md). Release candidate je samostatná specializace #131.
+
 ## Backlog relationship
 
 - Parent Work Package: `WP-XX — #<issue>`

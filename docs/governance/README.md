@@ -4,6 +4,7 @@ Tato sekce je vstupním bodem pro governance backlogu, roadmapy, issues, pull re
 
 ## Základní dokumenty
 
+- [Canonical GitHub artifact naming](github-artifact-naming.md)
 - [Backlog governance](backlog-governance.md)
 - [WP ↔ Backlog ↔ Delivery consistency](wp-backlog-consistency.md)
 - [Autoritativní mapa artefaktů](authoritative-artifact-map.md)

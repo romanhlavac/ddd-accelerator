@@ -7,6 +7,7 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 ## [Unreleased]
 
 ### Changed
+- Add one canonical GitHub artifact naming guide, prospective vocabulary and conservative digest-bound legacy inventory/backfill plan (#132).
 
 - New release-candidate PRs carry a versioned body record and matching title,
   labels and branch; S1 Governance Kernel rejects inconsistent normal or
