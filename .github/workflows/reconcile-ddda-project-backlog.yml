@@ -5,6 +5,8 @@ on:
 
 permissions:
   contents: read
+  actions: read
+  pull-requests: read
 
 jobs:
   reconcile:
@@ -54,6 +56,7 @@ jobs:
           python -m json.tool schemas/governance-mismatch-taxonomy.schema.json >/dev/null
           python -m pytest -q \
             runtime/platform/tests/test_project_backlog_delivery_governance.py \
+            runtime/platform/tests/test_branch_policy.py \
             runtime/platform/tests/test_project_backlog_presentation_governance.py \
             runtime/platform/tests/test_mismatch_taxonomy.py \
             runtime/platform/tests/test_governance_kernel.py \
@@ -132,6 +135,18 @@ jobs:
           }))
           PY
 
+      - name: Audit automation branch lifecycle
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/platform/Manage-DDDAAutomationBranches.py \
+            --mode audit \
+            --repository "$GITHUB_REPOSITORY" \
+            --output .reports/cr-delivery-audit-v6/automation-branch-audit.json
+
       - name: Upload audit evidence
         uses: actions/upload-artifact@v4
         with:
@@ -139,4 +154,5 @@ jobs:
           path: .reports/cr-delivery-audit-v6/**
           retention-days: 30
           if-no-files-found: error
+
 

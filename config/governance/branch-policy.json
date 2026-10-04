@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "persistent_implementation": ["feature/<change-id>-<short-name>", "fix/<change-id>-<short-name>", "docs/<change-id>-<short-name>", "release/<version>"],
+  "ephemeral_automation": "automation/<purpose>-<run-id>",
+  "forbidden_new_prefixes": ["feat/", "chore/", "gov/", "governance/", "agent/"],
+  "automation_provenance_path": ".ddda/automation-provenance.json",
+  "automation_staging_prefix": ".ddda/automation-staging/",
+  "legacy_exceptions": [
+    {
+      "branch": "feat/88-github-browser-auth-bootstrap",
+      "pr": 95,
+      "head_sha": "24d47afb46db5d05c2462d5d1c03165f710587de",
+      "reason": "Existing open Draft implementation PR; no branch rename or history rewrite",
+      "expiry": "PR_TERMINAL_OR_HEAD_CHANGE"
+    },
+    {
+      "branch": "release/0.1.1-controlled-recovery-source-v4",
+      "pr": 146,
+      "head_sha": "4415c17fcba98298c40b25555a9a0bf5f550f13e",
+      "reason": "Published 0.1.1 controlled release-source evidence; preservation is governed separately from prospective naming",
+      "expiry": "PR_TERMINAL_OR_HEAD_CHANGE"
+    }
+  ]
+}

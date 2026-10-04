@@ -8,6 +8,11 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 
 ### Changed
 
+- new implementation branches now follow the versioned `feature/`, `fix/`, `docs/`,
+  `release/` taxonomy; `automation/` has exact-run provenance, conservative
+  cleanup and a stale audit in the existing Project workflow. Historical
+  release/audit branches remain preserved under the full inventory (#65).
+
 - planning Issues with active primary Draft/Ready implementation PRs now project
   In progress unless blocked; the canonical reconciler has a read-only verify mode,
   lifecycle drift evidence, deterministic repair and idempotence coverage (#94).
@@ -240,5 +245,6 @@ Změny pro další verzi se během vývoje zapisují sem. Před promotion se vš
 - existující workspace a projektové repozitáře nevyžadují automatickou migraci;
 - starší `passed` záznam bez strukturované human provenance není považován za platné schválení a dotčená gate vyžaduje nové lidské review;
 - existující specializované PowerShell skripty zůstávají compatibility entry points.
+
 
 

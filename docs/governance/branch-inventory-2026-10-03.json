@@ -1,0 +1,2663 @@
+{
+  "schema_version": 1,
+  "repository": "romanhlavac/ddd-accelerator",
+  "baseline_main_sha": "f44fe66a118fa54b58d8c8bac97b4136f8c5c795",
+  "baseline_date": "2026-10-03",
+  "source": "GitHub branches pages 1-2, all PRs pages 1-2, exact HEAD commits, compare ahead/behind, v0.1.1 tag and GitHub Release read-back",
+  "count": 118,
+  "counts": {
+    "AMBIGUOUS": 111,
+    "ACTIVE": 3,
+    "REQUIRED_FOR_AUDIT_OR_RELEASE": 4,
+    "SAFE_TO_DELETE": 0
+  },
+  "branch_cleanup_executed": [],
+  "rows": [
+    {
+      "branch": "agent/ddda-miro-multiproject-redesign",
+      "head_sha": "76d475a887df0f34ef19bf7d7201fa0f4d76f6a0",
+      "prefix": "agent",
+      "prs": [
+        {
+          "number": 1,
+          "state": "closed",
+          "merged": false,
+          "head_sha": "76d475a887df0f34ef19bf7d7201fa0f4d76f6a0",
+          "head_matches_branch": true,
+          "updated_at": "2026-07-22T14:07:39Z"
+        }
+      ],
+      "unique_commits_vs_main": 22,
+      "behind_main": 293,
+      "status_vs_main": "diverged",
+      "last_commit_at": "2026-07-22T12:03:38Z",
+      "last_pr_activity_at": "2026-07-22T14:07:39Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "agent/miro-method-flow-scaffolds",
+      "head_sha": "f4f0754db9feec7db61837684e31c5a99fa025b1",
+      "prefix": "agent",
+      "prs": [
+        {
+          "number": 2,
+          "state": "closed",
+          "merged": false,
+          "head_sha": "f4f0754db9feec7db61837684e31c5a99fa025b1",
+          "head_matches_branch": true,
+          "updated_at": "2026-07-22T14:07:57Z"
+        }
+      ],
+      "unique_commits_vs_main": 3,
+      "behind_main": 293,
+      "status_vs_main": "diverged",
+      "last_commit_at": "2026-07-22T12:17:11Z",
+      "last_pr_activity_at": "2026-07-22T14:07:57Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "automation/pr86-governance-normalization",
+      "head_sha": "730f091da18e89b52e3eee9f5aa5d78abc531c69",
+      "prefix": "automation",
+      "prs": [],
+      "unique_commits_vs_main": 2,
+      "behind_main": 261,
+      "status_vs_main": "diverged",
+      "last_commit_at": "2026-08-20T10:17:40Z",
+      "last_pr_activity_at": null,
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "chore/wp-split-governance-cleanup",
+      "head_sha": "91f45386bb5ca93e4654769e945f77fa40d1a6cc",
+      "prefix": "chore",
+      "prs": [
+        {
+          "number": 63,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "91f45386bb5ca93e4654769e945f77fa40d1a6cc",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-14T14:22:31Z"
+        }
+      ],
+      "unique_commits_vs_main": 563,
+      "behind_main": 286,
+      "status_vs_main": "diverged",
+      "last_commit_at": "2026-08-14T12:42:57Z",
+      "last_pr_activity_at": "2026-08-14T14:22:31Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "docs/chr53-miro-board-reference-lifecycle",
+      "head_sha": "46b1a4d3d2181be7079e92a8548bab08b2239987",
+      "prefix": "docs",
+      "prs": [
+        {
+          "number": 58,
+          "state": "closed",
+          "merged": false,
+          "head_sha": "46b1a4d3d2181be7079e92a8548bab08b2239987",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-17T17:48:44Z"
+        }
+      ],
+      "unique_commits_vs_main": 423,
+      "behind_main": 288,
+      "status_vs_main": "diverged",
+      "last_commit_at": "2026-08-13T08:18:16Z",
+      "last_pr_activity_at": "2026-08-17T17:48:44Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "docs/wp08-github-project-v2-skill",
+      "head_sha": "c0c4181c5081aa46ca6349839ca530fd0d2f42e9",
+      "prefix": "docs",
+      "prs": [
+        {
+          "number": 59,
+          "state": "closed",
+          "merged": false,
+          "head_sha": "c0c4181c5081aa46ca6349839ca530fd0d2f42e9",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-17T17:48:45Z"
+        }
+      ],
+      "unique_commits_vs_main": 424,
+      "behind_main": 288,
+      "status_vs_main": "diverged",
+      "last_commit_at": "2026-08-13T09:15:50Z",
+      "last_pr_activity_at": "2026-08-17T17:48:45Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "docs/88-autonomous-platform-orchestration",
+      "head_sha": "f18585a4326574a33a70e9c7e4b92639a28f9d59",
+      "prefix": "docs",
+      "prs": [
+        {
+          "number": 170,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "f18585a4326574a33a70e9c7e4b92639a28f9d59",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-27T18:09:55Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 66,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-09-27T17:08:13Z",
+      "last_pr_activity_at": "2026-09-27T18:09:55Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "docs/174-scenario-first-quality-methodology",
+      "head_sha": "e508ed649124825d087d803c390254e3d1673c8b",
+      "prefix": "docs",
+      "prs": [
+        {
+          "number": 194,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "e508ed649124825d087d803c390254e3d1673c8b",
+          "head_matches_branch": true,
+          "updated_at": "2026-10-02T07:15:38Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 6,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-10-01T17:19:37Z",
+      "last_pr_activity_at": "2026-10-02T07:15:38Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "feat/automated-first-run-example",
+      "head_sha": "9620843ffada8131f58395ba05b4bb8f2366380b",
+      "prefix": "feat",
+      "prs": [
+        {
+          "number": 7,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "9620843ffada8131f58395ba05b4bb8f2366380b",
+          "head_matches_branch": true,
+          "updated_at": "2026-07-24T10:46:47Z"
+        }
+      ],
+      "unique_commits_vs_main": 15,
+      "behind_main": 289,
+      "status_vs_main": "diverged",
+      "last_commit_at": "2026-07-24T10:30:14Z",
+      "last_pr_activity_at": "2026-07-24T10:46:47Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "feat/post-clone-smoke-and-miro-bootstrap",
+      "head_sha": "ff5533d5137fd27180088049edff16968f7aaf4f",
+      "prefix": "feat",
+      "prs": [
+        {
+          "number": 6,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "ff5533d5137fd27180088049edff16968f7aaf4f",
+          "head_matches_branch": true,
+          "updated_at": "2026-07-24T08:59:06Z"
+        }
+      ],
+      "unique_commits_vs_main": 14,
+      "behind_main": 290,
+      "status_vs_main": "diverged",
+      "last_commit_at": "2026-07-23T15:34:43Z",
+      "last_pr_activity_at": "2026-07-24T08:59:06Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "feat/88-github-browser-auth-bootstrap",
+      "head_sha": "24d47afb46db5d05c2462d5d1c03165f710587de",
+      "prefix": "feat",
+      "prs": [
+        {
+          "number": 95,
+          "state": "open",
+          "merged": false,
+          "head_sha": "24d47afb46db5d05c2462d5d1c03165f710587de",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-22T13:35:22Z"
+        }
+      ],
+      "unique_commits_vs_main": 5,
+      "behind_main": 235,
+      "status_vs_main": "diverged",
+      "last_commit_at": "2026-08-22T11:26:14Z",
+      "last_pr_activity_at": "2026-08-22T13:35:22Z",
+      "known_release_audit_refs": [],
+      "classification": "ACTIVE",
+      "rationale": "Open implementation PR; preserve"
+    },
+    {
+      "branch": "feat/171-candidate-context-kernel",
+      "head_sha": "c3ae8be290f45e1761ecb89cf8d6dbcf06e3b996",
+      "prefix": "feat",
+      "prs": [
+        {
+          "number": 177,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "c3ae8be290f45e1761ecb89cf8d6dbcf06e3b996",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-28T18:52:04Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 61,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-09-28T08:32:11Z",
+      "last_pr_activity_at": "2026-09-28T18:52:04Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "feat/171-candidate-package-binding",
+      "head_sha": "806b3dc506107ce9bd8ed023820deb8316753600",
+      "prefix": "feat",
+      "prs": [
+        {
+          "number": 179,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "806b3dc506107ce9bd8ed023820deb8316753600",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-29T07:50:45Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 58,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-09-28T09:31:22Z",
+      "last_pr_activity_at": "2026-09-29T07:50:45Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "feat/171-controlled-candidate-kernel-migration",
+      "head_sha": "3abaef6cd001982de7e241e4ee6cad7f55874a5f",
+      "prefix": "feat",
+      "prs": [
+        {
+          "number": 178,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "3abaef6cd001982de7e241e4ee6cad7f55874a5f",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-28T23:29:55Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 59,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-09-28T09:05:50Z",
+      "last_pr_activity_at": "2026-09-28T23:29:55Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "feat/171-shared-candidate-evidence-restore",
+      "head_sha": "163b8b7c1a0935c8aefedc9d23357a39cadcb39f",
+      "prefix": "feat",
+      "prs": [
+        {
+          "number": 180,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "163b8b7c1a0935c8aefedc9d23357a39cadcb39f",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-29T09:35:04Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 57,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-09-28T09:41:27Z",
+      "last_pr_activity_at": "2026-09-29T09:35:04Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "feature/github-native-backlog-governance",
+      "head_sha": "a7a1bf98d989ac13eacaacc5c50e40f953d90853",
+      "prefix": "feature",
+      "prs": [
+        {
+          "number": 43,
+          "state": "closed",
+          "merged": false,
+          "head_sha": "a7a1bf98d989ac13eacaacc5c50e40f953d90853",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-21T09:09:49Z"
+        }
+      ],
+      "unique_commits_vs_main": 132,
+      "behind_main": 286,
+      "status_vs_main": "diverged",
+      "last_commit_at": "2026-08-14T10:35:36Z",
+      "last_pr_activity_at": "2026-08-21T09:09:49Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "feature/9-release-scope-gate",
+      "head_sha": "b788d3ce4846abe04682e1d687333098566a3739",
+      "prefix": "feature",
+      "prs": [
+        {
+          "number": 71,
+          "state": "closed",
+          "merged": false,
+          "head_sha": "b788d3ce4846abe04682e1d687333098566a3739",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-18T11:54:47Z"
+        }
+      ],
+      "unique_commits_vs_main": 1,
+      "behind_main": 266,
+      "status_vs_main": "diverged",
+      "last_commit_at": "2026-08-18T11:49:23Z",
+      "last_pr_activity_at": "2026-08-18T11:54:47Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "feature/9-release-scope-gate-r2",
+      "head_sha": "5dd272c524599751f981ac01f3479f27f3cc85ef",
+      "prefix": "feature",
+      "prs": [
+        {
+          "number": 72,
+          "state": "closed",
+          "merged": false,
+          "head_sha": "5dd272c524599751f981ac01f3479f27f3cc85ef",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-18T12:06:23Z"
+        }
+      ],
+      "unique_commits_vs_main": 1,
+      "behind_main": 266,
+      "status_vs_main": "diverged",
+      "last_commit_at": "2026-08-18T12:01:44Z",
+      "last_pr_activity_at": "2026-08-18T12:06:23Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "feature/9-release-scope-gate-r3",
+      "head_sha": "2386f35e8f0d77181f11b621512f35e5aa537ccc",
+      "prefix": "feature",
+      "prs": [
+        {
+          "number": 74,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "2386f35e8f0d77181f11b621512f35e5aa537ccc",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-19T07:53:21Z"
+        }
+      ],
+      "unique_commits_vs_main": 5,
+      "behind_main": 266,
+      "status_vs_main": "diverged",
+      "last_commit_at": "2026-08-18T15:13:56Z",
+      "last_pr_activity_at": "2026-08-19T07:53:21Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/controlled-promotion-dry-run-dispatch",
+      "head_sha": "262fda912cf56ab042087e46c7b4568eedc3d585",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 142,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "262fda912cf56ab042087e46c7b4568eedc3d585",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-16T13:09:19Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 125,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-09-16T12:31:45Z",
+      "last_pr_activity_at": "2026-09-16T13:09:19Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/future-release-metadata-merge-eligibility",
+      "head_sha": "c63522d2a7798b82ac0fb4a6b8edaa54a523f57b",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 105,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "c63522d2a7798b82ac0fb4a6b8edaa54a523f57b",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-27T16:04:41Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 211,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-08-27T13:44:49Z",
+      "last_pr_activity_at": "2026-08-27T16:04:41Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/release-recovery-evidence-rebuild",
+      "head_sha": "c9b1c712e4487ddf3af61225feaab08f1864dbb8",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 164,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "c9b1c712e4487ddf3af61225feaab08f1864dbb8",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-22T08:31:35Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 101,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-09-21T19:00:27Z",
+      "last_pr_activity_at": "2026-09-22T08:31:35Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/release-scope-physical-source-consistency",
+      "head_sha": "8ff41afaeccfc2d094e4e0d3bca603b2703e0c88",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 97,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "8ff41afaeccfc2d094e4e0d3bca603b2703e0c88",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-25T12:41:53Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 227,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-08-25T11:54:40Z",
+      "last_pr_activity_at": "2026-08-25T12:41:53Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/12-miro-board-identity-handoff",
+      "head_sha": "f383fc34227c440329caca2181ca0b63d3aeab59",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 79,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "f383fc34227c440329caca2181ca0b63d3aeab59",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-19T22:03:36Z"
+        }
+      ],
+      "unique_commits_vs_main": 2,
+      "behind_main": 263,
+      "status_vs_main": "diverged",
+      "last_commit_at": "2026-08-19T20:47:59Z",
+      "last_pr_activity_at": "2026-08-19T22:03:36Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/16-0.1.1-governance-normalization",
+      "head_sha": "e4bf0c4c29a6b6ea5c72aad616f61f75df06c8db",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 86,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "e4bf0c4c29a6b6ea5c72aad616f61f75df06c8db",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-20T22:32:03Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 249,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-08-20T21:45:16Z",
+      "last_pr_activity_at": "2026-08-20T22:32:03Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/16-active-release-train-discovery",
+      "head_sha": "177bf6f3cf6c47c7ab9d5f44ef4c4f518b289711",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 119,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "177bf6f3cf6c47c7ab9d5f44ef4c4f518b289711",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-30T12:07:20Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 179,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-08-30T11:31:54Z",
+      "last_pr_activity_at": "2026-08-30T12:07:20Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/16-active-train-marker-regression-20260830",
+      "head_sha": "a76ff4b9ca846a6026ed91875d2b42baf39a4d18",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 122,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "a76ff4b9ca846a6026ed91875d2b42baf39a4d18",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-30T14:59:37Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 174,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-08-30T14:16:48Z",
+      "last_pr_activity_at": "2026-08-30T14:59:37Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/16-ci-check-run-eligibility-allowance",
+      "head_sha": "d0c6bad3831894a4f5262c366b1d326b7f9c5849",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 130,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "d0c6bad3831894a4f5262c366b1d326b7f9c5849",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-31T10:22:37Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 156,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-08-31T09:54:26Z",
+      "last_pr_activity_at": "2026-08-31T10:22:37Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/16-delivery-blocked-projection",
+      "head_sha": "b60c6040bbb43831d6a0817c652e98c321f6bb66",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 93,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "b60c6040bbb43831d6a0817c652e98c321f6bb66",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-21T17:51:03Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 236,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-08-21T14:54:50Z",
+      "last_pr_activity_at": "2026-08-21T17:51:03Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/16-latest-check-run-governance",
+      "head_sha": "01a10f1eb72004fbc355a49df007e97a0aaa3dd6",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 129,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "01a10f1eb72004fbc355a49df007e97a0aaa3dd6",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-31T11:23:02Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 153,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-08-31T10:27:15Z",
+      "last_pr_activity_at": "2026-08-31T11:23:02Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/16-merge-eligibility-governance-repair",
+      "head_sha": "2066de05270f22f53048947345afc9bb94173810",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 107,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "2066de05270f22f53048947345afc9bb94173810",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-27T20:08:12Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 208,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-08-27T19:45:43Z",
+      "last_pr_activity_at": "2026-08-27T20:08:12Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/16-merge-eligibility-integration-update",
+      "head_sha": "08f69d7a22b44e7f32d8202d48b379bba8e3ceab",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 106,
+          "state": "open",
+          "merged": false,
+          "head_sha": "08f69d7a22b44e7f32d8202d48b379bba8e3ceab",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-27T17:23:31Z"
+        }
+      ],
+      "unique_commits_vs_main": 1,
+      "behind_main": 210,
+      "status_vs_main": "diverged",
+      "last_commit_at": "2026-08-27T16:28:52Z",
+      "last_pr_activity_at": "2026-08-27T17:23:31Z",
+      "known_release_audit_refs": [],
+      "classification": "ACTIVE",
+      "rationale": "Open implementation PR; preserve"
+    },
+    {
+      "branch": "fix/16-plan-cr131-cr132-0.1.2",
+      "head_sha": "cb2b6b9d7f7fbe84ae4dde7c7beb56047eaec01d",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 133,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "cb2b6b9d7f7fbe84ae4dde7c7beb56047eaec01d",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-02T14:48:12Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 133,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-09-02T14:11:02Z",
+      "last_pr_activity_at": "2026-09-02T14:48:12Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/16-remote-broker-remediation-authorization",
+      "head_sha": "8517e92f63945d4b7bd882ad1fa01b26dc708ad0",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 87,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "8517e92f63945d4b7bd882ad1fa01b26dc708ad0",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-20T12:54:24Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 260,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-08-20T11:09:43Z",
+      "last_pr_activity_at": "2026-08-20T12:54:24Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/67-promotion-wrapper-result-determinism",
+      "head_sha": "29eb6ffa1904fb78523f409d764d9d4ec17e301d",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 76,
+          "state": "closed",
+          "merged": false,
+          "head_sha": "29eb6ffa1904fb78523f409d764d9d4ec17e301d",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-19T13:55:37Z"
+        }
+      ],
+      "unique_commits_vs_main": 1,
+      "behind_main": 265,
+      "status_vs_main": "diverged",
+      "last_commit_at": "2026-08-19T13:51:03Z",
+      "last_pr_activity_at": "2026-08-19T13:55:37Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/67-promotion-wrapper-result-determinism-r2",
+      "head_sha": "cd521e44722f126de24c152e8775bd98d18b09b9",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 77,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "cd521e44722f126de24c152e8775bd98d18b09b9",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-19T14:27:03Z"
+        }
+      ],
+      "unique_commits_vs_main": 1,
+      "behind_main": 265,
+      "status_vs_main": "diverged",
+      "last_commit_at": "2026-08-19T13:59:39Z",
+      "last_pr_activity_at": "2026-08-19T14:27:03Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/68-deterministic-release-tag-identity",
+      "head_sha": "004d35990f30cd2dc68b51b60b806902dfa65411",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 78,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "004d35990f30cd2dc68b51b60b806902dfa65411",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-19T20:21:39Z"
+        }
+      ],
+      "unique_commits_vs_main": 2,
+      "behind_main": 264,
+      "status_vs_main": "diverged",
+      "last_commit_at": "2026-08-19T19:20:16Z",
+      "last_pr_activity_at": "2026-08-19T20:21:39Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/68-deterministic-release-tag-identity-r2",
+      "head_sha": "baad4684328262ef94b31f50cef7c51193cf8ad3",
+      "prefix": "fix",
+      "prs": [],
+      "unique_commits_vs_main": 0,
+      "behind_main": 264,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-08-19T14:27:02Z",
+      "last_pr_activity_at": null,
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/70-exact-sha-merge-strategy",
+      "head_sha": "f8284740bad1d94833fa91a526de652abdf7fe69",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 80,
+          "state": "closed",
+          "merged": false,
+          "head_sha": "f8284740bad1d94833fa91a526de652abdf7fe69",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-19T22:21:37Z"
+        }
+      ],
+      "unique_commits_vs_main": 1,
+      "behind_main": 262,
+      "status_vs_main": "diverged",
+      "last_commit_at": "2026-08-19T22:19:32Z",
+      "last_pr_activity_at": "2026-08-19T22:21:37Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/70-exact-sha-merge-strategy-r2",
+      "head_sha": "c0a63906e3503d97874e48af79238f9dad432423",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 81,
+          "state": "closed",
+          "merged": false,
+          "head_sha": "c0a63906e3503d97874e48af79238f9dad432423",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-19T22:27:03Z"
+        }
+      ],
+      "unique_commits_vs_main": 1,
+      "behind_main": 262,
+      "status_vs_main": "diverged",
+      "last_commit_at": "2026-08-19T22:22:07Z",
+      "last_pr_activity_at": "2026-08-19T22:27:03Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/70-exact-sha-merge-strategy-r3",
+      "head_sha": "8a735d4961f0428d00150470fe638a5a460699f9",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 82,
+          "state": "closed",
+          "merged": false,
+          "head_sha": "8a735d4961f0428d00150470fe638a5a460699f9",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-19T22:38:17Z"
+        }
+      ],
+      "unique_commits_vs_main": 1,
+      "behind_main": 262,
+      "status_vs_main": "diverged",
+      "last_commit_at": "2026-08-19T22:27:42Z",
+      "last_pr_activity_at": "2026-08-19T22:38:17Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/70-exact-sha-merge-strategy-r4",
+      "head_sha": "720dbb35169e4ad535cd1ca7f1a8b7feb913fdf0",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 83,
+          "state": "closed",
+          "merged": false,
+          "head_sha": "720dbb35169e4ad535cd1ca7f1a8b7feb913fdf0",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-19T22:42:03Z"
+        }
+      ],
+      "unique_commits_vs_main": 1,
+      "behind_main": 262,
+      "status_vs_main": "diverged",
+      "last_commit_at": "2026-08-19T22:40:12Z",
+      "last_pr_activity_at": "2026-08-19T22:42:03Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/70-exact-sha-merge-strategy-r5",
+      "head_sha": "c2bc0f0f7c637d2b94e11055118288a40c400630",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 84,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "c2bc0f0f7c637d2b94e11055118288a40c400630",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-20T09:47:00Z"
+        }
+      ],
+      "unique_commits_vs_main": 1,
+      "behind_main": 262,
+      "status_vs_main": "diverged",
+      "last_commit_at": "2026-08-19T22:43:49Z",
+      "last_pr_activity_at": "2026-08-20T09:47:00Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/73-mandatory-explicit-success",
+      "head_sha": "cd265733e68f0bd285d6c475720bfe846a6f9c6d",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 195,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "cd265733e68f0bd285d6c475720bfe846a6f9c6d",
+          "head_matches_branch": true,
+          "updated_at": "2026-10-03T10:28:17Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 3,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-10-03T09:04:08Z",
+      "last_pr_activity_at": "2026-10-03T10:28:17Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/75-0.1.1-scope-98-projection",
+      "head_sha": "016a8e6a37dc2889dbc3c118718a3c55ccf16320",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 100,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "016a8e6a37dc2889dbc3c118718a3c55ccf16320",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-25T15:44:49Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 224,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-08-25T14:13:11Z",
+      "last_pr_activity_at": "2026-08-25T15:44:49Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/88-broker-push-reporting",
+      "head_sha": "e2db509c600883c22dd975b5b6b60900686142f2",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 91,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "e2db509c600883c22dd975b5b6b60900686142f2",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-20T22:22:30Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 258,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-08-20T17:00:06Z",
+      "last_pr_activity_at": "2026-08-20T22:22:30Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/88-single-candidate-evidence",
+      "head_sha": "39ad25ef8b8d2d5415c0f8617eec67182355945f",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 92,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "39ad25ef8b8d2d5415c0f8617eec67182355945f",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-21T13:38:15Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 239,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-08-21T12:13:05Z",
+      "last_pr_activity_at": "2026-08-21T13:38:15Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/94-planning-lifecycle-consistency",
+      "head_sha": "afffc43c4bc4e85c91cef92605717d8e91806e9d",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 196,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "afffc43c4bc4e85c91cef92605717d8e91806e9d",
+          "head_matches_branch": true,
+          "updated_at": "2026-10-03T15:49:37Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 1,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-10-03T10:29:01Z",
+      "last_pr_activity_at": "2026-10-03T15:49:37Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/96-controlled-candidate-artifact-pagination",
+      "head_sha": "f1a388d0a517975cc63542bb7074eabdfd730cc9",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 115,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "f1a388d0a517975cc63542bb7074eabdfd730cc9",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-30T09:36:49Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 184,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-08-30T09:13:35Z",
+      "last_pr_activity_at": "2026-08-30T09:36:49Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/96-controlled-candidate-output-binding",
+      "head_sha": "bc1a34fef972e881255f5b284439e7268efaec65",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 110,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "bc1a34fef972e881255f5b284439e7268efaec65",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-28T17:57:12Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 200,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-08-28T16:26:22Z",
+      "last_pr_activity_at": "2026-08-28T17:57:12Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/96-controlled-candidate-validation",
+      "head_sha": "32edf792cd3e52e9b447b996d4dcde581820490e",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 108,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "32edf792cd3e52e9b447b996d4dcde581820490e",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-27T21:52:18Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 205,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-08-27T20:27:19Z",
+      "last_pr_activity_at": "2026-08-27T21:52:18Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/96-controlled-evidence-run-binding",
+      "head_sha": "8606cce6abe77c969e182a1755387b742185aded",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 158,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "8606cce6abe77c969e182a1755387b742185aded",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-16T22:30:47Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 115,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-09-16T21:34:04Z",
+      "last_pr_activity_at": "2026-09-16T22:30:47Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/96-controlled-promotion-candidate-evidence",
+      "head_sha": "cf8cfdb81a8f7e43066cc5f3e25571ffd3527ccf",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 157,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "cf8cfdb81a8f7e43066cc5f3e25571ffd3527ccf",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-16T21:15:24Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 117,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-09-16T20:31:06Z",
+      "last_pr_activity_at": "2026-09-16T21:15:24Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/96-controlled-promotion-execution",
+      "head_sha": "b2bea3c8d48d6cc47c991bb18b33605105c04963",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 161,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "b2bea3c8d48d6cc47c991bb18b33605105c04963",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-21T13:28:12Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 111,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-09-21T11:47:03Z",
+      "last_pr_activity_at": "2026-09-21T13:28:12Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/96-controlled-promotion-executor-evidence",
+      "head_sha": "b90ed8422fa536b2302c5107bb5cb2cc0a7e4cc1",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 156,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "b90ed8422fa536b2302c5107bb5cb2cc0a7e4cc1",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-16T19:49:11Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 119,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-09-16T19:04:01Z",
+      "last_pr_activity_at": "2026-09-16T19:49:11Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/96-controlled-promotion-versioned-candidate-branch",
+      "head_sha": "26f2e95efa4b5294f0ea6ed06ea88b661f77cda2",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 147,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "26f2e95efa4b5294f0ea6ed06ea88b661f77cda2",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-16T18:17:15Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 121,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-09-16T16:35:22Z",
+      "last_pr_activity_at": "2026-09-16T18:17:15Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/96-controlled-release-recovery-execution",
+      "head_sha": "a4729cc0b471a90f0c2b6b5f06b53cb39b0fd8f8",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 165,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "a4729cc0b471a90f0c2b6b5f06b53cb39b0fd8f8",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-22T09:42:05Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 99,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-09-22T09:02:13Z",
+      "last_pr_activity_at": "2026-09-22T09:42:05Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/96-controlled-release-report-compatibility",
+      "head_sha": "04598674b2a09d7066f88046497b70bfac9b37f3",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 162,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "04598674b2a09d7066f88046497b70bfac9b37f3",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-21T16:50:18Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 109,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-09-21T15:23:09Z",
+      "last_pr_activity_at": "2026-09-21T16:50:18Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/96-controlled-release-source-promotion",
+      "head_sha": "71105fbfdfeac8bc1076186d4361e38f1992bb92",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 141,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "71105fbfdfeac8bc1076186d4361e38f1992bb92",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-16T11:54:26Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 127,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-09-16T11:15:07Z",
+      "last_pr_activity_at": "2026-09-16T11:54:26Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/96-controlled-validation-run-id-int64-clean",
+      "head_sha": "0b0538a476303bc2582f893e751ae140cf45e920",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 160,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "0b0538a476303bc2582f893e751ae140cf45e920",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-21T09:26:44Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 113,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-09-18T08:29:54Z",
+      "last_pr_activity_at": "2026-09-21T09:26:44Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/96-controlled-validation-run-id-int64",
+      "head_sha": "9be8aaa530635c038714d7c1d501449b46fa8dd2",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 159,
+          "state": "closed",
+          "merged": false,
+          "head_sha": "9be8aaa530635c038714d7c1d501449b46fa8dd2",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-18T08:30:24Z"
+        }
+      ],
+      "unique_commits_vs_main": 5,
+      "behind_main": 114,
+      "status_vs_main": "diverged",
+      "last_commit_at": "2026-09-18T08:28:25Z",
+      "last_pr_activity_at": "2026-09-18T08:30:24Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/96-draft-controlled-candidate-scope",
+      "head_sha": "e9eb7232fbaa923bd126d9e39f3590b009256eb3",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 109,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "e9eb7232fbaa923bd126d9e39f3590b009256eb3",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-28T14:59:59Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 202,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-08-28T08:39:22Z",
+      "last_pr_activity_at": "2026-08-28T14:59:59Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/96-hrdr-fence-contract",
+      "head_sha": "9b037d4399c2e29043f2a34b13352d45ebf9d6fd",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 128,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "9b037d4399c2e29043f2a34b13352d45ebf9d6fd",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-31T12:36:38Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 150,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-08-31T11:43:30Z",
+      "last_pr_activity_at": "2026-08-31T12:36:38Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/96-hrdr-milestone-discovery",
+      "head_sha": "06989b0235121ff9ed0235e3e4d446bcc4ecad44",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 118,
+          "state": "closed",
+          "merged": false,
+          "head_sha": "06989b0235121ff9ed0235e3e4d446bcc4ecad44",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-16T08:30:46Z"
+        }
+      ],
+      "unique_commits_vs_main": 1,
+      "behind_main": 181,
+      "status_vs_main": "diverged",
+      "last_commit_at": "2026-08-30T10:44:51Z",
+      "last_pr_activity_at": "2026-09-16T08:30:46Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/96-hrdr-milestone-discovery-after-active-train-20260830",
+      "head_sha": "4003ab506b4bf8905acf2210e8ef7721fea3154e",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 124,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "4003ab506b4bf8905acf2210e8ef7721fea3154e",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-30T15:43:09Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 172,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-08-30T15:01:29Z",
+      "last_pr_activity_at": "2026-08-30T15:43:09Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/96-hrdr-milestone-discovery-rebased-20260830",
+      "head_sha": "16a46aeed53e19b27045cf46dfcc3f578c44d0e1",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 121,
+          "state": "closed",
+          "merged": false,
+          "head_sha": "16a46aeed53e19b27045cf46dfcc3f578c44d0e1",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-16T08:30:48Z"
+        }
+      ],
+      "unique_commits_vs_main": 1,
+      "behind_main": 176,
+      "status_vs_main": "diverged",
+      "last_commit_at": "2026-08-30T13:18:34Z",
+      "last_pr_activity_at": "2026-09-16T08:30:48Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/96-hrdr-milestone-discovery-rebased-after-active-train-20260830",
+      "head_sha": "09adbdf25c2b8aa1200042af5373dfaae8cdd783",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 123,
+          "state": "closed",
+          "merged": false,
+          "head_sha": "09adbdf25c2b8aa1200042af5373dfaae8cdd783",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-30T15:01:32Z"
+        }
+      ],
+      "unique_commits_vs_main": 1,
+      "behind_main": 173,
+      "status_vs_main": "diverged",
+      "last_commit_at": "2026-08-30T15:00:43Z",
+      "last_pr_activity_at": "2026-08-30T15:01:32Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/96-hrdr-pr-comment-permission-20260830",
+      "head_sha": "164aaf641bfe945c734d441f3f8aeaeb5b8314a8",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 127,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "164aaf641bfe945c734d441f3f8aeaeb5b8314a8",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-30T20:08:35Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 170,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-08-30T15:54:57Z",
+      "last_pr_activity_at": "2026-08-30T20:08:35Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/96-hrdr-scaffold-evidence-handoff",
+      "head_sha": "e4ad5cfd4d1638caf177cc87c67b064aac68e27f",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 117,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "e4ad5cfd4d1638caf177cc87c67b064aac68e27f",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-30T10:22:02Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 182,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-08-30T09:55:57Z",
+      "last_pr_activity_at": "2026-08-30T10:22:02Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/96-prepromotion-candidate-validation",
+      "head_sha": "a385a1d75aeb31bbeb7a7a25594ad6a219f74648",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 111,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "a385a1d75aeb31bbeb7a7a25594ad6a219f74648",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-28T22:06:41Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 196,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-08-28T19:19:37Z",
+      "last_pr_activity_at": "2026-08-28T22:06:41Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/96-ready-candidate-scope-dry-run",
+      "head_sha": "78f7ca251b470d87580ab4c6c4892c78cd73ed37",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 134,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "78f7ca251b470d87580ab4c6c4892c78cd73ed37",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-31T22:52:57Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 148,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-08-31T13:50:33Z",
+      "last_pr_activity_at": "2026-08-31T22:52:57Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/96-recovery-ledger-contract",
+      "head_sha": "7f2c8f6c1feead7a526550458208c8e116354910",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 101,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "7f2c8f6c1feead7a526550458208c8e116354910",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-26T06:33:28Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 216,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-08-25T18:51:01Z",
+      "last_pr_activity_at": "2026-08-26T06:33:28Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/96-recovery-ledger-metadata-derivation",
+      "head_sha": "f6ce930f3e102b8bfb58fbe19e596484637f683e",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 102,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "f6ce930f3e102b8bfb58fbe19e596484637f683e",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-26T07:10:22Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 214,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-08-26T06:44:27Z",
+      "last_pr_activity_at": "2026-08-26T07:10:22Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/96-recovery-transformation-decision",
+      "head_sha": "d433fd0b035a5033512eb5a19a201ed2892146da",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 140,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "d433fd0b035a5033512eb5a19a201ed2892146da",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-16T07:47:32Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 131,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-09-16T06:47:51Z",
+      "last_pr_activity_at": "2026-09-16T07:47:32Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/96-release-recovery-legacy-report-metadata",
+      "head_sha": "03b35aa6aace80d01d6bdda6bc75960dc1b3c0c5",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 166,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "03b35aa6aace80d01d6bdda6bc75960dc1b3c0c5",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-22T10:44:48Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 97,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-09-22T09:59:29Z",
+      "last_pr_activity_at": "2026-09-22T10:44:48Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/96-release-scope-environment-binding",
+      "head_sha": "c4cf15ced83527da3dd5eec1d3cdfe2569fa4685",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 135,
+          "state": "closed",
+          "merged": false,
+          "head_sha": "c4cf15ced83527da3dd5eec1d3cdfe2569fa4685",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-16T08:30:50Z"
+        }
+      ],
+      "unique_commits_vs_main": 1,
+      "behind_main": 147,
+      "status_vs_main": "diverged",
+      "last_commit_at": "2026-09-01T09:14:03Z",
+      "last_pr_activity_at": "2026-09-16T08:30:50Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/96-release-scope-utf8-output",
+      "head_sha": "447d820203241fadb840a69ef5e75c09bbc8331f",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 137,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "447d820203241fadb840a69ef5e75c09bbc8331f",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-01T11:12:47Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 144,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-09-01T10:35:42Z",
+      "last_pr_activity_at": "2026-09-01T11:12:47Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/96-report-bound-controlled-candidate-evidence",
+      "head_sha": "96af2bc2c1732a5490dfac52fe9264d98ae1e53d",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 114,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "96af2bc2c1732a5490dfac52fe9264d98ae1e53d",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-29T19:47:16Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 186,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-08-29T16:51:01Z",
+      "last_pr_activity_at": "2026-08-29T19:47:16Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/96-scope-collector-source-metadata",
+      "head_sha": "12e12be12ba27e8d2ff68f8a69e1b7dd0eada32c",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 138,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "12e12be12ba27e8d2ff68f8a69e1b7dd0eada32c",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-01T16:44:01Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 141,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-09-01T12:46:04Z",
+      "last_pr_activity_at": "2026-09-01T16:44:01Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/96-scope-evaluator-metadata-commit",
+      "head_sha": "051d1b35dd102e18fc42e1393f6baef0ccb5d8ab",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 139,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "051d1b35dd102e18fc42e1393f6baef0ccb5d8ab",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-02T13:15:14Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 138,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-09-01T21:51:42Z",
+      "last_pr_activity_at": "2026-09-02T13:15:14Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/96-scope-gate-environment",
+      "head_sha": "7e98d4f946df63e59e92e82565fc4b428078d5d5",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 136,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "7e98d4f946df63e59e92e82565fc4b428078d5d5",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-01T10:14:50Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 146,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-09-01T09:16:45Z",
+      "last_pr_activity_at": "2026-09-01T10:14:50Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/96-stage-controlled-candidate-evidence",
+      "head_sha": "c15269ed6c46e8f01c3b85f6a10dc9be018015c4",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 112,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "c15269ed6c46e8f01c3b85f6a10dc9be018015c4",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-29T16:24:41Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 194,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-08-29T15:37:42Z",
+      "last_pr_activity_at": "2026-08-29T16:24:41Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/96-tagged-release-readback-recovery",
+      "head_sha": "0913a0147a36d78fbb2ef49d26d93759ff48091c",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 163,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "0913a0147a36d78fbb2ef49d26d93759ff48091c",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-21T18:44:47Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 105,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-09-21T18:11:17Z",
+      "last_pr_activity_at": "2026-09-21T18:44:47Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/96-v2-controlled-candidate-identity",
+      "head_sha": "3dc01c8afc1b13b299e276ac37d891956d6f7921",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 144,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "3dc01c8afc1b13b299e276ac37d891956d6f7921",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-16T14:36:51Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 123,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-09-16T14:11:09Z",
+      "last_pr_activity_at": "2026-09-16T14:36:51Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/98-publish-canonical-github-release",
+      "head_sha": "d2c98eed9b71d26091c8b08808d855888a47ef7a",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 99,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "d2c98eed9b71d26091c8b08808d855888a47ef7a",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-25T18:25:11Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 220,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-08-25T15:47:04Z",
+      "last_pr_activity_at": "2026-08-25T18:25:11Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "fix/155-project-field-option-reconcile-20260927",
+      "head_sha": "bb83dbd6c08ee8c2c553218a8275fda860f65a99",
+      "prefix": "fix",
+      "prs": [
+        {
+          "number": 169,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "bb83dbd6c08ee8c2c553218a8275fda860f65a99",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-27T15:00:45Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 69,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-09-27T11:22:46Z",
+      "last_pr_activity_at": "2026-09-27T15:00:45Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "gov/pr8-final-readback-20260816-8dceddb3",
+      "head_sha": "2c9859cca0ffbfb8293166bd888cf9cdde9d86a3",
+      "prefix": "gov",
+      "prs": [],
+      "unique_commits_vs_main": 610,
+      "behind_main": 286,
+      "status_vs_main": "diverged",
+      "last_commit_at": "2026-08-16T15:54:19Z",
+      "last_pr_activity_at": null,
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "gov/project-delivery-readback-20260814-373d1d01-run2",
+      "head_sha": "148a6b084c8283162d49ba34f2d9087382db171a",
+      "prefix": "gov",
+      "prs": [],
+      "unique_commits_vs_main": 567,
+      "behind_main": 286,
+      "status_vs_main": "diverged",
+      "last_commit_at": "2026-08-14T12:53:56Z",
+      "last_pr_activity_at": null,
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "gov/project-delivery-readback-20260814-373d1d01",
+      "head_sha": "a840aeb824b703aad227a7aa281cc6df07b5491d",
+      "prefix": "gov",
+      "prs": [],
+      "unique_commits_vs_main": 564,
+      "behind_main": 286,
+      "status_vs_main": "diverged",
+      "last_commit_at": "2026-08-14T12:28:54Z",
+      "last_pr_activity_at": null,
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "gov/release-train-milestones-20260826",
+      "head_sha": "27a04f9b86f7e0e3429727f5f12eb0812f0f4a37",
+      "prefix": "gov",
+      "prs": [
+        {
+          "number": 104,
+          "state": "closed",
+          "merged": false,
+          "head_sha": "27a04f9b86f7e0e3429727f5f12eb0812f0f4a37",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-30T09:41:05Z"
+        }
+      ],
+      "unique_commits_vs_main": 3,
+      "behind_main": 210,
+      "status_vs_main": "diverged",
+      "last_commit_at": "2026-08-27T16:06:37Z",
+      "last_pr_activity_at": "2026-08-30T09:41:05Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "gov/validate-pr-pr63-20260814-91f45386",
+      "head_sha": "6d2389de69a935177bdbf377d295d6ead6307612",
+      "prefix": "gov",
+      "prs": [],
+      "unique_commits_vs_main": 565,
+      "behind_main": 286,
+      "status_vs_main": "diverged",
+      "last_commit_at": "2026-08-14T13:55:51Z",
+      "last_pr_activity_at": null,
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "gov/16-plan-cr125-0.1.2-20260830",
+      "head_sha": "bf87f9d3cc4f3451df19e5e9692bb75c34066f2d",
+      "prefix": "gov",
+      "prs": [
+        {
+          "number": 126,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "bf87f9d3cc4f3451df19e5e9692bb75c34066f2d",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-31T09:29:26Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 161,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-08-31T08:52:16Z",
+      "last_pr_activity_at": "2026-08-31T09:29:26Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "gov/16-rebaseline-0.1.2",
+      "head_sha": "bdaf498d5c7d0118e90c40806a4d3c7949f2c046",
+      "prefix": "gov",
+      "prs": [
+        {
+          "number": 175,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "bdaf498d5c7d0118e90c40806a4d3c7949f2c046",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-27T22:18:34Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 64,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-09-27T18:50:27Z",
+      "last_pr_activity_at": "2026-09-27T22:18:34Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "gov/16-release-train-planning-rebased-20260830",
+      "head_sha": "7d236d0f757460be65a1f57f21db28c5f512cfd9",
+      "prefix": "gov",
+      "prs": [
+        {
+          "number": 120,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "7d236d0f757460be65a1f57f21db28c5f512cfd9",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-30T13:13:09Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 177,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-08-30T12:33:12Z",
+      "last_pr_activity_at": "2026-08-30T13:13:09Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "gov/104-release-train-supersession-20260830",
+      "head_sha": "c7de5169962b6262fd1b7968f80398352e205f16",
+      "prefix": "gov",
+      "prs": [
+        {
+          "number": 116,
+          "state": "closed",
+          "merged": false,
+          "head_sha": "c7de5169962b6262fd1b7968f80398352e205f16",
+          "head_matches_branch": true,
+          "updated_at": "2026-08-30T13:49:19Z"
+        }
+      ],
+      "unique_commits_vs_main": 5,
+      "behind_main": 178,
+      "status_vs_main": "diverged",
+      "last_commit_at": "2026-08-30T12:18:14Z",
+      "last_pr_activity_at": "2026-08-30T13:49:19Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "gov/155-wp14-governance-remediation-20260923",
+      "head_sha": "442f0be43ab1cf4434930a4b89ba9ce908c8d835",
+      "prefix": "gov",
+      "prs": [
+        {
+          "number": 167,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "442f0be43ab1cf4434930a4b89ba9ce908c8d835",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-26T20:38:54Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 76,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-09-26T12:36:37Z",
+      "last_pr_activity_at": "2026-09-26T20:38:54Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "governance/wp-scope-split",
+      "head_sha": "aedbb9173df2e7aba9fb4b1b7050641d626b8115",
+      "prefix": "governance",
+      "prs": [],
+      "unique_commits_vs_main": 109,
+      "behind_main": 286,
+      "status_vs_main": "diverged",
+      "last_commit_at": "2026-08-13T11:14:41Z",
+      "last_pr_activity_at": null,
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "main",
+      "head_sha": "f44fe66a118fa54b58d8c8bac97b4136f8c5c795",
+      "prefix": "main",
+      "prs": [],
+      "unique_commits_vs_main": 0,
+      "behind_main": 0,
+      "status_vs_main": "identical",
+      "last_commit_at": "2026-10-03T15:46:16Z",
+      "last_pr_activity_at": null,
+      "known_release_audit_refs": [],
+      "classification": "ACTIVE",
+      "rationale": "Protected integration branch"
+    },
+    {
+      "branch": "refactor/171-context-root-identity",
+      "head_sha": "1c947d85c2612d3c60dd857d997fae2ef8d9571b",
+      "prefix": "refactor",
+      "prs": [
+        {
+          "number": 190,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "1c947d85c2612d3c60dd857d997fae2ef8d9571b",
+          "head_matches_branch": true,
+          "updated_at": "2026-10-01T08:08:45Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 18,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-09-30T23:02:44Z",
+      "last_pr_activity_at": "2026-10-01T08:08:45Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "refactor/171-hrdr-kernel",
+      "head_sha": "7f994a08ef79f9d5a65630fdf93f16e9c76bd783",
+      "prefix": "refactor",
+      "prs": [
+        {
+          "number": 186,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "7f994a08ef79f9d5a65630fdf93f16e9c76bd783",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-30T13:03:25Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 31,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-09-30T11:11:21Z",
+      "last_pr_activity_at": "2026-09-30T13:03:25Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "refactor/171-human-review-kernel",
+      "head_sha": "f146e5b89f6b7aae23bafa07f79444ba65650582",
+      "prefix": "refactor",
+      "prs": [
+        {
+          "number": 185,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "f146e5b89f6b7aae23bafa07f79444ba65650582",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-30T10:26:53Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 34,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-09-30T09:38:56Z",
+      "last_pr_activity_at": "2026-09-30T10:26:53Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "refactor/171-local-evidence-binding",
+      "head_sha": "fa3903238f1ca6a04632de3eef27c3e2949d5fcb",
+      "prefix": "refactor",
+      "prs": [
+        {
+          "number": 183,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "fa3903238f1ca6a04632de3eef27c3e2949d5fcb",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-29T14:06:18Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 43,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-09-29T13:27:42Z",
+      "last_pr_activity_at": "2026-09-29T14:06:18Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "refactor/171-mandatory-checks",
+      "head_sha": "7a2f25bcdef7b4083e00ea74ca19e6ce0d9a0414",
+      "prefix": "refactor",
+      "prs": [
+        {
+          "number": 187,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "7a2f25bcdef7b4083e00ea74ca19e6ce0d9a0414",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-30T15:58:31Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 27,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-09-30T14:34:42Z",
+      "last_pr_activity_at": "2026-09-30T15:58:31Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "refactor/171-physical-scope",
+      "head_sha": "f9e05403c661346129e5f4dbc23158b4caa0a4e7",
+      "prefix": "refactor",
+      "prs": [
+        {
+          "number": 188,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "f9e05403c661346129e5f4dbc23158b4caa0a4e7",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-30T18:48:25Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 24,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-09-30T16:08:56Z",
+      "last_pr_activity_at": "2026-09-30T18:48:25Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "refactor/171-promotion-readiness",
+      "head_sha": "85f7b0d21f8df74d0745f8669b5e3acc41c03b63",
+      "prefix": "refactor",
+      "prs": [
+        {
+          "number": 189,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "85f7b0d21f8df74d0745f8669b5e3acc41c03b63",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-30T23:00:24Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 21,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-09-30T21:53:56Z",
+      "last_pr_activity_at": "2026-09-30T23:00:24Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "refactor/171-release-executor-evidence",
+      "head_sha": "83ccb3b723b94ea326f12a07c25070442152361b",
+      "prefix": "refactor",
+      "prs": [
+        {
+          "number": 184,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "83ccb3b723b94ea326f12a07c25070442152361b",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-29T21:44:09Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 40,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-09-29T14:08:24Z",
+      "last_pr_activity_at": "2026-09-29T21:44:09Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "refactor/171-shared-evidence-validation",
+      "head_sha": "ccf004255e743715aece446bdc09a538819868d9",
+      "prefix": "refactor",
+      "prs": [
+        {
+          "number": 182,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "ccf004255e743715aece446bdc09a538819868d9",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-29T13:25:35Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 47,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-09-29T12:13:16Z",
+      "last_pr_activity_at": "2026-09-29T13:25:35Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "refactor/171-shared-evidence-workflows",
+      "head_sha": "e532c81411bcf2e10cc741976bc5b953afa21221",
+      "prefix": "refactor",
+      "prs": [
+        {
+          "number": 181,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "e532c81411bcf2e10cc741976bc5b953afa21221",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-29T12:02:59Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 50,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-09-29T09:54:32Z",
+      "last_pr_activity_at": "2026-09-29T12:02:59Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "refactor/172-dedicated-recovery-command",
+      "head_sha": "8b1263c19616c5fc9eb27401b2cea1bc987b9834",
+      "prefix": "refactor",
+      "prs": [
+        {
+          "number": 192,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "8b1263c19616c5fc9eb27401b2cea1bc987b9834",
+          "head_matches_branch": true,
+          "updated_at": "2026-10-01T10:30:41Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 12,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-10-01T09:38:23Z",
+      "last_pr_activity_at": "2026-10-01T10:30:41Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "refactor/172-isolate-recovery-runtime",
+      "head_sha": "5526455346fb147b14e75bf485f4c22c7a509732",
+      "prefix": "refactor",
+      "prs": [
+        {
+          "number": 191,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "5526455346fb147b14e75bf485f4c22c7a509732",
+          "head_matches_branch": true,
+          "updated_at": "2026-10-01T09:16:09Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 15,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-10-01T08:19:45Z",
+      "last_pr_activity_at": "2026-10-01T09:16:09Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "refactor/173-project-governance-mismatch-taxonomy",
+      "head_sha": "8981252b32586ebc4b79287ea4f72b506f845f2e",
+      "prefix": "refactor",
+      "prs": [
+        {
+          "number": 193,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "8981252b32586ebc4b79287ea4f72b506f845f2e",
+          "head_matches_branch": true,
+          "updated_at": "2026-10-01T16:39:38Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 9,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-10-01T11:45:39Z",
+      "last_pr_activity_at": "2026-10-01T16:39:38Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "release/0.1.1-closeout-20260925-temp-never-use",
+      "head_sha": "a73d93213f406ee3d6c6ed5699406c105349c1c7",
+      "prefix": "release",
+      "prs": [],
+      "unique_commits_vs_main": 0,
+      "behind_main": 95,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-09-25T11:40:09Z",
+      "last_pr_activity_at": null,
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "release/0.1.1-closeout-20260925",
+      "head_sha": "cb5954f200f45871d1a690a92948fb6f2820fe53",
+      "prefix": "release",
+      "prs": [
+        {
+          "number": 168,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "cb5954f200f45871d1a690a92948fb6f2820fe53",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-26T11:58:18Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 84,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-09-26T10:15:09Z",
+      "last_pr_activity_at": "2026-09-26T11:58:18Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    },
+    {
+      "branch": "release/0.1.1-controlled-recovery-source",
+      "head_sha": "426ae4d6f9bd71f3056dc4705dbb568960035217",
+      "prefix": "release",
+      "prs": [
+        {
+          "number": 103,
+          "state": "closed",
+          "merged": false,
+          "head_sha": "426ae4d6f9bd71f3056dc4705dbb568960035217",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-26T20:51:50Z"
+        }
+      ],
+      "unique_commits_vs_main": 11,
+      "behind_main": 270,
+      "status_vs_main": "diverged",
+      "last_commit_at": "2026-08-28T22:15:57Z",
+      "last_pr_activity_at": "2026-09-26T20:51:50Z",
+      "known_release_audit_refs": [
+        "controlled-release-source PR 103",
+        "0.1.1 recovery generation; unique unmerged source commits"
+      ],
+      "classification": "REQUIRED_FOR_AUDIT_OR_RELEASE",
+      "rationale": "Controlled 0.1.1 release-source/recovery-generation evidence, including published V4 target; preserve"
+    },
+    {
+      "branch": "release/0.1.1-controlled-recovery-source-v2",
+      "head_sha": "b7fae1a7e691611f53be63c0b5f903186c8b4cde",
+      "prefix": "release",
+      "prs": [
+        {
+          "number": 143,
+          "state": "closed",
+          "merged": false,
+          "head_sha": "b7fae1a7e691611f53be63c0b5f903186c8b4cde",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-26T20:52:03Z"
+        }
+      ],
+      "unique_commits_vs_main": 30,
+      "behind_main": 270,
+      "status_vs_main": "diverged",
+      "last_commit_at": "2026-09-16T14:05:58Z",
+      "last_pr_activity_at": "2026-09-26T20:52:03Z",
+      "known_release_audit_refs": [
+        "controlled-release-source PR 143",
+        "0.1.1 recovery generation; unique unmerged source commits"
+      ],
+      "classification": "REQUIRED_FOR_AUDIT_OR_RELEASE",
+      "rationale": "Controlled 0.1.1 release-source/recovery-generation evidence, including published V4 target; preserve"
+    },
+    {
+      "branch": "release/0.1.1-controlled-recovery-source-v3",
+      "head_sha": "75783eba3352c008e77aab0874cbf9882cdb3dcd",
+      "prefix": "release",
+      "prs": [
+        {
+          "number": 145,
+          "state": "closed",
+          "merged": false,
+          "head_sha": "75783eba3352c008e77aab0874cbf9882cdb3dcd",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-26T20:52:16Z"
+        }
+      ],
+      "unique_commits_vs_main": 31,
+      "behind_main": 270,
+      "status_vs_main": "diverged",
+      "last_commit_at": "2026-09-16T15:09:39Z",
+      "last_pr_activity_at": "2026-09-26T20:52:16Z",
+      "known_release_audit_refs": [
+        "controlled-release-source PR 145",
+        "0.1.1 recovery generation; unique unmerged source commits"
+      ],
+      "classification": "REQUIRED_FOR_AUDIT_OR_RELEASE",
+      "rationale": "Controlled 0.1.1 release-source/recovery-generation evidence, including published V4 target; preserve"
+    },
+    {
+      "branch": "release/0.1.1-controlled-recovery-source-v4",
+      "head_sha": "4415c17fcba98298c40b25555a9a0bf5f550f13e",
+      "prefix": "release",
+      "prs": [
+        {
+          "number": 146,
+          "state": "open",
+          "merged": false,
+          "head_sha": "4415c17fcba98298c40b25555a9a0bf5f550f13e",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-22T10:56:53Z"
+        }
+      ],
+      "unique_commits_vs_main": 31,
+      "behind_main": 270,
+      "status_vs_main": "diverged",
+      "last_commit_at": "2026-09-16T15:34:30Z",
+      "last_pr_activity_at": "2026-09-22T10:56:53Z",
+      "known_release_audit_refs": [
+        "controlled-release-source PR 146",
+        "published v0.1.1 release target and annotated tag",
+        "0.1.1 recovery generation; unique unmerged source commits"
+      ],
+      "classification": "REQUIRED_FOR_AUDIT_OR_RELEASE",
+      "rationale": "Controlled 0.1.1 release-source/recovery-generation evidence, including published V4 target; preserve"
+    },
+    {
+      "branch": "test/174-governance-characterization",
+      "head_sha": "fe7157efdd0e94c7ede4dfe7e7c71c91f045091f",
+      "prefix": "test",
+      "prs": [
+        {
+          "number": 176,
+          "state": "closed",
+          "merged": true,
+          "head_sha": "fe7157efdd0e94c7ede4dfe7e7c71c91f045091f",
+          "head_matches_branch": true,
+          "updated_at": "2026-09-28T16:19:55Z"
+        }
+      ],
+      "unique_commits_vs_main": 0,
+      "behind_main": 62,
+      "status_vs_main": "behind",
+      "last_commit_at": "2026-09-27T22:34:20Z",
+      "last_pr_activity_at": "2026-09-28T16:19:55Z",
+      "known_release_audit_refs": [],
+      "classification": "AMBIGUOUS",
+      "rationale": "No deterministic proof of disposable ownership and retained audit value; human decision required before deletion"
+    }
+  ]
+}
