@@ -40,9 +40,244 @@ if ([bool]$prInfo.draft) {
     throw "PR #$Pr je draft; Release Scope Gate nelze použít pro promotion."
 }
 $headSha = [string]$prInfo.head.sha
-if ($headSha -notmatch '^[0-9a-f]{40}$') {
+if ($headSha -notmatch '^[0-9a-f]{40}
+$validation = Get-DDDACandidateValidationEvidence `
+    -RepositorySlug $repositorySlug `
+    -Pr $Pr `
+    -HeadSha $headSha `
+    -ValidationReportPath $ValidationReportPath `
+    -PackagePath $PackagePath
+
+$hrdrEvidence = Get-DDDAHrdrEvidence `
+    -RepositorySlug $repositorySlug `
+    -Pr $Pr `
+    -Token $githubAuth.Token `
+    -HeadSha $headSha `
+    -CandidatePackageSha256 ([string]$validation.PackageSha256) `
+    -Version $Version
+$hrdr = $hrdrEvidence.record
+
+$gateRoot = Join-Path (Get-DDDAPlatformStateRoot) ("release-scope-gates/pr-$Pr-$headSha")
+New-Item -ItemType Directory -Path $gateRoot -Force | Out-Null
+$hrdrPath = Join-Path $gateRoot "human-release-decision.json"
+$gatePath = Join-Path $gateRoot "release-scope-gate.json"
+Write-DDDAPlatformJson -Value $hrdr -Path $hrdrPath -Depth 30
+
+if ([string]::IsNullOrWhiteSpace($env:DDDA_GITHUB_PROJECT_TOKEN)) {
+    throw "Release Scope Gate vyžaduje DDDA_GITHUB_PROJECT_TOKEN pro autoritativní Project V2 read-back."
+}
+
+$python = Get-DDDAPlatformPythonCommand
+$collector = Join-Path $platformRoot "scripts/platform/Test-DDDAReleaseScope.py"
+if (-not (Test-Path -LiteralPath $collector -PathType Leaf)) {
+    throw "Release Scope Gate collector neexistuje: $collector"
+}
+
+$previousGhToken = $env:GH_TOKEN
+$previousGithubToken = $env:GITHUB_TOKEN
+try {
+    $env:GH_TOKEN = $githubAuth.Token
+    $collectorArguments = @(
+        $collector,
+        "--repository", $repositorySlug,
+        "--pr", [string]$Pr,
+        "--source-sha", $headSha,
+        "--candidate-sha256", [string]$validation.PackageSha256,
+        "--version", $Version,
+        "--hrdr", $hrdrPath,
+        "--output", $gatePath
+    )
+    if ($EmergencyRecovery) { $collectorArguments += "--emergency-recovery" }
+    $collectorOutput = Invoke-DDDAPlatformNative -Command $python -Arguments $collectorArguments -WorkingDirectory $platformRoot
+}
+finally {
+    $env:GH_TOKEN = $previousGhToken
+    $env:GITHUB_TOKEN = $previousGithubToken
+}
+
+if (-not (Test-Path -LiteralPath $gatePath -PathType Leaf)) {
+    throw "Release Scope Gate nevytvořil evidence report."
+}
+$gate = Get-Content -LiteralPath $gatePath -Raw -Encoding UTF8 | ConvertFrom-Json
+if ([string]$gate.release_scope_gate_status -ne "PASS" -or -not [bool]$gate.side_effects_allowed) {
+    $failures = @($gate.failing_invariants | ForEach-Object { [string]$_ })
+    throw "Release Scope Gate FAIL:`n$($failures -join "`n")"
+}
+
+# A schema-v2 recovery ledger is the sole authority for controlled-source
+# promotion. It proves the one-file release cut and keeps the PR itself as the
+# immutable release source instead of treating it as an implementation merge.
+$controlledReleaseSource = [bool]$EmergencyRecovery
+$recoveryLedgerPresent = $false
+$validRecoveryLedger = $false
+$physicalScope = $gate.PSObject.Properties["physical_scope"]
+if ($null -ne $physicalScope -and $null -ne $physicalScope.Value) {
+    $ledgerProperty = $physicalScope.Value.PSObject.Properties["recovery_ledger"]
+    if ($null -ne $ledgerProperty -and $null -ne $ledgerProperty.Value) {
+        $recoveryLedgerPresent = $true
+        $ledger = $ledgerProperty.Value
+        $validRecoveryLedger = (
+            [int]$ledger.schema_version -eq 2 -and
+            $null -ne $ledger.PSObject.Properties["release_cut"] -and
+            [string]$ledger.release_cut.commit_sha -match '^[0-9a-f]{40}$'
+        )
+    }
+}
+if ($controlledReleaseSource -and (-not $recoveryLedgerPresent -or -not $validRecoveryLedger)) {
+    throw "Explicit emergency recovery vyžaduje schema v2 a exact one-file release-cut evidence."
+}
+if (-not $controlledReleaseSource -and $recoveryLedgerPresent) {
+    throw "Standard release nesmí aktivovat recovery evidence; použij explicitní -EmergencyRecovery intent."
+}
+if ($controlledReleaseSource) {
+    $body = [string]$prInfo.body
+    if ($body -notmatch '(?i)must not be merged into `?main`?') {
+        throw "Controlled release source postrádá explicitní no-merge boundary."
+    }
+    if ($ConfirmMerge) {
+        throw "Controlled no-merge promotion nepřijímá -ConfirmMerge; explicitní promotion authorization používá -ConfirmPromotion."
+    }
+}
+elseif ($ConfirmPromotion) {
+    throw "Standard merge-first promotion nepřijímá -ConfirmPromotion; explicitní merge authorization používá -ConfirmMerge."
+}
+
+Write-Host "=== DDDA governed promotion preflight ==="
+Write-Host "Repository:          $repositorySlug"
+Write-Host "PR:                  $Pr"
+Write-Host "Head SHA:            $headSha"
+Write-Host "Candidate SHA-256:   $($validation.PackageSha256)"
+Write-Host "Version:             $Version"
+Write-Host "HRDR decision:       $([string]$hrdr.decision)"
+Write-Host "Decision owner:      $([string]$hrdr.decision_owner)"
+Write-Host "Release Scope Gate:  PASS"
+Write-Host "Release source mode:  $(if ($controlledReleaseSource) { 'CONTROLLED_EXACT_PR_SHA' } else { 'STANDARD_MERGE' })"
+Write-Host "Gate evidence:       $gatePath"
+
+$arguments = @(
+    "-PlatformPath", $platformRoot,
+    "-Pr", [string]$Pr,
+    "-Version", $Version
+)
+if ($controlledReleaseSource) {
+    if ($ConfirmPromotion) { $arguments += "-ConfirmPromotion" }
+}
+elseif ($ConfirmMerge) {
+    $arguments += "-ConfirmMerge"
+}
+if ($WithMiro) { $arguments += "-WithMiro" }
+if ($Full) { $arguments += "-Full" }
+if ($CleanupOnFailure) { $arguments += "-CleanupOnFailure" }
+if ($KeepArtifacts) { $arguments += "-KeepArtifacts" }
+if ($KeepReviewBoard) { $arguments += "-KeepReviewBoard" }
+if (-not [string]::IsNullOrWhiteSpace($MiroTeamId)) { $arguments += @("-MiroTeamId", $MiroTeamId) }
+if ($NonInteractive) { $arguments += "-NonInteractive" }
+if ($DryRun) { $arguments += "-DryRun" }
+if ($controlledReleaseSource) {
+    $arguments += @(
+        "-ControlledReleaseSource",
+        "-GateEvidencePath", $gatePath,
+        "-ValidationReportPath", [string]$validation.ReportPath,
+        "-PackagePath", [string]$validation.PackagePath
+    )
+}
+
+# This is the only call into the legacy release executor. No merge/release/tag
+# code is reachable until the read-only Release Scope Gate returned PASS.
+$executorPath = Join-Path $PSScriptRoot "Invoke-DDDAPromotePr.ps1"
+if (-not $DryRun) {
+    Invoke-DDDAPlatformChildPowerShell -ScriptPath $executorPath -Arguments $arguments
+    return
+}
+
+# Issue #67: promotion dry-run result is operation-local and machine-readable.
+# Expected 404 responses for absent tag/GitHub Release are classified as successful
+# absence assertions; auth/network/5xx failures remain FAIL without ambient process state.
+$resultRoot = Join-Path (Get-DDDAPlatformStateRoot) ("promotion/pr-$Pr-$headSha/$Version")
+New-Item -ItemType Directory -Path $resultRoot -Force | Out-Null
+$resultPath = Join-Path $resultRoot "dry-run-result.json"
+$tag = "v$Version"
+$beforeSnapshot = $null
+$afterSnapshot = $null
+$sideEffectResult = $null
+$promotionPreflightStatus = "NOT_RUN"
+$sideEffectAssertionsStatus = "NOT_RUN"
+$wrapperStatus = "FAIL"
+$errorMessage = $null
+
+try {
+    $beforeSnapshot = Get-DDDAPromotionDryRunSnapshot -RepositorySlug $repositorySlug -Pr $Pr -Tag $tag -Token $githubAuth.Token
+    if ([bool]$beforeSnapshot.pr_merged) {
+        throw "Dry-run precondition failed: PR #$Pr is already merged."
+    }
+    if ([string]$beforeSnapshot.head_sha -ne $headSha) {
+        throw "Dry-run precondition failed: PR head changed before executor invocation."
+    }
+    if ([string]$beforeSnapshot.tag_status -ne "ABSENT") {
+        throw "Dry-run precondition failed: canonical tag $tag already exists."
+    }
+    if ([string]$beforeSnapshot.github_release_status -ne "ABSENT") {
+        throw "Dry-run precondition failed: GitHub Release for $tag already exists."
+    }
+
+    try {
+        Invoke-DDDAPlatformChildPowerShell -ScriptPath $executorPath -Arguments $arguments
+        $promotionPreflightStatus = "PASS"
+    }
+    catch {
+        $promotionPreflightStatus = "FAIL"
+        throw
+    }
+
+    $afterSnapshot = Get-DDDAPromotionDryRunSnapshot -RepositorySlug $repositorySlug -Pr $Pr -Tag $tag -Token $githubAuth.Token
+    $sideEffectResult = Test-DDDAPromotionDryRunSideEffects -Before $beforeSnapshot -After $afterSnapshot -ExpectedHeadSha $headSha
+    $sideEffectAssertionsStatus = [string]$sideEffectResult.status
+    if ($sideEffectAssertionsStatus -ne "PASS") {
+        throw "Promotion dry-run side-effect assertions failed: $(@($sideEffectResult.failures) -join ', ')"
+    }
+    $wrapperStatus = "PASS"
+}
+catch {
+    $errorMessage = $_.Exception.Message
+    if ($promotionPreflightStatus -eq "PASS" -and $sideEffectAssertionsStatus -eq "NOT_RUN") {
+        $sideEffectAssertionsStatus = "FAIL"
+    }
+}
+finally {
+    $result = [ordered]@{
+        schema_version = 1
+        repository = $repositorySlug
+        pr = $Pr
+        source_sha = $headSha
+        candidate_package_sha256 = [string]$validation.PackageSha256
+        version = $Version
+        release_source_mode = if ($controlledReleaseSource) { "CONTROLLED_EXACT_PR_SHA" } else { "STANDARD_MERGE" }
+        release_scope_gate_status = [string]$gate.release_scope_gate_status
+        promotion_preflight_status = $promotionPreflightStatus
+        side_effect_assertions_status = $sideEffectAssertionsStatus
+        wrapper_status = $wrapperStatus
+        assertions = if ($null -eq $sideEffectResult) { $null } else { $sideEffectResult.assertions }
+        failing_assertions = if ($null -eq $sideEffectResult) { @() } else { @($sideEffectResult.failures) }
+        before = $beforeSnapshot
+        after = $afterSnapshot
+        error = $errorMessage
+        evidence_path = $resultPath
+    }
+    Write-DDDAPlatformJson -Value $result -Path $resultPath -Depth 30
+    Write-Host "Promotion dry-run evidence: $resultPath"
+}
+
+if ($wrapperStatus -ne "PASS") {
+    throw "Governed promotion dry-run FAIL. Evidence: $resultPath. $errorMessage"
+}
+Write-Host "DDDA governed promotion dry-run: PASS"
+Write-Host "Promotion preflight:       $promotionPreflightStatus"
+Write-Host "Side-effect assertions:    $sideEffectAssertionsStatus"
+Write-Host "Wrapper status:            $wrapperStatus"
+) {
     throw "GitHub nevrátil platný PR head SHA."
 }
+Assert-DDDAReleaseCandidatePrIdentity -PrInfo $prInfo -RepositorySlug $repositorySlug -Pr $Pr -HeadSha $headSha -Version $Version -Kind $(if ($EmergencyRecovery) { "RECOVERY" } else { "NORMAL" }) -Operation promotion_dry_run
 
 $validation = Get-DDDACandidateValidationEvidence `
     -RepositorySlug $repositorySlug `
@@ -133,13 +368,8 @@ if (-not $controlledReleaseSource -and $recoveryLedgerPresent) {
     throw "Standard release nesmí aktivovat recovery evidence; použij explicitní -EmergencyRecovery intent."
 }
 if ($controlledReleaseSource) {
-    $expectedRef = "release/$Version-controlled-recovery-source"
-    if (-not (Test-DDDAControlledReleaseSourceBranch -Branch ([string]$prInfo.head.ref) -Version $Version)) {
-        throw "Controlled release source musí používat canonical branch '$expectedRef' nebo numbered successor '$expectedRef-vN' (N >= 2, bez leading zeroes)."
-    }
-    $candidateMarker = "Controlled release-source candidate — DDDA $Version"
     $body = [string]$prInfo.body
-    if ($body -notlike "*$candidateMarker*" -or $body -notmatch '(?i)must not be merged into `?main`?') {
+    if ($body -notmatch '(?i)must not be merged into `?main`?') {
         throw "Controlled release source postrádá canonical candidate marker nebo explicitní no-merge boundary."
     }
     if ($ConfirmMerge) {

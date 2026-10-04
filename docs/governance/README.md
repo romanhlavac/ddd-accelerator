@@ -9,6 +9,7 @@ Tato sekce je vstupním bodem pro governance backlogu, roadmapy, issues, pull re
 - [Autoritativní mapa artefaktů](authoritative-artifact-map.md)
 - [Governance characterization v1](governance-characterization-v1.md)
 - [Scenario-first governance methodology v2](governance-methodology-v2.md)
+- [Release candidate identity v1](release-candidate-identity.md)
 - [GitHub Project setup](github-project-setup.md)
 - [Triage a delivery runbook](triage-and-delivery-runbook.md)
 - [Status a relationship model](status-and-relationship-model.md)

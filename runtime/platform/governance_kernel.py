@@ -9,6 +9,7 @@ from a technical PASS.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
 import re
 from typing import Any
 
@@ -614,3 +615,100 @@ def evaluate_candidate_context(context: dict[str, Any]) -> KernelDecision:
         side_effects_allowed=False,
     )
 
+
+
+RELEASE_CANDIDATE_MARKER = "<!-- ddda:release-candidate:v1 -->"
+
+
+def _unique_object_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate JSON key: {key}")
+        result[key] = value
+    return result
+
+
+def _release_candidate_record(body: str) -> dict[str, Any] | None:
+    """Parse exactly one versioned marker and its adjacent JSON fence."""
+    if body.count(RELEASE_CANDIDATE_MARKER) != 1:
+        return None
+    tail = body.split(RELEASE_CANDIDATE_MARKER, 1)[1]
+    match = re.match(r"\s*\x60\x60\x60json[ \t]*\r?\n([^\x60]*?)\r?\n\x60\x60\x60(?:\s|$)", tail)
+    if not match:
+        return None
+    try:
+        record = json.loads(match.group(1), object_pairs_hook=_unique_object_pairs)
+    except (ValueError, TypeError):
+        return None
+    return record if isinstance(record, dict) else None
+
+
+def evaluate_release_candidate_pr_identity(
+    context: dict[str, Any], pr: dict[str, Any]
+) -> KernelDecision:
+    """The sole machine owner of release-candidate PR classification (#131).
+
+    Collectors supply explicit intent and a fresh PR snapshot. No title-word
+    heuristic can turn an implementation PR into a release candidate.
+    """
+    failures = _candidate_identity_failures(context)
+    kind = context.get("candidate_kind")
+    version = str(context.get("version") or "")
+    if not STABLE_VERSION.fullmatch(version):
+        failures.append("RELEASE_CANDIDATE_VERSION_INVALID")
+    expected_title = (
+        f"[RELEASE][{version}][RECOVERY] Controlled release candidate"
+        if kind == "RECOVERY"
+        else f"[RELEASE][{version}] Release candidate"
+    )
+    expected_branch = f"release/{version}"
+    if kind == "NORMAL" and context.get("source_branch") != expected_branch:
+        failures.append("RELEASE_CANDIDATE_BRANCH_INVALID")
+    if context.get("pr_state") == "MERGED_CLOSED" or pr.get("state") != "open":
+        failures.append("RELEASE_CANDIDATE_MUST_BE_OPEN")
+    if pr.get("title") != expected_title:
+        failures.append("RELEASE_CANDIDATE_TITLE_MISMATCH")
+    if str(pr.get("number") or "") != str(context.get("pr") or ""):
+        failures.append("RELEASE_CANDIDATE_PR_MISMATCH")
+    head = _mapping(pr.get("head"))
+    base = _mapping(pr.get("base"))
+    if head.get("ref") != context.get("source_branch"):
+        failures.append("RELEASE_CANDIDATE_BRANCH_MISMATCH")
+    if head.get("sha") != context.get("source_sha"):
+        failures.append("RELEASE_CANDIDATE_SHA_MISMATCH")
+    if base.get("ref") != context.get("base_branch"):
+        failures.append("RELEASE_CANDIDATE_BASE_MISMATCH")
+    if _mapping(head.get("repo")).get("full_name") != context.get("repository"):
+        failures.append("RELEASE_CANDIDATE_REPOSITORY_MISMATCH")
+
+    raw_labels = pr.get("labels")
+    labels = [
+        row.get("name") if isinstance(row, dict) else row
+        for row in raw_labels
+    ] if isinstance(raw_labels, list) else []
+    if len(labels) != len(set(str(label) for label in labels)):
+        failures.append("RELEASE_CANDIDATE_LABEL_DUPLICATE")
+    if "release-candidate" not in labels:
+        failures.append("RELEASE_CANDIDATE_LABEL_MISSING")
+    if (kind == "RECOVERY") != ("controlled-recovery" in labels):
+        failures.append("RELEASE_CANDIDATE_RECOVERY_LABEL_MISMATCH")
+
+    record = _release_candidate_record(str(pr.get("body") or ""))
+    expected_kind = "controlled_recovery" if kind == "RECOVERY" else "normal"
+    if record is None:
+        failures.append("RELEASE_CANDIDATE_MARKER_INVALID")
+    elif (
+        set(record) != {"schema_version", "kind", "version"}
+        or type(record.get("schema_version")) is not int
+        or record.get("schema_version") != 1
+        or record.get("kind") != expected_kind
+        or record.get("version") != version
+    ):
+        failures.append("RELEASE_CANDIDATE_MARKER_MISMATCH")
+    return KernelDecision(
+        status="FAIL" if failures else "PASS",
+        operation=str(context.get("operation") or "validate"),
+        failure_codes=tuple(sorted(set(failures))),
+        authorization_required=context.get("operation") == "release",
+    )

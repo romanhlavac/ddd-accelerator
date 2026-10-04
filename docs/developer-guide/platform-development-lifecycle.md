@@ -357,3 +357,5 @@ Implementační PR je připraven k merge pouze když:
 
 Release je připraven pouze když navíc existuje validní release candidate, HRDR, Release Scope Gate PASS, explicitní Human Release Decision a samostatná release/promotion authorization. Technický PASS ani implementační merge sám o sobě release neautorizuje.
 
+
+Release-candidate PR metadata for new candidates follows [identity v1](../governance/release-candidate-identity.md). The S1 Governance Kernel validates its title, labels, branch and body marker before HRDR or promotion; implementation PRs remain separate.
