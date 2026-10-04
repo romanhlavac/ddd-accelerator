@@ -1,6 +1,11 @@
 name: Reconcile DDDA Release & Delivery History
 
 on:
+  pull_request:
+    paths:
+      - '.github/workflows/reconcile-ddda-release-history.yml'
+      - 'config/governance/release-history.json'
+      - 'scripts/platform/Reconcile-DDDAReleaseHistory.py'
   workflow_dispatch:
   release:
     types: [published]
@@ -8,9 +13,29 @@ on:
 permissions:
   contents: read
   pull-requests: read
+  issues: read
 
 jobs:
+  evidence:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Exact PR SHA and historical release authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout --detach "${{ github.event.pull_request.head.sha }}"
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          python -m py_compile scripts/platform/Reconcile-DDDAReleaseHistory.py
+          python scripts/platform/Reconcile-DDDAReleaseHistory.py --mode evidence
   history:
+    if: github.event_name != 'pull_request'
     environment: ddda-backlog-governance
     runs-on: ubuntu-latest
     env:

@@ -207,13 +207,18 @@ def reconcile_view(project_id, project_number, expected, repair):
 
 def main(argv=None):
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", choices=("reconcile", "verify"), default="verify")
+    parser.add_argument("--mode", choices=("evidence", "reconcile", "verify"), default="verify")
     args = parser.parse_args(argv)
     repair = args.mode == "reconcile"
     contract = json.loads(CONTRACT.read_text())
     if contract["schema_version"] != 1 or contract["view"]["name"] != HISTORY_VIEW:
         raise RuntimeError("Unknown history contract")
     rows = expected_rows(contract)  # All release authority is checked before writes.
+    if args.mode == "evidence":
+        print(json.dumps({"source_sha": core.cmd("git", "rev-parse", "HEAD"),
+                          "release_versions": [r["version"] for r in contract["releases"]],
+                          "merged_prs": len(rows), "evidence_status": "PASS"}))
+        return
     repairs = []
     number, project_id, fields, _ = core.resolve_project(repairs, read_only=True)
     if repair:
