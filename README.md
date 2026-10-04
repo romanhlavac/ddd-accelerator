@@ -2,6 +2,17 @@
 
 DDDA je chat-first, Miro-first a Git-verzované pracovní prostředí pro doménovou analýzu, socio-technickou architekturu, modernizaci a návrh bounded contexts. Jedna platformní instalace obsluhuje více nezávislých projektových repozitářů.
 
+## Kde DDDA běží a kde se vyvíjí
+
+| Role | Dnes |
+|---|---|
+| ChatGPT Work | pracovní rovina pro vývoj a governance DDDA platformy |
+| GitHub/Git | kanonický, verzovaný system of record pro platformní zdroj a řízené artefakty |
+| GitHub Actions | autoritativní technické provádění platformních buildů, testů a validace balíků |
+| Cursor | současný referenční host pro práci architekta v konkrétním DDDA projektu |
+
+DDDA platforma zahrnuje metodiku, kontrakty a přenosné chování; Cursor je její aktuální projektový runtime, nikoli identita platformy. Jiné hosty tento stav automaticky nepodporuje. Pravidla pro platformní vývoj a projektovou práci určuje [kanonický operating model](docs/developer-guide/chat-work-operating-model.md) a [development skill](knowledge/ddda-platform-development-skill.md); praktické kroky shrnuje [USAGE](USAGE.md).
+
 ## Co je implementováno
 
 - multi-project workspace a samostatný Git repozitář pro každý projekt;
@@ -30,56 +41,15 @@ DDDA je chat-first, Miro-first a Git-verzované pracovní prostředí pro domén
 | Miro | workshopovou interakci, polohu, velikost a vizuální seskupení |
 | Git | historii, review a schválení změn |
 | Mermaid | generované pohledy pro chat a dokumentaci |
-| Chat | porozumění, otázky, varianty, review a potvrzení execution kroku |
+| ChatGPT Work | analýzu a přípravu řízených změn; autorita zůstává v GitHub/Git |
 
 Sémantický konflikt se nikdy neřeší implicitním last-write-wins. Gate se nikdy neschválí pouze proto, že automatizace našla požadované soubory.
 
 ## Vývoj DDDA platformy
 
-Vývoj platformy není totéž jako práce v klientském DDDA projektu.
+Platformní změny vznikají v řízeném GitHub PR; identitu stavu tvoří repository, branch a exact SHA. Work připravuje změnu a governance evidenci, GitHub Actions ověřuje technickou správnost. Human Review, merge a release mají oddělené hranice rozhodnutí.
 
-```text
-platform repository
-→ candidate/release package
-→ generated validation workspace
-→ example project
-```
-
-Klientský workspace se nikdy nepoužívá jako platformní test fixture.
-
-Základní kontrola:
-
-```powershell
-.\ddda.ps1 doctor
-```
-
-Validace přesného PR head SHA:
-
-```powershell
-.\ddda.ps1 validate-pr -Pr 8
-```
-
-Včetně Miro:
-
-```powershell
-.\ddda.ps1 validate-pr -Pr 8 -WithMiro -Full -CleanupOnFailure
-```
-
-Promotion nejprve spusť jako dry-run:
-
-```powershell
-.\ddda.ps1 promote-pr -Pr 8 -Version 0.8.0 -DryRun
-```
-
-Skutečný merge a release vyžaduje explicitní potvrzení:
-
-```powershell
-.\ddda.ps1 promote-pr -Pr 8 -Version 0.8.0 -ConfirmMerge
-```
-
-Běžné testy nemergují, netagují ani nepushují projektové změny. `promote-pr` je samostatná fail-closed approval boundary.
-
-Detail: [Vývojový lifecycle DDDA platformy](docs/developer-guide/platform-development-lifecycle.md).
+Příkazy a jejich současné podmínky jsou v [platform development lifecycle](docs/developer-guide/platform-development-lifecycle.md) a [návodu pro validaci a promotion](docs/user-guide/validate-and-promote-pr.md). Projektový workspace není platformní test fixture.
 
 ## Kanonický první start
 
