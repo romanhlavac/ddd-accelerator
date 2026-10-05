@@ -114,6 +114,8 @@ Layout: Table
 Filter: is:pr is:open
 ```
 
+Účel: aktuálně otevřené implementační PR, jejich derived WP, delivery status, blocker a Human Review visibility.
+
 ### 3. Release & Delivery History
 
 ```text
@@ -126,8 +128,6 @@ Historická pole a důkazní hranice jsou definovány v
 [`wp-backlog-consistency.md`](wp-backlog-consistency.md). Materializace a
 read-back probíhají přes `Reconcile-DDDAReleaseHistory.py` po autoritativním
 Git/release ověření. Project nikdy nevytváří `Released` ze svého `Status`.
-
-Účel: aktuálně otevřené implementační PR, jejich derived WP, delivery status, blocker a Human Review visibility.
 
 Další analytické views jsou volitelné. Nejsou authority a jejich existence nesmí být podmínkou governance PASS.
 
