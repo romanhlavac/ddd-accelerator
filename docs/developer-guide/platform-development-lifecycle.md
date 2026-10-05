@@ -217,6 +217,9 @@ Příkaz ověřuje exact PR SHA, candidate package, package-first suites, exampl
 
 ## 6. Human Review implementačního PR
 
+Kanonická [review terminologie](../governance/review-terminology.md) rozlišuje Human Review (HR) implementačního PR a Human Visual Review (HVR) konkrétního vizuálního artefaktu. Obecný handoff zapisuje `CR #70 → PR #84 R5 — READY FOR HUMAN REVIEW`; `R<n>` je doložitelná implementation revision lineage, nikoli review round. Verdikt uvádí `Human Review PR #84: PASS|CHANGES_REQUIRED` a strojový marker `ddda:human-pr-review:v1` zůstává beze změny.
+
+
 Člověk posuzuje judgment-heavy oblasti, zejména metodiku, architekturu, semantics gatů, použitelnost a relevantní rizika. Syntax, schemas, packaging, idempotence a absence secrets kontroluje automatizace.
 
 Human Review implementačního PR musí být auditovatelně vázán minimálně na:
@@ -285,7 +288,7 @@ To umožňuje bezpečně integrovat více implementačních PR před sestavením
 
 #70 mění samotný merge contract. Jeho vlastní integraci proto stále řídí pre-existing `main` policy z exact base `297f61f6012f180e70805999df2ac1abe9616a05`, která používala squash. Nová merge-commit policy se stává autoritativní až po integraci #70 do `main`.
 
-Transition je versioned, exact-base-bound a single-purpose; není to HIGH/BREAKING squash exception pro budoucí PR. HVR #70 musí tento bootstrap trade-off explicitně posoudit. Historické PR/tagy se nepřepisují.
+Transition je versioned, exact-base-bound a single-purpose; není to HIGH/BREAKING squash exception pro budoucí PR. Human Review CR #70 / PR #84 musí tento bootstrap trade-off explicitně posoudit. Historické PR/tagy se nepřepisují.
 
 ## 7. Release candidate a HRDR
 

@@ -24,6 +24,7 @@ Registration is not optional. Keeping the file only in Git provides versioning, 
 
 Canonical supporting documentation:
 
+- `docs/governance/review-terminology.md`
 - `docs/developer-guide/chat-work-operating-model.md`
 - `docs/developer-guide/platform-development-lifecycle.md`
 - `docs/developer-guide/testing-strategy.md`
@@ -133,7 +134,7 @@ CI/test pipeline
 24. Structural Miro validation cannot satisfy human visual acceptance.
 25. For every bounded DDDA platform-development assignment, unless the human explicitly requests analysis or planning only, Chat/Work owns mechanical execution and orchestration end to end through the next genuine human boundary. Autonomous-by-default applies to implementation, governance, validation, remediation, FAST-LOOP, release preparation and other bounded platform-development work inside authorized scope.
 26. Chat/Work must not ask whether to perform a mechanically required or resolvable next step inside authorized scope: fresh read-back, branch/PR preparation, CI polling, log inspection, bounded diagnosis and correction, regression coverage, reruns, Project reconciliation, evidence materialization and continuation to READY FOR HUMAN REVIEW are orchestration responsibilities.
-27. Request human interaction only for Human Review/HVR, legitimate architecture/product/methodology/risk choices, explicit merge or release/promotion/tag authorization, material scope expansion, an unavailable mandatory capability without an approved alternative, or unresolved authoritative ambiguity that changes meaning. Human judgment and authorization are never inferred from a technical PASS or an earlier gate.
+27. Request human interaction only for Human Review/Human Visual Review (HVR only for visual artifacts), legitimate architecture/product/methodology/risk choices, explicit merge or release/promotion/tag authorization, material scope expansion, an unavailable mandatory capability without an approved alternative, or unresolved authoritative ambiguity that changes meaning. Human judgment and authorization are never inferred from a technical PASS or an earlier gate.
 28. A technical failure, quota or outage in one optional/local channel is not a human stop boundary. Inspect evidence, diagnose the cause, try an approved alternative plane, make a bounded corrective commit instead of rewriting shared history when justified, rerun exact-SHA validation, read back and continue. Escalate only for judgment, scope expansion or a mandatory capability without an approved alternative.
 29. A governed implementation PR may be merged after exact-SHA technical evidence, Human Review and explicit merge authorization without evaluating release-scope completeness and without creating a release or tag.
 30. HRDR and Release Scope Gate apply to the actual release candidate boundary, after included implementation work has been integrated/terminal; `promote-pr` is a release command, not the general implementation-PR merge command.
@@ -431,6 +432,8 @@ CI evidence should be uploaded as workflow artifacts. Local evidence is not auto
 
 ## 13. Human versus automated responsibility
 
+Use the canonical [review terminology](../docs/governance/review-terminology.md): general implementation judgment is Human Review (HR), visual artifact review is Human Visual Review (HVR), and handoffs name CR #n and PR #n explicitly. R<n> identifies implementation revision lineage, never a review round. The marker `ddda:human-pr-review:v1` remains stable.
+
 Automation verifies syntax, schemas, paths, package contents, generated structures, command behavior, isolation and deterministic acceptance mechanics.
 
 Humans judge methodology, architecture, domain boundaries, gate semantics, visual usability, risk acceptance and release readiness.
@@ -513,7 +516,7 @@ Work does not ask the human to schedule a workflow, poll CI, read logs, run test
 
 Avoid endless narrow patching: after the first defect in a capability, use bounded remediation; after a second related defect, review root cause and scenario/contract; at a third related remediation signal, stop narrow patching and assess simplification or redesign. Continue autonomously if one design follows mechanically from current authority. Ask the human when legitimate architecture or risk alternatives require judgment. This heuristic is not a new CI gate.
 
-Genuine human boundaries are Human Review/HVR; architecture, product, methodology or risk judgment; explicit merge authorization; separate release/promotion/tag authorization; material scope expansion; an unavailable mandatory capability without an approved alternate; and unresolved semantic authority conflict. Technical PASS cannot imply Human Review PASS; Human Review cannot imply merge authorization; merge cannot imply release; release cannot imply tag; FAST-LOOP cannot authorize irreversible side effects. Keep exact-SHA and single canonical candidate-package identity across evidence and gates.
+Genuine human boundaries are Human Review/Human Visual Review (HVR only for visual artifacts); architecture, product, methodology or risk judgment; explicit merge authorization; separate release/promotion/tag authorization; material scope expansion; an unavailable mandatory capability without an approved alternate; and unresolved semantic authority conflict. Technical PASS cannot imply Human Review PASS; Human Review cannot imply merge authorization; merge cannot imply release; release cannot imply tag; FAST-LOOP cannot authorize irreversible side effects. Keep exact-SHA and single canonical candidate-package identity across evidence and gates.
 
 ### 16.1 Truthful execution-state reporting
 

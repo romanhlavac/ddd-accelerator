@@ -5,10 +5,11 @@ Use this template before a platform PR is approved for promotion.
 ## Reviewed state
 
 ```text
-PR: #<number>
+CR: CR #<issue>
+PR: PR #<number>
 Head SHA: <exact-sha>
 Parent Work Package: WP-XX — #<issue>
-Change Request: #<issue>
+Change Request: CR #<issue>
 Candidate package hash: <sha256>
 Validation report: <path-or-link>
 ```
