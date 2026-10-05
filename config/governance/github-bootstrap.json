@@ -3,7 +3,7 @@
   "repository": "romanhlavac/ddd-accelerator",
   "project_owner": "romanhlavac",
   "project_title": "DDDA Platform Backlog & Delivery",
-  "project_description": "Planning backlog and active delivery visibility for the DDDA platform. Work Packages and Change Request Issues remain planning authority; active implementation pull requests are maintained as delivery projections linked to one primary Change Request.",
+  "project_description": "Planning, active implementation delivery and evidence-bound release history for the DDDA platform. Issues and Git/release evidence retain authority; Project is a projection.",
   "project_visibility": "PUBLIC",
   "api_version": "2026-03-10",
   "hierarchy": [
@@ -1757,6 +1757,11 @@
       "name": "Implementace a Delivery",
       "layout": "table",
       "filter": "is:pr is:open"
+    },
+    {
+      "name": "Release & Delivery History",
+      "layout": "table",
+      "filter": "is:pr is:merged"
     }
   ],
   "milestone": {
@@ -1961,6 +1966,17 @@
       ],
       "pulls": []
     }
-  ]
+  ],
+  "history_projection": {
+    "contract": "config/governance/release-history.json",
+    "view": {
+      "name": "Release & Delivery History",
+      "layout": "table",
+      "filter": "is:pr is:merged"
+    },
+    "release_authority": "annotated tag, exact source SHA, physical package digest, portable PASS report, Human Release Decision and GitHub Release read-back",
+    "project_status_is_projection_only": true,
+    "multi_pr_release_supported": true,
+    "historical_0_1_0_package_integrity": "unverified/unavailable"
+  }
 }
-

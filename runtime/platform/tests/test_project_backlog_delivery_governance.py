@@ -18,11 +18,15 @@ PLANNING_VIEW = {"name": "Plánování a Backlog", "layout": "table", "filter": 
 DELIVERY_VIEW = {"name": "Implementace a Delivery", "layout": "table", "filter": "is:pr is:open"}
 
 
-def test_bootstrap_has_two_canonical_projections_and_delivery_contract():
+def test_bootstrap_has_planning_active_delivery_and_history_projections():
     data = json.loads(BOOTSTRAP.read_text(encoding="utf-8-sig"))
 
     assert data["project_title"] == PROJECT_TITLE
-    assert data["views"] == [PLANNING_VIEW, DELIVERY_VIEW]
+    assert data["views"] == [PLANNING_VIEW, DELIVERY_VIEW, {
+        "name": "Release & Delivery History", "layout": "table", "filter": "is:pr is:merged"
+    }]
+    assert data["history_projection"]["project_status_is_projection_only"] is True
+    assert data["history_projection"]["multi_pr_release_supported"] is True
 
     delivery = data["delivery_projection"]
     assert delivery["planning_view"] == PLANNING_VIEW
