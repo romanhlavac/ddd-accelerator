@@ -1,0 +1,84 @@
+name: Reconcile DDDA Release & Delivery History
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/reconcile-ddda-release-history.yml'
+      - 'config/governance/release-history.json'
+      - 'scripts/platform/Reconcile-DDDAReleaseHistory.py'
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+
+jobs:
+  evidence:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Exact PR SHA and historical release authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          python -m py_compile scripts/platform/Reconcile-DDDAReleaseHistory.py
+          python scripts/platform/Reconcile-DDDAReleaseHistory.py --mode evidence
+  history:
+    if: github.event_name != 'pull_request'
+    environment: ddda-backlog-governance
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.DDDA_GITHUB_PROJECT_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check exact source and credential
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${GH_TOKEN:-}"
+          gh auth status --hostname github.com >/dev/null
+          main_sha="$(gh api repos/$GITHUB_REPOSITORY/git/ref/heads/main --jq .object.sha)"
+          test "$(git rev-parse HEAD)" = "$main_sha"
+          python -m py_compile scripts/platform/Reconcile-DDDAReleaseHistory.py
+          python -m json.tool config/governance/release-history.json >/dev/null
+      - name: Reconcile evidence-bound history and read back
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/platform/Reconcile-DDDAReleaseHistory.py --mode reconcile
+          python scripts/platform/Reconcile-DDDAReleaseHistory.py --mode reconcile
+          python scripts/platform/Reconcile-DDDAReleaseHistory.py --mode verify
+          python scripts/platform/Reconcile-DDDAProjectBacklog.py --mode verify
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path('.reports/cr-delivery-audit-v6/release-history.json').read_text())
+          backlog = json.loads(Path('.reports/cr-delivery-audit-v6/audit.json').read_text())
+          second = json.loads(Path('.reports/cr-delivery-audit-v6/release-history-reconcile.json').read_text())
+          assert report['source_sha'] == backlog['source_sha']
+          assert report['remaining_mismatches'] == backlog['remaining_mismatches'] == 0
+          assert second['repair_count'] == second['remaining_mismatches'] == 0
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ddda-release-delivery-history-run-${{ github.run_id }}
+          path: .reports/cr-delivery-audit-v6/*.json
+          retention-days: 30

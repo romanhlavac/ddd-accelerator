@@ -10,6 +10,7 @@ This checklist tracks repository-administration actions that cannot be guarantee
 - [ ] Enable/show system fields `Parent issue`, `Sub-issue progress`, `Milestone` and `Linked pull requests` in relevant views.
 - [ ] Create/verify `Plánování a Backlog` as Table with filter `is:issue`.
 - [ ] Create/verify `Implementace a Delivery` as Table with filter `is:pr is:open`.
+- [ ] Create/verify `Release & Delivery History` as Table with filter `is:pr is:merged`, then run evidence-bound history reconciliation and read-back.
 - [ ] Keep any additional analytical views optional and non-authoritative.
 - [ ] Keep items with unknown dates unscheduled; do not invent dates for visualization.
 - [ ] Configure safe status automations.
