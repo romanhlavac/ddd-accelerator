@@ -76,7 +76,13 @@ def _controlled_candidate_baseline() -> dict[str, Any]:
                 "repo": {"full_name": REPO},
             },
             "base": {"ref": "main"},
-            "body": "## Controlled release-source candidate — DDDA 0.1.1",
+            "title": "[RELEASE][0.1.1][RECOVERY] Controlled release candidate",
+            "labels": [{"name": "release-candidate"}, {"name": "controlled-recovery"}],
+            "body": ('<!-- ddda:release-candidate:v1 -->\n'
+                     '```json\n'
+                     '{"schema_version":1,"kind":"controlled_recovery","version":"0.1.1"}\n'
+                     '```\n'
+                     '## Controlled release-source candidate — DDDA 0.1.1'),
         },
         "context": {
             "repository": REPO,

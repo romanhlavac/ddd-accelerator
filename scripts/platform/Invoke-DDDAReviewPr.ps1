@@ -8,6 +8,7 @@ param(
     [string]$ValidationReportPath,
     [string]$CandidatePackagePath,
     [switch]$PublishScaffold,
+    [switch]$ControlledRecoveryCandidate,
     [switch]$Json
 )
 
@@ -32,6 +33,7 @@ $headSha = [string]$prInfo.head.sha
 if ($headSha -notmatch '^[0-9a-f]{40}$') {
     throw "GitHub nevrátil platný PR head SHA."
 }
+Assert-DDDAReleaseCandidatePrIdentity -PrInfo $prInfo -RepositorySlug $repositorySlug -Pr $Pr -HeadSha $headSha -Version $Version -Kind $(if ($ControlledRecoveryCandidate) { "RECOVERY" } else { "NORMAL" }) -Operation publish_hrdr_scaffold
 
 $validation = Get-DDDACandidateValidationEvidence `
     -RepositorySlug $repositorySlug `

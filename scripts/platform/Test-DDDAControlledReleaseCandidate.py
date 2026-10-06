@@ -15,7 +15,10 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from runtime.platform.candidate_evidence import validate_candidate_evidence
-from runtime.platform.governance_kernel import evaluate_candidate_identity
+from runtime.platform.governance_kernel import (
+    evaluate_candidate_identity,
+    evaluate_release_candidate_pr_identity,
+)
 
 SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 VERSION_RE = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
@@ -88,6 +91,7 @@ def validate_request(
         "project_evidence_reference": None,
     }
     decision = evaluate_candidate_identity(candidate_context)
+    identity_decision = evaluate_release_candidate_pr_identity(candidate_context, pr)
     failure_map = {
         "OPERATION_INVALID": "CONTROLLED_CANDIDATE_OPERATION_INVALID",
         "VERSION_INVALID": "CONTROLLED_CANDIDATE_VERSION_INVALID",
@@ -116,9 +120,13 @@ def validate_request(
         failures.append("CONTROLLED_CANDIDATE_HEAD_SHA_MISMATCH")
     if str(head_repo.get("full_name") or "") != repository:
         failures.append("CONTROLLED_CANDIDATE_HEAD_REPOSITORY_INVALID")
-    body = str(pr.get("body") or "")
-    if f"Controlled release-source candidate — DDDA {version}" not in body:
-        failures.append("CONTROLLED_CANDIDATE_MARKER_INVALID")
+    for code in identity_decision.failure_codes:
+        if code.startswith("RELEASE_CANDIDATE_"):
+            failures.append(
+                "CONTROLLED_CANDIDATE_MUST_REMAIN_OPEN"
+                if code == "RELEASE_CANDIDATE_MUST_BE_OPEN"
+                else "CONTROLLED_CANDIDATE_" + code.removeprefix("RELEASE_CANDIDATE_")
+            )
     return {
         "status": "PASS" if not failures else "FAIL",
         "operation": operation,

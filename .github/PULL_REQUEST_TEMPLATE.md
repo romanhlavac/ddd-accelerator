@@ -1,5 +1,7 @@
 # DDDA platform Pull Request
 
+Název běžného implementačního PR a odkazy CR/PR použij podle [kanonického GitHub artifact naming guide](../docs/governance/github-artifact-naming.md). Release candidate je samostatná specializace #131.
+
 ## Backlog relationship
 
 - Parent Work Package: `WP-XX — #<issue>`
@@ -122,3 +124,5 @@ HRDR / review evidence:
 - [ ] Validation evidence je navázána na current head SHA.
 - [ ] Parent Work Package a roadmap budou po dokončení aktualizovány.
 - [ ] Merge ani release nebude proveden bez explicitního lidského rozhodnutí.
+
+> Release-candidate PRs use the specialized [identity v1](../docs/governance/release-candidate-identity.md) title, labels, branch and body record. This implementation template does not itself classify a PR as a release candidate.

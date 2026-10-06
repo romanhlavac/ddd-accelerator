@@ -1,0 +1,107 @@
+name: DDDA GitHub naming audit
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: dry-run or digest-bound additive apply
+        type: choice
+        options: [dry-run, apply]
+        default: dry-run
+      expected_plan_sha256:
+        description: Reviewed dry-run plan hash, required for apply
+        type: string
+      max_writes:
+        description: Maximum number of additive Issue label writes
+        type: number
+        default: 0
+      target_issue:
+        description: Exactly one safe Issue number from the reviewed plan
+        type: number
+        default: 0
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+  actions: read
+
+jobs:
+  inventory:
+    name: Naming dry-run
+    if: github.event_name == 'pull_request' || inputs.mode != 'apply'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install test dependency
+        run: python -m pip install --disable-pip-version-check "pytest>=8,<9"
+      - name: Test naming policy
+        run: python -m pytest -q runtime/platform/tests/test_github_naming.py
+      - name: Inventory and plan additive writes
+        run: |
+          python scripts/platform/Audit-DDDAGitHubNaming.py \
+            --report github-naming-dry-run.json
+      - name: Upload dry-run evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ddda-github-naming-audit-${{ github.event.pull_request.head.sha || github.sha }}
+          path: github-naming-dry-run.json
+          if-no-files-found: warn
+
+  apply:
+    name: Bounded naming backfill
+    if: github.event_name == 'workflow_dispatch' && inputs.mode == 'apply'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    env:
+      GH_TOKEN: ${{ secrets.DDDA_GITHUB_PROJECT_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Re-evaluate exact plan and apply only additive labels
+        env:
+          EXPECTED_PLAN_SHA256: ${{ inputs.expected_plan_sha256 }}
+          MAX_WRITES: ${{ inputs.max_writes }}
+          TARGET_ISSUE: ${{ inputs.target_issue }}
+        run: |
+          python scripts/platform/Audit-DDDAGitHubNaming.py \
+            --apply \
+            --expected-plan-sha256 "$EXPECTED_PLAN_SHA256" \
+            --max-writes "$MAX_WRITES" \
+            --target-issue "$TARGET_ISSUE" \
+            --report github-naming-apply.json
+      - name: Reconcile every Issue mutation and verify Project
+        run: |
+          python scripts/platform/Reconcile-DDDAReleasePlanning.py --mode reconcile
+          python scripts/platform/Reconcile-DDDAProjectBacklogPresentation.py --mode reconcile
+          python scripts/platform/Reconcile-DDDAProjectBacklog.py --mode reconcile
+          python scripts/platform/Reconcile-DDDAProjectBacklog.py --mode verify
+          python scripts/platform/Reconcile-DDDAProjectBacklogPresentation.py --mode verify
+          python scripts/platform/Reconcile-DDDAReleasePlanning.py --mode verify
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          audit = json.loads(Path('.reports/cr-delivery-audit-v6/audit.json').read_text())
+          assert audit['remaining_mismatches'] == 0
+          assert audit['repair_count'] == 0
+          print('remaining_mismatches=0')
+          PY
+      - name: Upload read-back evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ddda-github-naming-backfill-${{ github.sha }}
+          path: github-naming-apply.json
+          if-no-files-found: warn

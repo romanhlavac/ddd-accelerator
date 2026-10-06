@@ -123,6 +123,7 @@ project:
   views:
     - Plánování a Backlog
     - Implementace a Delivery
+    - Release & Delivery History
   view_contract:
     planning:
       name: Plánování a Backlog
@@ -132,6 +133,13 @@ project:
       name: Implementace a Delivery
       layout: table
       filter: is:pr is:open
+    history:
+      name: Release & Delivery History
+      layout: table
+      filter: is:pr is:merged
+      authority: config/governance/release-history.json
+      project_status_is_projection_only: true
+      historical_0_1_0_package_integrity: unverified/unavailable
   planning_projection:
     authority: canonical_issue_state_and_unresolved_dependencies
     implementation_entry_evidence: active_primary_implementation_pr
@@ -522,4 +530,3 @@ work_packages:
     state: backlog
     target_release: 0.2.0
     outcome_summary: Provider-neutral workshop, DDD and architecture model providers coordinated through one Git-backed synchronization contract.
-

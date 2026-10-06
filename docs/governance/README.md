@@ -4,11 +4,13 @@ Tato sekce je vstupním bodem pro governance backlogu, roadmapy, issues, pull re
 
 ## Základní dokumenty
 
+- [Canonical GitHub artifact naming](github-artifact-naming.md)
 - [Backlog governance](backlog-governance.md)
 - [WP ↔ Backlog ↔ Delivery consistency](wp-backlog-consistency.md)
 - [Autoritativní mapa artefaktů](authoritative-artifact-map.md)
 - [Governance characterization v1](governance-characterization-v1.md)
 - [Scenario-first governance methodology v2](governance-methodology-v2.md)
+- [Release candidate identity v1](release-candidate-identity.md)
 - [GitHub Project setup](github-project-setup.md)
 - [Triage a delivery runbook](triage-and-delivery-runbook.md)
 - [Status a relationship model](status-and-relationship-model.md)
@@ -26,9 +28,10 @@ Tato sekce je vstupním bodem pro governance backlogu, roadmapy, issues, pull re
 ```text
 config/governance/backlog-policy.yaml
 config/governance/github-bootstrap.json
+config/governance/release-history.json
 ```
 
-Backlog authority je GitHub Issue + native WP hierarchy. GitHub Project V2 má dvě oddělené projekce: planning pro Work Packages/Change Requests a delivery pro otevřené implementační PR. PR je povinný delivery item navázaný na jeden primární Change Request; nikdy se tím nestává druhým Change Requestem.
+Backlog authority je GitHub Issue + native WP hierarchy. GitHub Project V2 má tři oddělené projekce: planning pro Work Packages/Change Requests, active delivery pro otevřené implementační PR a [historii](wp-backlog-consistency.md) pro merged PR s evidence-bound release údaji. PR je povinný delivery item navázaný na jeden primární Change Request; nikdy se tím nestává druhým Change Requestem.
 
 Povinný consistency model:
 

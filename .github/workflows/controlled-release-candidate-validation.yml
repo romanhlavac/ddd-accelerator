@@ -274,7 +274,8 @@ jobs:
             -DecisionOwner $env:DECISION_OWNER `
             -ValidationReportPath $env:validation_report `
             -CandidatePackagePath $env:candidate_package `
-            -PublishScaffold
+            -PublishScaffold `
+            -ControlledRecoveryCandidate
 
   release-scope-dry-run:
     name: Controlled release governance dry-run

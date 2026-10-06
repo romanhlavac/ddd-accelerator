@@ -18,6 +18,7 @@ param(
     [string]$DecisionOwner,
     [ValidateSet("merge", "squash")][string]$MergeMethod,
     [switch]$PublishScaffold,
+    [switch]$ControlledRecoveryCandidate,
     [switch]$WithMiro,
     [switch]$Full,
     [switch]$CleanupOnFailure,
@@ -135,6 +136,7 @@ switch ($Command) {
         if (-not [string]::IsNullOrWhiteSpace($ValidationReportPath)) { $arguments += @("-ValidationReportPath", $ValidationReportPath) }
         if (-not [string]::IsNullOrWhiteSpace($CandidatePackagePath)) { $arguments += @("-CandidatePackagePath", $CandidatePackagePath) }
         if ($PublishScaffold) { $arguments += "-PublishScaffold" }
+        if ($ControlledRecoveryCandidate) { $arguments += "-ControlledRecoveryCandidate" }
         Invoke-DDDACommandScript -RelativePath "scripts/platform/Invoke-DDDAReviewPr.ps1" -Arguments $arguments
     }
     "promote-pr" {

@@ -6,6 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
+        Při založení použij [kanonický GitHub artifact naming guide](../../docs/governance/github-artifact-naming.md); historické aliasy se nepřejmenovávají.
         GAP Issue je vstup do backlogu. Nezakládej kvůli němu branch ani plánovaný PR, dokud neprojde triage a nevznikne implementační Change Request.
   - type: textarea
     id: origin

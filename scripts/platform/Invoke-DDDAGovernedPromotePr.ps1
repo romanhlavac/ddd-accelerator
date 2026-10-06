@@ -43,6 +43,7 @@ $headSha = [string]$prInfo.head.sha
 if ($headSha -notmatch '^[0-9a-f]{40}$') {
     throw "GitHub nevrátil platný PR head SHA."
 }
+Assert-DDDAReleaseCandidatePrIdentity -PrInfo $prInfo -RepositorySlug $repositorySlug -Pr $Pr -HeadSha $headSha -Version $Version -Kind $(if ($EmergencyRecovery) { "RECOVERY" } else { "NORMAL" }) -Operation promotion_dry_run
 
 $validation = Get-DDDACandidateValidationEvidence `
     -RepositorySlug $repositorySlug `
@@ -133,13 +134,8 @@ if (-not $controlledReleaseSource -and $recoveryLedgerPresent) {
     throw "Standard release nesmí aktivovat recovery evidence; použij explicitní -EmergencyRecovery intent."
 }
 if ($controlledReleaseSource) {
-    $expectedRef = "release/$Version-controlled-recovery-source"
-    if (-not (Test-DDDAControlledReleaseSourceBranch -Branch ([string]$prInfo.head.ref) -Version $Version)) {
-        throw "Controlled release source musí používat canonical branch '$expectedRef' nebo numbered successor '$expectedRef-vN' (N >= 2, bez leading zeroes)."
-    }
-    $candidateMarker = "Controlled release-source candidate — DDDA $Version"
     $body = [string]$prInfo.body
-    if ($body -notlike "*$candidateMarker*" -or $body -notmatch '(?i)must not be merged into `?main`?') {
+    if ($body -notmatch '(?i)must not be merged into `?main`?') {
         throw "Controlled release source postrádá canonical candidate marker nebo explicitní no-merge boundary."
     }
     if ($ConfirmMerge) {

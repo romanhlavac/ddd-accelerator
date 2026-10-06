@@ -7,6 +7,12 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 ## [Unreleased]
 
 ### Changed
+- Add one canonical GitHub artifact naming guide, prospective vocabulary and conservative digest-bound legacy inventory/backfill plan (#132).
+
+- New release-candidate PRs carry a versioned body record and matching title,
+  labels and branch; S1 Governance Kernel rejects inconsistent normal or
+  controlled-recovery identity before HRDR and promotion (#131).
+
 
 - new implementation branches now follow the versioned `feature/`, `fix/`, `docs/`,
   `release/` taxonomy; `automation/` has exact-run provenance, conservative

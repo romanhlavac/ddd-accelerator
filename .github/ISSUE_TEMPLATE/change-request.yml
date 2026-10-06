@@ -6,6 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
+        Při založení použij [kanonický GitHub artifact naming guide](../../docs/governance/github-artifact-naming.md); historické aliasy se nepřejmenovávají.
         Change Request je autorita pro konkrétní plánovanou změnu. Branch a Draft PR vzniknou až při zahájení implementace.
   - type: input
     id: parent_wp

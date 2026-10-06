@@ -31,6 +31,11 @@ Prioritní quality attributes:
 
 ## Decision
 
+**2026-10-04 addendum (#69):** Původní dvoupohledový kontrakt níže je
+historické rozhodnutí. Aktuální [Project kontrakt](../governance/wp-backlog-consistency.md)
+přidává třetí `Release & Delivery History` view (`is:pr is:merged`) a zachovává
+obě původní projekce. Release evidence zůstává mimo Project.
+
 DDDA používá jeden GitHub Project `DDDA Platform Backlog & Delivery` se dvěma kanonickými projekcemi:
 
 ```text
