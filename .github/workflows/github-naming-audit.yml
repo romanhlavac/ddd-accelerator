@@ -59,6 +59,7 @@ jobs:
   apply:
     name: Bounded naming backfill
     if: github.event_name == 'workflow_dispatch' && inputs.mode == 'apply'
+    environment: ddda-backlog-governance
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -70,6 +71,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Validate Project credential before Issue mutation
+        run: |
+          set -euo pipefail
+          test -n "${GH_TOKEN:-}"
+          gh auth status --hostname github.com >/dev/null
+          gh project list --owner romanhlavac --limit 100 --format json \
+            --jq '[.projects[] | select(.title=="DDDA Platform Backlog & Delivery" and (.closed|not))] | length' \
+            | grep -qx '1'
       - name: Re-evaluate exact plan and apply only additive labels
         env:
           EXPECTED_PLAN_SHA256: ${{ inputs.expected_plan_sha256 }}
