@@ -5,7 +5,7 @@ Název běžného implementačního PR a odkazy CR/PR použij podle [kanonickéh
 ## Backlog relationship
 
 - Parent Work Package: `WP-XX — #<issue>`
-- Change Request: `Implements #<issue>` nebo `Closes #<issue>`
+- Change Request: `CR #<issue>`; relationship `Implements #<issue>` nebo `Closes #<issue>`
 - Related GAP / defect / risk: `#...`
 - Target Milestone: `DDDA X.Y.Z` nebo `TBD`
 
@@ -84,7 +84,12 @@ Migration impact:
 - online external-system evidence:
 - diagnostics retained:
 
-## Human review
+## Human Review
+
+Handoff: `CR #<cr> → PR #<pr> — READY FOR HUMAN REVIEW` (`R<n>` only for documented implementation revision lineage).
+Verdict: `Human Review PR #<pr>: PASS|CHANGES_REQUIRED` (compact: `HR PR #<pr>`).
+Human Visual Review, when required: `HVR PR #<pr> / <artifact>: PASS|CHANGES_REQUIRED`.
+Machine marker remains `ddda:human-pr-review:v1`. See [canonical terminology](../docs/governance/review-terminology.md).
 
 Judgment areas required:
 
@@ -97,11 +102,13 @@ Judgment areas required:
 - [ ] release readiness and residual risks
 - [ ] not required beyond normal code review
 
-HRDR / review evidence:
+Implementation Human Review evidence:
 
-- status: not started / in progress / GO / GO_WITH_ACCEPTED_RISKS / NO_GO
+- status: not started / in progress / PASS / CHANGES_REQUIRED
 - exact reviewed SHA:
 - evidence link:
+
+For a release candidate, HRDR is separate: `PENDING_HUMAN_DECISION / GO / GO_WITH_ACCEPTED_RISKS / NO_GO`.
 
 ## Risks and residual risks
 
