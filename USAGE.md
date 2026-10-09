@@ -4,6 +4,20 @@ Tento dokument je hlavní end-to-end uživatelská příručka. Pokrývá vývoj
 
 ## 1. Pracovní model
 
+Pro vývoj platformy a práci v DDDA projektu platí dvě execution roviny. Kanonická pravidla jsou v [operating modelu](docs/developer-guide/chat-work-operating-model.md) a [platform development skillu](knowledge/ddda-platform-development-skill.md); tento návod pomáhá vybrat správný vstup.
+
+| Role | Význam |
+|---|---|
+| ChatGPT Work | platform development a governance control plane: PR, backlog, evidence a release příprava |
+| GitHub/Git | kanonický system of record verzovaných zdrojů, Issues, PR a rozhodnutí |
+| GitHub Actions | autoritativní technický execution plane pro platformní build, test a package validaci |
+| Cursor | současný referenční DDDA project runtime/host nad konkrétním project repository |
+| Člověk | judgment review, rozhodnutí a explicitní autorizace merge/release |
+
+DDDA Knowledge/Methodology → DDDA Platform (kontrakty a chování) → Runtime Adapter/Host (dnes Cursor) → Project/Customer Context jsou odlišné vrstvy. DDDA Platform není Cursor. Runtime independence vyjadřuje možnost navrhnout budoucí adapter; jiné hosty nejsou tímto návodem prohlášeny za současně podporované.
+
+Work conversation ani lokální Cursor workspace nejsou kanonickou platformní autoritou. Při rozporu určete repository, branch a exact SHA příslušného Git stavu a ověřte řízené artefakty v GitHubu. Cursor mění projektové artefakty podle project runtime contractu; platformní zdroj se mění přes řízené PR.
+
 DDDA má čtyři explicitně oddělené oblasti:
 
 ```text
@@ -41,7 +55,7 @@ Povoleno: CHANGELOG.md, docs/, knowledge/, config/, schemas/, scripts/, runtime/
 Zakázáno: klientská a projektová data, secrets, přímá změna main, implicitní promotion
 ```
 
-Chat vysvětluje, navrhuje a reviewuje. Skripty provádějí potvrzené mechanické kroky. Člověk schvaluje scope, architektonická rozhodnutí, gaty, sémantické konflikty, commit, push, merge a release.
+Praktické příkazy níže jsou CLI kontrakty; platformní build, testy a package validaci autoritativně spouští GitHub Actions. Oprávnění a lidské hranice určuje kanonický operating model.
 
 ## 2. Vývoj DDDA platformy
 
@@ -184,54 +198,9 @@ Lokální platformní výstupy jsou mimo Git pod DDDA state rootem. Na Windows t
 %LOCALAPPDATA%\DDDA\release-reports\
 ```
 
-### 2.6 Promotion
+### 2.6 Integrace implementace a release
 
-Nejdřív spusť pouze preflight:
-
-```powershell
-.\ddda.ps1 promote-pr -Pr 8 -Version 0.8.0 -DryRun
-```
-
-Preflight kontroluje:
-
-- PR je otevřený a není draft;
-- target branch odpovídá policy;
-- head SHA se od validace nezměnil;
-- CI checks jsou PASS;
-- existuje PASS validation report pro stejný PR a SHA;
-- candidate package hash odpovídá reportu;
-- review policy je splněna;
-- changelog, ADR a migration note existují.
-
-Dry-run neprovede merge, release ani tag.
-
-Skutečný promotion vyžaduje samostatné explicitní potvrzení:
-
-```powershell
-.\ddda.ps1 promote-pr -Pr 8 -Version 0.8.0 -ConfirmMerge
-```
-
-S online Miro release acceptance:
-
-```powershell
-.\ddda.ps1 promote-pr -Pr 8 -Version 0.8.0 -ConfirmMerge -WithMiro -Full -CleanupOnFailure
-```
-
-Po merge promotion:
-
-1. načte nový `main` a ověří merge commit;
-2. vytvoří release package;
-3. rozbalí package do izolovaného prostředí;
-4. vytvoří generated release workspace;
-5. provede manifest-driven ingestion;
-6. spustí security, smoke, E2E a acceptance;
-7. volitelně spustí Miro acceptance;
-8. vytvoří release report;
-9. vytvoří a pushne tag až po PASS.
-
-Běžné testy nikdy nemergují ani netagují. `-ConfirmMerge` je explicitní lidská approval boundary.
-
-Detail: `docs/user-guide/validate-and-promote-pr.md`.
+Implementační PR se po exact-SHA validaci, Human Review a samostatné merge autorizaci integruje přes governed merge. Release candidate, Human Release Decision a publication tvoří další samostatný tok; úspěch jednoho kroku neopravňuje další krok. Aktuální příkazy, gate a přesná evidence jsou v [návodu pro validaci a promotion](docs/user-guide/validate-and-promote-pr.md) a [platform development skillu](knowledge/ddda-platform-development-skill.md).
 
 ## 3. Kanonický první clone a smoke testy
 
