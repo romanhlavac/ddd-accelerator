@@ -236,6 +236,11 @@ verdict
 
 `PASS` Human Review je oddělen od **merge authorization**. Změna reviewed SHA nebo candidate package hash Human Review pro merge invaliduje.
 
+
+Default implementation Human Review uses exactly three semantic blocks: **Co se mění** (plain-language outcome), **Co se nesmí změnit** (boundaries to preserve), and **Jaký dluh, riziko nebo výjimku přijímáš** (only when applicable; otherwise say none is requested). Keep the review to at most three concise decision points by default. Ask judgment questions only; add questions for complex or high-risk work only when the decision is genuinely judgment-heavy and understandable to its owner.
+
+CI, exact SHA, package hash, schemas, path checks and other automated controls are presented as validated evidence, not assigned to the human to revalidate. Preserve the exact-SHA/package binding for Human Review PASS and keep it separate from merge authorization.
+
 ### 6.1 Governed implementation merge
 
 Bezpečný preflight:
