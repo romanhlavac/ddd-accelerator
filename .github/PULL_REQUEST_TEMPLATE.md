@@ -91,16 +91,27 @@ Verdict: `Human Review PR #<pr>: PASS|CHANGES_REQUIRED` (compact: `HR PR #<pr>`)
 Human Visual Review, when required: `HVR PR #<pr> / <artifact>: PASS|CHANGES_REQUIRED`.
 Machine marker remains `ddda:human-pr-review:v1`. See [canonical terminology](../docs/governance/review-terminology.md).
 
-Judgment areas required:
+## Decision summary
 
-- [ ] scope and product outcome
-- [ ] methodology
-- [ ] architecture and contracts
-- [ ] security and isolation
-- [ ] compatibility and migration
-- [ ] usability / Miro visual acceptance
-- [ ] release readiness and residual risks
-- [ ] not required beyond normal code review
+### Co se mění
+
+- One plain-language statement of the intended behavior or outcome.
+
+### Co se nesmí změnit
+
+- Safety, governance and business boundaries that must remain intact.
+
+### Jaký dluh, riziko nebo výjimku přijímáš
+
+- State an accepted debt, risk or exception only when applicable; otherwise write: `None requested.`
+
+## Judgment questions
+
+- Include only concise questions that require the decision owner's judgment.
+- Keep the default review to at most three decision points.
+- Complex or high-risk changes may add a question only when it asks for a genuine judgment call the decision owner can understand.
+- Do not ask the human to revalidate technical controls already proven by CI. Present CI, exact SHA, candidate-package hash, schemas, path checks and implementation checks as validated evidence above.
+
 
 Implementation Human Review evidence:
 
