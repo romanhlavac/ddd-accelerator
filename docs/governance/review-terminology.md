@@ -17,3 +17,16 @@ A general implementation handoff says `CR #70 → PR #84 R5 — READY FOR HUMAN 
 An implementation verdict uses `Human Review PR #84: PASS` or `Human Review PR #84: CHANGES_REQUIRED` (compact `HR PR #84`). A visual verdict names both PR and artifact, for example `HVR PR #84 / Frame 01: PASS`. Visual review cannot substitute for the general implementation judgment review.
 
 The authoritative machine marker remains `<!-- ddda:human-pr-review:v1 -->`; its schema and exact-SHA/package binding are unchanged. A Human Release Decision Record (HRDR) is a separate release decision, never a synonym for either review. Historical audit comments and evidence are not rewritten.
+
+
+## Default Human Review presentation
+
+For a normal implementation PR, present exactly these three semantic blocks:
+
+1. **Co se mění** — one plain-language statement of the intended behavior or outcome.
+2. **Co se nesmí změnit** — the safety, governance and business boundaries that must remain intact.
+3. **Jaký dluh, riziko nebo výjimku přijímáš** — only when applicable; otherwise explicitly state that none is requested.
+
+Keep the review to at most three concise decision points by default. Questions must require human judgment and be understandable to the decision owner. Complex or high-risk changes may add only genuinely judgment-heavy questions.
+
+CI, exact SHA, candidate-package hash, schemas, path checks and other automated controls are validated evidence, not tasks for the human to independently verify. Human Review PASS remains bound to the exact SHA and package, and remains separate from merge authorization.
