@@ -438,6 +438,21 @@ Automation verifies syntax, schemas, paths, package contents, generated structur
 
 Humans judge methodology, architecture, domain boundaries, gate semantics, visual usability, risk acceptance and release readiness.
 
+
+### Default Human Review presentation
+
+For a normal implementation PR, present exactly these three semantic blocks to the decision owner:
+
+1. **Co se mění** — one plain-language statement of the intended behavior or outcome.
+2. **Co se nesmí změnit** — the safety, governance and business boundaries that must remain intact.
+3. **Jaký dluh, riziko nebo výjimku přijímáš** — include only when applicable; otherwise state explicitly that none is requested.
+
+Keep the review to at most three concise decision points by default. Ask only questions that require human judgment and that the decision owner can reasonably answer. Complex or high-risk changes may add a question only when it asks for a genuine judgment call and is understandable to that owner.
+
+Show CI, exact SHA, candidate-package hash, schemas, path checks and other automated controls as validated evidence. Do not ask the human to independently revalidate technical controls already proven by authoritative CI. A technical trade-off may become a human question only when choosing among the trade-offs requires judgment.
+
+Human Review PASS remains bound to the exact reviewed SHA and candidate package. It remains separate from merge authorization. The stable `ddda:human-pr-review:v1` marker and evidence fields are unchanged.
+
 For Miro visual review, Work must actually load the relevant reference and target frames. Human review covers images, font size, geometry, hierarchy, overlap, information density, first-viewer usability and fidelity to the approved redline/template.
 
 Automation must never create a production human decision such as `passed` merely because technical tests passed.

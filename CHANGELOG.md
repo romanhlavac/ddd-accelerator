@@ -7,6 +7,7 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 ## [Unreleased]
 
 ### Changed
+- Default Human Review now uses three plain-language decision blocks; review scaffolds foreground judgment questions and report CI-proven controls as validated evidence (#85).
 - Add one canonical GitHub artifact naming guide, prospective vocabulary and conservative digest-bound legacy inventory/backfill plan (#132).
 
 - New release-candidate PRs carry a versioned body record and matching title,
