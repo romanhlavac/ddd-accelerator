@@ -38,11 +38,12 @@
     "mismatch_category": "runtime.platform.mismatch_taxonomy.classify_mismatch",
     "project_release_projection": "runtime.platform.release_governance.evaluate_release_scope",
     "mandatory_checks": "runtime.platform.governance_kernel.evaluate_check_summary",
-    "planning_projection": "scripts/platform/Reconcile-DDDAProjectBacklog.py:derive_planning_projection"
+    "planning_projection": "scripts/platform/Reconcile-DDDAProjectBacklog.py:derive_planning_projection",
+    "standard_payload_scope": "runtime.platform.governance_kernel.evaluate_physical_scope_binding"
   },
   "quality_metrics": {
-    "scenario_count": 47,
-    "declared_decision_domains": 6,
+    "scenario_count": 51,
+    "declared_decision_domains": 7,
     "duplicate_decision_owners_per_domain": 0,
     "obsolete_workflow_text_assertions_replaced": 1
   },
@@ -1165,6 +1166,62 @@
         "status": "PASS",
         "planning_status": "In progress",
         "mismatch_category": "GOVERNANCE_PROJECTION"
+      }
+    },
+    {
+      "id": "cr171-payload-cross-lineage",
+      "owner_issue": 171,
+      "adapter": "standard_payload_scope",
+      "flow": "standard_release",
+      "candidate_kind": "NORMAL",
+      "operation": "release",
+      "input": {
+        "case": "cross-lineage"
+      },
+      "expected": {
+        "status": "PASS"
+      }
+    },
+    {
+      "id": "cr171-payload-out-of-scope-docs",
+      "owner_issue": 171,
+      "adapter": "standard_payload_scope",
+      "flow": "standard_release",
+      "candidate_kind": "NORMAL",
+      "operation": "release",
+      "input": {
+        "case": "out-of-scope-docs"
+      },
+      "expected": {
+        "status": "FAIL"
+      }
+    },
+    {
+      "id": "cr171-payload-forged-chain",
+      "owner_issue": 171,
+      "adapter": "standard_payload_scope",
+      "flow": "standard_release",
+      "candidate_kind": "NORMAL",
+      "operation": "release",
+      "input": {
+        "case": "forged-chain"
+      },
+      "expected": {
+        "status": "FAIL"
+      }
+    },
+    {
+      "id": "cr171-payload-cancelled-no-delivery",
+      "owner_issue": 171,
+      "adapter": "standard_payload_scope",
+      "flow": "standard_release",
+      "candidate_kind": "NORMAL",
+      "operation": "release",
+      "input": {
+        "case": "cancelled-no-delivery"
+      },
+      "expected": {
+        "status": "PASS"
       }
     }
   ]

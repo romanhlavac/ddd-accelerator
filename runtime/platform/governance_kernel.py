@@ -397,9 +397,18 @@ def evaluate_physical_scope_binding(
     expected_source_sha: str,
     expected_version: str,
     declared_scope: list[int] | set[int] | tuple[int, ...],
+    expected_repository: str | None = None,
+    expected_package_sha256: str | None = None,
 ) -> KernelDecision:
     """Evaluate normalized standard physical scope without recovery internals."""
+    if isinstance(physical, dict) and physical.get("schema_version") == 2:
+        return _evaluate_payload_scope(
+            physical, expected_source_sha, expected_version, declared_scope,
+            expected_repository, expected_package_sha256,
+        )
     failures: list[str] = []
+    if expected_version != "0.1.1":
+        failures.append("PHYSICAL_SCOPE_CONTENT_CONTRACT_REQUIRED")
     if not isinstance(physical, dict):
         return KernelDecision(
             status="FAIL",
@@ -475,6 +484,130 @@ def evaluate_physical_scope_binding(
         authorization_required=False,
         side_effects_allowed=False,
     )
+
+
+def _evaluate_payload_scope(physical, source_sha, version, declared, repository, package):
+    """Replay complete first-parent evidence, then attribute only payload delta."""
+    failures = []
+    def fail(code):
+        failures.append("PHYSICAL_SCOPE_" + code)
+    def entry(value, payload=False):
+        return isinstance(value, dict) and SHA40.fullmatch(str(value.get("blob") or "")) and value.get("mode") in {"100644", "100755", "120000"} and (not payload or SHA256.fullmatch(str(value.get("payload_sha256") or "")))
+    def canonical(value):
+        return {"blob": value["blob"], "mode": value["mode"]} if entry(value) else None
+    def valid_path(path):
+        return isinstance(path, str) and bool(path) and not path.startswith("/") and "\\" not in path and all(x not in {"", ".", ".."} for x in path.split("/"))
+    def entries(value, payload=False):
+        return isinstance(value, dict) and all(valid_path(p) and entry(v, payload) for p, v in value.items())
+    scope_valid = isinstance(declared, (list, set, tuple)) and all(type(x) is int and x > 0 for x in declared)
+    scope = set(declared) if scope_valid else set()
+    if not scope:
+        fail("DECLARED_SCOPE_INVALID")
+    if physical.get("contract") != "ddda_standard_payload_scope" or physical.get("version") != version:
+        fail("CONTENT_CONTRACT_INVALID")
+    if repository is None or physical.get("repository") != repository:
+        fail("REPOSITORY_MISMATCH")
+    if physical.get("release_source_sha") != source_sha:
+        fail("SOURCE_SHA_MISMATCH")
+    baseline, candidate, history = (_mapping(physical.get(k)) for k in ("baseline", "candidate", "history"))
+    for name, evidence in (("BASELINE", baseline), ("CANDIDATE", candidate)):
+        if evidence.get("payload_verified") is not True or not entries(evidence.get("entries"), True):
+            fail(name + "_PAYLOAD_INVALID")
+        if not SHA256.fullmatch(str(evidence.get("package_sha256") or "")) or not SHA40.fullmatch(str(evidence.get("source_sha") or "")):
+            fail(name + "_IDENTITY_INVALID")
+    if candidate.get("source_sha") != source_sha or package is None or candidate.get("package_sha256") != package:
+        fail("CANDIDATE_IDENTITY_MISMATCH")
+    match = re.fullmatch(r"v(\d+)\.(\d+)\.(\d+)", str(baseline.get("tag") or ""))
+    requested = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)", version)
+    if not match or not requested or tuple(map(int, match.groups())) >= tuple(map(int, requested.groups())):
+        fail("PREVIOUS_TAG_INVALID")
+    if not SHA40.fullmatch(str(baseline.get("tag_object_sha") or "")) or any(type(baseline.get(k)) is not int or baseline[k] <= 0 for k in ("release_id", "asset_id")):
+        fail("BASELINE_PROVENANCE_INVALID")
+    anchor = history.get("anchor_sha")
+    transitions = history.get("transitions")
+    if not SHA40.fullmatch(str(anchor or "")) or not entries(history.get("anchor_entries")) or not isinstance(transitions, list):
+        fail("HISTORY_INVALID")
+    if failures:
+        return KernelDecision("FAIL", "release_scope_validation", tuple(sorted(set(failures))), False, False)
+    state = dict(history["anchor_entries"])
+    previous = anchor
+    states = {path: [(canonical(value), None)] for path, value in state.items()}
+    seen = {anchor}
+    for transition in transitions:
+        if not isinstance(transition, dict) or not SHA40.fullmatch(str(transition.get("sha") or "")) or transition["sha"] in seen or transition.get("parent") != previous:
+            fail("HISTORY_CHAIN_INVALID")
+            break
+        seen.add(transition["sha"])
+        pr = transition.get("pr")
+        if isinstance(pr, dict) and pr.get("merge_commit_sha") != transition["sha"]:
+            fail("HISTORY_PR_IDENTITY_MISMATCH")
+        changes = transition.get("changes")
+        if not isinstance(changes, list):
+            fail("HISTORY_CHANGES_INVALID")
+            break
+        changed = set()
+        for change in changes:
+            if not isinstance(change, dict):
+                fail("HISTORY_CHANGE_INVALID")
+                continue
+            path, before, after = (change.get(k) for k in ("path", "before", "after"))
+            if not valid_path(path) or path in changed or any(v is not None and not entry(v) for v in (before, after)) or before == after:
+                fail("HISTORY_CHANGE_INVALID")
+                continue
+            changed.add(path)
+            if before != state.get(path):
+                fail("HISTORY_BEFORE_MISMATCH:" + path)
+            states.setdefault(path, [(None, None)]).append((canonical(after), transition.get("pr")))
+            if after is None:
+                state.pop(path, None)
+            else:
+                state[path] = canonical(after)
+        previous = transition["sha"]
+    wanted = {p: canonical(v) for p, v in candidate["entries"].items()}
+    if previous != source_sha or state != wanted:
+        fail("HISTORY_PAYLOAD_COVERAGE_MISMATCH")
+    delivered = set()
+    baseline_entries = baseline["entries"]
+    for path in sorted(set(baseline_entries) | set(candidate["entries"])):
+        old, new = baseline_entries.get(path), candidate["entries"].get(path)
+        if canonical(old) == canonical(new) and (old or {}).get("payload_sha256") == (new or {}).get("payload_sha256"):
+            continue
+        chain = states.get(path, [(None, None)])
+        matching = [i for i, (value, _) in enumerate(chain) if value == canonical(old)]
+        if not matching:
+            fail("CONTENT_BASELINE_ANCHOR_MISSING:" + path)
+            continue
+        contributions = chain[max(matching) + 1:]
+        if not contributions:
+            fail("PAYLOAD_FORMAT_DRIFT:" + path)
+        for _, pr in contributions:
+            if not isinstance(pr, dict) or pr.get("merged") is not True or not SHA40.fullmatch(str(pr.get("merge_commit_sha") or "")):
+                fail("CONTENT_PROVENANCE_MISSING:" + path)
+                continue
+            primary = pr.get("primary_crs")
+            if type(pr.get("number")) is not int or pr["number"] <= 0 or not isinstance(primary, list) or len(primary) != 1 or type(primary[0]) is not int:
+                fail("CONTENT_PRIMARY_CR_AMBIGUOUS:" + path)
+                continue
+            cr = primary[0]
+            if cr not in scope or pr.get("milestone") != f"DDDA {version}":
+                fail(f"CONTENT_OUT_OF_SCOPE:PR#{pr['number']}:#{cr}:{path}")
+            else:
+                delivered.add(cr)
+    cancelled = set()
+    records = physical.get("cancellations")
+    if not isinstance(records, list):
+        fail("CANCELLATION_EVIDENCE_INVALID")
+        records = []
+    for record in records:
+        if not isinstance(record, dict) or type(record.get("issue")) is not int or record["issue"] not in scope or record["issue"] in cancelled or record.get("provenance_verified") is not True or record.get("state") != "closed" or record.get("state_reason") != "not_planned" or type(record.get("comment_id")) is not int or record["comment_id"] <= 0 or not str(record.get("decision_owner") or "").strip():
+            fail("CANCELLATION_EVIDENCE_INVALID")
+            continue
+        cancelled.add(record["issue"])
+    for cr in sorted(delivered & cancelled):
+        fail(f"CANCELLED_CR_SHIPPED:#{cr}")
+    for cr in sorted(scope - delivered - cancelled):
+        fail(f"DECLARED_CR_NOT_ACCOUNTED:#{cr}")
+    return KernelDecision("PASS" if not failures else "FAIL", "release_scope_validation", tuple(sorted(set(failures))), False, False)
 
 
 def evaluate_promotion_readiness(
@@ -600,6 +733,11 @@ def evaluate_candidate_context(context: dict[str, Any]) -> KernelDecision:
                 "PHYSICAL_SCOPE_EVIDENCE_NOT_PASS",
             )
         )
+        if context.get("release_mode") == "STANDARD" and context.get("version") != "0.1.1":
+            reference = _mapping(context.get("physical_scope_reference"))
+            validation = _mapping(context.get("validation_evidence"))
+            if reference.get("contract_version") != 2 or reference.get("source_sha") != context.get("source_sha") or reference.get("package_sha256") != validation.get("package_sha256"):
+                failures.append("PHYSICAL_SCOPE_CONTENT_REFERENCE_INVALID")
         # Project is a governance/delivery projection, not release authority.
         # Its health cannot authorize or block release readiness.
 

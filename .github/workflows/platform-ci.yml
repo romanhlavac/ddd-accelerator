@@ -143,6 +143,47 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  standard-scope-inventory:
+    name: Read-only standard scope inventory
+    needs: validate-platform
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      contains(github.event.pull_request.body, '<!-- ddda:standard-scope-inventory:v2 version=')
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+      SCOPE_REQUEST: ${{ github.event.pull_request.body }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.SOURCE_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/download-artifact@v4
+        with:
+          name: ddda-candidate-${{ env.SOURCE_SHA }}
+          path: ${{ runner.temp }}/scope-candidate
+      - name: Verify exact candidate and collect payload provenance
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $packages = @(Get-ChildItem -LiteralPath (Join-Path $env:RUNNER_TEMP 'scope-candidate') -Filter '*.zip' -File -Recurse)
+          if ($packages.Count -ne 1) { throw 'Expected one canonical candidate package.' }
+          python scripts/platform/Collect-DDDAStandardScope.py --repository $env:GITHUB_REPOSITORY --source-sha $env:SOURCE_SHA --package-path $packages[0].FullName --request-body-env SCOPE_REQUEST --output (Join-Path $env:RUNNER_TEMP 'standard-scope-inventory.json')
+          if ($LASTEXITCODE -ne 0) { throw 'Read-only standard scope acquisition failed.' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: standard-scope-inventory-${{ env.SOURCE_SHA }}
+          path: ${{ runner.temp }}/standard-scope-inventory.json
+          if-no-files-found: warn
+          retention-days: 30
+
   validate-pr-command:
     name: One-command PR validation
     needs: validate-platform

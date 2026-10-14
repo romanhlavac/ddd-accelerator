@@ -304,7 +304,7 @@ def test_hrdr_root_identity_is_a_kernel_invariant(field, value, failure):
     assert failure in result.failure_codes
 
 
-def test_physical_scope_binding_is_a_pure_kernel_decision():
+def test_historical_physical_scope_binding_is_a_pure_kernel_decision():
     physical = {
         "previous_release_tag": "v0.1.1",
         "previous_release_sha": "c" * 40,
@@ -316,15 +316,15 @@ def test_physical_scope_binding_is_a_pure_kernel_decision():
                 "number": 187,
                 "merged": True,
                 "primary_crs": [171],
-                "milestone": "DDDA 0.1.2",
-                "target_release": "0.1.2",
+                "milestone": "DDDA 0.1.1",
+                "target_release": "0.1.1",
             }
         ],
     }
     result = evaluate_physical_scope_binding(
         physical,
         expected_source_sha=SHA,
-        expected_version="0.1.2",
+        expected_version="0.1.1",
         declared_scope=[171],
     )
     assert result.status == "PASS"
@@ -456,7 +456,7 @@ def test_release_requires_exact_positive_hrdr_and_referenced_evidence():
         "decided_at": "2026-09-28T08:30:00Z",
         "provenance_verified": True,
     }
-    candidate["physical_scope_reference"] = {"status": "PASS", "evidence_id": "scope-1"}
+    candidate["physical_scope_reference"] = {"status": "PASS", "evidence_id": "scope-1", "contract_version": 2, "source_sha": SHA, "package_sha256": PACKAGE}
     candidate["project_evidence_reference"] = {"status": "FAIL", "evidence_id": "projection-drift"}
     result = evaluate_candidate_context(candidate)
     assert result.status == "PASS"
@@ -477,7 +477,7 @@ def test_release_ignores_project_projection_health_but_rejects_stale_hrdr():
         "decided_at": "2026-09-28T08:30:00Z",
         "provenance_verified": True,
     }
-    candidate["physical_scope_reference"] = {"status": "PASS", "evidence_id": "scope-1"}
+    candidate["physical_scope_reference"] = {"status": "PASS", "evidence_id": "scope-1", "contract_version": 2, "source_sha": SHA, "package_sha256": PACKAGE}
     result = evaluate_candidate_context(candidate)
     assert result.status == "FAIL"
     assert "HRDR_SOURCE_SHA_MISMATCH" in result.failure_codes
@@ -499,7 +499,7 @@ def test_release_readiness_does_not_require_project_evidence():
         "decided_at": "2026-09-28T08:30:00Z",
         "provenance_verified": True,
     }
-    candidate["physical_scope_reference"] = {"status": "PASS", "evidence_id": "scope-1"}
+    candidate["physical_scope_reference"] = {"status": "PASS", "evidence_id": "scope-1", "contract_version": 2, "source_sha": SHA, "package_sha256": PACKAGE}
     candidate["project_evidence_reference"] = None
     result = evaluate_candidate_context(candidate)
     assert result.status == "PASS"

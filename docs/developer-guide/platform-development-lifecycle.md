@@ -369,3 +369,7 @@ Release je připraven pouze když navíc existuje validní release candidate, HR
 
 
 Release-candidate PR metadata for new candidates follows [identity v1](../governance/release-candidate-identity.md). The S1 Governance Kernel validates its title, labels, branch and body marker before HRDR or promotion; implementation PRs remain separate.
+
+## STANDARD baseline and scope v2
+
+From 0.1.2, [ADR 0019](../adr/0019-standard-release-payload-baseline.md) requires read-only verification of the previous canonical release ZIP and the exact candidate ZIP, with complete payload/source contribution replay in the existing Governance Kernel. Diverged Git lineage alone does not select recovery or expand scope. Explicit cancellation stays in the Milestone and is separate from delivered content. Follow the [migration contract](../migration/standard-payload-scope-v2.md); no approval or release action follows from diagnostic acquisition PASS.

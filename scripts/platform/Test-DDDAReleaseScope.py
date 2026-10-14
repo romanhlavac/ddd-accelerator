@@ -563,6 +563,8 @@ def collect_snapshot(
     api_token: str,
     project_token: str,
     emergency_recovery: bool = False,
+    candidate_package_path: str | None = None,
+    candidate_package_sha256: str | None = None,
 ) -> dict[str, Any]:
     pr_info = rest_get(f"repos/{repository}/pulls/{pr}", api_token)
     current_head = ((pr_info or {}).get("head") or {}).get("sha")
@@ -630,6 +632,20 @@ def collect_snapshot(
             fetch_comments=rest_pages,
             fetch_commit_path_hashes=commit_path_hashes,
         )
+    elif version != "0.1.1":
+        if not candidate_package_path or not candidate_package_sha256:
+            raise GitHubReadError("Standard content scope requires the exact candidate package bytes")
+        if str(SCRIPT_PATH.parent) not in sys.path:
+            sys.path.insert(0, str(SCRIPT_PATH.parent))
+        from standard_scope_collection import collect_content_scope
+        inventory = physical_scope
+        physical_scope = collect_content_scope(
+            REPO_ROOT, repository, version, current_head, candidate_package_path,
+            candidate_package_sha256,
+            {"tag": inventory["previous_release_tag"], "sha": inventory["previous_release_sha"]},
+            api_token, rest_get, rest_pages, inventory["shipping_prs"], scope_rows,
+        )
+        physical_scope["git_inventory"] = inventory
 
     return {
         "current_pr_head": current_head,
@@ -654,6 +670,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--pr", required=True, type=int)
     parser.add_argument("--source-sha", required=True)
     parser.add_argument("--candidate-sha256", required=True)
+    parser.add_argument("--package-path")
     parser.add_argument("--version", required=True)
     parser.add_argument("--hrdr", required=True)
     parser.add_argument("--emergency-recovery", action="store_true")
@@ -679,6 +696,8 @@ def main() -> int:
             api_token=api_token,
             project_token=project_token,
             emergency_recovery=args.emergency_recovery,
+            candidate_package_path=args.package_path,
+            candidate_package_sha256=args.candidate_sha256,
         )
         evaluator = evaluate_release_scope
         if args.emergency_recovery:
