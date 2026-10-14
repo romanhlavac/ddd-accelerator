@@ -7,6 +7,7 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 ## [Unreleased]
 
 ### Changed
+- CR #16 governance guides now separate implementation merge from release promotion, require every open implementation PR in the delivery projection, and derive lifecycle status from canonical Issue/PR evidence.
 - Default Human Review now uses three plain-language decision blocks; review scaffolds foreground judgment questions and report CI-proven controls as validated evidence (#85).
 - Add one canonical GitHub artifact naming guide, prospective vocabulary and conservative digest-bound legacy inventory/backfill plan (#132).
 
@@ -116,6 +117,7 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 - release-train governance now permits the single marker-designated train to be explicitly closed after publication without implicitly activating any planned future milestone; a later train requires a separate versioned/human planning decision.
 
 ### Fixed
+- Future-release metadata eligibility now reuses the existing two-parent/current-main proof to evaluate only the branch diff after a verified integration merge; stale or ambiguous ancestry stays blocked (#16, supersedes PR #106).
 
 - privileged backlog reconciliation now materializes missing canonical GitHub Project single-select options from the versioned contract before item projection and verifies them on fresh read-back, preventing a newly versioned Work Package such as `WP-14` from failing at the first item update.
 

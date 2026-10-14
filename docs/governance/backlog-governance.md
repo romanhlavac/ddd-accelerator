@@ -19,13 +19,15 @@ Idea / GAP
 → feature/fix/docs branch
 → Draft PR
 → implementace + testy + docs
-→ CI + validate-pr
-→ human review + HRDR
-→ promote-pr
-→ merge
-→ release package + validation report
-→ tag / release evidence
+→ exact-SHA CI + validate-pr
+→ Human Review pro stejné SHA/package
+→ merge-pr dry-run
+→ explicitní merge authorization
+→ governed implementation merge
+→ Project reconciliation + repository-wide read-back
 ```
+
+Implementation merge nevytváří release, tag ani HRDR. Až po integraci zahrnuté práce a terminal release scope pokračuje samostatná standardní release cesta: release candidate → exact-SHA validation → HRDR / explicitní Human Release Decision → Release Scope Gate → promotion dry-run → samostatná release/promotion authorization → canonical promotion → release validation/report → tag a GitHub Release podle aktuálního [platform lifecycle](../developer-guide/platform-development-lifecycle.md). Recovery je emergency-only samostatná cesta; není běžnou promotion alternativou.
 
 Plánovaný PR není backlogový artefakt. Draft PR se zakládá až po zahájení implementace a existenci branch s konkrétní změnou.
 
@@ -141,7 +143,7 @@ Closes #<issue>
 
 PR body musí popsat skutečný diff, ne kopírovat dlouhodobou roadmapu. Scope review porovnává parent WP, child issue, changed files, changelog a validation report. Work Package PR se odvozuje od primárního Change Requestu; PR nesmí deklarovat jiné WP.
 
-PR není automaticky samostatný Project item. Pokud jej planning policy jako Project item vede, jeho Project `Work Package` a `Item Type` musí být konzistentní s primárním CR.
+Každý otevřený governed implementation PR musí být samostatný Project delivery item. Jeho `Work Package` se odvozuje z primary CR, planning `Item Type` zůstává unset a `Status`/`Blocked` vycházejí z live PR lifecycle a unresolved blockers primary CR. Nejde o druhý backlogový požadavek.
 
 Legacy PR bez primárního CR je povolen pouze jako explicitní verzovaná výjimka s číslem PR, očekávaným WP, důvodem a expiry condition. Novou výjimku nelze vytvořit jen proto, aby failing audit prošel.
 
@@ -184,7 +186,7 @@ Priorita není severity. Defekt může mít severity RED, ale jeho delivery prio
 
 Project má tři povinné, strojově spravované projekce:
 
-1. **Plánování a Backlog** — Table, filter `is:issue`; plánovací autorita pro WP/CR metadata.
+1. **Plánování a Backlog** — Table, filter `is:issue`; operativní projekce kanonických WP/CR metadata.
 2. **Implementace a Delivery** — Table, filter `is:pr is:open`; operativní projekce všech otevřených implementačních PR.
 3. **Release & Delivery History** — Table, filter `is:pr is:merged`; release metadata se odvozují výhradně z [history contractu](../../config/governance/release-history.json) a fresh evidence read-backu.
 
@@ -284,8 +286,8 @@ Done → reopened pouze novým explicitním rozhodnutím
 - CI a požadovaný validation report jsou PASS;
 - post-change WP/backlog/implementation consistency read-back má zero mismatches;
 - docs, ADR, changelog a migration note jsou aktualizovány podle dopadu;
-- Human Review/HRDR je dokončen, pokud je požadován;
-- release-specific item je zahrnut v validovaném release state;
+- Human Review implementačního PR je dokončen pro stejné SHA/package, pokud je požadován;
+- HRDR a release validation patří až na samostatnou release boundary; implementation CR může být Done před release, pokud splnil své vlastní acceptance criteria;
 - parent WP a roadmap jsou aktualizovány.
 
 ## 7. Governance změn scope
