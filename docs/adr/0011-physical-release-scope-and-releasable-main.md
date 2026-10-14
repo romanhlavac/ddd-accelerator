@@ -4,6 +4,12 @@ Status: Accepted
 
 Date: 2026-08-25
 
+Prospective STANDARD semantics for 0.1.2 onward are superseded by
+[ADR 0019](0019-standard-release-payload-baseline.md), under the explicit
+2026-10-14 decision and CR #171 implementation ownership. The original contract
+below remains historical 0.1.1 authority and emergency compatibility evidence;
+no historical decision, scope, source, tag or asset is reinterpreted.
+
 ## Context
 
 Milestone a Project mohou správně deklarovat release scope, zatímco canonical

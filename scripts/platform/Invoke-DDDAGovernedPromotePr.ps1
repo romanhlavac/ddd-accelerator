@@ -87,6 +87,7 @@ try {
         "--pr", [string]$Pr,
         "--source-sha", $headSha,
         "--candidate-sha256", [string]$validation.PackageSha256,
+        "--package-path", [string]$validation.PackagePath,
         "--version", $Version,
         "--hrdr", $hrdrPath,
         "--output", $gatePath

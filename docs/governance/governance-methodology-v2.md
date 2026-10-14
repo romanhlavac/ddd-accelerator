@@ -58,3 +58,7 @@ If an implementation-shape assertion has no behavior-level meaning, remove it on
 
 Add or change a scenario in the same PR that changes its owning behavior. Keep the matrix descriptive: evidence collection remains in adapters, decisions remain in their canonical owner, and side effects remain behind the relevant authorization gate.
 
+
+## Standard payload-scope decision (CR #171)
+
+[ADR 0019](../adr/0019-standard-release-payload-baseline.md) defines the approved prospective STANDARD contract. The existing Kernel owns content/provenance and cancellation decisions; read-only collectors acquire complete manifests and source transitions. Physical scope v2 and its exact SHA/package-bound context reference are required from 0.1.2. [Migration](../migration/standard-payload-scope-v2.md) describes compatibility and diagnostics. Acquisition PASS is not Release Scope Gate PASS. Unknown content and real extra scope remain safety blockers.

@@ -84,6 +84,8 @@ def evaluate_physical_release_scope(
     expected_source_sha: str,
     expected_version: str,
     declared_scope: Iterable[int],
+    expected_repository: str | None = None,
+    expected_package_sha256: str | None = None,
 ) -> list[str]:
     """Return fail-closed defects between declared and physical shipping scope.
 
@@ -98,6 +100,8 @@ def evaluate_physical_release_scope(
         expected_source_sha=expected_source_sha,
         expected_version=expected_version,
         declared_scope=scope,
+        expected_repository=expected_repository,
+        expected_package_sha256=expected_package_sha256,
     )
     failures = list(decision.failure_codes)
     return sorted(set(failures))
@@ -380,6 +384,8 @@ def evaluate_release_scope(
             expected_source_sha=expected_source_sha,
             expected_version=expected_version,
             declared_scope=scope_issues,
+            expected_repository=expected_repository,
+            expected_package_sha256=expected_package_sha256,
         )
     )
 
