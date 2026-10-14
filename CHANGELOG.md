@@ -7,6 +7,7 @@ Formát vychází z principu Keep a Changelog. Verze používají Semantic Versi
 ## [Unreleased]
 
 ### Changed
+- CR #16 acceptance completion restores WP-11 roadmap detail from its native Work Package and records existing WP-09–WP-11 risk/mitigation boundaries without changing future scope or planning decisions.
 - CR #16 governance guides now separate implementation merge from release promotion, require every open implementation PR in the delivery projection, and derive lifecycle status from canonical Issue/PR evidence.
 - Default Human Review now uses three plain-language decision blocks; review scaffolds foreground judgment questions and report CI-proven controls as validated evidence (#85).
 - Add one canonical GitHub artifact naming guide, prospective vocabulary and conservative digest-bound legacy inventory/backfill plan (#132).

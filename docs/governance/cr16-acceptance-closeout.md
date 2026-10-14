@@ -21,7 +21,7 @@ Issue #16 remains open until the reviewed correction is governed-merged and the 
 | PR template with scope, tests, primary CR and Human Review | `.github/PULL_REQUEST_TEMPLATE.md` | Present; exact-SHA/package review and merge authorization remain separate |
 | Roadmap uses WP identities instead of planned PR numbers | `docs/roadmap/README.md`, `docs/roadmap/backlog-index.md` | Implemented; historical PR #8 references are actual delivery traceability |
 | WP-08 and PR #8 / Issues #9–#15 traceability | `docs/roadmap/work-packages/WP-08-platform-lifecycle-and-steering.md`; native/contract hierarchy | Implemented; this correction does not modify PR #8 |
-| WP-09–WP-11 outcomes, boundaries, slices and risks | `docs/roadmap/work-packages/`; canonical current WP-11 specialization | Implemented; later WP split and capability ownership remain unchanged |
+| WP-09–WP-11 outcomes, boundaries, slices and risks | `docs/roadmap/work-packages/`; native Work Package scopes, including Issue #20 | Covered after this correction is merged: restore the WP-11 detail and make existing risk/mitigation obligations explicit in all three roadmaps; later WP split and capability ownership remain unchanged |
 | Parent and child Issues exist | Work Package Issues #17–#20 and versioned native hierarchy | Implemented; canonical repository-wide audit covers current WP/CR membership |
 | PR #8 relationships without source rewrite | Merged PR #63; PR #8 current head `8dceddb30219534add1d0b9fc804189103b15b68`, merge `64e629dc6dc06c059b0e7569b8401fb726ea9161` | Preserved; neither ref nor history is mutated here |
 | Reviewable governance PR lifecycle | PR #43 historical foundation; governed merged PR #63 and subsequent #16 slices | Implemented; PR #43 was closed unmerged as superseded, not silently discarded |
@@ -36,10 +36,14 @@ The canonical scope stays exactly #16, #65, #69, #73, #85, #94, #113, #125, #131
 It records S1–S4 ownership, #174's two phases, the acyclic direct dependencies and the non-authorizing 2026-09-30 planning target.
 Policy, bootstrap, roadmap and governance tests remain the same scope authority; this correction does not alter their membership, priority, relationships or future release planning.
 
-The closure audit found two remaining gaps:
+The closure audit found three remaining gaps:
 
 1. PR #106 adds future-metadata integration-merge normalization. The shared helper already exists after PR #107, but `future_release_metadata_evidence` had not called it. This correction connects the existing helper and retains PR #106's positive/current-main and negative/stale-main regression cases. Exactly two ordered parents and current-main equality remain mandatory; no recovery selection or scope relaxation is added.
 2. The older governance guides still combine implementation merge with release promotion, make delivery membership optional, or let Project status act as lifecycle authority. This correction routes those statements to the already merged lifecycle and S3 contracts.
+
+3. The canonical WP-11 roadmap had collapsed to ownership/dependency shorthand, and WP-09–WP-11 lacked explicit risk/mitigation sections required by the original #16 acceptance. Restore WP-11 outcome, scope, slices and exit criteria from native Issue #20; expose only risks/mitigations already implied by the existing WP-09–WP-11 scope and acceptance. No native Issue, milestone, priority or future capability scope changes.
+
+These related acceptance signals share documentation drift as a root cause. Review the complete foundation acceptance map instead of adding separate narrow authorities: use the existing collector, S3/lifecycle contracts and native WP scopes. No alternative architecture, duplicate classifier or new governance decision owner is needed.
 
 No additional capability is introduced. The existing Governance Kernel and Candidate Context remain the decision owners.
 
