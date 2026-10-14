@@ -523,6 +523,8 @@ def _evaluate_payload_scope(physical, source_sha, version, declared, repository,
         fail("PREVIOUS_TAG_INVALID")
     if not SHA40.fullmatch(str(baseline.get("tag_object_sha") or "")) or any(type(baseline.get(k)) is not int or baseline[k] <= 0 for k in ("release_id", "asset_id")):
         fail("BASELINE_PROVENANCE_INVALID")
+    if type(baseline.get("report_asset_id")) is not int or baseline["report_asset_id"] <= 0 or not SHA256.fullmatch(str(baseline.get("report_sha256") or "")):
+        fail("BASELINE_VALIDATION_REFERENCE_INVALID")
     anchor = history.get("anchor_sha")
     transitions = history.get("transitions")
     if not SHA40.fullmatch(str(anchor or "")) or not entries(history.get("anchor_entries")) or not isinstance(transitions, list):
@@ -570,7 +572,7 @@ def _evaluate_payload_scope(physical, source_sha, version, declared, repository,
     baseline_entries = baseline["entries"]
     for path in sorted(set(baseline_entries) | set(candidate["entries"])):
         old, new = baseline_entries.get(path), candidate["entries"].get(path)
-        if canonical(old) == canonical(new) and (old or {}).get("payload_sha256") == (new or {}).get("payload_sha256"):
+        if canonical(old) == canonical(new) and (old or {}).get("payload_sha256") == (new or {}).get("payload_sha256") and (old or {}).get("archive_mode") == (new or {}).get("archive_mode"):
             continue
         chain = states.get(path, [(None, None)])
         matching = [i for i, (value, _) in enumerate(chain) if value == canonical(old)]

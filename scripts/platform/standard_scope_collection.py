@@ -63,6 +63,13 @@ def package_entries(data, tree, source_sha, kind, version=None):
             expected = tree.get(item.filename)
             if expected is None:
                 raise ScopeCollectionError("ZIP entry outside immutable source tree")
+            archive_mode = item.external_attr >> 16
+            if expected["mode"] == "120000" and archive_mode & 0o170000 != 0o120000:
+                raise ScopeCollectionError("Package does not preserve source symlink")
+            if expected["mode"] == "100755" and (archive_mode & 0o170000 != 0o100000 or not archive_mode & 0o111):
+                raise ScopeCollectionError("Package does not preserve executable source mode")
+            if expected["mode"] == "100644" and archive_mode & (0o111 | 0o070000):
+                raise ScopeCollectionError("Package mode differs from regular non-executable source")
             def blob_hash(value):
                 return hashlib.sha1(b"blob " + str(len(value)).encode() + b"\0" + value).hexdigest()
             binding = "EXACT"
@@ -73,7 +80,7 @@ def package_entries(data, tree, source_sha, kind, version=None):
                 if b"\0" in raw or blob_hash(raw.replace(b"\r\n", b"\n")) != expected["blob"]:
                     raise ScopeCollectionError("Package bytes do not bind to Git blob")
                 binding = "CRLF_EXPORT"
-            entries[item.filename] = {**expected, "payload_sha256": hashlib.sha256(raw).hexdigest(), "binding": binding}
+            entries[item.filename] = {**expected, "payload_sha256": hashlib.sha256(raw).hexdigest(), "binding": binding, "archive_mode": archive_mode}
         if "ddda-package.json" not in names or set(entries) != set(tree):
             raise ScopeCollectionError("Package/tree coverage mismatch")
     return entries
@@ -128,10 +135,23 @@ def baseline_snapshot(root, repository, previous, token, rest_get):
     actual = hashlib.sha256(data).hexdigest()
     if digest != f"sha256:{actual}" or len(data) != asset.get("size"):
         raise ScopeCollectionError("Canonical baseline asset integrity mismatch")
+    reports = [x for x in release.get("assets", []) if x.get("name") == f"ddda-{version}-release-report.json"]
+    if len(reports) != 1:
+        raise ScopeCollectionError("Canonical baseline validation report missing or ambiguous")
+    report_asset = reports[0]
+    report_data = download_asset(repository, report_asset["id"], token)
+    report_digest = hashlib.sha256(report_data).hexdigest()
+    if report_asset.get("digest") != f"sha256:{report_digest}" or len(report_data) != report_asset.get("size"):
+        raise ScopeCollectionError("Baseline validation report integrity mismatch")
+    report = json.loads(report_data.decode("utf-8-sig"))
+    origin = report.get("source") or {}
+    if report.get("status") != "PASS" or origin.get("repository") != repository or origin.get("kind") != "release" or origin.get("commit") != previous["sha"] or (report.get("package") or {}).get("sha256") != actual:
+        raise ScopeCollectionError("Baseline package is not bound to published PASS release evidence")
     tree = tree_entries(root, previous["sha"])
     entries = package_entries(data, tree, previous["sha"], "release", version)
     return {"tag": previous["tag"], "source_sha": previous["sha"], "tag_object_sha": obj["sha"],
             "release_id": release["id"], "asset_id": asset["id"], "package_sha256": actual,
+            "report_asset_id": report_asset["id"], "report_sha256": report_digest,
             "entries": entries, "payload_verified": True}
 
 

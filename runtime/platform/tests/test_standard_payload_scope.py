@@ -24,6 +24,7 @@ def evidence():
         "schema_version": 2, "contract": "ddda_standard_payload_scope", "repository": "owner/repo",
         "version": "0.1.2", "release_source_sha": SHA,
         "baseline": {"tag": "v0.1.1", "source_sha": "f" * 40, "tag_object_sha": "e" * 40,
+                     "report_asset_id": 3, "report_sha256": "d" * 64,
                      "release_id": 1, "asset_id": 2, "package_sha256": "c" * 64, "payload_verified": True,
                      "entries": {"docs/file.md": {**old, "payload_sha256": "1" * 64}}},
         "candidate": {"source_sha": SHA, "package_sha256": PACKAGE, "payload_verified": True,
@@ -177,18 +178,27 @@ def test_baseline_requires_original_asset_digest_and_complete_tag_identity(monke
     data = zip_bytes()
     tree = {"file": {"blob": hashlib.sha1(b"blob 2\0a\n").hexdigest(), "mode": "100644"}}
     asset = {"id": 1, "name": "ddda-0.1.1.zip", "size": len(data), "digest": "sha256:" + hashlib.sha256(data).hexdigest()}
+    report_data = json.dumps({"status": "PASS", "source": {"repository": "owner/repo", "kind": "release", "commit": SHA}, "package": {"sha256": hashlib.sha256(data).hexdigest()}}).encode()
+    report_asset = {"id": 3, "name": "ddda-0.1.1-release-report.json", "size": len(report_data), "digest": "sha256:" + hashlib.sha256(report_data).hexdigest()}
     def read(path, token):
         if "/releases/tags/" in path:
-            return {"id": 2, "tag_name": "v0.1.1", "draft": False, "prerelease": False, "assets": [asset]}
+            return {"id": 2, "tag_name": "v0.1.1", "draft": False, "prerelease": False, "assets": [asset, report_asset]}
         if "/git/ref/" in path:
             return {"object": {"type": "tag", "sha": "c" * 40}}
         return {"object": {"type": "commit", "sha": SHA}}
-    monkeypatch.setattr(ns, "download_asset", lambda *_: data)
+    monkeypatch.setattr(ns, "download_asset", lambda _repo, asset_id, _token: data if asset_id == 1 else report_data)
     monkeypatch.setattr(ns, "tree_entries", lambda *_: tree)
     assert baseline_snapshot(ROOT, "owner/repo", {"tag": "v0.1.1", "sha": SHA}, "test", read)["payload_verified"] is True
     asset["digest"] = "sha256:" + "0" * 64
     with pytest.raises(ScopeCollectionError):
         baseline_snapshot(ROOT, "owner/repo", {"tag": "v0.1.1", "sha": SHA}, "test", read)
+
+
+def test_archive_cannot_lose_executable_or_symlink_mode():
+    blob = hashlib.sha1(b"blob 2\0a\n").hexdigest()
+    for mode in ("100755", "120000"):
+        with pytest.raises(ScopeCollectionError):
+            package_entries(zip_bytes(), {"file": {"blob": blob, "mode": mode}}, SHA, "release", "0.1.1")
 
 
 def test_cancellation_collector_requires_explicit_human_owner_and_unique_record():

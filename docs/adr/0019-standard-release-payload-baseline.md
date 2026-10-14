@@ -21,8 +21,8 @@ reference; schema v1 and historical 0.1.1 scope remain readable.
 
 The previous canonical SemVer tag still selects the baseline. Its published
 canonical ZIP must be fetched read-only, SHA-256/size verified against the
-GitHub asset, and bound to the annotated tag, peeled source and complete Git
-tree. Missing, conflicting, truncated or unsupported evidence fails closed.
+GitHub asset and the digest-verified published PASS release report, and bound
+to the annotated tag, peeled source and complete Git tree. Missing, conflicting, truncated or unsupported evidence fails closed.
 The exact candidate ZIP is reused, never rebuilt by the collector.
 
 The collector provides the complete first-parent source chain from a unique
