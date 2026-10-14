@@ -125,3 +125,16 @@ Issue text distinguishes:
 - reference program runs from package and produces auditable evidence;
 - one strategic decision is explicitly human-reviewed;
 - roadmap, Project hierarchy and dependency graph are current.
+
+## Risks and existing mitigations
+
+| Boundary at risk | Impact | Mitigation already required by this scope |
+|---|---|---|
+| P0–P10 and G1–G8 decisions are merged implicitly | Invalid program approval from project state | Separate schemas/states and explicit human decisions in #21; program/project boundary tests |
+| Portfolio scores become investment approval | Unowned strategic judgment | Human investment records in #24, visible veto criteria and sensitivity |
+| Wardley hypotheses or application overlays become domain ownership | Misleading strategic traceability | Explicit uncertainty in #23 and typed BC/ownership links in #25 |
+| Roadmap, benefits and graph ownership overlap | Duplicate authority and lifecycle drift | #25 owns graph semantics; #50 owns increments/benefits; observed benefits stay distinct from hypotheses |
+| Miro projection becomes strategic source of truth | Loss of auditable decision evidence | #26 projects versioned records; #51 validates the composed reference from a physical package |
+| Priority, dependencies, capacity, dates and release are conflated | Implicit planning commitments | Keep the dimensions separate in #50 and the existing human-governed Project/Milestone contract |
+
+This table makes existing scope/acceptance risks visible; it accepts no risk and changes no scope, dependency, priority or target release.

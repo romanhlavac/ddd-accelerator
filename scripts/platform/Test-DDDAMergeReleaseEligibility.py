@@ -313,6 +313,13 @@ def future_release_metadata_evidence(
     try:
         rows = pr_files(repository, int(pr["number"]), token)
         paths = {str(row.get("filename") or "") for row in rows}
+        integration_merge = False
+        if paths != FUTURE_RELEASE_METADATA_PATHS:
+            normalized = integration_merge_files(repository, pr, token)
+            if normalized is not None:
+                head_sha, rows = normalized
+                paths = {str(row.get("filename") or "") for row in rows}
+                integration_merge = True
         if paths != FUTURE_RELEASE_METADATA_PATHS:
             failures.append("MERGE_ELIGIBILITY_FUTURE_RELEASE_PATHS_INVALID")
         if any(str(row.get("status") or "") != "modified" for row in rows):
@@ -342,6 +349,7 @@ def future_release_metadata_evidence(
         "status": "PASS" if not failures else "FAIL",
         "exception": "FUTURE_RELEASE_METADATA_ONLY",
         "changed_paths": sorted(paths),
+        "integration_merge_normalized": integration_merge if "integration_merge" in locals() else False,
         "active_scope_unchanged": not failures,
         "failures": sorted(set(failures)),
     }

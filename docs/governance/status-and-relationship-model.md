@@ -22,7 +22,7 @@ Milestone
   groups approved release scope.
 
 GitHub Project
-  controls order, priority, status and operational views.
+  records explicit operational priority/order and projects authoritative Issue/PR lifecycle and dependency state.
 ```
 
 ## Relationship notation
@@ -44,7 +44,7 @@ If native GitHub sub-issues are available, use them in addition to the textual l
 ## Status ownership
 
 - Issue body: requested outcome, scope and acceptance.
-- GitHub Project Status: current operational state.
+- GitHub Project Status: deterministic projection of canonical Issue/PR state and unresolved blockers; never an independent lifecycle authority.
 - Issue comments: state transitions, blocker details and decisions.
 - PR state: implementation/review state, not roadmap priority.
 - Roadmap document: aggregated Work Package state.

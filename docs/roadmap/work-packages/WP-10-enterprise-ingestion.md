@@ -126,3 +126,17 @@ Markdown is a readable evidence projection. YAML registration is the machine-rea
 - synthetic package-first E2E passes without client data;
 - one registered evidence set is handed downstream without automatic approval;
 - native hierarchy/dependencies and roadmap are current.
+
+## Risks and existing mitigations
+
+| Boundary at risk | Impact | Mitigation already required by this scope |
+|---|---|---|
+| New adapters create parallel manifest/source identities | Broken baseline compatibility and provenance | Reuse #27 canonical manifest/source catalog and the PR8 baseline; explicit tested migration for incompatible change |
+| Parsing escapes workspace or leaks sensitive content | Security/privacy failure | Shared #31 policy, root isolation, classification/redaction and deny-by-default active content/resources |
+| Extraction or OCR hides unsupported content | Incomplete evidence treated as complete | Explicit supported-subset/coverage reports, opt-in OCR and distinguishable native/OCR provenance |
+| Markdown drifts from machine registration | Untraceable downstream interpretation | YAML registration with Markdown SHA-256 binding and unmanaged-drift detection in #27 |
+| Add/change/delete or resumed failure duplicates evidence | Data-integrity and idempotence failure | #32 reconciliation, tombstones, resume and corresponding lifecycle tests |
+| Extracted evidence is treated as an approved model | Invalid architecture/gate decisions | Keep evidence inception separate from WP-11 interpretation and explicit human decisions |
+| Synthetic acceptance is replaced by client data | Non-portable or sensitive platform fixtures | #33 synthetic corpus and package-first E2E; no client data, secrets or local paths |
+
+This table makes existing scope/acceptance risks visible; it accepts no risk and changes no scope, dependency, priority or target release.
